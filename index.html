@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Sổ Nợ – Cửa Hàng Cám</title>
+<style>
+  :root {
+    --bg: #f0f4f8;
+    --card: #ffffff;
+    --primary: #1a6b3c;
+    --primary-light: #e8f5ee;
+    --danger: #c0392b;
+    --danger-light: #fdecea;
+    --text: #1a1a2e;
+    --muted: #6b7280;
+    --border: #d1d5db;
+    --shadow: 0 2px 8px rgba(0,0,0,0.08);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+  /* AUTH */
+  #auth-screen {
+    min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(135deg, #1a6b3c 0%, #2d9e5f 100%);
+  }
+  .auth-box {
+    background: white; border-radius: 16px; padding: 36px 28px; width: 100%; max-width: 380px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+  }
+  .auth-box h1 { font-size: 1.6em; color: var(--primary); margin-bottom: 4px; }
+  .auth-box p { color: var(--muted); font-size: 0.9em; margin-bottom: 24px; }
+  .auth-box input {
+    width: 100%; padding: 12px 14px; border: 1.5px solid var(--border); border-radius: 8px;
+    font-size: 1em; margin-bottom: 12px; outline: none; transition: border 0.2s;
+  }
+  .auth-box input:focus { border-color: var(--primary); }
+  .btn-primary {
+    width: 100%; padding: 13px; background: var(--primary); color: white;
+    border: none; border-radius: 8px; font-size: 1em; font-weight: 600;
+    cursor: pointer; transition: background 0.2s;
+  }
+  .btn-primary:hover { background: #155a32; }
+  #auth-error { color: var(--danger); font-size: 0.85em; margin-top: 8px; min-height: 20px; }
+
+  /* MAIN APP */
+  #app { display: none; }
+  header {
+    background: var(--primary); color: white; padding: 14px 16px;
+    display: flex; align-items: center; justify-content: space-between;
+    position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  }
+  header h1 { font-size: 1.15em; font-weight: 700; }
+  .header-right { display: flex; gap: 10px; align-items: center; }
+  .btn-icon {
+    background: rgba(255,255,255,0.18); border: none; color: white;
+    padding: 7px 13px; border-radius: 7px; cursor: pointer; font-size: 0.85em;
+    transition: background 0.2s;
+  }
+  .btn-icon:hover { background: rgba(255,255,255,0.28); }
+
+  .main { padding: 16px; max-width: 700px; margin: 0 auto; }
+
+  /* SEARCH & ADD */
+  .top-bar { display: flex; gap: 10px; margin-bottom: 16px; }
+  .search-input {
+    flex: 1; padding: 11px 14px; border: 1.5px solid var(--border); border-radius: 8px;
+    font-size: 0.95em; outline: none; background: white;
+  }
+  .search-input:focus { border-color: var(--primary); }
+  .btn-add {
+    padding: 11px 18px; background: var(--primary); color: white;
+    border: none; border-radius: 8px; font-size: 0.95em; font-weight: 600;
+    cursor: pointer; white-space: nowrap;
+  }
+
+  /* SUMMARY */
+  .summary-bar {
+    background: var(--primary-light); border: 1.5px solid #b7dfc9;
+    border-radius: 10px; padding: 12px 16px; margin-bottom: 16px;
+    display: flex; gap: 20px; flex-wrap: wrap;
+  }
+  .summary-item { font-size: 0.88em; color: var(--primary); }
+  .summary-item b { font-size: 1.05em; }
+
+  /* CUSTOMER LIST */
+  .customer-card {
+    background: var(--card); border-radius: 12px; padding: 14px 16px;
+    margin-bottom: 10px; box-shadow: var(--shadow); cursor: pointer;
+    border-left: 4px solid var(--primary); transition: transform 0.15s;
+  }
+  .customer-card:hover { transform: translateY(-1px); }
+  .customer-card.has-debt { border-left-color: var(--danger); }
+  .cust-row { display: flex; justify-content: space-between; align-items: flex-start; }
+  .cust-name { font-weight: 700; font-size: 1em; }
+  .cust-debt { font-weight: 700; font-size: 1em; color: var(--danger); }
+  .cust-debt.zero { color: var(--primary); }
+  .cust-meta { font-size: 0.82em; color: var(--muted); margin-top: 3px; }
+
+  /* MODAL */
+  .modal-overlay {
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45);
+    z-index: 200; align-items: flex-end; justify-content: center;
+  }
+  .modal-overlay.active { display: flex; }
+  .modal {
+    background: white; border-radius: 20px 20px 0 0; padding: 24px 20px 32px;
+    width: 100%; max-width: 500px; max-height: 90vh; overflow-y: auto;
+  }
+  .modal h2 { font-size: 1.1em; margin-bottom: 16px; color: var(--primary); }
+  .modal label { display: block; font-size: 0.85em; color: var(--muted); margin-bottom: 4px; margin-top: 12px; }
+  .modal input, .modal textarea, .modal select {
+    width: 100%; padding: 11px 13px; border: 1.5px solid var(--border);
+    border-radius: 8px; font-size: 0.95em; outline: none;
+  }
+  .modal input:focus, .modal textarea:focus { border-color: var(--primary); }
+  .modal-btns { display: flex; gap: 10px; margin-top: 20px; }
+  .btn-cancel {
+    flex: 1; padding: 12px; background: #f3f4f6; border: none;
+    border-radius: 8px; font-size: 0.95em; cursor: pointer; color: var(--text);
+  }
+  .btn-save {
+    flex: 2; padding: 12px; background: var(--primary); color: white;
+    border: none; border-radius: 8px; font-size: 0.95em; font-weight: 600; cursor: pointer;
+  }
+  .btn-danger {
+    padding: 12px 16px; background: var(--danger-light); color: var(--danger);
+    border: 1.5px solid var(--danger); border-radius: 8px; font-size: 0.9em; cursor: pointer;
+  }
+
+  /* TRANSACTION LIST */
+  .tx-list { margin-top: 12px; }
+  .tx-item {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 9px 0; border-bottom: 1px solid #f0f0f0; font-size: 0.88em;
+  }
+  .tx-item:last-child { border-bottom: none; }
+  .tx-type { font-weight: 600; }
+  .tx-type.mua { color: var(--danger); }
+  .tx-type.tra { color: var(--primary); }
+  .tx-amount { font-weight: 700; }
+  .tx-note { color: var(--muted); font-size: 0.82em; }
+  .tx-date { color: var(--muted); font-size: 0.8em; }
+
+  .empty { text-align: center; color: var(--muted); padding: 40px 20px; font-size: 0.95em; }
+  .loading { text-align: center; padding: 40px; color: var(--muted); }
+
+  .tab-btns { display: flex; gap: 8px; margin-bottom: 16px; }
+  .tab-btn {
+    flex: 1; padding: 9px; border: 1.5px solid var(--border); background: white;
+    border-radius: 8px; cursor: pointer; font-size: 0.88em; color: var(--muted);
+  }
+  .tab-btn.active { background: var(--primary); color: white; border-color: var(--primary); font-weight: 600; }
+
+  .debt-badge {
+    display: inline-block; background: var(--danger-light); color: var(--danger);
+    padding: 2px 8px; border-radius: 12px; font-size: 0.8em; font-weight: 600; margin-left: 8px;
+  }
+</style>
+</head>
+<body>
+
+<!-- AUTH -->
+<div id="auth-screen">
+  <div class="auth-box">
+    <h1>📒 Sổ Nợ</h1>
+    <p>Quản lý công nợ cửa hàng cám</p>
+    <input type="email" id="email-input" placeholder="Email" autocomplete="email">
+    <input type="password" id="pass-input" placeholder="Mật khẩu" autocomplete="current-password">
+    <button class="btn-primary" onclick="doLogin()">Đăng nhập</button>
+    <div id="auth-error"></div>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="app">
+  <header>
+    <h1>📒 Sổ Nợ</h1>
+    <div class="header-right">
+      <span id="user-email" style="font-size:0.8em;opacity:0.85"></span>
+      <button class="btn-icon" onclick="doLogout()">Đăng xuất</button>
+    </div>
+  </header>
+
+  <div class="main">
+    <!-- Summary -->
+    <div class="summary-bar" id="summary-bar">
+      <div class="summary-item">Khách hàng: <b id="s-total">0</b></div>
+      <div class="summary-item">Đang nợ: <b id="s-debtors">0</b></div>
+      <div class="summary-item">Tổng nợ: <b id="s-debt" style="color:#c0392b">0đ</b></div>
+    </div>
+
+    <!-- Top bar -->
+    <div class="top-bar">
+      <input class="search-input" id="search-input" placeholder="🔍 Tìm tên khách hàng..." oninput="renderList()">
+      <button class="btn-add" onclick="openAddCustomer()">+ Thêm</button>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tab-btns">
+      <button class="tab-btn active" id="tab-all" onclick="setTab('all')">Tất cả</button>
+      <button class="tab-btn" id="tab-debt" onclick="setTab('debt')">Đang nợ</button>
+      <button class="tab-btn" id="tab-clear" onclick="setTab('clear')">Đã xong</button>
+    </div>
+
+    <div id="customer-list"><div class="loading">Đang tải...</div></div>
+  </div>
+</div>
+
+<!-- MODAL: Thêm khách hàng -->
+<div class="modal-overlay" id="modal-add-cust">
+  <div class="modal">
+    <h2>➕ Thêm khách hàng</h2>
+    <label>Tên khách hàng *</label>
+    <input id="new-name" placeholder="Nguyễn Văn A">
+    <label>Số điện thoại</label>
+    <input id="new-phone" placeholder="0901234567" type="tel">
+    <label>Địa chỉ / Ghi chú</label>
+    <input id="new-addr" placeholder="Thôn...">
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeModal('modal-add-cust')">Hủy</button>
+      <button class="btn-save" onclick="saveNewCustomer()">Lưu</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Chi tiết khách hàng -->
+<div class="modal-overlay" id="modal-detail">
+  <div class="modal">
+    <h2 id="detail-name">Chi tiết</h2>
+    <div id="detail-info" style="font-size:0.85em;color:#6b7280;margin-bottom:12px"></div>
+
+    <div style="display:flex;gap:8px;margin-bottom:12px">
+      <button class="btn-save" style="flex:1;padding:10px" onclick="openTx('mua')">🛒 Mua hàng</button>
+      <button class="btn-save" style="flex:1;padding:10px;background:#2980b9" onclick="openTx('tra')">💰 Trả tiền</button>
+      <button class="btn-danger" onclick="deleteCustomer()">🗑</button>
+    </div>
+
+    <div style="font-weight:600;font-size:0.9em;margin-bottom:6px">
+      Công nợ: <span id="detail-debt" style="color:#c0392b;font-size:1.1em"></span>
+    </div>
+
+    <div class="tx-list" id="tx-list"><div class="loading">Đang tải...</div></div>
+
+    <button class="btn-cancel" style="width:100%;margin-top:16px" onclick="closeModal('modal-detail')">Đóng</button>
+  </div>
+</div>
+
+<!-- MODAL: Giao dịch -->
+<div class="modal-overlay" id="modal-tx">
+  <div class="modal">
+    <h2 id="tx-title">Giao dịch</h2>
+    <label>Số tiền (đồng) *</label>
+    <input id="tx-amount" type="number" placeholder="500000" min="0">
+    <label>Số kg / mặt hàng</label>
+    <input id="tx-note" placeholder="50kg cám gà...">
+    <label>Ngày</label>
+    <input id="tx-date" type="date">
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeModal('modal-tx')">Hủy</button>
+      <button class="btn-save" onclick="saveTx()">Lưu</button>
+    </div>
+  </div>
+</div>
+
+<!-- Firebase -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged }
+  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { getFirestore, collection, doc, addDoc, updateDoc, deleteDoc,
+  getDocs, query, orderBy, onSnapshot, serverTimestamp, where }
+  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyA_kjQ-CdASRkf50Glz3kQajlkD5qGWC4k",
+  authDomain: "so-no-cc57a.firebaseapp.com",
+  projectId: "so-no-cc57a",
+  storageBucket: "so-no-cc57a.firebasestorage.app",
+  messagingSenderId: "571694791559",
+  appId: "1:571694791559:web:8e409728a520e2d370b122"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+// STATE
+let customers = [];
+let currentCustomerId = null;
+let currentTxType = null;
+let currentTab = 'all';
+let unsubCustomers = null;
+
+// FORMAT
+function fmt(n) {
+  return Number(n || 0).toLocaleString('vi-VN') + 'đ';
+}
+function fmtDate(ts) {
+  if (!ts) return '';
+  const d = ts.toDate ? ts.toDate() : new Date(ts);
+  return d.toLocaleDateString('vi-VN');
+}
+
+// AUTH
+window.doLogin = async () => {
+  const email = document.getElementById('email-input').value.trim();
+  const pass = document.getElementById('pass-input').value;
+  const errEl = document.getElementById('auth-error');
+  errEl.textContent = '';
+  try {
+    await signInWithEmailAndPassword(auth, email, pass);
+  } catch(e) {
+    errEl.textContent = 'Sai email hoặc mật khẩu!';
+  }
+};
+
+window.doLogout = async () => {
+  if (unsubCustomers) unsubCustomers();
+  await signOut(auth);
+};
+
+document.getElementById('pass-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') window.doLogin();
+});
+
+onAuthStateChanged(auth, user => {
+  if (user) {
+    document.getElementById('auth-screen').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    document.getElementById('user-email').textContent = user.email;
+    loadCustomers();
+  } else {
+    document.getElementById('auth-screen').style.display = 'flex';
+    document.getElementById('app').style.display = 'none';
+    customers = [];
+  }
+});
+
+// LOAD CUSTOMERS (realtime)
+function loadCustomers() {
+  const q = query(collection(db, 'customers'), orderBy('name'));
+  unsubCustomers = onSnapshot(q, snap => {
+    customers = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    updateSummary();
+    renderList();
+  });
+}
+
+function updateSummary() {
+  const debtors = customers.filter(c => (c.debt || 0) > 0);
+  const totalDebt = customers.reduce((s, c) => s + (c.debt || 0), 0);
+  document.getElementById('s-total').textContent = customers.length;
+  document.getElementById('s-debtors').textContent = debtors.length;
+  document.getElementById('s-debt').textContent = fmt(totalDebt);
+}
+
+window.setTab = (tab) => {
+  currentTab = tab;
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + tab).classList.add('active');
+  renderList();
+};
+
+window.renderList = () => {
+  const q = document.getElementById('search-input').value.toLowerCase();
+  let list = customers.filter(c => c.name.toLowerCase().includes(q));
+  if (currentTab === 'debt') list = list.filter(c => (c.debt || 0) > 0);
+  if (currentTab === 'clear') list = list.filter(c => (c.debt || 0) <= 0);
+
+  const el = document.getElementById('customer-list');
+  if (!list.length) { el.innerHTML = '<div class="empty">Không có khách hàng nào</div>'; return; }
+
+  el.innerHTML = list.map(c => `
+    <div class="customer-card ${(c.debt||0)>0?'has-debt':''}" onclick="openDetail('${c.id}')">
+      <div class="cust-row">
+        <div class="cust-name">${c.name}${(c.debt||0)>0?`<span class="debt-badge">${fmt(c.debt)}</span>`:''}</div>
+        <div class="cust-debt ${(c.debt||0)===0?'zero':''}">${(c.debt||0)===0?'✅ Xong':fmt(c.debt)}</div>
+      </div>
+      <div class="cust-meta">${c.phone||''}${c.phone&&c.address?' · ':''}${c.address||''}</div>
+    </div>
+  `).join('');
+};
+
+// ADD CUSTOMER
+window.openAddCustomer = () => {
+  document.getElementById('new-name').value = '';
+  document.getElementById('new-phone').value = '';
+  document.getElementById('new-addr').value = '';
+  document.getElementById('modal-add-cust').classList.add('active');
+};
+
+window.saveNewCustomer = async () => {
+  const name = document.getElementById('new-name').value.trim();
+  if (!name) { alert('Vui lòng nhập tên!'); return; }
+  await addDoc(collection(db, 'customers'), {
+    name,
+    phone: document.getElementById('new-phone').value.trim(),
+    address: document.getElementById('new-addr').value.trim(),
+    debt: 0,
+    createdAt: serverTimestamp()
+  });
+  closeModal('modal-add-cust');
+};
+
+// DETAIL
+window.openDetail = async (id) => {
+  currentCustomerId = id;
+  const cust = customers.find(c => c.id === id);
+  document.getElementById('detail-name').textContent = '👤 ' + cust.name;
+  document.getElementById('detail-info').textContent =
+    [cust.phone, cust.address].filter(Boolean).join(' · ');
+  document.getElementById('detail-debt').textContent = fmt(cust.debt || 0);
+  document.getElementById('modal-detail').classList.add('active');
+  loadTx(id);
+};
+
+async function loadTx(custId) {
+  const el = document.getElementById('tx-list');
+  el.innerHTML = '<div class="loading">Đang tải...</div>';
+  const q = query(
+    collection(db, 'customers', custId, 'transactions'),
+    orderBy('date', 'desc')
+  );
+  const snap = await getDocs(q);
+  if (snap.empty) { el.innerHTML = '<div class="empty">Chưa có giao dịch</div>'; return; }
+  el.innerHTML = snap.docs.map(d => {
+    const t = d.data();
+    return `
+      <div class="tx-item">
+        <div>
+          <div class="tx-type ${t.type}">${t.type==='mua'?'🛒 Mua':'💰 Trả'}</div>
+          ${t.note?`<div class="tx-note">${t.note}</div>`:''}
+        </div>
+        <div style="text-align:right">
+          <div class="tx-amount" style="color:${t.type==='mua'?'#c0392b':'#1a6b3c'}">${t.type==='mua'?'+':'-'}${fmt(t.amount)}</div>
+          <div class="tx-date">${fmtDate(t.date)}</div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+// TRANSACTION
+window.openTx = (type) => {
+  currentTxType = type;
+  document.getElementById('tx-title').textContent = type === 'mua' ? '🛒 Mua hàng' : '💰 Trả tiền';
+  document.getElementById('tx-amount').value = '';
+  document.getElementById('tx-note').value = '';
+  document.getElementById('tx-date').value = new Date().toISOString().split('T')[0];
+  document.getElementById('modal-tx').classList.add('active');
+};
+
+window.saveTx = async () => {
+  const amount = parseFloat(document.getElementById('tx-amount').value);
+  if (!amount || amount <= 0) { alert('Nhập số tiền!'); return; }
+  const note = document.getElementById('tx-note').value.trim();
+  const dateVal = document.getElementById('tx-date').value;
+  const date = dateVal ? new Date(dateVal) : new Date();
+
+  const custRef = doc(db, 'customers', currentCustomerId);
+  const txRef = collection(db, 'customers', currentCustomerId, 'transactions');
+
+  const cust = customers.find(c => c.id === currentCustomerId);
+  const oldDebt = cust.debt || 0;
+  const newDebt = currentTxType === 'mua' ? oldDebt + amount : Math.max(0, oldDebt - amount);
+
+  await addDoc(txRef, { type: currentTxType, amount, note, date, createdAt: serverTimestamp() });
+  await updateDoc(custRef, { debt: newDebt });
+
+  closeModal('modal-tx');
+  document.getElementById('detail-debt').textContent = fmt(newDebt);
+  loadTx(currentCustomerId);
+};
+
+// DELETE
+window.deleteCustomer = async () => {
+  if (!confirm('Xóa khách hàng này?')) return;
+  await deleteDoc(doc(db, 'customers', currentCustomerId));
+  closeModal('modal-detail');
+};
+
+// MODAL
+window.closeModal = (id) => {
+  document.getElementById(id).classList.remove('active');
+};
+
+// Close on overlay click
+document.querySelectorAll('.modal-overlay').forEach(el => {
+  el.addEventListener('click', e => { if (e.target === el) el.classList.remove('active'); });
+});
+</script>
+</body>
+</html>
