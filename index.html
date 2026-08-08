@@ -2378,7 +2378,7 @@ document.querySelectorAll('.modal-overlay').forEach(el=>{
    deleteDoc, getDocs, query, orderBy, onSnapshot, serverTimestamp, setDoc, getDoc,
    runTransaction, limit.
 */
-let skProducts=[],skOrders=[],skSuppliers=[],skView='sell',skPeriod='today',skKhoCat='',skRpFrom='',skRpTo='';
+let skProducts=[],skOrders=[],skReturns=[],skSuppliers=[],skView='sell',skPeriod='today',skKhoCat='',skRpFrom='',skRpTo='';
 let skCart=[],skDiscount=0,skOrderNote='',skHeld=[];
 let skAskPrice=(function(){try{return localStorage.getItem('sk_ask_price')==='1';}catch(e){return false;}})();
 let skNp={supplierId:'',supplierName:'',items:[],note:'',paid:0};
@@ -2399,7 +2399,7 @@ function skModalOpen(sel){skq(sel).classList.add('on');skScrim(true);}
 function skAnyModal(){return skqa('#pos-screen .sk-modal.on').length>0;}
 
 /* ---------- BOOT / NAV ---------- */
-window.openPOS=function(){skq('#pos-screen').classList.add('on');document.body.style.overflow='hidden';skInit();skGo('sell');skSyncAskPriceBtn();};
+window.openPOS=function(){skq('#pos-screen').classList.add('on');document.body.style.overflow='hidden';skInit();skGo('sell');};
 function skClose(){skStopScan();skqa('#pos-screen .sk-modal').forEach(m=>m.classList.remove('on'));skCloseCart();skScrim(false);skq('#pos-screen').classList.remove('on');document.body.style.overflow='';}
 function skInit(){
   if(!skBound){skBind();skBound=true;}
@@ -2414,6 +2414,7 @@ function skGo(v){
   skqa('.sk-tab').forEach(b=>b.classList.toggle('sk-on',b.dataset.v===v));
   skq('#sk-view-title').textContent={sell:'Bán hàng',kho:'Kho hàng',nhap:'Nhập hàng',report:'Báo cáo'}[v];
   if(v==='kho')skRenderKho();if(v==='nhap'){skRenderNp();skRenderNpPick();}if(v==='report')skRenderReport();
+  skSyncAskPriceBtn();
   skRenderCart();
 }
 
@@ -2573,7 +2574,7 @@ function skOpenOrders(){const box=skq('#sk-orders-list');const list=skOrders.sli
 function skStartReturn(orderId){const o=skOrders.find(x=>x.id===orderId);if(!o)return;skRetOrder=JSON.parse(JSON.stringify(o));skRetOrder.id=orderId;skRetOrder._ret={};(skRetOrder.items||[]).forEach((it,i)=>skRetOrder._ret[i]=0);skCloseModal('#sk-orders');skRenderReturn();skModalOpen('#sk-ret');}
 function skRenderReturn(){const o=skRetOrder;if(!o)return;let refund=0;(o.items||[]).forEach((it,i)=>{refund+=(o._ret[i]||0)*it.price;});skq('#sk-ret-body').innerHTML=(o.items||[]).map((it,i)=>'<div class="sk-ret-row"><div class="sk-ret-name">'+escHtml(it.name)+'<span class="sk-sess-sub">đã mua '+it.qty+' '+escHtml(it.unit||'')+' × '+fmt(it.price)+'</span></div><div class="sk-qbox"><button data-act="ret-qty" data-i="'+i+'" data-d="-1">−</button><button class="sk-qnum" data-act="ret-set" data-i="'+i+'">'+(o._ret[i]||0)+'</button><button data-act="ret-qty" data-i="'+i+'" data-d="1">+</button></div></div>').join('')+'<div class="sk-sum-r grand" style="margin-top:10px"><span>Hoàn trả</span><span>'+fmt(refund)+'</span></div>';}
 function skRetQty(i,d){if(!skRetOrder)return;const it=skRetOrder.items[i];const max=it.qty;let v=(skRetOrder._ret[i]||0)+d;if(v<0)v=0;if(v>max)v=max;skRetOrder._ret[i]=v;skRenderReturn();}
-async function skDoReturn(){const o=skRetOrder;if(!o)return;const lines=[];let refund=0;(o.items||[]).forEach((it,i)=>{const q=o._ret[i]||0;if(q>0){const ratio=it.ratio||1;lines.push({id:it.id,name:it.name,qty:q,unit:it.unit,baseQty:q*ratio,price:it.price});refund+=q*it.price;}});if(!lines.length){toast('Chọn số lượng trả');return;}
+async function skDoReturn(){const o=skRetOrder;if(!o)return;const lines=[];let refund=0;(o.items||[]).forEach((it,i)=>{const q=o._ret[i]||0;if(q>0){const ratio=it.ratio||1;lines.push({id:it.id,name:it.name,qty:q,unit:it.unit,baseQty:q*ratio,price:it.price,cost:(it.cost||0)});refund+=q*it.price;}});if(!lines.length){toast('Chọn số lượng trả');return;}
   const batch=writeBatch(db);
   batch.set(doc(bcol('returns')),{orderId:o.id,items:lines,refund:refund,method:o.method,customerId:o.customerId||null,customerName:o.customerName||null,at:serverTimestamp()});
   lines.forEach(l=>{batch.update(bdoc('products',l.id),{stock:increment(l.baseQty)});batch.set(doc(bcol('stock_moves')),{productId:l.id,productName:l.name,delta:+l.baseQty,reason:'return',orderId:o.id,at:serverTimestamp()});}); // trả hàng -> cộng lại tồn (increment dương)
@@ -2786,6 +2787,15 @@ function skPrintMenu(){
 
 /* ---- BÁO CÁO ---- */
 function skOrderDate(o){return (o.createdAt&&o.createdAt.toDate)?o.createdAt.toDate():(o.createdAt instanceof Date?o.createdAt:new Date());}
+function skReturnDate(r){return (r&&r.at&&r.at.toDate)?r.at.toDate():((r&&r.at instanceof Date)?r.at:((r&&r.createdAt&&r.createdAt.toDate)?r.createdAt.toDate():new Date()));}
+function skReturnLineCost(r,li){
+  if(li&&li.cost!=null)return (Number(li.cost)||0)*(Number(li.qty)||0);
+  const o=skOrders.find(x=>x.id===(r&&r.orderId));
+  if(o&&o.items){const oi=o.items.find(x=>x.id===(li&&li.id)&&x.unit===(li&&li.unit))||o.items.find(x=>x.name===(li&&li.name)&&x.unit===(li&&li.unit))||o.items.find(x=>x.id===(li&&li.id));if(oi&&oi.cost!=null)return (Number(oi.cost)||0)*(Number(li.qty)||0);}
+  const p=skProducts.find(x=>x.id===(li&&li.id));
+  if(p&&p.cost!=null)return (Number(p.cost)||0)*(Number(li&&li.baseQty)||((Number(li&&li.qty)||0)*(Number(li&&li.ratio)||1)));
+  return 0;
+}
 /* ==== Bộ lọc thời gian — thêm khoảng tự chọn 'custom' ==== */
 function skRpBounds(){
   if(!skRpFrom||!skRpTo)return null;
@@ -2835,6 +2845,11 @@ function skRenderReport(){
   const list=skOrders.filter(o=>skInPeriod(skOrderDate(o),skPeriod));
   let rev=0,cost=0,cash=0,qr=0,debt=0;const prod={};
   list.forEach(o=>{rev+=o.total||0;(o.items||[]).forEach(i=>{cost+=(i.cost||0)*i.qty;prod[i.name]=(prod[i.name]||0)+i.qty;});if(o.method==='cash')cash+=o.total||0;else if(o.method==='qr')qr+=o.total||0;else if(o.method==='debt')debt+=o.total||0;});
+  // ── TRỪ HÀNG TRẢ (hoàn trả) trong kỳ: đảo cả doanh thu, vốn (lãi) lẫn dòng thu theo phương thức ──
+  const retList=(skReturns||[]).filter(r=>skInPeriod(skReturnDate(r),skPeriod));
+  let retRev=0,retCost=0,retCash=0,retQr=0,retDebt=0;
+  retList.forEach(r=>{const rf=Number(r.refund)||0;retRev+=rf;if(r.method==='cash')retCash+=rf;else if(r.method==='qr')retQr+=rf;else if(r.method==='debt')retDebt+=rf;(r.items||[]).forEach(li=>{retCost+=skReturnLineCost(r,li);const nm=li&&li.name;if(nm!=null&&prod[nm]!=null)prod[nm]-=(Number(li.qty)||0);});});
+  rev-=retRev;cost-=retCost;cash-=retCash;qr-=retQr;debt-=retDebt;
   const profit=rev-cost;const top=Object.keys(prod).map(k=>[k,prod[k]]).sort((a,b)=>b[1]-a[1]).slice(0,5);
   const _rptCusts=((typeof customers!=='undefined'&&customers)?customers:[]);
   const custDebt=_rptCusts.reduce((s,c)=>s+Math.max(0,(c.debt||0)),0);   // khách nợ mình (chỉ cộng phần dương)
@@ -2844,6 +2859,7 @@ function skRenderReport(){
   if(cb){const nD=Math.round((new Date(cb.to.getFullYear(),cb.to.getMonth(),cb.to.getDate())-new Date(cb.from.getFullYear(),cb.from.getMonth(),cb.from.getDate()))/86400000)+1;h+='<div class="sk-rp-head">📅 '+skDMY(cb.from)+' – '+skDMY(cb.to)+' · <b>'+nD+' ngày</b> · '+list.length+' đơn</div>';}
   h+='<div class="sk-cards"><div class="sk-c c-rev"><span>Doanh thu</span><b>'+fmt(rev)+'</b></div><div class="sk-c c-pro"><span>Lãi gộp</span><b>'+fmt(profit)+'</b></div><div class="sk-c"><span>Số đơn</span><b>'+list.length+'</b></div><div class="sk-c"><span>Vốn hàng bán</span><b>'+fmt(cost)+'</b></div></div>';
   h+='<div class="sk-pay3"><div class="p-cash"><span>Tiền mặt</span><b>'+fmt(cash)+'</b></div><div class="p-qr"><span>Chuyển khoản</span><b>'+fmt(qr)+'</b></div><div class="p-debt"><span>Bán nợ</span><b>'+fmt(debt)+'</b></div></div>';
+  if(retRev>0){h+='<div style="background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;border-radius:10px;padding:9px 12px;font-size:13px;font-weight:600;margin-bottom:10px">↩️ Hàng trả trong kỳ: −'+fmt(retRev)+' · '+retList.length+' đơn trả — đã trừ khỏi doanh thu &amp; lãi</div>';}
   h+='<div class="sk-cards"><div class="sk-c"><span>Khách đang nợ mình</span><b style="color:#0a5f4a">'+fmt(custDebt)+'</b></div><div class="sk-c"><span>Mình nợ khách</span><b style="color:#1d4ed8">'+fmt(custCredit)+'</b></div><div class="sk-c"><span>Mình nợ NCC</span><b style="color:#c0392b">'+fmt(supDebt)+'</b></div></div>';
   if(cb){
     const bars=skRpBuckets(list,cb);const mx=Math.max(1,...bars.map(d=>d.sum));
@@ -2915,7 +2931,7 @@ function skBind(){
 /* ===== v4 ===== */
 /* ========= v4: CHI NHÁNH + NHÂN VIÊN/PHÂN QUYỀN + TEM MÃ VẠCH ========= */
 let skBranch='main',skBranches=[],skStaff=null,skStaffList=[],skRole='owner';
-let skInit4Done=false,skBound4=false,skUnsubBP=null,skUnsubBO=null;
+let skInit4Done=false,skBound4=false,skUnsubBP=null,skUnsubBO=null,skUnsubBR=null;
 let skBrEditId=null,skStEditId=null,skLabelPid=null,skTransfer={pid:'',qty:0,target:''};
 let _skGateStaff=null,_skPin='';let skRequirePin=true;
 
@@ -2943,10 +2959,11 @@ async function skLoadStaffOnce(){try{const s=await getDocs(collection(db,'users'
   try{const ss=await getDoc(doc(db,'users',UID,'meta','shopSettings'));skRequirePin=ss.exists()?(ss.data().requirePin!==false):true;}catch(e){skRequirePin=true;}}
 function skAfterReady(){skRenderBranchSel();skBranchSubs();if(skStaffList&&skStaffList.length&&skRequirePin!==false){skStaffGate();}else{skRole='owner';skStaff=null;skApplyRole();skGo('sell');}}
 function skBranchSubs(){
-  if(skUnsubBP){try{skUnsubBP();}catch(e){}skUnsubBP=null;}if(skUnsubBO){try{skUnsubBO();}catch(e){}skUnsubBO=null;}
-  skProducts=[];skOrders=[];
+  if(skUnsubBP){try{skUnsubBP();}catch(e){}skUnsubBP=null;}if(skUnsubBO){try{skUnsubBO();}catch(e){}skUnsubBO=null;}if(skUnsubBR){try{skUnsubBR();}catch(e){}skUnsubBR=null;}
+  skProducts=[];skOrders=[];skReturns=[];
   try{skUnsubBP=onSnapshot(bcol('products'),s=>{skProducts=s.docs.map(d=>Object.assign({id:d.id},d.data()));skRenderGrid();skRenderKho();skRenderNpPick();if(skView==='report')skRenderReport();},(e)=>skErr(e,'Đọc kho'));}catch(e){}
   try{skUnsubBO=onSnapshot(query(bcol('orders'),orderBy('createdAt','desc'),limit(300)),s=>{skOrders=s.docs.map(d=>Object.assign({id:d.id},d.data()));if(skView==='report')skRenderReport();},(e)=>skErr(e,'Đọc đơn hàng'));}catch(e){}
+  try{skUnsubBR=onSnapshot(query(bcol('returns'),orderBy('at','desc'),limit(300)),s=>{skReturns=s.docs.map(d=>Object.assign({id:d.id},d.data()));if(skView==='report')skRenderReport();},()=>{});}catch(e){}
 }
 
 /* ---- CHI NHÁNH ---- */
