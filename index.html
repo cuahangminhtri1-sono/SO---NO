@@ -2380,6 +2380,7 @@ document.querySelectorAll('.modal-overlay').forEach(el=>{
 */
 let skProducts=[],skOrders=[],skSuppliers=[],skView='sell',skPeriod='today',skKhoCat='',skRpFrom='',skRpTo='';
 let skCart=[],skDiscount=0,skOrderNote='',skHeld=[];
+let skAskPrice=(function(){try{return localStorage.getItem('sk_ask_price')==='1';}catch(e){return false;}})();
 let skNp={supplierId:'',supplierName:'',items:[],note:'',paid:0};
 let skInited=false,skBound=false,skEditId=null,skSupEditId=null,skDetailId=null,skRetOrder=null;
 let skShopBank=null,skShopName='';
@@ -2398,7 +2399,7 @@ function skModalOpen(sel){skq(sel).classList.add('on');skScrim(true);}
 function skAnyModal(){return skqa('#pos-screen .sk-modal.on').length>0;}
 
 /* ---------- BOOT / NAV ---------- */
-window.openPOS=function(){skq('#pos-screen').classList.add('on');document.body.style.overflow='hidden';skInit();skGo('sell');};
+window.openPOS=function(){skq('#pos-screen').classList.add('on');document.body.style.overflow='hidden';skInit();skGo('sell');skSyncAskPriceBtn();};
 function skClose(){skStopScan();skqa('#pos-screen .sk-modal').forEach(m=>m.classList.remove('on'));skCloseCart();skScrim(false);skq('#pos-screen').classList.remove('on');document.body.style.overflow='';}
 function skInit(){
   if(!skBound){skBind();skBound=true;}
@@ -2540,11 +2541,13 @@ async function skSessionCommit(){if(!skSession){skStopScan();return;}const ents=
 /* ---- GIỎ HÀNG (theo đơn vị) ---- */
 function skCartBaseInCart(pid){return skCart.filter(c=>c.id===pid).reduce((s,c)=>s+c.baseQty,0);}
 function skAddToCart(id){const p=skProducts.find(x=>x.id===id);if(!p)return;skPickUnit(p,function(u){skCartAddLine(p,u);});}
-function skCartAddLine(p,u){const ratio=u.ratio||1;const key=p.id+'|'+u.name;const line=skCart.find(c=>c.key===key);if((p.stock||0)<skCartBaseInCart(p.id)+ratio){toast('Hết tồn: '+p.name+' (còn '+skN(p.stock||0)+' '+(p.baseUnit||'')+')');return;}if(line){line.qty++;line.baseQty=line.qty*ratio;}else skCart.push({key:key,id:p.id,name:p.name,unit:u.name,ratio:ratio,price:u.price,cost:(p.cost||0)*ratio,qty:1,baseQty:ratio});skRenderCart();skRenderGrid();}
+function skCartAddLine(p,u){const ratio=u.ratio||1;const key=p.id+'|'+u.name;const line=skCart.find(c=>c.key===key);if((p.stock||0)<skCartBaseInCart(p.id)+ratio){toast('Hết tồn: '+p.name+' (còn '+skN(p.stock||0)+' '+(p.baseUnit||'')+')');return;}if(line){line.qty++;line.baseQty=line.qty*ratio;skRenderCart();skRenderGrid();return;}const _addNew=function(price){skCart.push({key:key,id:p.id,name:p.name,unit:u.name,ratio:ratio,price:price,cost:(p.cost||0)*ratio,qty:1,baseQty:ratio});skRenderCart();skRenderGrid();};if(skAskPrice&&!skScanOn){skNum('Giá bán: '+p.name+' ('+u.name+')',u.price,function(v){_addNew(v>0?v:(u.price||0));});}else{_addNew(u.price);}}
 function skCartInc(key){const l=skCart.find(c=>c.key===key);if(!l)return;const p=skProducts.find(x=>x.id===l.id);if(p&&(p.stock||0)<skCartBaseInCart(l.id)+l.ratio){toast('Hết tồn: '+l.name);return;}l.qty++;l.baseQty=l.qty*l.ratio;skRenderCart();skRenderGrid();}
 function skCartDec(key){const l=skCart.find(c=>c.key===key);if(!l)return;l.qty--;if(l.qty<=0)skCart=skCart.filter(c=>c.key!==key);else l.baseQty=l.qty*l.ratio;skRenderCart();skRenderGrid();}
 function skCartDel(key){skCart=skCart.filter(c=>c.key!==key);skRenderCart();skRenderGrid();}
 function skCartPrice(key){const l=skCart.find(c=>c.key===key);if(!l)return;skNum('Sửa giá: '+l.name+' ('+l.unit+')',l.price,v=>{if(v>=0){l.price=v;skRenderCart();}});}
+function skSyncAskPriceBtn(){const b=skq('#sk-askprice-btn');if(!b)return;if(skAskPrice){b.textContent='💲 Hỏi giá: BẬT';b.classList.add('on');}else{b.textContent='💲 Hỏi giá khi thêm';b.classList.remove('on');}}
+function skToggleAskPrice(){skAskPrice=!skAskPrice;try{localStorage.setItem('sk_ask_price',skAskPrice?'1':'0');}catch(e){}skSyncAskPriceBtn();toast(skAskPrice?'✅ Bật hỏi giá khi thêm hàng — không nhập thì giữ giá gốc':'Tắt hỏi giá — thêm hàng theo giá mặc định');}
 function skCartTotals(){const sub=skCart.reduce((s,i)=>s+i.price*i.qty,0);const disc=Math.min(Math.max(skDiscount||0,0),sub);return {sub:sub,disc:disc,total:sub-disc};}
 function skRenderCart(){
   const t=skCartTotals(),count=skCart.reduce((s,i)=>s+i.qty,0);
@@ -2880,7 +2883,7 @@ function skBind(){
       case 'scan-sell':skScanSell();break; case 'scan-lookup':skScanLookup();break; case 'scan-stop':skStopScan();break; case 'scan-manual':skManualCode();break;
       case 'sess-start':skSessionStart(el.dataset.mode);break; case 'sess-commit':skSessionCommit();break; case 'sess-qty':skSessQty(id,parseInt(el.dataset.d,10));break; case 'sess-set':skSessSet(id);break;
       case 'cart-add':skAddToCart(id);break; case 'cart-inc':skCartInc(key);break; case 'cart-dec':skCartDec(key);break; case 'cart-del':skCartDel(key);break; case 'cart-price':skCartPrice(key);break; case 'cart-qty':skCartQty(key);break;
-      case 'cart-discount':skEditDiscount();break; case 'cart-open':skOpenCart();break; case 'cart-close':skCloseCart();break;
+      case 'cart-discount':skEditDiscount();break; case 'cart-open':skOpenCart();break; case 'cart-close':skCloseCart();break; case 'toggle-askprice':skToggleAskPrice();break;
       case 'hold':skHoldOrder();break; case 'held-list':skOpenHeld();break; case 'held-resume':skResumeHeld(id);break; case 'held-del':skDelHeld(id);break;
       case 'orders':skOpenOrders();break; case 'ret-open':skStartReturn(id);break; case 'ret-qty':skRetQty(parseInt(i,10),parseInt(el.dataset.d,10));break; case 'ret-set':skRetSet(parseInt(i,10));break; case 'ret-do':skDoReturn();break;
       case 'pay-cash':skPayCash();break; case 'pay-qr':skPayQR();break; case 'pay-debt':skPayDebt();break; case 'cash-ok':skCashConfirm();break; case 'qr-ok':skQRConfirm();break;
@@ -3488,6 +3491,7 @@ try { window.__skBusy = function(){
 #pos-screen .sk-actbar{display:flex;gap:7px;margin-bottom:10px;overflow-x:auto}
 #pos-screen .sk-actbar button{flex:none;background:#fff;border:1px solid #cfe0d9;color:#0a5f4a;border-radius:10px;padding:8px 12px;font-size:13px;font-weight:700;white-space:nowrap}
 #pos-screen .sk-actbar button:active{background:#e8f4ef}
+#pos-screen #sk-askprice-btn.on{background:#0d7a5f;border-color:#0d7a5f;color:#fff}
 #pos-screen .sk-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(146px,1fr));gap:9px}
 #pos-screen .sk-tile{background:#fff;border:1px solid #e3e8e5;border-radius:13px;padding:11px;text-align:left;display:flex;flex-direction:column;gap:5px;min-height:96px;box-shadow:0 1px 2px rgba(20,33,29,.06);transition:transform .07s}
 #pos-screen .sk-tile:active{transform:scale(.97)}
@@ -3707,7 +3711,7 @@ try { window.__skBusy = function(){
     <!-- BÁN -->
     <section id="sk-v-sell" class="sk-view sk-on">
       <div class="sk-searchrow"><input id="sk-search" class="sk-search" placeholder="Tìm tên / mã vạch / SKU…" inputmode="search" autocomplete="off"><button class="sk-scan" data-act="scan-sell">📷 Quét</button></div>
-      <div class="sk-actbar"><button id="sk-staffbtn" data-act="regate" style="display:none">👤 Đổi người</button><button data-act="held-list">🗂️ Đơn giữ</button><button data-act="orders">↩️ Đơn & trả hàng</button></div>
+      <div class="sk-actbar"><button id="sk-askprice-btn" data-act="toggle-askprice">💲 Hỏi giá khi thêm</button><button id="sk-staffbtn" data-act="regate" style="display:none">👤 Đổi người</button><button data-act="held-list">🗂️ Đơn giữ</button><button data-act="orders">↩️ Đơn & trả hàng</button></div>
       <div id="sk-grid" class="sk-grid"></div>
     </section>
 
