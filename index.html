@@ -2578,7 +2578,50 @@ async function skDoReturn(){const o=skRetOrder;if(!o)return;const lines=[];let r
   const batch=writeBatch(db);
   batch.set(doc(bcol('returns')),{orderId:o.id,items:lines,refund:refund,method:o.method,customerId:o.customerId||null,customerName:o.customerName||null,at:serverTimestamp()});
   lines.forEach(l=>{batch.update(bdoc('products',l.id),{stock:increment(l.baseQty)});batch.set(doc(bcol('stock_moves')),{productId:l.id,productName:l.name,delta:+l.baseQty,reason:'return',orderId:o.id,at:serverTimestamp()});}); // trả hàng -> cộng lại tồn (increment dương)
-  if(o.method==='debt'&&o.customerId){const custRef=doc(db,'users',UID,'customers',o.customerId);batch.update(custRef,{debt:increment(-refund)});const txRef=doc(collection(db,'users',UID,'customers',o.customerId,'transactions'));batch.set(txRef,{type:'tra',amount:refund,note:'Trả hàng',memo:'',date:new Date(),createdAt:serverTimestamp(),createdAtMs:Date.now()});}
+  if(o.method==='debt'&&o.customerId){
+    const custDoc=doc(db,'users',UID,'customers',o.customerId);
+    batch.update(custDoc,{debt:increment(-refund)});
+    /*
+      HOÀN TRẢ HÀNG ĐƠN GHI NỢ:
+      - Không tạo giao dịch "Trả".
+      - Trả toàn bộ đơn: xoá đúng giao dịch "Mua" gốc.
+      - Trả một phần: giảm số tiền của giao dịch "Mua" gốc, không tạo giao dịch mới.
+      - Đơn mới có debtTxId để xác định chính xác giao dịch gốc.
+      - Đơn cũ chưa có debtTxId: tìm giao dịch Mua khớp tổng tiền và gần thời điểm đơn nhất.
+    */
+    const txCol=collection(db,'users',UID,'customers',o.customerId,'transactions');
+    const txId=o.debtTxId||null;
+    if(txId){
+      const txRef=doc(txCol,txId);
+      const originalTotal=Number(o.total)||0;
+      const remaining=Math.max(0,originalTotal-refund);
+      if(remaining<=0){
+        batch.delete(txRef);
+      }else{
+        const oldItems=(o.items||[]).map(it=>it.name+' '+it.qty+(it.unit||'')).join(', ');
+        const retItems=lines.map(it=>it.name+' '+it.qty+(it.unit||'')).join(', ');
+        batch.update(txRef,{amount:remaining,note:oldItems+(retItems?' · Đã hoàn: '+retItems:''),memo:'',updatedAt:serverTimestamp()});
+      }
+    }else{
+      try{
+        const qs=await getDocs(txCol);
+        const orderMs=o.createdAt&&o.createdAt.toMillis?o.createdAt.toMillis():0;
+        let best=null,bestScore=Infinity;
+        qs.docs.forEach(d=>{
+          const t=d.data()||{}, amt=Number(t.amount)||0;
+          if(t.type!=='mua'||amt!==Number(o.total||0))return;
+          const tm=t.createdAt&&t.createdAt.toMillis?t.createdAt.toMillis():(t.createdAtMs||0);
+          const score=orderMs&&tm?Math.abs(tm-orderMs):0;
+          if(score<bestScore){best=d;bestScore=score;}
+        });
+        if(best){
+          const remaining=Math.max(0,(Number(o.total)||0)-refund);
+          if(remaining<=0)batch.delete(best.ref);
+          else batch.update(best.ref,{amount:remaining,memo:'',updatedAt:serverTimestamp()});
+        }
+      }catch(e){}
+    }
+  }
   batch.commit().catch(e=>skErr(e,'Trả hàng'));
   // Đồng bộ trang chia sẻ cho khách: CHỈ khi đang có mạng. Offline thì số nợ đã đúng nhờ increment; healDebt sẽ soát lại khi mở lại sổ nợ lúc có mạng.
   if(o.method==='debt'&&o.customerId&&navigator.onLine){const c=(customers||[]).find(x=>x.id===o.customerId);if(c&&c.shareToken){(async()=>{try{const nd=await recomputeDebtOnline(c.id);await updateDoc(doc(db,'users',UID,'customers',c.id),{debt:nd});await syncShare(c.shareToken,c.id,c.name,c.phone,nd);}catch(e){}})();}}
@@ -2648,9 +2691,13 @@ async function skFinalize(method,extra){
   if(method==='debt'&&customer){if(customer.id)custRef=doc(db,'users',UID,'customers',customer.id);else{custRef=doc(collection(db,'users',UID,'customers'));isNew=true;}}
   const orderRef=doc(bcol('orders'));
   const batch=writeBatch(db);
-  batch.set(orderRef,{items:items,subtotal:sub,discount:disc,total:total,method:method,staffName:(typeof skStaff!=='undefined'&&skStaff?skStaff.name:null),paid:extra.paid||null,change:(extra.change!=null?extra.change:null),note:skOrderNote||'',customerId:(customer&&customer.id)||(isNew?custRef.id:null),customerName:(customer&&customer.name)||null,createdAt:serverTimestamp()});
+  let debtTxRef=null;
+  if(custRef){
+    debtTxRef=doc(collection(db,'users',UID,'customers',custRef.id,'transactions'));
+  }
+  batch.set(orderRef,{items:items,subtotal:sub,discount:disc,total:total,method:method,staffName:(typeof skStaff!=='undefined'&&skStaff?skStaff.name:null),paid:extra.paid||null,change:(extra.change!=null?extra.change:null),note:skOrderNote||'',customerId:(customer&&customer.id)||(isNew?custRef.id:null),customerName:(customer&&customer.name)||null,createdAt:serverTimestamp(),debtTxId:debtTxRef?debtTxRef.id:null});
   pids.forEach(id=>{batch.update(bdoc('products',id),{stock:increment(-need[id])});batch.set(doc(bcol('stock_moves')),{productId:id,productName:(skProducts.find(x=>x.id===id)||{}).name||'',delta:-need[id],reason:'sale',orderId:orderRef.id,at:serverTimestamp()});}); // bán -> trừ tồn (increment âm) offline-safe
-  if(custRef){const noteStr=items.map(i=>i.name+' '+i.qty+i.unit).join(', ');if(isNew)batch.set(custRef,{name:customer.name,phone:'',address:'',debt:total,createdAt:serverTimestamp()});else batch.update(custRef,{debt:increment(total)});const txRef=doc(collection(db,'users',UID,'customers',custRef.id,'transactions'));batch.set(txRef,{type:'mua',amount:total,note:noteStr,memo:'',date:new Date(),createdAt:serverTimestamp(),createdAtMs:Date.now()});}
+  if(custRef){const noteStr=items.map(i=>i.name+' '+i.qty+i.unit).join(', ');if(isNew)batch.set(custRef,{name:customer.name,phone:'',address:'',debt:total,createdAt:serverTimestamp()});else batch.update(custRef,{debt:increment(total)});batch.set(debtTxRef,{type:'mua',amount:total,note:noteStr,memo:'',date:new Date(),createdAt:serverTimestamp(),createdAtMs:Date.now()});}
   batch.commit().catch(e=>skErr(e,'Tạo đơn'));
   // Đồng bộ trang chia sẻ: CHỈ khi có mạng (offline thì số nợ vẫn đúng nhờ increment; healDebt soát lại khi mở sổ nợ có mạng).
   if(method==='debt'&&customer&&customer.id&&navigator.onLine){const c=(customers||[]).find(x=>x.id===customer.id);if(c&&c.shareToken){(async()=>{try{const nd=await recomputeDebtOnline(c.id);await updateDoc(doc(db,'users',UID,'customers',c.id),{debt:nd});await syncShare(c.shareToken,c.id,c.name,c.phone,nd);}catch(e){}})();}}
