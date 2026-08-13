@@ -608,7 +608,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/fireba
 import { getAuth, initializeAuth, indexedDBLocalPersistence, browserLocalPersistence, browserSessionPersistence, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail, EmailAuthProvider, reauthenticateWithCredential, signInAnonymously }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import { getFirestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager, CACHE_SIZE_UNLIMITED, collection, doc, addDoc, updateDoc, deleteDoc,
-  getDocs, query, orderBy, onSnapshot, serverTimestamp, setDoc, getDoc, runTransaction, limit, writeBatch, increment, collectionGroup }
+  getDocs, query, where, orderBy, onSnapshot, serverTimestamp, setDoc, getDoc, runTransaction, limit, writeBatch, increment, collectionGroup }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -2378,7 +2378,7 @@ document.querySelectorAll('.modal-overlay').forEach(el=>{
    deleteDoc, getDocs, query, orderBy, onSnapshot, serverTimestamp, setDoc, getDoc,
    runTransaction, limit.
 */
-let skProducts=[],skOrders=[],skReturns=[],skSuppliers=[],skView='sell',skPeriod='today',skKhoCat='',skRpFrom='',skRpTo='';
+let skProducts=[],skOrders=[],skReturns=[],skSuppliers=[],skView='sell',skPeriod='today',skKhoCat='',skRpFrom='',skRpTo='',skRpOrders=[],skRpReturns=[],skRpReqId=0;
 let skCart=[],skDiscount=0,skOrderNote='',skHeld=[];
 let skAskPrice=(function(){try{return localStorage.getItem('sk_ask_price')==='1';}catch(e){return false;}})();
 let skAskQty=(function(){try{const v=localStorage.getItem('sk_ask_qty');return v===null?true:v==='1';}catch(e){return true;}})(); // MẶC ĐỊNH BẬT: bấm SP là hỏi số lượng ngay
@@ -2585,9 +2585,10 @@ function skStartReturn(orderId){const o=skOrders.find(x=>x.id===orderId);if(!o)r
   skRetOrder._ret={};skRetOrder._max={};skRetOrder._done={};
   (skRetOrder.items||[]).forEach((it,i)=>{const k=(it.id||'')+'|'+(it.unit||'');const dq=done[k]||0;skRetOrder._done[i]=dq;skRetOrder._max[i]=Math.max(0,(Number(it.qty)||0)-dq);skRetOrder._ret[i]=0;}); // còn trả được = đã mua − đã trả
   skCloseModal('#sk-orders');skRenderReturn();skModalOpen('#sk-ret');}
-function skRenderReturn(){const o=skRetOrder;if(!o)return;let refund=0;(o.items||[]).forEach((it,i)=>{refund+=(o._ret[i]||0)*it.price;});skq('#sk-ret-body').innerHTML=(o.items||[]).map((it,i)=>{const done=(o._done&&o._done[i])||0;const max=(o._max&&o._max[i]!=null)?o._max[i]:(it.qty||0);const sub='đã mua '+it.qty+' '+escHtml(it.unit||'')+' × '+fmt(it.price)+(done>0?(' · đã trả '+skN(done)+' · còn trả được '+skN(max)):'');return '<div class="sk-ret-row"><div class="sk-ret-name">'+escHtml(it.name)+'<span class="sk-sess-sub">'+sub+'</span></div><div class="sk-qbox"><button data-act="ret-qty" data-i="'+i+'" data-d="-1">−</button><button class="sk-qnum" data-act="ret-set" data-i="'+i+'">'+(o._ret[i]||0)+'</button><button data-act="ret-qty" data-i="'+i+'" data-d="1"'+(max<=0?' disabled style="opacity:.4"':'')+'>+</button></div></div>';}).join('')+'<div class="sk-sum-r grand" style="margin-top:10px"><span>Hoàn trả</span><span>'+fmt(refund)+'</span></div>';}
+function skRenderReturn(){const o=skRetOrder;if(!o)return;let refundRaw=0;(o.items||[]).forEach((it,i)=>{refundRaw+=(o._ret[i]||0)*it.price;});const _st=Number(o.subtotal)||0,_f=_st>0?Math.max(0,Math.min(1,(Number(o.total)||0)/_st)):1;const refund=Math.round(refundRaw*_f);skq('#sk-ret-body').innerHTML=(o.items||[]).map((it,i)=>{const done=(o._done&&o._done[i])||0;const max=(o._max&&o._max[i]!=null)?o._max[i]:(it.qty||0);const sub='đã mua '+it.qty+' '+escHtml(it.unit||'')+' × '+fmt(it.price)+(done>0?(' · đã trả '+skN(done)+' · còn trả được '+skN(max)):'');return '<div class="sk-ret-row"><div class="sk-ret-name">'+escHtml(it.name)+'<span class="sk-sess-sub">'+sub+'</span></div><div class="sk-qbox"><button data-act="ret-qty" data-i="'+i+'" data-d="-1">−</button><button class="sk-qnum" data-act="ret-set" data-i="'+i+'">'+(o._ret[i]||0)+'</button><button data-act="ret-qty" data-i="'+i+'" data-d="1"'+(max<=0?' disabled style="opacity:.4"':'')+'>+</button></div></div>';}).join('')+'<div class="sk-sum-r grand" style="margin-top:10px"><span>Hoàn trả</span><span>'+fmt(refund)+'</span></div>';}
 function skRetQty(i,d){if(!skRetOrder)return;const max=(skRetOrder._max&&skRetOrder._max[i]!=null)?skRetOrder._max[i]:((skRetOrder.items[i]||{}).qty||0);let v=(skRetOrder._ret[i]||0)+d;if(v<0)v=0;if(v>max)v=max;skRetOrder._ret[i]=v;skRenderReturn();}
-async function skDoReturn(){const o=skRetOrder;if(!o)return;const lines=[];let refund=0;(o.items||[]).forEach((it,i)=>{const q=o._ret[i]||0;if(q>0){const ratio=it.ratio||1;lines.push({id:it.id,name:it.name,qty:q,unit:it.unit,baseQty:q*ratio,price:it.price,cost:(it.cost||0)});refund+=q*it.price;}});if(!lines.length){toast('Chọn số lượng trả');return;}
+async function skDoReturn(){const o=skRetOrder;if(!o)return;const lines=[];let refundRaw=0;(o.items||[]).forEach((it,i)=>{const q=o._ret[i]||0;if(q>0){const ratio=it.ratio||1;lines.push({id:it.id,name:it.name,qty:q,unit:it.unit,baseQty:q*ratio,price:it.price,cost:(it.cost||0)});refundRaw+=q*it.price;}});if(!lines.length){toast('Chọn số lượng trả');return;}
+  const _st=Number(o.subtotal)||0,_f=_st>0?Math.max(0,Math.min(1,(Number(o.total)||0)/_st)):1;const refund=Math.round(refundRaw*_f);
   const batch=writeBatch(db);
   batch.set(doc(bcol('returns')),{orderId:o.id,items:lines,refund:refund,method:o.method,customerId:o.customerId||null,customerName:o.customerName||null,at:serverTimestamp()});
   lines.forEach(l=>{batch.update(bdoc('products',l.id),{stock:increment(l.baseQty)});batch.set(doc(bcol('stock_moves')),{productId:l.id,productName:l.name,delta:+l.baseQty,reason:'return',orderId:o.id,at:serverTimestamp()});}); // trả hàng -> cộng lại tồn (increment dương)
@@ -2879,33 +2880,60 @@ function skRpBuckets(list,b,retByOrder){
   bars.forEach((bb,i)=>{bb.show=(i%step===0)||(i===bars.length-1);});
   return bars;
 }
-function skRenderReport(){
+function skRpRange(){
+  if(skPeriod==='custom')return skRpBounds();
+  const now=new Date();const to=new Date(now);
+  const from=new Date(now);from.setHours(0,0,0,0);
+  if(skPeriod!=='today'){const days=parseInt(skPeriod,10)||7;from.setDate(from.getDate()-(days-1));}
+  return {from:from,to:to};
+}
+async function skRenderReport(){
   const box=skq('#sk-report');if(!box)return;
   skqa('#sk-period button').forEach(b=>b.classList.toggle('sk-on',b.dataset.p===skPeriod));
   const cr=skq('#sk-rp-range');if(cr)cr.style.display=(skPeriod==='custom')?'':'none';
+  if(skPeriod==='custom'&&!skRpBounds()){box.innerHTML='<div class="sk-rp-hint">📅 Chọn <b>Từ ngày</b> và <b>Đến ngày</b> ở trên để xem báo cáo theo khoảng thời gian bạn muốn.<br>Hoặc bấm nhanh: <b>Tháng này · Tháng trước · Năm nay</b>.</div>';return;}
+  const cardR=skRpRange();if(!cardR)return;
+  // Khoảng NẠP = kỳ đang xem, mở rộng tối thiểu tới 7 ngày gần nhất để biểu đồ "7 ngày" (Hôm nay/7/30) luôn có dữ liệu.
+  // Truy vấn theo createdAt (đơn) & at (phiếu trả) — KHÔNG limit → hết trần 300. bcol là đường dẫn subcollection nên chỉ dùng index tự động (không cần tạo index).
+  const sevenAgo=new Date();sevenAgo.setHours(0,0,0,0);sevenAgo.setDate(sevenAgo.getDate()-6);
+  const fFrom=new Date(Math.min(cardR.from.getTime(),sevenAgo.getTime()));
+  const fTo=cardR.to;
+  const myId=++skRpReqId;
+  if(!skRpOrders.length)box.innerHTML='<div class="sk-rp-hint">⏳ Đang tải báo cáo…</div>';
+  let fo=null,fr=null;
+  try{
+    const os=await getDocs(query(bcol('orders'),where('createdAt','>=',fFrom),where('createdAt','<=',fTo),orderBy('createdAt','asc')));
+    fo=os.docs.map(d=>Object.assign({id:d.id},d.data()));
+    // Phiếu trả: chỉ cần at >= đầu kỳ (phiếu trả luôn xảy ra SAU khi bán → mọi phiếu trả của đơn trong kỳ đều có at >= fFrom). Mở trên để bắt cả đơn trả ở kỳ sau.
+    const rs=await getDocs(query(bcol('returns'),where('at','>=',fFrom),orderBy('at','asc')));
+    fr=rs.docs.map(d=>Object.assign({id:d.id},d.data()));
+  }catch(e){fo=null;fr=null;}
+  if(myId!==skRpReqId)return; // đã có lần dựng mới hơn → bỏ kết quả cũ (chống chớp số khi bấm nhanh)
+  // Gộp với dữ liệu realtime trong máy (đơn/phiếu trả vừa tạo, kể cả offline chưa có createdAt server) — ưu tiên bản đã fetch.
+  const oById={};(fo||[]).forEach(o=>{oById[o.id]=o;});(skOrders||[]).forEach(o=>{if(!oById[o.id])oById[o.id]=o;});
+  const rById={};(fr||[]).forEach(r=>{rById[r.id]=r;});(skReturns||[]).forEach(r=>{if(!rById[r.id])rById[r.id]=r;});
+  skRpOrders=Object.values(oById);skRpReturns=Object.values(rById);
+  skDrawReport(box,(fo===null));
+}
+function skDrawReport(box,offline){
   const cb=skPeriod==='custom'?skRpBounds():null;
-  if(skPeriod==='custom'&&!cb){box.innerHTML='<div class="sk-rp-hint">📅 Chọn <b>Từ ngày</b> và <b>Đến ngày</b> ở trên để xem báo cáo theo khoảng thời gian bạn muốn.<br>Hoặc bấm nhanh: <b>Tháng này · Tháng trước · Năm nay</b>.</div>';return;}
-  const list=skOrders.filter(o=>skInPeriod(skOrderDate(o),skPeriod));
-  // ── HÀNG TRẢ: gộp theo ĐƠN GỐC (khớp qua orderId, KHÔNG theo ngày trả) để trừ vào ĐÚNG kỳ đã bán — báo cáo trung thực. Không trả quá số đã mua nên mỗi đơn ≥ 0 → doanh thu không âm. ──
+  const list=skRpOrders.filter(o=>skInPeriod(skOrderDate(o),skPeriod));
+  // ── HÀNG TRẢ: gộp theo ĐƠN GỐC (khớp orderId, KHÔNG theo ngày trả) để trừ vào ĐÚNG kỳ đã bán. Không trả quá số đã mua nên mỗi đơn ≥ 0 → doanh thu không âm. ──
   const retByOrder={};
-  (skReturns||[]).forEach(r=>{const oid=r&&r.orderId;if(!oid)return;const e=retByOrder[oid]||(retByOrder[oid]={refund:0,cogs:0,qtyByName:{}});e.refund+=Number(r.refund)||0;(r.items||[]).forEach(li=>{e.cogs+=skReturnLineCost(r,li);const nm=li&&li.name;if(nm!=null)e.qtyByName[nm]=(e.qtyByName[nm]||0)+(Number(li.qty)||0);});});
-  let rev=0,cost=0,cash=0,qr=0,debt=0,retInPeriod=0,ordersReturned=0,ordersSold=0,ordersFullyReturned=0;const prod={};
+  (skRpReturns||[]).forEach(r=>{const oid=r&&r.orderId;if(!oid)return;const e=retByOrder[oid]||(retByOrder[oid]={refund:0,cogs:0,qtyByName:{}});e.refund+=Number(r.refund)||0;(r.items||[]).forEach(li=>{e.cogs+=skReturnLineCost(r,li);const nm=li&&li.name;if(nm!=null)e.qtyByName[nm]=(e.qtyByName[nm]||0)+(Number(li.qty)||0);});});
+  let rev=0,cost=0,cash=0,qr=0,debt=0,ordersSold=0;const prod={};
   list.forEach(o=>{const ret=retByOrder[o.id]||{refund:0,cogs:0,qtyByName:{}};const gross=Number(o.total)||0;
-    const refundApplied=Math.min(Math.max(0,Number(ret.refund)||0),gross);   // KHÔNG cho hàng trả vượt tổng đơn → doanh thu mỗi đơn ≥ 0 (chặn dữ liệu trả trùng/quá tay)
+    const refundApplied=Math.min(Math.max(0,Number(ret.refund)||0),gross);   // hàng trả không vượt tổng đơn → doanh thu mỗi đơn ≥ 0 (chặn dữ liệu trả trùng/quá tay)
     const net=gross-refundApplied;rev+=net;
     let ocost=0;(o.items||[]).forEach(i=>{const c=skCogsLine(i);ocost+=c;prod[i.name]=(prod[i.name]||0)+i.qty;});
-    const cogsApplied=Math.min(Math.max(0,Number(ret.cogs)||0),ocost);cost+=(ocost-cogsApplied);   // vốn hàng trả không vượt vốn đơn → vốn mỗi đơn ≥ 0
+    const cogsApplied=Math.min(Math.max(0,Number(ret.cogs)||0),ocost);cost+=(ocost-cogsApplied);   // vốn hàng trả ≤ vốn đơn → vốn mỗi đơn ≥ 0
     Object.keys(ret.qtyByName).forEach(nm=>{if(prod[nm]!=null)prod[nm]=Math.max(0,prod[nm]-ret.qtyByName[nm]);});   // bán chạy: trừ hàng trả nhưng không âm
     if(o.method==='cash')cash+=net;else if(o.method==='qr')qr+=net;else if(o.method==='debt')debt+=net;
-    if(refundApplied>0){retInPeriod+=refundApplied;ordersReturned++;}
-    if(net>0)ordersSold++;else if(refundApplied>0)ordersFullyReturned++;   // đơn có doanh thu thực / đơn đã trả lại toàn bộ
+    if(net>0)ordersSold++;
   });
   const profit=rev-cost;const top=Object.keys(prod).map(k=>[k,prod[k]]).sort((a,b)=>b[1]-a[1]).slice(0,5);
-  const _rptCusts=((typeof customers!=='undefined'&&customers)?customers:[]);
-  const custDebt=_rptCusts.reduce((s,c)=>s+Math.max(0,(c.debt||0)),0);   // khách nợ mình (chỉ cộng phần dương)
-  const custCredit=_rptCusts.reduce((s,c)=>s+Math.max(0,-(c.debt||0)),0); // mình nợ khách
-  const supDebt=skSuppliers.reduce((s,c)=>s+(c.debt||0),0);
   let h='';
+  if(offline)h+='<div class="sk-mut" style="margin:0 0 8px;color:#b45309">⚠️ Đang dùng dữ liệu tạm trong máy (chưa tải được đầy đủ — kiểm tra mạng rồi mở lại).</div>';
   if(cb){const nD=Math.round((new Date(cb.to.getFullYear(),cb.to.getMonth(),cb.to.getDate())-new Date(cb.from.getFullYear(),cb.from.getMonth(),cb.from.getDate()))/86400000)+1;h+='<div class="sk-rp-head">📅 '+skDMY(cb.from)+' – '+skDMY(cb.to)+' · <b>'+nD+' ngày</b> · '+ordersSold+' đơn bán</div>';}
   h+='<div class="sk-cards"><div class="sk-c c-rev"><span>Thành tiền</span><b>'+fmt(rev)+'</b></div><div class="sk-c"><span>Vốn</span><b>'+fmt(cost)+'</b></div><div class="sk-c c-pro"><span>Lãi</span><b>'+fmt(profit)+'</b></div><div class="sk-c"><span>Số đơn bán</span><b>'+ordersSold+'</b></div></div>';
   h+='<div class="sk-pay3"><div class="p-cash"><span>Tiền mặt</span><b>'+fmt(cash)+'</b></div><div class="p-qr"><span>Chuyển khoản</span><b>'+fmt(qr)+'</b></div><div class="p-debt"><span>Bán nợ</span><b>'+fmt(debt)+'</b></div></div>';
@@ -2913,7 +2941,7 @@ function skRenderReport(){
     const bars=skRpBuckets(list,cb,retByOrder);const mx=Math.max(1,...bars.map(d=>d.sum));
     h+='<div class="sk-block"><div class="sk-bt">Thành tiền theo ngày ('+skDMY(cb.from)+' – '+skDMY(cb.to)+')</div>'+(bars.length?('<div class="sk-chart">'+bars.map(d=>'<div class="sk-bar"><div class="sk-bar-fill" style="height:'+Math.round(d.sum/mx*100)+'%"></div><span class="sk-bar-lb">'+(d.show?d.label:'')+'</span></div>').join('')+'</div>'):'<div class="sk-mut">Chưa có dữ liệu trong khoảng này.</div>')+'</div>';
   }else{
-    const days=[];const now=new Date();for(let i=6;i>=0;i--){const d=new Date(now);d.setHours(0,0,0,0);d.setDate(d.getDate()-i);days.push({label:(d.getDate()+'/'+(d.getMonth()+1)),key:d.toDateString(),sum:0});}skOrders.forEach(o=>{const dd=days.find(x=>x.key===skOrderDate(o).toDateString());if(dd){const g=Number(o.total)||0;const rf=Math.min(Math.max(0,(retByOrder[o.id]&&retByOrder[o.id].refund)||0),g);dd.sum+=(g-rf);}});const mx=Math.max(1,...days.map(d=>d.sum));
+    const days=[];const now=new Date();for(let i=6;i>=0;i--){const d=new Date(now);d.setHours(0,0,0,0);d.setDate(d.getDate()-i);days.push({label:(d.getDate()+'/'+(d.getMonth()+1)),key:d.toDateString(),sum:0});}skRpOrders.forEach(o=>{const dd=days.find(x=>x.key===skOrderDate(o).toDateString());if(dd){const g=Number(o.total)||0;const rf=Math.min(Math.max(0,(retByOrder[o.id]&&retByOrder[o.id].refund)||0),g);dd.sum+=(g-rf);}});const mx=Math.max(1,...days.map(d=>d.sum));
     h+='<div class="sk-block"><div class="sk-bt">Thành tiền 7 ngày</div><div class="sk-chart">'+days.map(d=>'<div class="sk-bar"><div class="sk-bar-fill" style="height:'+Math.round(d.sum/mx*100)+'%"></div><span class="sk-bar-lb">'+d.label+'</span></div>').join('')+'</div></div>';
   }
   h+='<div class="sk-block"><div class="sk-bt">Bán chạy</div>'+(top.length?top.map(function(t,i){return '<div class="sk-toprow"><span>'+(i+1)+'. '+escHtml(t[0])+'</span><b>'+skN(t[1])+'</b></div>';}).join(''):'<div class="sk-mut">Chưa có dữ liệu.</div>')+'</div>';
