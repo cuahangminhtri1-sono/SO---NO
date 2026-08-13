@@ -2923,7 +2923,7 @@ function skRenderReport(){
 /* ---- MODAL SỐ + ĐÓNG MODAL ---- */
 let _skNumCb=null,_skNumTextCb=null,_skNumText=false;
 function skNum(title,value,cb,opts){opts=opts||{};_skNumCb=cb;_skNumText=!!opts.text;_skNumTextCb=opts.onText||null;skq('#sk-num-title').textContent=title;const inp=skq('#sk-num-input');inp.type=opts.text?'text':'tel';inp.value=(value==null?'':String(value).trim());skModalOpen('#sk-num');setTimeout(()=>{inp.focus();try{inp.select();}catch(e){}},60);}
-function skNumOk(){const raw=skq('#sk-num-input').value;skNumClose();if(_skNumText){if(_skNumTextCb)_skNumTextCb(raw);}else{const v=parseFloat(String(raw).replace(/[^\d.-]/g,''));if(_skNumCb)_skNumCb(isNaN(v)?0:v);}_skNumCb=null;_skNumTextCb=null;}
+function skNumOk(){const raw=skq('#sk-num-input').value;skNumClose();const cb=_skNumCb,tcb=_skNumTextCb,isText=_skNumText;_skNumCb=null;_skNumTextCb=null;if(isText){if(tcb)tcb(raw);}else{const v=parseFloat(String(raw).replace(/[^\d.-]/g,''));if(cb)cb(isNaN(v)?0:v);}}
 function skNumClose(){skq('#sk-num').classList.remove('on');if(!skAnyModal())skScrim(false);}
 /* ---- Gõ số lượng trực tiếp (khỏi bấm +/− nhiều lần) ---- */
 function skNpQty(i){const it=skNp.items[i];if(!it)return;skNum('Số lượng nhập: '+it.name+' ('+it.unit+')',it.qty,function(v){if(v>0){it.qty=v;it.baseQty=it.qty*it.ratio;}else{skNp.items.splice(i,1);}skRenderNp();});}
