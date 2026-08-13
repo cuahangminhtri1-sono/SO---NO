@@ -2824,20 +2824,20 @@ function skPrintMenu(){
 /* ---- BÁO CÁO ---- */
 function skOrderDate(o){return (o.createdAt&&o.createdAt.toDate)?o.createdAt.toDate():(o.createdAt instanceof Date?o.createdAt:new Date());}
 function skReturnDate(r){return (r&&r.at&&r.at.toDate)?r.at.toDate():((r&&r.at instanceof Date)?r.at:((r&&r.createdAt&&r.createdAt.toDate)?r.createdAt.toDate():new Date()));}
-// Vốn 1 dòng hàng: ưu tiên GIÁ VỐN HIỆN TẠI của sản phẩm (× số lượng gốc) để khi sửa giá vốn thì báo cáo cập nhật ngay; nếu SP đã xóa thì mới dùng giá vốn đã lưu trong đơn.
+// Vốn 1 dòng hàng: ưu tiên GIÁ VỐN ĐÃ KHÓA trong đơn lúc bán (chốt ngay thời điểm bán — chuẩn kế toán); đơn cũ chưa lưu vốn (>0) mới tạm dùng giá vốn Kho hiện tại; SP đã xóa thì dùng vốn lưu trong đơn.
 function skCogsLine(i){
-  const p=skProducts.find(x=>x.id===(i&&i.id));
+  if(i&&Number(i.cost)>0)return Number(i.cost)*(Number(i.qty)||0);                                                        // GIÁ VỐN ĐÃ KHÓA lúc bán — chốt ngay thời điểm bán
+  const p=skProducts.find(x=>x.id===(i&&i.id));                                                                            // đơn CŨ chưa lưu vốn (>0) → tạm dùng vốn Kho hiện tại
   if(p&&p.cost!=null)return (Number(p.cost)||0)*(Number(i&&i.baseQty)||((Number(i&&i.qty)||0)*(Number(i&&i.ratio)||1)));
-  if(i&&i.cost!=null)return (Number(i.cost)||0)*(Number(i.qty)||0);
-  return 0;
+  return (Number(i&&i.cost)||0)*(Number(i&&i.qty)||0);                                                                     // SP đã xóa khỏi Kho → dùng vốn lưu trong đơn (kể cả 0)
 }
 function skReturnLineCost(r,li){
-  const p=skProducts.find(x=>x.id===(li&&li.id));
+  if(li&&Number(li.cost)>0)return Number(li.cost)*(Number(li.qty)||0);                                                     // vốn đã KHÓA trên dòng trả (khớp vốn lúc bán)
+  const o=skOrders.find(x=>x.id===(r&&r.orderId));                                                                         // else theo vốn đã khóa trong ĐƠN GỐC
+  if(o&&o.items){const oi=o.items.find(x=>x.id===(li&&li.id)&&x.unit===(li&&li.unit))||o.items.find(x=>x.id===(li&&li.id));if(oi&&Number(oi.cost)>0)return Number(oi.cost)*(Number(li.qty)||0);}
+  const p=skProducts.find(x=>x.id===(li&&li.id));                                                                          // else vốn Kho hiện tại (dòng trả/đơn cũ thiếu vốn)
   if(p&&p.cost!=null)return (Number(p.cost)||0)*(Number(li&&li.baseQty)||((Number(li&&li.qty)||0)*(Number(li&&li.ratio)||1)));
-  if(li&&li.cost!=null)return (Number(li.cost)||0)*(Number(li.qty)||0);
-  const o=skOrders.find(x=>x.id===(r&&r.orderId));
-  if(o&&o.items){const oi=o.items.find(x=>x.id===(li&&li.id)&&x.unit===(li&&li.unit))||o.items.find(x=>x.id===(li&&li.id));if(oi&&oi.cost!=null)return (Number(oi.cost)||0)*(Number(li.qty)||0);}
-  return 0;
+  return (Number(li&&li.cost)||0)*(Number(li&&li.qty)||0);
 }
 /* ==== Bộ lọc thời gian — thêm khoảng tự chọn 'custom' ==== */
 function skRpBounds(){
