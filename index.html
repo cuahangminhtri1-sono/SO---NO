@@ -216,6 +216,58 @@
   .lk-pay{background:#7c3aed;color:#fff;border:none;border-radius:8px;padding:12px 18px;font-size:1em;font-weight:700;cursor:pointer;}
   .lk-btn{background:#eee;border:none;border-radius:8px;padding:11px 18px;font-size:1em;cursor:pointer;color:#333;}
 </style>
+<style id="sn-print-css">
+/* ===== IN BẢNG KÊ CÔNG NỢ A4/A5 (drop-in, ĐỘC LẬP với in bill 58mm) ===== */
+/* Modal chọn khổ giấy + xem trước */
+#sn-print-modal{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:flex-start;justify-content:center;z-index:600;padding:16px;overflow:auto;}
+#sn-print-modal.on{display:flex;}
+#sn-print-modal .sn-box{background:#fff;border-radius:14px;width:100%;max-width:840px;box-shadow:0 12px 40px rgba(0,0,0,.3);padding:18px 18px 16px;margin:auto;}
+#sn-print-modal h3{font-size:1.1em;color:#1a6b3c;margin-bottom:10px;}
+#sn-print-modal .sn-opts{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px;}
+#sn-print-modal .sn-sizebtn{padding:9px 16px;border:1.6px solid #b9c6d2;background:#f4f7fa;color:#2b3a4a;border-radius:9px;font-size:.95em;font-weight:700;cursor:pointer;font-family:inherit;}
+#sn-print-modal .sn-sizebtn.on{background:#1a6b3c;color:#fff;border-color:#1a6b3c;}
+#sn-print-modal .sn-hint{font-size:.8em;color:#6b7280;flex:1;min-width:180px;}
+#sn-print-modal #sn-preview{background:#e9edf1;border:1px solid #d1d5db;border-radius:10px;padding:14px;max-height:56vh;overflow:auto;}
+#sn-print-modal #sn-preview .sn-doc{background:#fff;margin:0 auto;box-shadow:0 1px 6px rgba(0,0,0,.12);padding:16px 18px;max-width:190mm;}
+#sn-print-modal .sn-acts{display:flex;gap:10px;margin-top:14px;}
+#sn-print-modal .sn-acts .sn-cancel{flex:1;padding:12px;background:#f1f3f5;border:1.5px solid #d1d5db;border-radius:9px;font-size:.95em;font-weight:600;cursor:pointer;font-family:inherit;color:#374151;}
+#sn-print-modal .sn-acts .sn-go{flex:2;padding:12px;background:#1a6b3c;color:#fff;border:none;border-radius:9px;font-size:1em;font-weight:800;cursor:pointer;font-family:inherit;}
+/* Bố cục tờ bảng kê — dùng cho CẢ xem trước lẫn khi in */
+.sn-doc{color:#111;font-family:'Segoe UI',Arial,sans-serif;font-size:13px;line-height:1.4;}
+.sn-doc .sn-shop{text-align:center;font-size:1.05em;font-weight:700;color:#1a6b3c;margin:0 0 2px;}
+.sn-doc .sn-title{text-align:center;font-size:1.2em;font-weight:800;margin:6px 0 2px;text-transform:uppercase;}
+.sn-doc .sn-when{text-align:center;font-size:.86em;color:#444;margin-bottom:10px;}
+.sn-doc .sn-meta{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;font-size:.92em;margin:8px 0 10px;border-top:1px solid #999;border-bottom:1px solid #999;padding:8px 0;}
+.sn-doc table{width:100%;border-collapse:collapse;font-size:.9em;}
+.sn-doc th,.sn-doc td{border:1px solid #333;padding:5px 7px;vertical-align:top;}
+.sn-doc th{background:#eef2f5;font-weight:700;text-align:center;}
+.sn-doc td.c{text-align:center;}
+.sn-doc td.r{text-align:right;white-space:nowrap;}
+.sn-doc td.b{font-weight:700;}
+.sn-doc tfoot td{font-weight:700;background:#f7f9fb;}
+.sn-doc .sn-sum{margin-top:12px;font-size:1em;}
+.sn-doc .sn-sum b{font-size:1.12em;}
+.sn-doc .sn-sign{display:flex;justify-content:space-around;gap:24px;margin-top:26px;text-align:center;font-size:.9em;}
+.sn-doc .sn-sign .sn-col{flex:1;}
+.sn-doc .sn-sign .sn-role{font-weight:700;}
+.sn-doc .sn-sign .sn-note{font-size:.82em;color:#555;font-style:italic;}
+.sn-doc .sn-sign .sn-space{height:56px;}
+.sn-doc .sn-empty{text-align:center;color:#666;padding:16px;}
+/* Ẩn tờ in khỏi màn hình bình thường */
+#sn-print-sheet{display:none;}
+@media print{
+  /* Khi đang in bảng kê: ẩn mọi thứ, chỉ hiện tờ bảng kê */
+  body.sn-printing > *{display:none !important;}
+  body.sn-printing #sn-print-sheet{display:block !important;visibility:visible !important;position:static;color:#000;}
+  body.sn-printing #sn-print-sheet *{visibility:visible !important;}
+  /* Khổ A5: thu nhỏ chữ cho vừa trang */
+  body.sn-printing.sn-a5 .sn-doc{font-size:11px;}
+  body.sn-printing.sn-a5 .sn-doc table{font-size:.86em;}
+  .sn-doc thead{display:table-header-group;} /* lặp lại tiêu đề cột ở mỗi trang */
+  .sn-doc tr{page-break-inside:avoid;}
+  .sn-doc .sn-sign{page-break-inside:avoid;}
+}
+</style>
 </head>
 <body>
 
@@ -504,6 +556,7 @@
       <button class="btn-save" style="flex:1;padding:10px;background:#2980b9" onclick="openTx('tra')">💰 Trả</button>
       <button class="btn-share" onclick="generateShareLink()">📤 Chia sẻ</button>
       <button class="btn-share" onclick="openSignatures()">✍️ Chữ ký</button>
+      <button class="btn-share" onclick="snOpenPrint()">🖨️ In A4/A5</button>
       <button class="btn-danger" onclick="deleteCustomer()">🗑</button>
     </div>
     <div style="font-size:.74em;color:#6b7280;margin:-4px 0 8px;line-height:1.4">🛒 Khách mua: nợ tăng. &nbsp;💰 Khách trả: nợ giảm. Khi khách trả dư, số dư tự chuyển sang <b style="color:#1d4ed8">Mình nợ khách</b>.</div>
@@ -1986,6 +2039,173 @@ window.openDetail=async id=>{
   document.getElementById('modal-detail').classList.add('active');
   loadTx(id);
 };
+// ===== IN BẢNG KÊ CÔNG NỢ (A4/A5) — drop-in, KHÔNG đụng in bill 58mm =====
+let _snShopName='';
+let _snPaper='A4';
+async function snShopName(){
+  if(_snShopName)return _snShopName;
+  if(typeof skShopName==='string'&&skShopName)return (_snShopName=skShopName);
+  try{const ss=await getDoc(doc(db,'users',UID,'meta','shopSettings'));if(ss.exists()){const s=ss.data();_snShopName=s.shopName||s.accName||'';}}catch(e){}
+  return _snShopName;
+}
+function snMoney(n){return Math.round(Number(n)||0).toLocaleString('vi-VN');}
+// Nguồn dữ liệu CHUNG cho bảng kê (dùng cho cả in A4/A5 lẫn in Bluetooth nhiệt) — 1 chỗ tính, không lệch
+async function snStatementData(){
+  const c=customers.find(x=>x.id===currentCustomerId);
+  if(!c)return null;
+  const shop=(await snShopName())||'CỬA HÀNG';
+  let txs=[];
+  try{
+    const snap=await getDocs(query(collection(db,'users',UID,'customers',c.id,'transactions'),orderBy('date','desc')));
+    txs=snap.docs.map(d=>({id:d.id,...d.data()}));
+  }catch(e){ txs=(_curTxsFor===c.id&&Array.isArray(_curTxs))?_curTxs.slice():[]; }
+  // Sắp CŨ→MỚI (cùng ngày theo GIỜ GHI) để cộng dồn số dư xuôi thời gian
+  txs.sort((a,b)=>{const da=txDayMs(a.date),dbb=txDayMs(b.date);if(da!==dbb)return da-dbb;return txEntryMs(a)-txEntryMs(b);});
+  let acc=0,totMua=0,totTra=0;
+  txs.forEach(t=>{const v=Math.round(Number(t.amount)||0);if(t.type==='mua'){acc+=v;totMua+=v;}else{acc-=v;totTra+=v;}});
+  return {shop,c,txs,totMua,totTra,bal:acc};
+}
+async function snBuildDocHtml(){
+  const data=await snStatementData();
+  if(!data)return '<div class="sn-doc"><div class="sn-empty">Không tìm thấy khách.</div></div>';
+  const c=data.c, shop=data.shop, txs=data.txs;
+  let acc=0;
+  const rowsArr=txs.map((t,i)=>{
+    const v=Math.round(Number(t.amount)||0);
+    const isMua=t.type==='mua';
+    if(isMua){acc+=v;}else{acc-=v;}
+    const content=[t.note,t.memo].filter(Boolean).map(escHtml).join(' · ')||(isMua?'Mua hàng':'Trả tiền');
+    const tstr=txTimeStr(t);
+    const dstr=fmtDateRaw(t.date)+(tstr?(' '+tstr):'');
+    const balCell=acc>0?snMoney(acc):(acc<0?('−'+snMoney(-acc)):'0');
+    return '<tr><td class="c">'+(i+1)+'</td><td>'+escHtml(dstr)+'</td><td>'+content+'</td><td class="r">'+(isMua?snMoney(v):'')+'</td><td class="r">'+(!isMua?snMoney(v):'')+'</td><td class="r b">'+balCell+'</td></tr>';
+  });
+  const bal=data.bal, totMua=data.totMua, totTra=data.totTra; // bal khớp dòng cuối bảng
+  let sumTxt;
+  if(bal>0)sumTxt='Khách còn nợ: <b>'+snMoney(bal)+' ₫</b>';
+  else if(bal<0)sumTxt='Mình nợ khách: <b>'+snMoney(-bal)+' ₫</b>';
+  else sumTxt='<b>Đã thanh toán xong (0 ₫)</b>';
+  const now=new Date();
+  const whenStr=fmtDateRaw(now)+' '+now.toLocaleTimeString('vi-VN',{hour:'2-digit',minute:'2-digit'});
+  const metaR=[c.phone?('ĐT: '+escHtml(c.phone)):'',c.address?('Đ/c: '+escHtml(c.address)):''].filter(Boolean).join('<br>');
+  const footBal=bal>0?snMoney(bal):(bal<0?('−'+snMoney(-bal)):'0');
+  const body = rowsArr.length
+    ? ('<table><thead><tr><th style="width:34px">STT</th><th style="width:112px">Ngày giờ</th><th>Nội dung</th><th style="width:92px">Mua (₫)</th><th style="width:92px">Trả (₫)</th><th style="width:100px">Còn lại (₫)</th></tr></thead><tbody>'
+        + rowsArr.join('')
+        + '</tbody><tfoot><tr><td class="c" colspan="3">TỔNG CỘNG</td><td class="r">'+snMoney(totMua)+'</td><td class="r">'+snMoney(totTra)+'</td><td class="r">'+footBal+'</td></tr></tfoot></table>')
+    : '<div class="sn-empty">Chưa có giao dịch nào.</div>';
+  return '<div class="sn-doc">'
+    + '<div class="sn-shop">'+escHtml(shop)+'</div>'
+    + '<div class="sn-title">Bảng kê công nợ</div>'
+    + '<div class="sn-when">Ngày in: '+whenStr+'</div>'
+    + '<div class="sn-meta"><div><b>Khách hàng:</b> '+escHtml(c.name)+(metaR?('<br>'+metaR):'')+'</div>'
+    + '<div style="text-align:right">'+sumTxt+'</div></div>'
+    + body
+    + '<div class="sn-sum">'+sumTxt+'</div>'
+    + '<div class="sn-sign"><div class="sn-col"><div class="sn-role">Khách hàng</div><div class="sn-note">(Ký, ghi rõ họ tên)</div><div class="sn-space"></div></div>'
+    + '<div class="sn-col"><div class="sn-role">Chủ cửa hàng</div><div class="sn-note">(Ký, ghi rõ họ tên)</div><div class="sn-space"></div></div></div>'
+    + '</div>';
+}
+function snSetPaper(sz){_snPaper=(sz==='A5'?'A5':'A4');const box=document.getElementById('sn-print-modal');if(!box)return;box.querySelectorAll('.sn-sizebtn[data-sz]').forEach(b=>b.classList.toggle('on',b.getAttribute('data-sz')===_snPaper));}
+window.snSetPaper=snSetPaper;
+// Chọn khổ máy nhiệt (dùng chung localStorage sk_paper với hóa đơn POS)
+function snSetThermal(sz){var v=(sz==='80')?'80':'58';try{localStorage.setItem('sk_paper',v);}catch(e){}var box=document.getElementById('sn-print-modal');if(box)box.querySelectorAll('.sn-sizebtn[data-th]').forEach(function(b){b.classList.toggle('on',b.getAttribute('data-th')===v);});}
+window.snSetThermal=snSetThermal;
+function snUpdateBtStatus(){var el=document.getElementById('sn-bt-status');if(!el)return;if(!skBtSupported()){el.innerHTML='⚠️ Thiết bị này không hỗ trợ in Bluetooth (chỉ Android + Chrome). Trên iPhone/máy tính hãy dùng A4/A5 ở trên.';el.style.color='#b45309';return;}el.style.color='#6b7280';el.textContent=_skBT.char?('✓ Đã kết nối: '+(_skBT.name||'máy in')):'Chưa kết nối máy in. Bấm “Kết nối máy in”.';}
+window.snUpdateBtStatus=snUpdateBtStatus;
+window.snBtConnectUI=async function(){if(!skBtSupported()){snUpdateBtStatus();toast('Máy này không hỗ trợ in Bluetooth (chỉ Android + Chrome).');return;}await skBtConnect();snUpdateBtStatus();};
+window.snOpenPrint=async function(){
+  const modal=document.getElementById('sn-print-modal');const prev=document.getElementById('sn-preview');
+  if(!modal||!prev)return;
+  prev.innerHTML='<div class="sn-doc"><div class="sn-empty">Đang tạo bảng kê…</div></div>';
+  snSetPaper(_snPaper);
+  snSetThermal(localStorage.getItem('sk_paper')==='80'?'80':'58');
+  modal.classList.add('on');
+  snUpdateBtStatus();
+  const html=await snBuildDocHtml();
+  prev.innerHTML=html;
+  const sheet=document.getElementById('sn-print-sheet');if(sheet)sheet.innerHTML=html;
+};
+window.snClosePrint=function(){const m=document.getElementById('sn-print-modal');if(m)m.classList.remove('on');};
+// ENGINE IN CHUNG (A4/A5) — dùng cho cả bảng kê VÀ hóa đơn POS. Bơm @page ở cuối <body> để đè @page 58mm.
+window.snPrintDoc=function(html,size){
+  const sheet=document.getElementById('sn-print-sheet');if(!sheet)return;
+  if(html!=null)sheet.innerHTML=html;
+  const sz=(size==='A5')?'A5':'A4';const mg=(sz==='A5')?'10mm':'12mm';
+  const old=document.getElementById('sn-page-style');if(old)old.remove();
+  const st=document.createElement('style');st.id='sn-page-style';
+  st.textContent='@media print{@page{size:'+sz+';margin:'+mg+'}}';
+  document.body.appendChild(st);
+  window.__snPrinting=true;
+  document.body.classList.add('sn-printing');
+  if(sz==='A5')document.body.classList.add('sn-a5');else document.body.classList.remove('sn-a5');
+  let done=false;
+  const cleanup=function(){if(done)return;done=true;window.__snPrinting=false;document.body.classList.remove('sn-printing');document.body.classList.remove('sn-a5');const s=document.getElementById('sn-page-style');if(s)s.remove();window.removeEventListener('afterprint',cleanup);};
+  window.addEventListener('afterprint',cleanup);
+  setTimeout(function(){try{window.print();}catch(e){}},60);
+  setTimeout(cleanup,60000); // lưới an toàn cuối (afterprint là chính); 60s đủ dài để KHÔNG gỡ nhầm khi hộp thoại in còn mở
+};
+// BẢO HIỂM CÔ LẬP (một-lần): khi in A4/A5 của bộ này, beforeprint GIỮ nguyên khổ + đánh dấu ĐÃ DÙNG cờ; mọi lệnh in KHÁC sau đó (kể cả khi afterprint lỗi) sẽ thấy cờ=false và tự gỡ sạch trạng thái in A4 để không ẩn nhầm / lẫn khổ giấy.
+window.addEventListener('beforeprint',function(){if(window.__snPrinting){window.__snPrinting=false;return;}document.body.classList.remove('sn-printing');document.body.classList.remove('sn-a5');var s=document.getElementById('sn-page-style');if(s)s.remove();});
+window.snDoPrint=function(){
+  const sheet=document.getElementById('sn-print-sheet');const prev=document.getElementById('sn-preview');
+  const html=(sheet&&sheet.innerHTML.trim())?sheet.innerHTML:((prev&&prev.innerHTML)||'');
+  window.snPrintDoc(html,_snPaper);
+};
+// Vẽ bảng kê ra bitmap đen/trắng cho máy in nhiệt (giữ tiếng Việt) — cùng kỹ thuật với skReceiptCanvas
+function snStatementCanvasFromData(data,width){
+  var W=width||384,pad=10,cv=document.createElement('canvas'),ctx=cv.getContext('2d');
+  var lines=[];
+  function L(t,op){op=op||{};op.text=t;op.t='text';lines.push(op);}
+  function HR(){lines.push({t:'hr'});}
+  L((data.shop||'CỬA HÀNG').toUpperCase(),{size:30,bold:true,align:'center'});
+  L('BẢNG KÊ CÔNG NỢ',{size:22,bold:true,align:'center'});
+  L('KH: '+(data.c.name||''),{size:22,bold:true});
+  if(data.c.phone)L('ĐT: '+data.c.phone,{size:20});
+  var now=new Date();
+  L('Ngày in: '+fmtDateRaw(now)+' '+now.toLocaleTimeString('vi-VN',{hour:'2-digit',minute:'2-digit'}),{size:18});
+  HR();
+  if(!data.txs.length){L('Chưa có giao dịch.',{size:21,align:'center'});}
+  else{var acc=0;
+    data.txs.forEach(function(t){
+      var v=Math.round(Number(t.amount)||0);var isMua=t.type==='mua';if(isMua)acc+=v;else acc-=v;
+      var ts=txTimeStr(t);var dstr=fmtDateRaw(t.date)+(ts?(' '+ts):'');
+      L(dstr+'  '+(isMua?'Mua':'Trả'),{size:21,right:(isMua?'+':'−')+snMoney(v)});
+      L('   Số dư: '+(acc>0?snMoney(acc):(acc<0?('−'+snMoney(-acc)):'0')),{size:18});
+    });
+  }
+  HR();
+  L('Tổng mua',{size:21,right:snMoney(data.totMua)});
+  L('Tổng trả',{size:21,right:snMoney(data.totTra)});
+  var b=data.bal;
+  L(b>0?'KHÁCH CÒN NỢ':(b<0?'MÌNH NỢ KHÁCH':'ĐÃ XONG'),{size:28,bold:true,right:(b>0?snMoney(b):(b<0?snMoney(-b):'0'))});
+  var hgt=lines.map(function(ln){return ln.t==='hr'?16:((ln.size||22)+9);});
+  var H=pad*2+hgt.reduce(function(a,b){return a+b;},0);
+  cv.width=W;cv.height=H;
+  ctx.fillStyle='#fff';ctx.fillRect(0,0,W,H);ctx.fillStyle='#000';ctx.textBaseline='top';
+  var y=pad;
+  lines.forEach(function(ln){
+    if(ln.t==='hr'){ctx.save();ctx.strokeStyle='#000';ctx.lineWidth=2;ctx.setLineDash([5,4]);ctx.beginPath();ctx.moveTo(pad,y+7);ctx.lineTo(W-pad,y+7);ctx.stroke();ctx.restore();y+=16;return;}
+    var sz=ln.size||22;
+    ctx.font=(ln.bold?'bold ':'')+sz+'px Roboto, "Segoe UI", Arial, sans-serif';
+    if(ln.align==='center'){ctx.textAlign='center';ctx.fillText(ln.text,W/2,y);}
+    else{ctx.textAlign='left';ctx.fillText(ln.text,pad,y);if(ln.right!=null){ctx.textAlign='right';ctx.fillText(ln.right,W-pad,y);}}
+    y+=sz+9;
+  });
+  var d=ctx.getImageData(0,0,W,H).data,mono=new Uint8Array(W*H);
+  for(var q=0;q<W*H;q++){var lum=0.299*d[q*4]+0.587*d[q*4+1]+0.114*d[q*4+2];mono[q]=lum<135?1:0;}
+  return {mono:mono,width:W,height:H};
+}
+window.snPrintStatementBT=async function(){
+  if(!skBtSupported()){snUpdateBtStatus();toast('Máy này không hỗ trợ in Bluetooth (chỉ Android + Chrome).');return;}
+  var data=await snStatementData();if(!data){toast('Không có dữ liệu khách.');return;}
+  if(!_skBT.char){var ok=await skBtConnect();snUpdateBtStatus();if(!ok)return;}
+  try{
+    var W=(localStorage.getItem('sk_paper')==='80')?576:384;
+    var r=snStatementCanvasFromData(data,W);var cmd=skRasterCmd(r.mono,r.width,r.height);
+    toast('Đang in...');await skBtWrite(cmd);toast('Đã gửi lệnh in ✓');
+  }catch(e){toast('In lỗi — thử kết nối lại máy in.');_skBT.server=null;_skBT.char=null;snUpdateBtStatus();}
+};
 // Dòng "chốt nợ" — số dư còn lại sau mỗi giao dịch (theo dấu: khách nợ mình / mình nợ khách / hết nợ)
 function runBalHtml(bal){
   bal=Math.round(Number(bal)||0);
@@ -2798,9 +3018,41 @@ async function skPrintBluetooth(){
     toast('Đang in...');await skBtWrite(cmd);toast('Đã gửi lệnh in ✓');
   }catch(e){toast('In lỗi — thử kết nối lại máy in.');_skBT.server=null;_skBT.char=null;}
 }
+// ===== HÓA ĐƠN A4/A5 (máy tính) — dùng chung engine snPrintDoc + kiểu .sn-doc =====
+function skInvNum(n){return Math.round(Number(n)||0).toLocaleString('vi-VN');}
+function skInvoiceDocHtml(o){
+  var shop=escHtml(skShopName||'CỬA HÀNG');
+  var rows=(o.items||[]).map(function(i,idx){
+    var line=Math.round((Number(i.price)||0)*(Number(i.qty)||0));
+    return '<tr><td class="c">'+(idx+1)+'</td><td>'+escHtml(i.name)+'</td><td class="c">'+i.qty+(i.unit?(' '+escHtml(i.unit)):'')+'</td><td class="r">'+skInvNum(i.price)+'</td><td class="r">'+skInvNum(line)+'</td></tr>';
+  }).join('');
+  var when='';try{when=(o.when&&o.when.toLocaleString)?o.when.toLocaleString('vi-VN'):skDT(o.when);}catch(e){when=skDT(o.when);}
+  var totalBlk=(o.discount>0?('Tạm tính: '+skInvNum(o.subtotal)+' ₫<br>Giảm giá: −'+skInvNum(o.discount)+' ₫<br>'):'')
+    +'<b style="font-size:1.18em">TỔNG: '+skInvNum(o.total)+' ₫</b><br>Thanh toán: '+skMethodLabel(o.method)
+    +((o.method==='cash'&&o.paid!=null)?('<br>Khách đưa: '+skInvNum(o.paid)+' ₫ · Thối lại: '+skInvNum(o.change||0)+' ₫'):'');
+  var custMeta=(o.method==='debt'&&o.customerName)?('<div class="sn-meta"><div><b>Khách hàng:</b> '+escHtml(o.customerName)+'</div><div style="text-align:right">Hình thức: Ghi nợ</div></div>'):'';
+  return '<div class="sn-doc">'
+    +'<div class="sn-shop">'+shop+'</div>'
+    +'<div class="sn-title">Hóa đơn bán hàng</div>'
+    +'<div class="sn-when">'+escHtml(when)+'</div>'
+    +custMeta
+    +'<table><thead><tr><th style="width:34px">STT</th><th>Tên hàng</th><th style="width:64px">SL</th><th style="width:90px">Đơn giá</th><th style="width:100px">Thành tiền</th></tr></thead><tbody>'+rows+'</tbody></table>'
+    +'<div class="sn-sum" style="text-align:right;margin-top:10px">'+totalBlk+'</div>'
+    +'<div style="text-align:center;margin-top:14px;font-style:italic">Cảm ơn quý khách!</div>'
+    +'<div class="sn-sign"><div class="sn-col"><div class="sn-role">Khách hàng</div><div class="sn-note">(Ký, ghi rõ họ tên)</div><div class="sn-space"></div></div>'
+    +'<div class="sn-col"><div class="sn-role">Người bán</div><div class="sn-note">(Ký, ghi rõ họ tên)</div><div class="sn-space"></div></div></div>'
+    +'</div>';
+}
+window.skPrintInvoiceA4=function(){
+  var o=window._skLastReceipt;if(!o){toast('Chưa có hóa đơn');return;}
+  if(typeof window.snPrintDoc!=='function'){toast('Bộ in chưa sẵn sàng');return;}
+  var size=(localStorage.getItem('sk_inv_size')==='A5')?'A5':'A4';
+  window.snPrintDoc(skInvoiceDocHtml(o),size);
+};
 function skPrintMenu(){
   if(document.getElementById('skPmenu'))return;
   var paper=(localStorage.getItem('sk_paper')==='80')?'80':'58';
+  var invSz=(localStorage.getItem('sk_inv_size')==='A5')?'A5':'A4';
   var btName=localStorage.getItem('sk_bt_name')||'';
   var conn=(_skBT.char)?('Đã kết nối: '+(_skBT.name||btName)):'Chưa kết nối';
   var ov=document.createElement('div');ov.id='skPmenu';
@@ -2808,7 +3060,9 @@ function skPrintMenu(){
   var card=document.createElement('div');
   card.style.cssText='background:#fff;color:#1a1a2e;width:100%;max-width:440px;border-radius:16px 16px 0 0;padding:18px 16px 22px;font-family:"Segoe UI",Roboto,sans-serif;box-shadow:0 -8px 30px rgba(0,0,0,.3);';
   card.innerHTML='<div style="font-weight:800;font-size:17px;margin-bottom:14px;text-align:center;">Chọn cách in hóa đơn</div>'
-   +'<button id="skPb" style="width:100%;display:block;text-align:left;background:#e8f5ee;border:1.5px solid #1a6b3c;color:#1a6b3c;border-radius:12px;padding:13px 15px;margin-bottom:10px;cursor:pointer;"><span style="font-weight:700;font-size:15px;">🖨️ In qua trình duyệt</span><br><span style="font-size:12px;color:#4b6b58;">Máy in WiFi / AirPrint / lưu PDF. Chạy mọi máy (kể cả iPhone).</span></button>'
+   +'<button id="skA4" style="width:100%;display:block;text-align:left;background:#fff7ed;border:1.5px solid #b45309;color:#92500a;border-radius:12px;padding:13px 15px;margin-bottom:8px;cursor:pointer;"><span style="font-weight:700;font-size:15px;">🖨️ Máy tính — Hóa đơn A4/A5</span><br><span style="font-size:12px;color:#a06a2a;">Hóa đơn đầy đủ khổ A4/A5 (in máy tính, hoặc lưu PDF). Khổ: '+invSz+'</span></button>'
+   +'<div style="display:flex;align-items:center;gap:8px;margin:-2px 2px 12px;font-size:13px;color:#444;">Khổ A4/A5:<button id="skIA4" style="border:1px solid #ccc;border-radius:8px;padding:6px 12px;background:'+(invSz==='A4'?'#b45309':'#fff')+';color:'+(invSz==='A4'?'#fff':'#333')+';cursor:pointer;">A4</button><button id="skIA5" style="border:1px solid #ccc;border-radius:8px;padding:6px 12px;background:'+(invSz==='A5'?'#b45309':'#fff')+';color:'+(invSz==='A5'?'#fff':'#333')+';cursor:pointer;">A5</button></div>'
+   +'<button id="skPb" style="width:100%;display:block;text-align:left;background:#e8f5ee;border:1.5px solid #1a6b3c;color:#1a6b3c;border-radius:12px;padding:13px 15px;margin-bottom:10px;cursor:pointer;"><span style="font-weight:700;font-size:15px;">🖨️ In nhiệt qua trình duyệt (58/80mm)</span><br><span style="font-size:12px;color:#4b6b58;">Máy in nhiệt USB/WiFi / AirPrint / lưu PDF. Chạy mọi máy (kể cả iPhone).</span></button>'
    +'<button id="skBb" style="width:100%;display:block;text-align:left;background:#eef2ff;border:1.5px solid #3a49b8;color:#26308a;border-radius:12px;padding:13px 15px;margin-bottom:12px;cursor:pointer;"><span style="font-weight:700;font-size:15px;">📶 In máy in Bluetooth (nhiệt)</span><br><span style="font-size:12px;color:#5560a0;">Máy in nhiệt Bluetooth. Chỉ Android + Chrome. '+conn+'.</span></button>'
    +'<div style="display:flex;align-items:center;gap:8px;margin:6px 2px 12px;font-size:13px;color:#444;">Khổ giấy:<button id="skP58" style="border:1px solid #ccc;border-radius:8px;padding:6px 12px;background:'+(paper==='58'?'#1a6b3c':'#fff')+';color:'+(paper==='58'?'#fff':'#333')+';cursor:pointer;">58mm</button><button id="skP80" style="border:1px solid #ccc;border-radius:8px;padding:6px 12px;background:'+(paper==='80'?'#1a6b3c':'#fff')+';color:'+(paper==='80'?'#fff':'#333')+';cursor:pointer;">80mm</button></div>'
    +'<button id="skBtc" style="width:100%;background:#fff;border:1px solid #3a49b8;color:#26308a;border-radius:10px;padding:10px;margin-bottom:10px;font-size:13px;cursor:pointer;">🔗 Kết nối / đổi máy in Bluetooth</button>'
@@ -2817,6 +3071,9 @@ function skPrintMenu(){
   function close(){ov.remove();}
   ov.addEventListener('click',function(e){if(e.target===ov)close();});
   card.querySelector('#skPclose').onclick=close;
+  card.querySelector('#skA4').onclick=function(){close();skPrintInvoiceA4();};
+  card.querySelector('#skIA4').onclick=function(){try{localStorage.setItem('sk_inv_size','A4');}catch(e){}close();skPrintMenu();};
+  card.querySelector('#skIA5').onclick=function(){try{localStorage.setItem('sk_inv_size','A5');}catch(e){}close();skPrintMenu();};
   card.querySelector('#skP58').onclick=function(){try{localStorage.setItem('sk_paper','58');}catch(e){}close();skPrintMenu();};
   card.querySelector('#skP80').onclick=function(){try{localStorage.setItem('sk_paper','80');}catch(e){}close();skPrintMenu();};
   card.querySelector('#skBtc').onclick=async function(){await skBtConnect();close();skPrintMenu();};
@@ -5030,5 +5287,34 @@ import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, getDocs, serv
   window.addEventListener('orientationchange',apply);
 })();
 </script>
+<!-- ===== IN BẢNG KÊ CÔNG NỢ A4/A5 (drop-in) ===== -->
+<div id="sn-print-modal" onclick="if(event.target===this)snClosePrint()">
+  <div class="sn-box">
+    <h3>🖨️ In bảng kê công nợ (máy tính)</h3>
+    <div class="sn-opts">
+      <span style="font-weight:600;font-size:.9em">Khổ giấy:</span>
+      <button type="button" class="sn-sizebtn on" data-sz="A4" onclick="snSetPaper('A4')">A4</button>
+      <button type="button" class="sn-sizebtn" data-sz="A5" onclick="snSetPaper('A5')">A5</button>
+      <span class="sn-hint">Xem trước bên dưới rồi bấm “In”. Trong hộp thoại in của máy tính, chọn đúng khổ (A4/A5) — có thể chọn “Lưu thành PDF”.</span>
+    </div>
+    <div id="sn-preview"><div class="sn-doc"><div class="sn-empty">Đang tạo bảng kê…</div></div></div>
+    <div class="sn-acts">
+      <button type="button" class="sn-cancel" onclick="snClosePrint()">Đóng</button>
+      <button type="button" class="sn-go" onclick="snDoPrint()">🖨 In máy tính (A4/A5)</button>
+    </div>
+    <div id="sn-bt-wrap" style="border-top:1px dashed #d1d5db;margin-top:14px;padding-top:12px">
+      <div style="font-weight:700;font-size:.92em;margin-bottom:8px">📶 Hoặc in bằng máy in nhiệt cầm tay (Bluetooth)</div>
+      <div class="sn-opts">
+        <span style="font-size:.85em;color:#374151">Khổ nhiệt:</span>
+        <button type="button" class="sn-sizebtn" data-th="58" onclick="snSetThermal('58')">58mm</button>
+        <button type="button" class="sn-sizebtn" data-th="80" onclick="snSetThermal('80')">80mm</button>
+        <button type="button" onclick="snBtConnectUI()" style="padding:9px 14px;border:1.6px solid #3a49b8;background:#eef2ff;color:#26308a;border-radius:9px;font-size:.9em;font-weight:700;cursor:pointer;font-family:inherit">🔗 Kết nối máy in</button>
+      </div>
+      <button type="button" onclick="snPrintStatementBT()" style="width:100%;margin-top:6px;padding:12px;background:#26308a;color:#fff;border:none;border-radius:9px;font-size:1em;font-weight:800;cursor:pointer;font-family:inherit">📶 In Bluetooth (nhiệt)</button>
+      <div id="sn-bt-status" style="font-size:.8em;color:#6b7280;margin-top:6px"></div>
+    </div>
+  </div>
+</div>
+<div id="sn-print-sheet"></div>
 </body>
 </html>
