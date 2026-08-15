@@ -232,6 +232,8 @@
 #sn-print-modal .sn-acts{display:flex;gap:10px;margin-top:14px;}
 #sn-print-modal .sn-acts .sn-cancel{flex:1;padding:12px;background:#f1f3f5;border:1.5px solid #d1d5db;border-radius:9px;font-size:.95em;font-weight:600;cursor:pointer;font-family:inherit;color:#374151;}
 #sn-print-modal .sn-acts .sn-go{flex:2;padding:12px;background:#1a6b3c;color:#fff;border:none;border-radius:9px;font-size:1em;font-weight:800;cursor:pointer;font-family:inherit;}
+#sn-print-modal .sn-share-btn{width:100%;margin-top:12px;padding:13px;background:#0a7d3c;color:#fff;border:none;border-radius:10px;font-size:1.02em;font-weight:800;cursor:pointer;font-family:inherit;box-shadow:0 3px 10px rgba(10,125,60,.25);line-height:1.3;}
+#sn-print-modal .sn-share-btn:active{transform:translateY(1px);}
 /* Bố cục tờ bảng kê — dùng cho CẢ xem trước lẫn khi in */
 .sn-doc{color:#111;font-family:'Segoe UI',Arial,sans-serif;font-size:13px;line-height:1.4;}
 .sn-doc .sn-shop{text-align:center;font-size:1.05em;font-weight:700;color:#1a6b3c;margin:0 0 2px;}
@@ -2085,7 +2087,9 @@ async function snStatementData(){
     txs.push(t);if(isMua)totMua+=v;else totTra+=v;
   });
   const bal=opening+totMua-totTra; // số dư CUỐI KỲ (đầu kỳ + phát sinh trong kỳ)
-  return {shop,c,txs,totMua,totTra,bal,opening,rng};
+  const _snRes={shop,c,txs,totMua,totTra,bal,opening,rng};
+  try{window._snLastData=_snRes;}catch(e){} // lưu để nút "Chia sẻ ảnh" dựng ảnh ĐỒNG BỘ (giữ gesture iOS)
+  return _snRes;
 }
 async function snBuildDocHtml(){
   const data=await snStatementData();
@@ -2172,6 +2176,7 @@ window.snToChange=function(v){_snTo=v||'';snSyncRangeUI('custom');snRefreshPrevi
 window.snOpenPrint=async function(){
   const modal=document.getElementById('sn-print-modal');const prev=document.getElementById('sn-preview');
   if(!modal||!prev)return;
+  try{window._snLastData=null;}catch(e){} // xoá cache cũ; nút Chia sẻ sẽ dùng dữ liệu bản xem trước vừa dựng
   prev.innerHTML='<div class="sn-doc"><div class="sn-empty">Đang tạo bảng kê…</div></div>';
   _snFrom='';_snTo=''; // mặc định: Tất cả (giữ nguyên hành vi cũ)
   snSetPaper(_snPaper);
@@ -2263,6 +2268,178 @@ window.snPrintStatementBT=async function(){
     var r=snStatementCanvasFromData(data,W);var cmd=skRasterCmd(r.mono,r.width,r.height);
     toast('Đang in...');await skBtWrite(cmd);toast('Đã gửi lệnh in ✓');
   }catch(e){toast('In lỗi — thử kết nối lại máy in.');_skBT.server=null;_skBT.char=null;snUpdateBtStatus();}
+};
+/* ================= BỘ CHIA SẺ ẢNH (drop-in dùng chung) =================
+   Biến BẢNG KÊ CÔNG NỢ / HÓA ĐƠN thành ẢNH PNG rồi:
+   • Điện thoại: mở khay Chia sẻ hệ thống → gửi Zalo / Messenger / Gmail / SMS / lưu Ảnh…
+   • Máy tính (hoặc trình duyệt không hỗ trợ chia sẻ tệp): TỰ TẢI ảnh .png về máy để đính kèm.
+   Không dùng thư viện ngoài (chạy offline). Giữ tiếng Việt có dấu.
+   Sau cú chạm, toàn bộ đường đi là ĐỒNG BỘ (toDataURL + atob) để KHÔNG mất
+   "user gesture" trên iOS Safari — điều kiện bắt buộc của navigator.share. */
+function _shrDataURLtoBlob(durl){
+  var i=durl.indexOf(','),head=durl.slice(0,i),b64=durl.slice(i+1);
+  var m=head.match(/data:([^;]+)/);var mime=m?m[1]:'image/png';
+  var bin=atob(b64),n=bin.length,u8=new Uint8Array(n);
+  for(var k=0;k<n;k++)u8[k]=bin.charCodeAt(k);
+  return new Blob([u8],{type:mime});
+}
+function _shrSafeName(s){
+  return String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/đ/g,'d').replace(/Đ/g,'D')
+    .replace(/[^A-Za-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,40)||'file';
+}
+function _shrDownload(durl,filename){
+  try{
+    var a=document.createElement('a');a.href=durl;a.download=filename;
+    document.body.appendChild(a);a.click();a.remove();
+    if(typeof toast==='function')toast('📥 Đã lưu ảnh vào máy — mở ảnh rồi gửi/đính kèm vào Zalo, Messenger…');
+  }catch(e){if(typeof toast==='function')toast('Không lưu được ảnh.');}
+}
+// Chia sẻ (hoặc tải) 1 canvas dưới dạng PNG. PHẢI gọi ngay trong cùng cú click để giữ gesture iOS.
+function shareCanvas(canvas,filename,title,text){
+  filename=filename||('anh-'+Date.now()+'.png');
+  var durl;
+  try{durl=canvas.toDataURL('image/png');}catch(e){durl=null;}
+  if(!durl){if(typeof toast==='function')toast('Không tạo được ảnh.');return;}
+  var blob=null;try{blob=_shrDataURLtoBlob(durl);}catch(e){blob=null;}
+  if(blob&&navigator.canShare){
+    var file=null;try{file=new File([blob],filename,{type:'image/png'});}catch(e){file=null;}
+    if(file){
+      var ok=false;try{ok=navigator.canShare({files:[file]});}catch(e){ok=false;}
+      if(ok){
+        try{
+          var p=navigator.share({files:[file],title:title||'',text:text||''});
+          if(p&&p.catch)p.catch(function(err){
+            if(err&&err.name==='AbortError')return;        // người dùng bấm Huỷ → im lặng
+            _shrDownload(durl,filename);                     // lỗi khác (kể cả iOS mất gesture) → tải về
+          });
+          return;
+        }catch(e){/* rơi xuống tải về */}
+      }
+    }
+  }
+  _shrDownload(durl,filename);
+}
+try{window.shareCanvas=shareCanvas;}catch(e){}
+// Vẽ danh sách "dòng" thành canvas MÀU nét cao; tự xuống dòng nội dung dài; tự chọn tỉ lệ nét
+// theo NGÂN SÁCH ĐIỂM ẢNH để KHÔNG tràn bộ nhớ điện thoại. Dùng chung bảng kê + hóa đơn.
+function paintDoc(lines,opts){
+  opts=opts||{};
+  var Wl=opts.width||720,padL=opts.padL||26,padT=opts.padT||24;
+  var innerW=Wl-2*padL;
+  var probe=document.createElement('canvas').getContext('2d');
+  function fontOf(sz,bold){return (bold?'bold ':'')+Math.round(sz)+'px Roboto,"Segoe UI",Arial,sans-serif';}
+  // PASS 1: tách dòng dài (chỉ dòng wrap) theo bề ngang logic; 'right' chỉ giữ ở dòng đầu
+  var flat=[];
+  lines.forEach(function(ln){
+    if(ln.t!=='text'||!ln.wrap){flat.push(ln);return;}
+    probe.font=fontOf(ln.size||20,ln.bold);
+    var words=String(ln.text).split(/\s+/),cur='',segs=[];
+    for(var i=0;i<words.length;i++){
+      var test=cur?(cur+' '+words[i]):words[i];
+      if(!cur||probe.measureText(test).width<=innerW)cur=test;
+      else{segs.push(cur);cur=words[i];}
+    }
+    if(cur)segs.push(cur);if(!segs.length)segs=[''];
+    for(var s=0;s<segs.length;s++){
+      flat.push({t:'text',text:segs[s],size:ln.size,bold:ln.bold,color:ln.color,align:ln.align,right:(s===0?ln.right:null),rightColor:ln.rightColor});
+    }
+  });
+  // PASS 2: chiều cao logic (phải khớp Y đúng lúc vẽ)
+  function lh(ln){return ln.t==='hr'?14:(ln.t==='gap'?(ln.h||8):((ln.size||20)+8));}
+  var logicalH=padT*2;flat.forEach(function(ln){logicalH+=lh(ln);});
+  // Tỉ lệ nét S: mặc định 2 (đẹp); giảm dần nếu ảnh sẽ quá lớn (chống tràn RAM). Ngân sách ~7 triệu điểm ảnh.
+  var MAXPX=7e6,S=2,basePx=Wl*logicalH;
+  if(basePx*S*S>MAXPX)S=Math.sqrt(MAXPX/basePx);
+  S=Math.max(0.8,Math.min(2,S));
+  var W=Math.max(1,Math.round(Wl*S)),H=Math.max(1,Math.round(logicalH*S));
+  var cv=document.createElement('canvas');cv.width=W;cv.height=H;
+  var ctx=cv.getContext('2d');
+  ctx.fillStyle='#ffffff';ctx.fillRect(0,0,W,H);ctx.textBaseline='top';
+  var y=padT*S,xL=padL*S,xR=(Wl-padL)*S;
+  flat.forEach(function(ln){
+    if(ln.t==='gap'){y+=(ln.h||8)*S;return;}
+    if(ln.t==='hr'){
+      ctx.save();ctx.strokeStyle=ln.color||'#cbd5e1';ctx.lineWidth=Math.max(1,(ln.w||1)*S);
+      ctx.beginPath();ctx.moveTo(xL,Math.round(y+6*S)+0.5);ctx.lineTo(xR,Math.round(y+6*S)+0.5);ctx.stroke();ctx.restore();
+      y+=14*S;return;
+    }
+    var sz=(ln.size||20)*S;
+    ctx.font=fontOf(sz,ln.bold);
+    ctx.fillStyle=ln.color||'#1f2937';
+    if(ln.align==='center'){ctx.textAlign='center';ctx.fillText(ln.text,Math.round(W/2),y);}
+    else{
+      ctx.textAlign='left';ctx.fillText(ln.text,xL,y);
+      if(ln.right!=null){ctx.textAlign='right';ctx.fillStyle=ln.rightColor||ln.color||'#1f2937';ctx.fillText(String(ln.right),xR,y);}
+    }
+    y+=(ln.size||20)*S+8*S;
+  });
+  return cv;
+}
+function _snBal3(n){n=Math.round(Number(n)||0);return n>0?'#c0392b':(n<0?'#1d4ed8':'#1a6b3c');}
+function _snBalStr(n){n=Math.round(Number(n)||0);return n>0?snMoney(n):(n<0?('−'+snMoney(-n)):'0');}
+// Vẽ BẢNG KÊ CÔNG NỢ ra ảnh MÀU để chia sẻ (độc lập với bản in nhiệt mono).
+function snShareCanvas(data,extra){
+  extra=extra||{};
+  var lines=[],BR='#1a6b3c',INK='#1f2937',MUT='#6b7280';
+  function T(t,o){o=o||{};o.t='text';o.text=(t==null?'':String(t));lines.push(o);}
+  function HR(c,w){lines.push({t:'hr',color:c||'#cbd5e1',w:w||1});}
+  function GAP(h){lines.push({t:'gap',h:h||8});}
+  T((data.shop||'CỬA HÀNG').toUpperCase(),{size:34,bold:true,align:'center',color:BR});
+  T('BẢNG KÊ CÔNG NỢ',{size:22,bold:true,align:'center',color:INK});
+  GAP(4);HR(BR,3);GAP(8);
+  T('Khách hàng: '+(data.c.name||''),{size:24,bold:true,color:INK,wrap:true});
+  if(data.c.phone)T('ĐT: '+data.c.phone,{size:19,color:MUT});
+  if(data.c.address)T('Đ/c: '+data.c.address,{size:19,color:MUT,wrap:true});
+  var now=new Date();
+  T('Ngày in: '+fmtDateRaw(now)+' '+now.toLocaleTimeString('vi-VN',{hour:'2-digit',minute:'2-digit'}),{size:18,color:MUT});
+  T('Kỳ: '+snRangeLabel(data.rng),{size:18,color:MUT});
+  GAP(6);HR('#cbd5e1',1);GAP(4);
+  var acc=data.opening;
+  if(data.rng.hasFrom||extra.forceOpen){
+    T((extra.forceOpen&&!data.rng.hasFrom)?'Số dư đầu (đã gộp GD cũ)':'Số dư đầu kỳ (mang sang)',{size:20,bold:true,color:INK,right:_snBalStr(acc),rightColor:_snBal3(acc)});
+  }
+  if(!data.txs.length){
+    T(data.rng.hasFrom?'(Không có giao dịch trong kỳ)':'Chưa có giao dịch nào.',{size:20,align:'center',color:MUT});
+  }else{
+    data.txs.forEach(function(t,idx){
+      var v=Math.round(Number(t.amount)||0),isMua=(t.type==='mua');if(isMua)acc+=v;else acc-=v;
+      var ts=txTimeStr(t),dstr=fmtDateRaw(t.date)+(ts?(' '+ts):'');
+      T((idx+1)+'. '+dstr,{size:20,bold:true,color:INK,right:(isMua?'+':'−')+snMoney(v),rightColor:(isMua?'#c0392b':'#1a6b3c')});
+      var content=[t.note,t.memo].filter(Boolean).join(' · ')||(isMua?'Mua hàng':'Trả tiền');
+      T('    '+content,{size:18,color:MUT,wrap:true});
+      T('    Số dư: '+_snBalStr(acc),{size:18,color:_snBal3(acc)});
+      GAP(3);
+    });
+  }
+  GAP(3);HR('#cbd5e1',1);GAP(4);
+  T('Tổng mua',{size:20,color:INK,right:snMoney(data.totMua),rightColor:INK});
+  T('Tổng trả',{size:20,color:INK,right:snMoney(data.totTra),rightColor:INK});
+  var b=data.bal;
+  GAP(4);
+  T(b>0?'KHÁCH CÒN NỢ':(b<0?'MÌNH NỢ KHÁCH':'ĐÃ THANH TOÁN XONG'),{size:26,bold:true,color:_snBal3(b),right:(b>0?snMoney(b):(b<0?snMoney(-b):'0'))+' ₫',rightColor:_snBal3(b)});
+  if(extra.foldNote){GAP(6);T(extra.foldNote,{size:15,align:'center',color:MUT,wrap:true});}
+  GAP(8);
+  T('— Ảnh bảng kê tạo từ ứng dụng, dùng để đối chiếu công nợ —',{size:15,align:'center',color:MUT,wrap:true});
+  return paintDoc(lines,{width:720,padL:26,padT:24});
+}
+// Nút "Chia sẻ / Lưu ảnh" của bảng kê — ĐỒNG BỘ (dùng dữ liệu đã tính sẵn ở bản xem trước).
+window.snShareImage=function(){
+  var data=window._snLastData;
+  if(!data||!data.c){if(typeof toast==='function')toast('Đang tạo bảng kê… bấm lại sau giây lát.');return;}
+  var CAP=140,extra={};
+  if(data.txs.length>CAP){                                    // ảnh quá dài → chỉ hiện GD gần nhất, gộp phần cũ vào số dư đầu (đúng kế toán)
+    var drop=data.txs.length-CAP,op=data.opening;             // txs đã sắp CŨ→MỚI nên phần đầu là cũ nhất
+    for(var i=0;i<drop;i++){var t=data.txs[i],v=Math.round(Number(t.amount)||0);op+=(t.type==='mua')?v:-v;}
+    data={shop:data.shop,c:data.c,txs:data.txs.slice(drop),totMua:data.totMua,totTra:data.totTra,bal:data.bal,opening:op,rng:data.rng};
+    extra.forceOpen=true;
+    extra.foldNote='(Ảnh chỉ hiện '+CAP+' giao dịch gần nhất — số dư đầu đã gộp '+drop+' giao dịch cũ. Chọn khoảng thời gian để xem đủ.)';
+  }
+  var cv;try{cv=snShareCanvas(data,extra);}catch(e){if(typeof toast==='function')toast('Lỗi tạo ảnh bảng kê.');return;}
+  var nm=_shrSafeName(data.c.name),d=new Date();
+  var ds=d.getFullYear()+('0'+(d.getMonth()+1)).slice(-2)+('0'+d.getDate()).slice(-2);
+  var b=data.bal,sm=b>0?('còn nợ '+snMoney(b)+'đ'):(b<0?('mình nợ khách '+snMoney(-b)+'đ'):'đã xong');
+  shareCanvas(cv,'BangKe-'+nm+'-'+ds+'.png','Bảng kê công nợ · '+(data.c.name||''),(data.shop||'')+' · KH '+(data.c.name||'')+' · '+sm);
 };
 // Dòng "chốt nợ" — số dư còn lại sau mỗi giao dịch (theo dấu: khách nợ mình / mình nợ khách / hết nợ)
 function runBalHtml(bal){
@@ -3066,6 +3243,45 @@ function skReceiptCanvas(o,width){
   for(var q=0;q<W*H;q++){var lum=0.299*d[q*4]+0.587*d[q*4+1]+0.114*d[q*4+2];mono[q]=lum<135?1:0;}
   return {mono:mono,width:W,height:H};
 }
+// Vẽ HÓA ĐƠN ra ảnh MÀU để chia sẻ (độc lập với bản in nhiệt mono skReceiptCanvas).
+function skReceiptShareCanvas(o){
+  var lines=[],BR='#0a5f4a',INK='#1f2937',MUT='#6b7280';
+  function T(t,op){op=op||{};op.t='text';op.text=(t==null?'':String(t));lines.push(op);}
+  function HR(c,w){lines.push({t:'hr',color:c||'#cbd5e1',w:w||1});}
+  function GAP(h){lines.push({t:'gap',h:h||8});}
+  T((skShopName||'CỬA HÀNG').toUpperCase(),{size:32,bold:true,align:'center',color:BR});
+  T('HÓA ĐƠN BÁN HÀNG',{size:19,bold:true,align:'center',color:INK});
+  T(skDT(o.when),{size:17,align:'center',color:MUT});
+  GAP(4);HR(BR,2);GAP(4);
+  (o.items||[]).forEach(function(i){
+    T(i.name,{size:21,bold:true,color:INK,wrap:true});
+    T('   '+i.qty+(i.unit?(' '+i.unit):'')+' × '+fmt(i.price),{size:19,color:MUT,right:fmt(i.price*i.qty),rightColor:INK});
+  });
+  GAP(3);HR('#cbd5e1',1);GAP(3);
+  if(o.discount>0){
+    T('Tạm tính',{size:19,color:MUT,right:fmt(o.subtotal),rightColor:INK});
+    T('Giảm giá',{size:19,color:MUT,right:'− '+fmt(o.discount),rightColor:INK});
+  }
+  T('TỔNG',{size:30,bold:true,color:BR,right:fmt(o.total),rightColor:BR});
+  T('Thanh toán',{size:19,color:MUT,right:skMethodLabel(o.method),rightColor:INK});
+  if(o.method==='cash'&&o.paid!=null){
+    T('Khách đưa',{size:19,color:MUT,right:fmt(o.paid),rightColor:INK});
+    T('Thối lại',{size:19,color:MUT,right:fmt(o.change||0),rightColor:INK});
+  }
+  if(o.method==='debt'&&o.customerName)T('Ghi nợ: '+o.customerName,{size:19,color:INK,wrap:true});
+  GAP(4);HR('#cbd5e1',1);GAP(2);
+  T('Cảm ơn quý khách!',{size:21,align:'center',color:INK});
+  return paintDoc(lines,{width:520,padL:24,padT:22});
+}
+// Chia sẻ hóa đơn dưới dạng ẢNH (thay cho chia sẻ chữ) — ĐT: khay Chia sẻ; máy tính: tải ảnh về.
+function skReceiptShareImage(){
+  var o=window._skLastReceipt;
+  if(!o){if(typeof toast==='function')toast('Chưa có hóa đơn');return;}
+  var cv;try{cv=skReceiptShareCanvas(o);}catch(e){if(typeof toast==='function')toast('Lỗi tạo ảnh hóa đơn.');return;}
+  var d=(o.when&&o.when.getTime)?o.when:new Date();
+  var ds=d.getFullYear()+('0'+(d.getMonth()+1)).slice(-2)+('0'+d.getDate()).slice(-2)+'-'+('0'+d.getHours()).slice(-2)+('0'+d.getMinutes()).slice(-2);
+  shareCanvas(cv,'HoaDon-'+ds+'.png','Hóa đơn · '+(skShopName||'Cửa hàng'),(skShopName||'')+' · Tổng '+fmt(o.total));
+}
 async function skPrintBluetooth(){
   var o=window._skLastReceipt;if(!o)return;
   if(!skBtSupported()){toast('Máy này không hỗ trợ in Bluetooth (chỉ Android + Chrome).');return;}
@@ -3306,7 +3522,7 @@ function skBind(){
       case 'cat-pick':skKhoCat=el.dataset.cat||'';skRenderKho();break;
       case 'period':skPeriod=el.dataset.p;skRenderReport();break;
       case 'rp-preset':skRpPreset(el.dataset.preset);break;
-      case 'rc-share':skReceiptShare();break; case 'rc-copy':skReceiptCopy();break; case 'rc-print':skPrintMenu();break;
+      case 'rc-share':skReceiptShareImage();break; case 'rc-copy':skReceiptCopy();break; case 'rc-print':skPrintMenu();break;
       case 'np-scan':skNpScan();break; case 'np-add':skNpAddProduct(id);break; case 'np-inc':skNpInc(parseInt(i,10));break; case 'np-dec':skNpDec(parseInt(i,10));break; case 'np-del':skNpDel(parseInt(i,10));break; case 'np-cost':skNpCost(parseInt(i,10));break; case 'np-qty':skNpQty(parseInt(i,10));break; case 'np-save':skSavePurchase();break; case 'np-newprod':skOpenProd(null);break;
       case 'sup-list':skModalOpen('#sk-sup');break; case 'sup-new':skOpenSupplier(null);break; case 'sup-edit':skOpenSupplier(id);break; case 'sup-save':skSaveSupplier();break; case 'sup-del':skDelSupplier();break; case 'sup-pay':skPaySupplier(id);break;
       case 'num-ok':skNumOk();break; case 'num-close':skNumClose();break;
@@ -4239,7 +4455,7 @@ try { window.__skBusy = function(){
   <div id="sk-sup-form" class="sk-modal"><div class="sk-card"><h3 id="sk-sf-title">Thêm nhà cung cấp</h3><label class="sk-fld">Tên NCC<input id="sk-sf-name" class="sk-inp"></label><label class="sk-fld">Điện thoại<input id="sk-sf-phone" class="sk-inp" inputmode="tel"></label><label class="sk-fld">Địa chỉ<input id="sk-sf-addr" class="sk-inp"></label><div class="sk-card-acts"><button class="sk-btn red" id="sk-sf-del" data-act="sup-del" style="display:none">Xóa</button><span style="flex:1"></span><button class="sk-btn ghost" data-act="modal-close" data-target="#sk-sup-form">Hủy</button><button class="sk-btn green" data-act="sup-save">Lưu</button></div></div></div>
 
   <!-- RECEIPT -->
-  <div id="sk-rc" class="sk-modal"><div class="sk-card"><div id="sk-rc-body" class="sk-rc-body"></div><div class="sk-card-acts"><button class="sk-btn ghost" data-act="modal-close" data-target="#sk-rc">Đóng</button><button class="sk-btn outline" data-act="rc-print">🖨 In</button><button class="sk-btn outline" data-act="rc-copy">Sao chép</button><button class="sk-btn green" data-act="rc-share">Chia sẻ</button></div></div></div>
+  <div id="sk-rc" class="sk-modal"><div class="sk-card"><div id="sk-rc-body" class="sk-rc-body"></div><div class="sk-card-acts"><button class="sk-btn ghost" data-act="modal-close" data-target="#sk-rc">Đóng</button><button class="sk-btn outline" data-act="rc-print">🖨 In</button><button class="sk-btn outline" data-act="rc-copy">Sao chép</button><button class="sk-btn green" data-act="rc-share">🖼️ Chia sẻ</button></div></div></div>
 
   <!-- HISTORY -->
   <div id="sk-hist" class="sk-modal"><div class="sk-card"><h3>Lịch sử nhập / xuất kho</h3><div id="sk-hist-body" class="sk-hist-body"></div><div class="sk-card-acts"><span style="flex:1"></span><button class="sk-btn green" data-act="modal-close" data-target="#sk-hist">Đóng</button></div></div></div>
@@ -5369,6 +5585,7 @@ import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, getDocs, serv
       </div>
     </div>
     <div id="sn-preview"><div class="sn-doc"><div class="sn-empty">Đang tạo bảng kê…</div></div></div>
+    <button type="button" class="sn-share-btn" onclick="snShareImage()">📤 Chia sẻ / Lưu ảnh bảng kê (Zalo, Messenger, Gmail…)</button>
     <div class="sn-acts">
       <button type="button" class="sn-cancel" onclick="snClosePrint()">Đóng</button>
       <button type="button" class="sn-go" onclick="snDoPrint()">🖨 In máy tính (A4/A5)</button>
