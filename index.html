@@ -163,6 +163,7 @@
   #public-view .hd-sum{padding:12px 16px 4px;border-top:1px dashed #d7e0db;margin-top:2px;}
   #public-view .hd-sum-r{display:flex;justify-content:space-between;gap:12px;padding:4px 0;font-size:.94em;color:#41615a;}
   #public-view .hd-sum-disc span:last-child{color:#c0392b;}
+  #public-view .hd-sum-short span:last-child{color:#c0392b;font-weight:700;}
   #public-view .hd-sum-total{font-size:1.28em;font-weight:800;color:#0a5f4a;border-top:2px solid #e3ece7;margin-top:6px;padding-top:9px;}
   #public-view .hd-sum-method{font-size:.9em;color:#6b7872;}
   #public-view .hd-pay-row{padding:2px 16px 16px;text-align:center;}
@@ -1192,6 +1193,8 @@ function hdInvoiceHtml(d){
   const items=d.items||[];
   const method=d.method||'';
   const isDebt=method==='debt';
+  const _hdCh=Number(d.change)||0;
+  const _hdShort=(method==='cash'&&d.paid!=null&&_hdCh<0);
   const rows=items.map((it,i)=>{
     const lt=(it.lineTotal!=null)?it.lineTotal:((Number(it.price)||0)*(Number(it.qty)||0));
     return '<tr>'
@@ -1218,9 +1221,11 @@ function hdInvoiceHtml(d){
   }
   const payBadge=isDebt
     ? '<span class="hd-pay-badge hd-pay-debt">● Mua chịu — còn phải trả '+fmt(d.total||0)+'</span>'
-    : '<span class="hd-pay-badge hd-pay-paid">✓ Đã thanh toán ('+_hdMethodLabel(method)+')</span>';
+    : _hdShort
+      ? '<span class="hd-pay-badge hd-pay-debt">● Chưa đủ tiền — còn thiếu '+fmt(-_hdCh)+'</span>'
+      : '<span class="hd-pay-badge hd-pay-paid">✓ Đã thanh toán ('+_hdMethodLabel(method)+')</span>';
   const cashRows=(method==='cash'&&d.paid!=null)
-    ? '<div class="hd-sum-r"><span>Khách đưa</span><span>'+fmt(d.paid)+'</span></div><div class="hd-sum-r"><span>Thối lại</span><span>'+fmt(d.change||0)+'</span></div>'
+    ? '<div class="hd-sum-r"><span>Khách đưa</span><span>'+fmt(d.paid)+'</span></div>'+(_hdCh>=0?'<div class="hd-sum-r"><span>Thối lại</span><span>'+fmt(_hdCh)+'</span></div>':'<div class="hd-sum-r hd-sum-short"><span>Còn thiếu</span><span>'+fmt(-_hdCh)+'</span></div>')
     : '';
   const discRows=(Number(d.discount)>0)
     ? '<div class="hd-sum-r"><span>Tạm tính</span><span>'+fmt(d.subtotal||0)+'</span></div><div class="hd-sum-r hd-sum-disc"><span>Giảm giá</span><span>− '+fmt(d.discount)+'</span></div>'
@@ -3128,7 +3133,7 @@ function skPaySupplier(id){const s=skSuppliers.find(x=>x.id===id);if(!s)return;s
 function skQRUrl(total){if(!skShopBank||!skShopBank.bin||!skShopBank.account)return null;return 'https://img.vietqr.io/image/'+skShopBank.bin+'-'+skShopBank.account+'-compact2.png?amount='+Math.round(total)+'&addInfo='+encodeURIComponent('Thanh toan don hang')+'&accountName='+encodeURIComponent(skShopBank.accName||'');}
 function skPayCash(){if(!skCart.length)return;const t=skCartTotals();skq('#sk-cash-total').textContent=fmt(t.total);skq('#sk-cash-given').value='';skq('#sk-cash-change').textContent='—';skModalOpen('#sk-pay-cash');setTimeout(()=>skq('#sk-cash-given').focus(),60);}
 function skCashInput(){const t=skCartTotals();const g=parseFloat(String(skq('#sk-cash-given').value).replace(/[^\d]/g,''))||0;const ch=g-t.total;const el=skq('#sk-cash-change');el.textContent=g?(ch>=0?'Thối lại '+fmt(ch):'Còn thiếu '+fmt(-ch)):'—';el.className='sk-change '+(g&&ch<0?'neg':'pos');}
-function skCashConfirm(){const t=skCartTotals();const g=parseFloat(String(skq('#sk-cash-given').value).replace(/[^\d]/g,''))||t.total;skCloseModal('#sk-pay-cash');skFinalize('cash',{paid:g,change:g-t.total});}
+function skCashConfirm(){const t=skCartTotals();const g=parseFloat(String(skq('#sk-cash-given').value).replace(/[^\d]/g,''))||t.total;if(g<t.total){toast('Khách đưa chưa đủ — còn thiếu '+fmt(t.total-g)+'. Muốn cho nợ phần còn lại thì bấm "Ghi nợ".');return;}skCloseModal('#sk-pay-cash');skFinalize('cash',{paid:g,change:g-t.total});}
 function skPayQR(){if(!skCart.length)return;const t=skCartTotals();const url=skQRUrl(t.total);const img=skq('#sk-qr-img');if(url){img.src=url;img.style.display='';skq('#sk-qr-msg').textContent='';}else{img.style.display='none';skq('#sk-qr-msg').innerHTML='Chưa cấu hình ngân hàng. Vào ⚙️ → “Cấu hình nhận tiền”.';}skq('#sk-qr-total').textContent=fmt(t.total);skModalOpen('#sk-pay-qr');}
 function skQRConfirm(){skCloseModal('#sk-pay-qr');skFinalize('qr',{});}
 function skPayDebt(){if(!skCart.length)return;skRenderCustChips();skq('#sk-cust-name').value='';skModalOpen('#sk-cust');}
@@ -3162,8 +3167,8 @@ async function skFinalize(method,extra){
 
 /* ---- HÓA ĐƠN + IN 58mm ---- */
 function skMethodLabel(m){return m==='cash'?'Tiền mặt':m==='qr'?'Chuyển khoản (VietQR)':'Ghi nợ';}
-function skReceiptHTML(o){let h='<div class="sk-rc-shop">'+escHtml(skShopName||'CỬA HÀNG')+'</div><div class="sk-rc-time">'+skDT(o.when)+'</div><div class="sk-rc-items">';o.items.forEach(i=>{h+='<div class="sk-rc-line"><span>'+escHtml(i.name)+' <i>'+i.qty+(i.unit?(' '+escHtml(i.unit)):'')+'</i></span><span>'+fmt(i.price*i.qty)+'</span></div>';});h+='</div><div class="sk-rc-tot">';if(o.discount>0)h+='<div class="sk-rc-r"><span>Tạm tính</span><span>'+fmt(o.subtotal)+'</span></div><div class="sk-rc-r"><span>Giảm giá</span><span>− '+fmt(o.discount)+'</span></div>';h+='<div class="sk-rc-r big"><span>TỔNG</span><span>'+fmt(o.total)+'</span></div><div class="sk-rc-r"><span>Thanh toán</span><span>'+skMethodLabel(o.method)+'</span></div>';if(o.method==='cash'&&o.paid!=null)h+='<div class="sk-rc-r"><span>Khách đưa</span><span>'+fmt(o.paid)+'</span></div><div class="sk-rc-r"><span>Thối lại</span><span>'+fmt(o.change||0)+'</span></div>';if(o.method==='debt'&&o.customerName)h+='<div class="sk-rc-r"><span>Ghi nợ</span><span>'+escHtml(o.customerName)+'</span></div>';h+='</div>';return h;}
-function skReceiptText(o){const L=[];L.push((skShopName||'CỬA HÀNG').toUpperCase());L.push('Hóa đơn '+skDT(o.when));L.push('--------------------');o.items.forEach(i=>L.push(i.name+'  '+i.qty+(i.unit?(' '+i.unit):'')+' x '+fmt(i.price)+' = '+fmt(i.price*i.qty)));L.push('--------------------');if(o.discount>0){L.push('Tam tinh: '+fmt(o.subtotal));L.push('Giam gia: -'+fmt(o.discount));}L.push('TONG: '+fmt(o.total));L.push('Thanh toan: '+skMethodLabel(o.method));if(o.method==='cash'&&o.paid!=null){L.push('Khach dua: '+fmt(o.paid));L.push('Thoi lai: '+fmt(o.change||0));}if(o.method==='debt'&&o.customerName)L.push('Ghi no: '+o.customerName);L.push('Cam on quy khach!');return L.join('\n');}
+function skReceiptHTML(o){let h='<div class="sk-rc-shop">'+escHtml(skShopName||'CỬA HÀNG')+'</div><div class="sk-rc-time">'+skDT(o.when)+'</div><div class="sk-rc-items">';o.items.forEach(i=>{h+='<div class="sk-rc-line"><span>'+escHtml(i.name)+' <i>'+i.qty+(i.unit?(' '+escHtml(i.unit)):'')+'</i></span><span>'+fmt(i.price*i.qty)+'</span></div>';});h+='</div><div class="sk-rc-tot">';if(o.discount>0)h+='<div class="sk-rc-r"><span>Tạm tính</span><span>'+fmt(o.subtotal)+'</span></div><div class="sk-rc-r"><span>Giảm giá</span><span>− '+fmt(o.discount)+'</span></div>';h+='<div class="sk-rc-r big"><span>TỔNG</span><span>'+fmt(o.total)+'</span></div><div class="sk-rc-r"><span>Thanh toán</span><span>'+skMethodLabel(o.method)+'</span></div>';if(o.method==='cash'&&o.paid!=null)h+='<div class="sk-rc-r"><span>Khách đưa</span><span>'+fmt(o.paid)+'</span></div><div class="sk-rc-r"><span>'+(((Number(o.change)||0)>=0)?'Thối lại':'Còn thiếu')+'</span><span>'+fmt(Math.abs(Number(o.change)||0))+'</span></div>';if(o.method==='debt'&&o.customerName)h+='<div class="sk-rc-r"><span>Ghi nợ</span><span>'+escHtml(o.customerName)+'</span></div>';h+='</div>';return h;}
+function skReceiptText(o){const L=[];L.push((skShopName||'CỬA HÀNG').toUpperCase());L.push('Hóa đơn '+skDT(o.when));L.push('--------------------');o.items.forEach(i=>L.push(i.name+'  '+i.qty+(i.unit?(' '+i.unit):'')+' x '+fmt(i.price)+' = '+fmt(i.price*i.qty)));L.push('--------------------');if(o.discount>0){L.push('Tam tinh: '+fmt(o.subtotal));L.push('Giam gia: -'+fmt(o.discount));}L.push('TONG: '+fmt(o.total));L.push('Thanh toan: '+skMethodLabel(o.method));if(o.method==='cash'&&o.paid!=null){L.push('Khach dua: '+fmt(o.paid));L.push((((Number(o.change)||0)>=0)?'Thoi lai: ':'Con thieu: ')+fmt(Math.abs(Number(o.change)||0)));}if(o.method==='debt'&&o.customerName)L.push('Ghi no: '+o.customerName);L.push('Cam on quy khach!');return L.join('\n');}
 function skShowReceipt(o){skq('#sk-rc-body').innerHTML=skReceiptHTML(o);skq('#sk-rc').dataset.txt=skReceiptText(o);window._skLastReceipt=o;skModalOpen('#sk-rc');}
 async function skReceiptShare(){const t=skq('#sk-rc').dataset.txt||'';if(navigator.share){try{await navigator.share({text:t});}catch(e){}}else skCopy(t);}
 function skReceiptCopy(){skCopy(skq('#sk-rc').dataset.txt||'');}
@@ -3194,7 +3199,7 @@ async function skShareInvoice(){
   catch(e){prompt('Copy link hóa đơn gửi khách:',url);}
 }
 async function skCopy(t){try{await navigator.clipboard.writeText(t);toast('Đã sao chép hóa đơn');}catch(e){toast('Không sao chép được');}}
-function skPrintReceipt(){const o=window._skLastReceipt;if(!o)return;skq('#sk-print').innerHTML='<div class="p-shop">'+escHtml((skShopName||'CỬA HÀNG').toUpperCase())+'</div><div class="p-time">'+skDT(o.when)+'</div><hr>'+o.items.map(i=>'<div class="p-l1">'+escHtml(i.name)+'</div><div class="p-l2"><span>'+i.qty+(i.unit?(' '+escHtml(i.unit)):'')+' x '+fmt(i.price)+'</span><span>'+fmt(i.price*i.qty)+'</span></div>').join('')+'<hr>'+(o.discount>0?'<div class="p-l2"><span>Giảm giá</span><span>-'+fmt(o.discount)+'</span></div>':'')+'<div class="p-tot"><span>TỔNG</span><span>'+fmt(o.total)+'</span></div><div class="p-l2"><span>'+skMethodLabel(o.method)+'</span><span></span></div>'+(o.method==='cash'&&o.paid!=null?('<div class="p-l2"><span>Khách đưa</span><span>'+fmt(o.paid)+'</span></div><div class="p-l2"><span>Thối</span><span>'+fmt(o.change||0)+'</span></div>'):'')+'<div class="p-thx">Cảm ơn quý khách!</div>';window.print();}
+function skPrintReceipt(){const o=window._skLastReceipt;if(!o)return;skq('#sk-print').innerHTML='<div class="p-shop">'+escHtml((skShopName||'CỬA HÀNG').toUpperCase())+'</div><div class="p-time">'+skDT(o.when)+'</div><hr>'+o.items.map(i=>'<div class="p-l1">'+escHtml(i.name)+'</div><div class="p-l2"><span>'+i.qty+(i.unit?(' '+escHtml(i.unit)):'')+' x '+fmt(i.price)+'</span><span>'+fmt(i.price*i.qty)+'</span></div>').join('')+'<hr>'+(o.discount>0?'<div class="p-l2"><span>Giảm giá</span><span>-'+fmt(o.discount)+'</span></div>':'')+'<div class="p-tot"><span>TỔNG</span><span>'+fmt(o.total)+'</span></div><div class="p-l2"><span>'+skMethodLabel(o.method)+'</span><span></span></div>'+(o.method==='cash'&&o.paid!=null?('<div class="p-l2"><span>Khách đưa</span><span>'+fmt(o.paid)+'</span></div><div class="p-l2"><span>'+(((Number(o.change)||0)>=0)?'Thối':'Còn thiếu')+'</span><span>'+fmt(Math.abs(Number(o.change)||0))+'</span></div>'):'')+'<div class="p-thx">Cảm ơn quý khách!</div>';window.print();}
 
 /* ===== IN ĐA MÁY: trình duyệt (WiFi/AirPrint/PDF) + Bluetooth nhiệt (ESC/POS raster, giữ tiếng Việt) ===== */
 var _skBT={device:null,server:null,char:null,name:''};
@@ -3255,7 +3260,7 @@ function skReceiptCanvas(o,width){
   if(o.discount>0){L('Tạm tính',{size:22,right:fmt(o.subtotal)});L('Giảm giá',{size:22,right:'-'+fmt(o.discount)});}
   L('TỔNG',{size:31,bold:true,right:fmt(o.total)});
   L('Thanh toán',{size:22,right:skMethodLabel(o.method)});
-  if(o.method==='cash'&&o.paid!=null){L('Khách đưa',{size:22,right:fmt(o.paid)});L('Thối lại',{size:22,right:fmt(o.change||0)});}
+  if(o.method==='cash'&&o.paid!=null){L('Khách đưa',{size:22,right:fmt(o.paid)});L(((Number(o.change)||0)>=0)?'Thối lại':'Còn thiếu',{size:22,right:fmt(Math.abs(Number(o.change)||0))});}
   if(o.method==='debt'&&o.customerName)L('Ghi nợ: '+o.customerName,{size:22});
   HR();
   L('Cảm ơn quý khách!',{size:23,align:'center'});
@@ -3297,7 +3302,7 @@ function skInvoiceDocHtml(o){
   var when='';try{when=(o.when&&o.when.toLocaleString)?o.when.toLocaleString('vi-VN'):skDT(o.when);}catch(e){when=skDT(o.when);}
   var totalBlk=(o.discount>0?('Tạm tính: '+skInvNum(o.subtotal)+' ₫<br>Giảm giá: −'+skInvNum(o.discount)+' ₫<br>'):'')
     +'<b style="font-size:1.18em">TỔNG: '+skInvNum(o.total)+' ₫</b><br>Thanh toán: '+skMethodLabel(o.method)
-    +((o.method==='cash'&&o.paid!=null)?('<br>Khách đưa: '+skInvNum(o.paid)+' ₫ · Thối lại: '+skInvNum(o.change||0)+' ₫'):'');
+    +((o.method==='cash'&&o.paid!=null)?('<br>Khách đưa: '+skInvNum(o.paid)+' ₫ · '+(((Number(o.change)||0)>=0)?'Thối lại: ':'Còn thiếu: ')+skInvNum(Math.abs(Number(o.change)||0))+' ₫'):'');
   var custMeta=(o.method==='debt'&&o.customerName)?('<div class="sn-meta"><div><b>Khách hàng:</b> '+escHtml(o.customerName)+'</div><div style="text-align:right">Hình thức: Ghi nợ</div></div>'):'';
   return '<div class="sn-doc">'
     +'<div class="sn-shop">'+shop+'</div>'
