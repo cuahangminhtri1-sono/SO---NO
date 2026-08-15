@@ -253,6 +253,15 @@
 .sn-doc .sn-sign .sn-note{font-size:.82em;color:#555;font-style:italic;}
 .sn-doc .sn-sign .sn-space{height:56px;}
 .sn-doc .sn-empty{text-align:center;color:#666;padding:16px;}
+.sn-doc .sn-period{text-align:center;font-size:.84em;color:#1a6b3c;font-weight:700;margin:-6px 0 10px;}
+.sn-doc tr.sn-open td{background:#f0f6ff;font-style:italic;}
+#sn-print-modal .sn-range{display:flex;flex-direction:column;gap:8px;margin:-2px 0 12px;padding:10px 12px;background:#f4f7fa;border:1px solid #e3e9ef;border-radius:10px;}
+#sn-print-modal .sn-range-presets{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+#sn-print-modal .sn-preset{padding:7px 12px;border:1.5px solid #b9c6d2;background:#fff;color:#2b3a4a;border-radius:8px;font-size:.88em;font-weight:700;cursor:pointer;font-family:inherit;}
+#sn-print-modal .sn-preset.on{background:#1a6b3c;color:#fff;border-color:#1a6b3c;}
+#sn-print-modal .sn-range-dates{display:flex;gap:10px;flex-wrap:wrap;}
+#sn-print-modal .sn-range-dates label{display:flex;flex-direction:column;font-size:.8em;color:#374151;font-weight:600;gap:3px;flex:1;min-width:130px;}
+#sn-print-modal .sn-range-dates input{padding:8px 10px;border:1.5px solid #b9c6d2;border-radius:8px;font-family:inherit;font-size:.95em;}
 /* Ẩn tờ in khỏi màn hình bình thường */
 #sn-print-sheet{display:none;}
 @media print{
@@ -2042,6 +2051,11 @@ window.openDetail=async id=>{
 // ===== IN BẢNG KÊ CÔNG NỢ (A4/A5) — drop-in, KHÔNG đụng in bill 58mm =====
 let _snShopName='';
 let _snPaper='A4';
+let _snFrom='',_snTo=''; // Khoảng in bảng kê (yyyy-mm-dd); '' = mở (không giới hạn đầu/cuối)
+// yyyy-mm-dd -> mốc ms ĐẦU NGÀY địa phương, khớp ĐÚNG txDayMs để so sánh theo NGÀY (bao gồm cả 2 đầu)
+function snDayInput(str){if(!str)return null;const p=String(str).split('-');if(p.length!==3)return null;const y=+p[0],m=+p[1],d=+p[2];if(!y||!m||!d)return null;const dt=new Date(y,m-1,d);if(isNaN(dt)||dt.getFullYear()!==y||dt.getMonth()!==m-1||dt.getDate()!==d)return null;return dt.getTime();}
+function snRange(){let f=_snFrom,t=_snTo;let fMs=snDayInput(f),tMs=snDayInput(t);if(fMs!=null&&tMs!=null&&fMs>tMs){const x=fMs;fMs=tMs;tMs=x;const xs=f;f=t;t=xs;}return{hasFrom:fMs!=null,hasTo:tMs!=null,fromMs:fMs,toMs:tMs,fromStr:f,toStr:t};}
+function snRangeLabel(rng){const d=ms=>fmtDateRaw(new Date(ms));if(rng.hasFrom&&rng.hasTo)return 'Từ '+d(rng.fromMs)+' đến '+d(rng.toMs);if(rng.hasFrom)return 'Từ '+d(rng.fromMs)+' đến nay';if(rng.hasTo)return 'Từ đầu đến '+d(rng.toMs);return 'Tất cả giao dịch';}
 async function snShopName(){
   if(_snShopName)return _snShopName;
   if(typeof skShopName==='string'&&skShopName)return (_snShopName=skShopName);
@@ -2054,22 +2068,30 @@ async function snStatementData(){
   const c=customers.find(x=>x.id===currentCustomerId);
   if(!c)return null;
   const shop=(await snShopName())||'CỬA HÀNG';
-  let txs=[];
+  let all=[];
   try{
     const snap=await getDocs(query(collection(db,'users',UID,'customers',c.id,'transactions'),orderBy('date','desc')));
-    txs=snap.docs.map(d=>({id:d.id,...d.data()}));
-  }catch(e){ txs=(_curTxsFor===c.id&&Array.isArray(_curTxs))?_curTxs.slice():[]; }
+    all=snap.docs.map(d=>({id:d.id,...d.data()}));
+  }catch(e){ all=(_curTxsFor===c.id&&Array.isArray(_curTxs))?_curTxs.slice():[]; }
   // Sắp CŨ→MỚI (cùng ngày theo GIỜ GHI) để cộng dồn số dư xuôi thời gian
-  txs.sort((a,b)=>{const da=txDayMs(a.date),dbb=txDayMs(b.date);if(da!==dbb)return da-dbb;return txEntryMs(a)-txEntryMs(b);});
-  let acc=0,totMua=0,totTra=0;
-  txs.forEach(t=>{const v=Math.round(Number(t.amount)||0);if(t.type==='mua'){acc+=v;totMua+=v;}else{acc-=v;totTra+=v;}});
-  return {shop,c,txs,totMua,totTra,bal:acc};
+  all.sort((a,b)=>{const da=txDayMs(a.date),dbb=txDayMs(b.date);if(da!==dbb)return da-dbb;return txEntryMs(a)-txEntryMs(b);});
+  // Lọc theo KHOẢNG chọn: giao dịch TRƯỚC kỳ dồn vào SỐ DƯ ĐẦU KỲ; SAU kỳ bỏ (đúng kế toán theo kỳ)
+  const rng=snRange();
+  let opening=0,totMua=0,totTra=0;const txs=[];
+  all.forEach(t=>{
+    const v=Math.round(Number(t.amount)||0);const isMua=(t.type==='mua');const day=txDayMs(t.date);
+    if(rng.hasFrom&&day<rng.fromMs){opening+=isMua?v:-v;return;}
+    if(rng.hasTo&&day>rng.toMs)return;
+    txs.push(t);if(isMua)totMua+=v;else totTra+=v;
+  });
+  const bal=opening+totMua-totTra; // số dư CUỐI KỲ (đầu kỳ + phát sinh trong kỳ)
+  return {shop,c,txs,totMua,totTra,bal,opening,rng};
 }
 async function snBuildDocHtml(){
   const data=await snStatementData();
   if(!data)return '<div class="sn-doc"><div class="sn-empty">Không tìm thấy khách.</div></div>';
-  const c=data.c, shop=data.shop, txs=data.txs;
-  let acc=0;
+  const c=data.c, shop=data.shop, txs=data.txs, rng=data.rng, opening=data.opening;
+  let acc=opening;
   const rowsArr=txs.map((t,i)=>{
     const v=Math.round(Number(t.amount)||0);
     const isMua=t.type==='mua';
@@ -2082,22 +2104,30 @@ async function snBuildDocHtml(){
   });
   const bal=data.bal, totMua=data.totMua, totTra=data.totTra; // bal khớp dòng cuối bảng
   let sumTxt;
-  if(bal>0)sumTxt='Khách còn nợ: <b>'+snMoney(bal)+' ₫</b>';
-  else if(bal<0)sumTxt='Mình nợ khách: <b>'+snMoney(-bal)+' ₫</b>';
+  const _endLbl=(bal>0||bal<0)&&(rng.hasFrom||rng.hasTo)?' cuối kỳ':'';
+  if(bal>0)sumTxt='Khách còn nợ'+_endLbl+': <b>'+snMoney(bal)+' ₫</b>';
+  else if(bal<0)sumTxt='Mình nợ khách'+_endLbl+': <b>'+snMoney(-bal)+' ₫</b>';
   else sumTxt='<b>Đã thanh toán xong (0 ₫)</b>';
   const now=new Date();
   const whenStr=fmtDateRaw(now)+' '+now.toLocaleTimeString('vi-VN',{hour:'2-digit',minute:'2-digit'});
   const metaR=[c.phone?('ĐT: '+escHtml(c.phone)):'',c.address?('Đ/c: '+escHtml(c.address)):''].filter(Boolean).join('<br>');
   const footBal=bal>0?snMoney(bal):(bal<0?('−'+snMoney(-bal)):'0');
-  const body = rowsArr.length
+  const openCell=opening>0?snMoney(opening):(opening<0?('−'+snMoney(-opening)):'0');
+  const openRow=rng.hasFrom
+    ? '<tr class="sn-open"><td class="c">–</td><td>'+escHtml('trước '+fmtDateRaw(new Date(rng.fromMs)))+'</td><td>Số dư đầu kỳ (mang sang)</td><td class="r"></td><td class="r"></td><td class="r b">'+openCell+'</td></tr>'
+    : '';
+  const emptyRow='<tr><td class="c">–</td><td colspan="4" style="text-align:center;color:#6b7280">(Không có giao dịch trong kỳ)</td><td class="r b">'+openCell+'</td></tr>';
+  const bodyRows=rowsArr.length?rowsArr.join(''):(rng.hasFrom?emptyRow:'');
+  const body = (rowsArr.length||rng.hasFrom)
     ? ('<table><thead><tr><th style="width:34px">STT</th><th style="width:112px">Ngày giờ</th><th>Nội dung</th><th style="width:92px">Mua (₫)</th><th style="width:92px">Trả (₫)</th><th style="width:100px">Còn lại (₫)</th></tr></thead><tbody>'
-        + rowsArr.join('')
-        + '</tbody><tfoot><tr><td class="c" colspan="3">TỔNG CỘNG</td><td class="r">'+snMoney(totMua)+'</td><td class="r">'+snMoney(totTra)+'</td><td class="r">'+footBal+'</td></tr></tfoot></table>')
+        + openRow + bodyRows
+        + '</tbody><tfoot><tr><td class="c" colspan="3">'+(rng.hasFrom||rng.hasTo?'PHÁT SINH TRONG KỲ':'TỔNG CỘNG')+'</td><td class="r">'+snMoney(totMua)+'</td><td class="r">'+snMoney(totTra)+'</td><td class="r">'+footBal+'</td></tr></tfoot></table>')
     : '<div class="sn-empty">Chưa có giao dịch nào.</div>';
   return '<div class="sn-doc">'
     + '<div class="sn-shop">'+escHtml(shop)+'</div>'
     + '<div class="sn-title">Bảng kê công nợ</div>'
     + '<div class="sn-when">Ngày in: '+whenStr+'</div>'
+    + '<div class="sn-period">Kỳ: '+escHtml(snRangeLabel(rng))+'</div>'
     + '<div class="sn-meta"><div><b>Khách hàng:</b> '+escHtml(c.name)+(metaR?('<br>'+metaR):'')+'</div>'
     + '<div style="text-align:right">'+sumTxt+'</div></div>'
     + body
@@ -2114,17 +2144,42 @@ window.snSetThermal=snSetThermal;
 function snUpdateBtStatus(){var el=document.getElementById('sn-bt-status');if(!el)return;if(!skBtSupported()){el.innerHTML='⚠️ Thiết bị này không hỗ trợ in Bluetooth (chỉ Android + Chrome). Trên iPhone/máy tính hãy dùng A4/A5 ở trên.';el.style.color='#b45309';return;}el.style.color='#6b7280';el.textContent=_skBT.char?('✓ Đã kết nối: '+(_skBT.name||'máy in')):'Chưa kết nối máy in. Bấm “Kết nối máy in”.';}
 window.snUpdateBtStatus=snUpdateBtStatus;
 window.snBtConnectUI=async function(){if(!skBtSupported()){snUpdateBtStatus();toast('Máy này không hỗ trợ in Bluetooth (chỉ Android + Chrome).');return;}await skBtConnect();snUpdateBtStatus();};
+async function snRefreshPreview(){
+  const prev=document.getElementById('sn-preview');
+  const html=await snBuildDocHtml();
+  if(prev)prev.innerHTML=html;
+  const sheet=document.getElementById('sn-print-sheet');if(sheet)sheet.innerHTML=html;
+}
+window.snRefreshPreview=snRefreshPreview;
+function snSyncRangeUI(active){
+  const f=document.getElementById('sn-from'),t=document.getElementById('sn-to');
+  if(f)f.value=_snFrom;if(t)t.value=_snTo;
+  const box=document.getElementById('sn-print-modal');
+  if(box)box.querySelectorAll('.sn-preset[data-r]').forEach(b=>b.classList.toggle('on',b.getAttribute('data-r')===active));
+}
+window.snPreset=function(which){
+  const now=new Date(),y=now.getFullYear(),m=now.getMonth();
+  const val=d=>{const p=n=>String(n).padStart(2,'0');return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate());};
+  if(which==='all'){_snFrom='';_snTo='';}
+  else if(which==='month'){_snFrom=val(new Date(y,m,1));_snTo=val(new Date(now));}
+  else if(which==='lastmonth'){_snFrom=val(new Date(y,m-1,1));_snTo=val(new Date(y,m,0));}
+  else if(which==='year'){_snFrom=val(new Date(y,0,1));_snTo=val(new Date(now));}
+  else return;
+  snSyncRangeUI(which);snRefreshPreview();
+};
+window.snFromChange=function(v){_snFrom=v||'';snSyncRangeUI('custom');snRefreshPreview();};
+window.snToChange=function(v){_snTo=v||'';snSyncRangeUI('custom');snRefreshPreview();};
 window.snOpenPrint=async function(){
   const modal=document.getElementById('sn-print-modal');const prev=document.getElementById('sn-preview');
   if(!modal||!prev)return;
   prev.innerHTML='<div class="sn-doc"><div class="sn-empty">Đang tạo bảng kê…</div></div>';
+  _snFrom='';_snTo=''; // mặc định: Tất cả (giữ nguyên hành vi cũ)
   snSetPaper(_snPaper);
   snSetThermal(localStorage.getItem('sk_paper')==='80'?'80':'58');
+  snSyncRangeUI('all');
   modal.classList.add('on');
   snUpdateBtStatus();
-  const html=await snBuildDocHtml();
-  prev.innerHTML=html;
-  const sheet=document.getElementById('sn-print-sheet');if(sheet)sheet.innerHTML=html;
+  await snRefreshPreview();
 };
 window.snClosePrint=function(){const m=document.getElementById('sn-print-modal');if(m)m.classList.remove('on');};
 // ENGINE IN CHUNG (A4/A5) — dùng cho cả bảng kê VÀ hóa đơn POS. Bơm @page ở cuối <body> để đè @page 58mm.
@@ -2164,9 +2219,12 @@ function snStatementCanvasFromData(data,width){
   if(data.c.phone)L('ĐT: '+data.c.phone,{size:20});
   var now=new Date();
   L('Ngày in: '+fmtDateRaw(now)+' '+now.toLocaleTimeString('vi-VN',{hour:'2-digit',minute:'2-digit'}),{size:18});
+  L('Ky: '+snRangeLabel(data.rng),{size:18});
   HR();
-  if(!data.txs.length){L('Chưa có giao dịch.',{size:21,align:'center'});}
-  else{var acc=0;
+  var acc=data.opening;
+  if(data.rng.hasFrom){L('So du dau ky',{size:20,right:(acc>0?snMoney(acc):(acc<0?('−'+snMoney(-acc)):'0'))});}
+  if(!data.txs.length){L(data.rng.hasFrom?'(Khong co GD trong ky)':'Chưa có giao dịch.',{size:20,align:'center'});}
+  else{
     data.txs.forEach(function(t){
       var v=Math.round(Number(t.amount)||0);var isMua=t.type==='mua';if(isMua)acc+=v;else acc-=v;
       var ts=txTimeStr(t);var dstr=fmtDateRaw(t.date)+(ts?(' '+ts):'');
@@ -5296,6 +5354,19 @@ import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, getDocs, serv
       <button type="button" class="sn-sizebtn on" data-sz="A4" onclick="snSetPaper('A4')">A4</button>
       <button type="button" class="sn-sizebtn" data-sz="A5" onclick="snSetPaper('A5')">A5</button>
       <span class="sn-hint">Xem trước bên dưới rồi bấm “In”. Trong hộp thoại in của máy tính, chọn đúng khổ (A4/A5) — có thể chọn “Lưu thành PDF”.</span>
+    </div>
+    <div class="sn-range">
+      <div class="sn-range-presets">
+        <span style="font-weight:600;font-size:.9em">Thời gian:</span>
+        <button type="button" class="sn-preset on" data-r="all" onclick="snPreset('all')">Tất cả</button>
+        <button type="button" class="sn-preset" data-r="month" onclick="snPreset('month')">Tháng này</button>
+        <button type="button" class="sn-preset" data-r="lastmonth" onclick="snPreset('lastmonth')">Tháng trước</button>
+        <button type="button" class="sn-preset" data-r="year" onclick="snPreset('year')">Năm nay</button>
+      </div>
+      <div class="sn-range-dates">
+        <label>Từ ngày<input type="date" id="sn-from" onchange="snFromChange(this.value)"></label>
+        <label>Đến ngày<input type="date" id="sn-to" onchange="snToChange(this.value)"></label>
+      </div>
     </div>
     <div id="sn-preview"><div class="sn-doc"><div class="sn-empty">Đang tạo bảng kê…</div></div></div>
     <div class="sn-acts">
