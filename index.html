@@ -170,6 +170,7 @@
   #public-view .hd-pay-badge{display:inline-block;font-size:.9em;font-weight:700;padding:7px 16px;border-radius:22px;}
   #public-view .hd-pay-paid{background:#e6f6ec;color:#0f7a3d;border:1.5px solid #b6e3c6;}
   #public-view .hd-pay-debt{background:#fdecea;color:#c0392b;border:1.5px solid #f3c3bc;}
+  #public-view .hd-pay-due{background:#fff6e6;color:#a15c00;border:1.5px solid #ffd28a;}
   #public-view .hd-note{margin:0 16px 16px;font-size:.86em;color:#6b7280;background:#f7f9f8;border-left:3px solid #cdd8d2;padding:8px 12px;border-radius:0 8px 8px 0;}
   #public-view .hd-trunc{margin:6px 16px 0;font-size:.78em;color:#9aa8a2;text-align:center;}
   #public-view .hd-qr-card{text-align:center;}
@@ -1180,7 +1181,7 @@ async function submitSignature(token,d){
 // ═══════════════ HÓA ĐƠN BÁN HÀNG — TRANG KHÁCH XEM ONLINE + KÝ NHẬN HÀNG ═══════════════
 // Dùng CHUNG kho shares/{token} + subcollection chuky của Sổ Nợ (không cần thêm Firestore rule).
 // Phân biệt bằng field kind='invoice'. Chữ ký nhận hàng ghi qua phiên ẩn danh 'pub' như bên sổ nợ.
-function _hdMethodLabel(m){return m==='cash'?'Tiền mặt':m==='qr'?'Chuyển khoản':m==='debt'?'Ghi nợ (mua chịu)':'—';}
+function _hdMethodLabel(m){return m==='cash'?'Tiền mặt':m==='qr'?'Chuyển khoản':m==='debt'?'Thanh toán sau':'—';}
 function renderInvoiceView(token,d){
   const html=hdInvoiceHtml(d);
   document.getElementById('public-content').innerHTML=html;
@@ -1220,12 +1221,12 @@ function hdInvoiceHtml(d){
       +'</div></div>';
   }
   const payBadge=isDebt
-    ? '<span class="hd-pay-badge hd-pay-debt">● Mua chịu — còn phải trả '+fmt(d.total||0)+'</span>'
+    ? '<span class="hd-pay-badge hd-pay-due">💳 Số tiền cần thanh toán: '+fmt(d.total||0)+'</span>'
     : _hdShort
-      ? '<span class="hd-pay-badge hd-pay-debt">● Chưa đủ tiền — còn thiếu '+fmt(-_hdCh)+'</span>'
+      ? '<span class="hd-pay-badge hd-pay-due">💳 Số tiền cần thanh toán thêm: '+fmt(-_hdCh)+'</span>'
       : '<span class="hd-pay-badge hd-pay-paid">✓ Đã thanh toán ('+_hdMethodLabel(method)+')</span>';
   const cashRows=(method==='cash'&&d.paid!=null)
-    ? '<div class="hd-sum-r"><span>Khách đưa</span><span>'+fmt(d.paid)+'</span></div>'+(_hdCh>=0?'<div class="hd-sum-r"><span>Thối lại</span><span>'+fmt(_hdCh)+'</span></div>':'<div class="hd-sum-r hd-sum-short"><span>Còn thiếu</span><span>'+fmt(-_hdCh)+'</span></div>')
+    ? '<div class="hd-sum-r"><span>Khách đưa</span><span>'+fmt(d.paid)+'</span></div>'+(_hdCh>=0?'<div class="hd-sum-r"><span>Thối lại</span><span>'+fmt(_hdCh)+'</span></div>':'<div class="hd-sum-r hd-sum-short"><span>Cần thanh toán thêm</span><span>'+fmt(-_hdCh)+'</span></div>')
     : '';
   const discRows=(Number(d.discount)>0)
     ? '<div class="hd-sum-r"><span>Tạm tính</span><span>'+fmt(d.subtotal||0)+'</span></div><div class="hd-sum-r hd-sum-disc"><span>Giảm giá</span><span>− '+fmt(d.discount)+'</span></div>'
@@ -1251,7 +1252,7 @@ function hdInvoiceHtml(d){
       +'<div class="hd-sum">'
         +discRows
         +'<div class="hd-sum-r hd-sum-total"><span>TỔNG CỘNG</span><span>'+fmt(d.total||0)+'</span></div>'
-        +'<div class="hd-sum-r hd-sum-method"><span>Thanh toán</span><span>'+_hdMethodLabel(method)+'</span></div>'
+        +'<div class="hd-sum-r hd-sum-method"><span>'+(isDebt?'Hình thức':'Thanh toán')+'</span><span>'+_hdMethodLabel(method)+'</span></div>'
         +cashRows
       +'</div>'
       +'<div class="hd-pay-row">'+payBadge+'</div>'
@@ -3133,7 +3134,7 @@ function skPaySupplier(id){const s=skSuppliers.find(x=>x.id===id);if(!s)return;s
 function skQRUrl(total){if(!skShopBank||!skShopBank.bin||!skShopBank.account)return null;return 'https://img.vietqr.io/image/'+skShopBank.bin+'-'+skShopBank.account+'-compact2.png?amount='+Math.round(total)+'&addInfo='+encodeURIComponent('Thanh toan don hang')+'&accountName='+encodeURIComponent(skShopBank.accName||'');}
 function skPayCash(){if(!skCart.length)return;const t=skCartTotals();skq('#sk-cash-total').textContent=fmt(t.total);skq('#sk-cash-given').value='';skq('#sk-cash-change').textContent='—';skModalOpen('#sk-pay-cash');setTimeout(()=>skq('#sk-cash-given').focus(),60);}
 function skCashInput(){const t=skCartTotals();const g=parseFloat(String(skq('#sk-cash-given').value).replace(/[^\d]/g,''))||0;const ch=g-t.total;const el=skq('#sk-cash-change');el.textContent=g?(ch>=0?'Thối lại '+fmt(ch):'Còn thiếu '+fmt(-ch)):'—';el.className='sk-change '+(g&&ch<0?'neg':'pos');}
-function skCashConfirm(){const t=skCartTotals();const g=parseFloat(String(skq('#sk-cash-given').value).replace(/[^\d]/g,''))||t.total;if(g<t.total){toast('Khách đưa chưa đủ — còn thiếu '+fmt(t.total-g)+'. Muốn cho nợ phần còn lại thì bấm "Ghi nợ".');return;}skCloseModal('#sk-pay-cash');skFinalize('cash',{paid:g,change:g-t.total});}
+function skCashConfirm(){const t=skCartTotals();const g=parseFloat(String(skq('#sk-cash-given').value).replace(/[^\d]/g,''))||t.total;skCloseModal('#sk-pay-cash');skFinalize('cash',{paid:g,change:g-t.total});}
 function skPayQR(){if(!skCart.length)return;const t=skCartTotals();const url=skQRUrl(t.total);const img=skq('#sk-qr-img');if(url){img.src=url;img.style.display='';skq('#sk-qr-msg').textContent='';}else{img.style.display='none';skq('#sk-qr-msg').innerHTML='Chưa cấu hình ngân hàng. Vào ⚙️ → “Cấu hình nhận tiền”.';}skq('#sk-qr-total').textContent=fmt(t.total);skModalOpen('#sk-pay-qr');}
 function skQRConfirm(){skCloseModal('#sk-pay-qr');skFinalize('qr',{});}
 function skPayDebt(){if(!skCart.length)return;skRenderCustChips();skq('#sk-cust-name').value='';skModalOpen('#sk-cust');}
