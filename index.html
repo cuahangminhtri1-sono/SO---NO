@@ -139,6 +139,42 @@
   #public-view{display:none;min-height:100vh;background:var(--bg);}
   .pub-header{background:var(--primary);color:white;padding:20px 16px;text-align:center;}
   .pub-card{background:white;border-radius:12px;padding:20px;margin:14px;box-shadow:var(--shadow);}
+  /* ===== HÓA ĐƠN BÁN HÀNG (trang khách) ===== */
+  #public-view .hd-card{padding:0;overflow:hidden;}
+  #public-view .hd-head{background:linear-gradient(135deg,#1a6b3c,#2d9e5f);color:#fff;padding:20px 18px 16px;text-align:center;}
+  #public-view .hd-shop{font-size:1.32em;font-weight:800;letter-spacing:.3px;margin-bottom:2px;}
+  #public-view .hd-title{font-size:.86em;font-weight:700;letter-spacing:2.5px;opacity:.92;margin-bottom:10px;}
+  #public-view .hd-meta{display:flex;justify-content:center;gap:8px 18px;flex-wrap:wrap;font-size:.82em;opacity:.96;}
+  #public-view .hd-cust{margin-top:10px;font-size:.9em;background:rgba(255,255,255,.16);display:inline-block;padding:5px 14px;border-radius:20px;}
+  #public-view .hd-table-wrap{padding:6px 6px 0;overflow-x:auto;}
+  #public-view .hd-table{width:100%;border-collapse:collapse;font-size:.87em;}
+  #public-view .hd-table thead th{background:#f1f5f2;color:#41615a;font-size:.8em;font-weight:700;text-transform:uppercase;letter-spacing:.4px;padding:9px 8px;border-bottom:2px solid #dfe8e3;}
+  #public-view .hd-table tbody td{padding:10px 8px;border-bottom:1px solid #eef2ef;vertical-align:top;}
+  #public-view .hd-table tbody tr:nth-child(even){background:#fafcfb;}
+  #public-view .hd-c-idx{width:24px;text-align:center;color:#9aa8a2;}
+  #public-view .hd-c-name{font-weight:600;color:#1a2e28;word-break:break-word;min-width:96px;}
+  #public-view .hd-c-unit{display:inline-block;margin-left:6px;font-size:.84em;color:#7d8c86;font-weight:500;}
+  #public-view .hd-c-qty{text-align:center;white-space:nowrap;color:#41615a;}
+  #public-view .hd-c-price{text-align:right;white-space:nowrap;color:#41615a;}
+  #public-view .hd-c-line{text-align:right;white-space:nowrap;font-weight:700;color:#0a5f4a;}
+  #public-view .hd-c-th-qty,#public-view th.hd-c-qty{text-align:center;}
+  #public-view th.hd-c-price,#public-view th.hd-c-line{text-align:right;}
+  #public-view .hd-empty{text-align:center;color:#9aa8a2;padding:18px;}
+  #public-view .hd-sum{padding:12px 16px 4px;border-top:1px dashed #d7e0db;margin-top:2px;}
+  #public-view .hd-sum-r{display:flex;justify-content:space-between;gap:12px;padding:4px 0;font-size:.94em;color:#41615a;}
+  #public-view .hd-sum-disc span:last-child{color:#c0392b;}
+  #public-view .hd-sum-total{font-size:1.28em;font-weight:800;color:#0a5f4a;border-top:2px solid #e3ece7;margin-top:6px;padding-top:9px;}
+  #public-view .hd-sum-method{font-size:.9em;color:#6b7872;}
+  #public-view .hd-pay-row{padding:2px 16px 16px;text-align:center;}
+  #public-view .hd-pay-badge{display:inline-block;font-size:.9em;font-weight:700;padding:7px 16px;border-radius:22px;}
+  #public-view .hd-pay-paid{background:#e6f6ec;color:#0f7a3d;border:1.5px solid #b6e3c6;}
+  #public-view .hd-pay-debt{background:#fdecea;color:#c0392b;border:1.5px solid #f3c3bc;}
+  #public-view .hd-note{margin:0 16px 16px;font-size:.86em;color:#6b7280;background:#f7f9f8;border-left:3px solid #cdd8d2;padding:8px 12px;border-radius:0 8px 8px 0;}
+  #public-view .hd-trunc{margin:6px 16px 0;font-size:.78em;color:#9aa8a2;text-align:center;}
+  #public-view .hd-qr-card{text-align:center;}
+  #public-view .hd-qr-title{font-weight:700;margin-bottom:2px;}
+  #public-view .hd-qr-sub{font-size:.82em;color:#666;margin-bottom:12px;}
+  #public-view .hd-foot{text-align:center;color:#9aa8a2;font-size:.78em;margin:2px 0 26px;}
   .pub-debt{font-size:2.2em;font-weight:800;color:var(--danger);text-align:center;margin:12px 0;}
   .pub-debt.zero{color:var(--primary);}
   .qr-box{text-align:center;padding:12px 0;}
@@ -970,6 +1006,7 @@ if(viewToken){
         return;
       }
       const d=shareSnap.data();
+      if(d.kind==='invoice'){ renderInvoiceView(viewToken,d); return; }  // ← HÓA ĐƠN BÁN HÀNG (link online + ký nhận hàng)
       const s=d.shop||null;
       document.title='Sổ Nợ – '+d.name;
       const bal=Number(d.debt)||0;
@@ -1135,6 +1172,152 @@ async function submitSignature(token,d){
     if(form) form.innerHTML='<div class="sign-ok">✅ Cảm ơn '+escHtml(name)+', đã ghi nhận chữ ký lúc '+escHtml(hienThi)+'.</div>';
   }catch(e){
     if(btn){btn.disabled=false;btn.textContent='✅ Ký xác nhận';}
+    if(msg){msg.textContent='⚠️ Lưu chữ ký chưa được: '+((e&&(e.code||e.message))||e);msg.style.color='#c0392b';}
+  }
+}
+
+// ═══════════════ HÓA ĐƠN BÁN HÀNG — TRANG KHÁCH XEM ONLINE + KÝ NHẬN HÀNG ═══════════════
+// Dùng CHUNG kho shares/{token} + subcollection chuky của Sổ Nợ (không cần thêm Firestore rule).
+// Phân biệt bằng field kind='invoice'. Chữ ký nhận hàng ghi qua phiên ẩn danh 'pub' như bên sổ nợ.
+function _hdMethodLabel(m){return m==='cash'?'Tiền mặt':m==='qr'?'Chuyển khoản':m==='debt'?'Ghi nợ (mua chịu)':'—';}
+function renderInvoiceView(token,d){
+  const html=hdInvoiceHtml(d);
+  document.getElementById('public-content').innerHTML=html;
+  const s=d.shop||{};
+  document.title='Hóa đơn'+(d.soHD?(' '+d.soHD):'')+(s.name?(' – '+s.name):'');
+  initHdSignSection(token,d);
+}
+function hdInvoiceHtml(d){
+  const s=d.shop||{};
+  const items=d.items||[];
+  const method=d.method||'';
+  const isDebt=method==='debt';
+  const rows=items.map((it,i)=>{
+    const lt=(it.lineTotal!=null)?it.lineTotal:((Number(it.price)||0)*(Number(it.qty)||0));
+    return '<tr>'
+      +'<td class="hd-c-idx">'+(i+1)+'</td>'
+      +'<td class="hd-c-name">'+escHtml(it.name||'')+(it.unit?('<span class="hd-c-unit">'+escHtml(it.unit)+'</span>'):'')+'</td>'
+      +'<td class="hd-c-qty">'+escHtml(skN(it.qty))+'</td>'
+      +'<td class="hd-c-price">'+fmt(it.price||0)+'</td>'
+      +'<td class="hd-c-line">'+fmt(lt)+'</td>'
+    +'</tr>';
+  }).join('');
+  let qrHtml='';
+  if(isDebt && s.bankBin && s.account){
+    const info=encodeURIComponent('Thanh toan HD'+(d.soHD?(' '+d.soHD):'')+(d.customerName?(' '+d.customerName):''));
+    const aName=encodeURIComponent(s.accName||'');
+    const qrUrl='https://img.vietqr.io/image/'+s.bankBin+'-'+s.account+'-compact2.png?amount='+Math.round(Number(d.total)||0)+'&addInfo='+info+'&accountName='+aName;
+    qrHtml='<div class="pub-card hd-qr-card">'
+      +'<div class="hd-qr-title">💳 Quét mã để thanh toán</div>'
+      +'<div class="hd-qr-sub">Số tiền điền sẵn — quét bằng app ngân hàng</div>'
+      +'<div class="qr-box"><img src="'+qrUrl+'" alt="QR" onerror="this.parentElement.innerHTML=\'<p style=color:#999;padding:20px>Không tải được QR</p>\'">'
+        +'<div class="qr-label">💰 Số tiền: <b style="color:#c0392b">'+fmt(d.total||0)+'</b></div>'
+        +'<div class="qr-label">🏦 '+escHtml(s.bankName||'')+' – '+escHtml(s.account||'')+'</div>'
+        +'<div class="qr-label">👤 '+escHtml(s.accName||'')+'</div>'
+      +'</div></div>';
+  }
+  const payBadge=isDebt
+    ? '<span class="hd-pay-badge hd-pay-debt">● Mua chịu — còn phải trả '+fmt(d.total||0)+'</span>'
+    : '<span class="hd-pay-badge hd-pay-paid">✓ Đã thanh toán ('+_hdMethodLabel(method)+')</span>';
+  const cashRows=(method==='cash'&&d.paid!=null)
+    ? '<div class="hd-sum-r"><span>Khách đưa</span><span>'+fmt(d.paid)+'</span></div><div class="hd-sum-r"><span>Thối lại</span><span>'+fmt(d.change||0)+'</span></div>'
+    : '';
+  const discRows=(Number(d.discount)>0)
+    ? '<div class="hd-sum-r"><span>Tạm tính</span><span>'+fmt(d.subtotal||0)+'</span></div><div class="hd-sum-r hd-sum-disc"><span>Giảm giá</span><span>− '+fmt(d.discount)+'</span></div>'
+    : '';
+  const noteRow=d.note?('<div class="hd-note">📝 '+escHtml(d.note)+'</div>'):'';
+  const truncRow=d.truncated?('<div class="hd-trunc">Hiển thị '+d.itemsShown+'/'+d.itemsTotal+' mặt hàng đầu — liên hệ cửa hàng để xem đầy đủ.</div>'):'';
+  return ''
+    +'<div class="pub-card hd-card">'
+      +'<div class="hd-head">'
+        +'<div class="hd-shop">'+escHtml(s.name||'CỬA HÀNG')+'</div>'
+        +'<div class="hd-title">HÓA ĐƠN BÁN HÀNG</div>'
+        +'<div class="hd-meta">'
+          +(d.soHD?('<span>Số HĐ: <b>'+escHtml(d.soHD)+'</b></span>'):'')
+          +(d.ngay?('<span>Ngày: <b>'+escHtml(d.ngay)+'</b></span>'):'')
+        +'</div>'
+        +(d.customerName?('<div class="hd-cust">Khách hàng: <b>'+escHtml(d.customerName)+'</b></div>'):'')
+      +'</div>'
+      +'<div class="hd-table-wrap"><table class="hd-table">'
+        +'<thead><tr><th class="hd-c-idx">#</th><th class="hd-c-name">Mặt hàng</th><th class="hd-c-qty">SL</th><th class="hd-c-price">Đơn giá</th><th class="hd-c-line">Thành tiền</th></tr></thead>'
+        +'<tbody>'+(rows||'<tr><td colspan="5" class="hd-empty">Không có mặt hàng</td></tr>')+'</tbody>'
+      +'</table></div>'
+      +truncRow
+      +'<div class="hd-sum">'
+        +discRows
+        +'<div class="hd-sum-r hd-sum-total"><span>TỔNG CỘNG</span><span>'+fmt(d.total||0)+'</span></div>'
+        +'<div class="hd-sum-r hd-sum-method"><span>Thanh toán</span><span>'+_hdMethodLabel(method)+'</span></div>'
+        +cashRows
+      +'</div>'
+      +'<div class="hd-pay-row">'+payBadge+'</div>'
+      +noteRow
+    +'</div>'
+    +qrHtml
+    +'<div id="pub-sign-wrap"></div>'
+    +'<div class="hd-foot">Cảm ơn quý khách! · Cập nhật '+escHtml(d.updatedAt||'')+'</div>';
+}
+// ── Ký xác nhận ĐÃ NHẬN ĐỦ HÀNG (dùng lại _setupPad/_clearPad/ensurePub của sổ nợ) ──
+function _hdSignItemHtml(s){
+  return '<div class="sign-done">'
+    +'<img src="'+(s.img||'')+'" alt="chữ ký">'
+    +'<div class="sign-meta"><b>'+escHtml(s.ten||'—')+'</b><br><span style="color:#0f7a3d;font-weight:700">✔ Đã nhận đủ hàng</span><br><span style="color:#999">'+escHtml(s.hienThi||'')+'</span></div>'
+    +'</div>';
+}
+function _renderHdSignCard(d,signs){
+  const listInner=signs.map(_hdSignItemHtml).join('');
+  const listBlock='<div class="sign-list-lab" id="sign-list-lab" style="'+(signs.length?'':'display:none')+'">🖊️ Đã ký nhận hàng</div>'
+    +'<div id="sign-list">'+listInner+'</div>';
+  const hasTot=(Number(d.total)||0)>0;
+  return '<div class="pub-card">'
+    +'<div style="font-weight:800;margin-bottom:4px;color:#0a5f4a">✍️ Xác nhận đã nhận đủ hàng</div>'
+    +'<div style="font-size:.82em;color:#666;margin-bottom:10px">Vui lòng ký tên bên dưới để xác nhận đã nhận đầy đủ hàng theo hóa đơn trên.</div>'
+    +'<div id="sign-form">'
+      +'<input id="sign-name" class="sign-input" placeholder="Họ tên người nhận" autocomplete="name">'
+      +'<div class="sign-pad-lab">Ký vào ô bên dưới 👇</div>'
+      +'<div class="sign-pad-box"><canvas id="sign-pad"></canvas><button type="button" class="sign-clear" id="sign-clear">Xoá</button></div>'
+      +'<div class="sign-confirm-row">Tôi xác nhận <b>đã nhận đủ hàng</b> theo hóa đơn trên'+(hasTot?(' (tổng '+fmt(d.total)+')'):'')+'.</div>'
+      +'<button type="button" id="sign-save" class="sign-save">✅ Ký xác nhận đã nhận hàng</button>'
+      +'<div id="sign-msg" class="sign-msg"></div>'
+    +'</div>'
+    +listBlock
+  +'</div>';
+}
+async function initHdSignSection(token,d){
+  const wrap=document.getElementById('pub-sign-wrap'); if(!wrap) return;
+  let signs=[];
+  try{
+    const qs=await getDocs(query(collection(db,'shares',token,'chuky'),orderBy('taoLuc','desc')));
+    signs=qs.docs.map(x=>x.data());
+  }catch(e){}
+  wrap.innerHTML=_renderHdSignCard(d,signs);
+  _setupPad();
+  const clr=document.getElementById('sign-clear'); if(clr) clr.addEventListener('click',_clearPad);
+  const btn=document.getElementById('sign-save'); if(btn) btn.addEventListener('click',()=>submitHdSignature(token,d));
+}
+async function submitHdSignature(token,d){
+  const nameEl=document.getElementById('sign-name');
+  const msg=document.getElementById('sign-msg');
+  const btn=document.getElementById('sign-save');
+  const name=((nameEl&&nameEl.value)||'').trim();
+  if(!name){ if(msg){msg.textContent='⚠️ Vui lòng nhập họ tên người nhận.';msg.style.color='#c0392b';} if(nameEl)nameEl.focus(); return; }
+  if(!_shasInk){ if(msg){msg.textContent='⚠️ Bạn chưa ký. Hãy ký vào ô phía trên.';msg.style.color='#c0392b';} return; }
+  if(btn){btn.disabled=true;btn.textContent='⏳ Đang lưu...';}
+  if(msg)msg.textContent='';
+  try{
+    const img=_scanvas.toDataURL('image/png');
+    if(img.length>900*1024) throw new Error('Chữ ký quá lớn, hãy ký gọn lại');
+    const now=new Date();
+    const hienThi=now.getHours()+':'+String(now.getMinutes()).padStart(2,'0')+' ngày '+now.toLocaleDateString('vi-VN');
+    // Giữ ĐÚNG bộ field như chữ ký sổ nợ để tương thích tuyệt đối với rule của chuky (không thêm field lạ)
+    const rec={ten:name,img,noTaiThoiDiemKy:Number(d.total)||0,soGiaoDich:(d.items||[]).length,ua:((navigator.userAgent||'').slice(0,300)),hienThi,taoLuc:serverTimestamp()};
+    const pdb=await ensurePub();
+    await addDoc(collection(pdb,'shares',token,'chuky'),rec);
+    const lab=document.getElementById('sign-list-lab'); if(lab) lab.style.display='';
+    const list=document.getElementById('sign-list'); if(list) list.insertAdjacentHTML('afterbegin',_hdSignItemHtml(rec));
+    const form=document.getElementById('sign-form');
+    if(form) form.innerHTML='<div class="sign-ok">✅ Cảm ơn '+escHtml(name)+', đã ghi nhận xác nhận NHẬN ĐỦ HÀNG lúc '+escHtml(hienThi)+'.</div>';
+  }catch(e){
+    if(btn){btn.disabled=false;btn.textContent='✅ Ký xác nhận đã nhận hàng';}
     if(msg){msg.textContent='⚠️ Lưu chữ ký chưa được: '+((e&&(e.code||e.message))||e);msg.style.color='#c0392b';}
   }
 }
@@ -2965,14 +3148,15 @@ async function skFinalize(method,extra){
   const customer=extra.customer||null;let custRef=null,isNew=false;
   if(method==='debt'&&customer){if(customer.id)custRef=doc(db,'users',UID,'customers',customer.id);else{custRef=doc(collection(db,'users',UID,'customers'));isNew=true;}}
   const orderRef=doc(bcol('orders'));
+  const hdToken=Math.random().toString(36).substring(2,10)+Date.now().toString(36); // mã link hóa đơn online (bền theo đơn)
   const batch=writeBatch(db);
-  batch.set(orderRef,{items:items,subtotal:sub,discount:disc,total:total,method:method,staffName:(typeof skStaff!=='undefined'&&skStaff?skStaff.name:null),paid:extra.paid||null,change:(extra.change!=null?extra.change:null),note:skOrderNote||'',customerId:(customer&&customer.id)||(isNew?custRef.id:null),customerName:(customer&&customer.name)||null,createdAt:serverTimestamp()});
+  batch.set(orderRef,{items:items,subtotal:sub,discount:disc,total:total,method:method,staffName:(typeof skStaff!=='undefined'&&skStaff?skStaff.name:null),paid:extra.paid||null,change:(extra.change!=null?extra.change:null),note:skOrderNote||'',customerId:(customer&&customer.id)||(isNew?custRef.id:null),customerName:(customer&&customer.name)||null,hdToken:hdToken,createdAt:serverTimestamp()});
   pids.forEach(id=>{batch.update(bdoc('products',id),{stock:increment(-need[id])});batch.set(doc(bcol('stock_moves')),{productId:id,productName:(skProducts.find(x=>x.id===id)||{}).name||'',delta:-need[id],reason:'sale',orderId:orderRef.id,at:serverTimestamp()});}); // bán -> trừ tồn (increment âm) offline-safe
   if(custRef){const noteStr=items.map(i=>i.name+' '+skN(i.qty)+i.unit).join(', ');if(isNew)batch.set(custRef,{name:customer.name,phone:'',address:'',debt:total,createdAt:serverTimestamp()});else batch.update(custRef,{debt:increment(total)});const txRef=doc(collection(db,'users',UID,'customers',custRef.id,'transactions'));batch.set(txRef,{type:'mua',amount:total,note:noteStr,memo:'',orderId:orderRef.id,date:new Date(),createdAt:serverTimestamp(),createdAtMs:Date.now()});}
   batch.commit().catch(e=>skErr(e,'Tạo đơn'));
   // Đồng bộ trang chia sẻ: CHỈ khi có mạng (offline thì số nợ vẫn đúng nhờ increment; healDebt soát lại khi mở sổ nợ có mạng).
   if(method==='debt'&&customer&&customer.id&&navigator.onLine){const c=(customers||[]).find(x=>x.id===customer.id);if(c&&c.shareToken){(async()=>{try{const nd=await recomputeDebtOnline(c.id);await updateDoc(doc(db,'users',UID,'customers',c.id),{debt:nd});await syncShare(c.shareToken,c.id,c.name,c.phone,nd);}catch(e){}})();}}
-  const receipt={items:items,subtotal:sub,discount:disc,total:total,method:method,paid:extra.paid,change:extra.change,customerName:(customer&&customer.name)||null,when:new Date()};
+  const receipt={id:orderRef.id,hdToken:hdToken,items:items,subtotal:sub,discount:disc,total:total,method:method,paid:extra.paid,change:extra.change,customerName:(customer&&customer.name)||null,note:skOrderNote||'',when:new Date()};
   skCart=[];skDiscount=0;skOrderNote='';const n=skq('#sk-note');if(n)n.value='';skRenderCart();skRenderGrid();skCloseCart();skScrim(false);skShowReceipt(receipt);markDirty();
 }
 
@@ -2983,6 +3167,32 @@ function skReceiptText(o){const L=[];L.push((skShopName||'CỬA HÀNG').toUpperC
 function skShowReceipt(o){skq('#sk-rc-body').innerHTML=skReceiptHTML(o);skq('#sk-rc').dataset.txt=skReceiptText(o);window._skLastReceipt=o;skModalOpen('#sk-rc');}
 async function skReceiptShare(){const t=skq('#sk-rc').dataset.txt||'';if(navigator.share){try{await navigator.share({text:t});}catch(e){}}else skCopy(t);}
 function skReceiptCopy(){skCopy(skq('#sk-rc').dataset.txt||'');}
+// 🔗 Tạo LINK HÓA ĐƠN ONLINE (khách mở xem + ký xác nhận đã nhận đủ hàng) — dùng chung kho shares/{token}
+async function skShareInvoice(){
+  const o=window._skLastReceipt;
+  if(!o){toast('Chưa có hóa đơn');return;}
+  let token=o.hdToken;
+  if(!token){token=Math.random().toString(36).substring(2,10)+Date.now().toString(36);o.hdToken=token;if(o.id){try{updateDoc(bdoc('orders',o.id),{hdToken:token});}catch(e){}}}
+  const shop={name:(skShopName||''),bankBin:(skShopBank&&skShopBank.bin)||'',bankName:(skShopBank&&skShopBank.bankName)||'',account:(skShopBank&&skShopBank.account)||'',accName:(skShopBank&&skShopBank.accName)||''};
+  const src=(o.items||[]).map(i=>({name:i.name,unit:i.unit||'',qty:Number(i.qty)||0,price:Number(i.price)||0,lineTotal:(Number(i.price)||0)*(Number(i.qty)||0)}));
+  const CAP=200; const itemsTotal=src.length; let items=src, truncated=false;
+  if(src.length>CAP){items=src.slice(0,CAP);truncated=true;}
+  const now=new Date();
+  const updatedAt=now.getHours()+':'+String(now.getMinutes()).padStart(2,'0')+' ngày '+now.toLocaleDateString('vi-VN');
+  const docData={kind:'invoice',ownerUid:UID,shop:shop,soHD:(o.id?('#'+String(o.id).slice(-6).toUpperCase()):''),ngay:skDT(o.when),items:items,subtotal:Number(o.subtotal)||0,discount:Number(o.discount)||0,total:Number(o.total)||0,method:o.method||'',paid:(o.paid!=null?o.paid:null),change:(o.change!=null?o.change:null),customerName:o.customerName||'',note:o.note||'',updatedAt:updatedAt};
+  if(truncated){docData.truncated=true;docData.itemsTotal=itemsTotal;docData.itemsShown=items.length;}
+  // Ghi NGẦM (không await) để KHÔNG mất user-gesture của Web Share trên iOS Safari — như generateShareLink của sổ nợ
+  setDoc(doc(db,'shares',token),docData).catch(e=>{toast('⚠️ Tạo link CHƯA được: '+((e&&(e.code||e.message))||e));});
+  if(!navigator.onLine)toast('⚠️ Đang ngoại tuyến — link sẽ hoạt động khi có mạng trở lại.');
+  const url=window.location.href.split('?')[0]+'?view='+token;
+  const text='Hóa đơn'+(docData.soHD?(' '+docData.soHD):'')+' – '+(shop.name||'cửa hàng')+'\nTổng: '+fmt(o.total||0)+'\nMở link để xem & ký xác nhận đã nhận hàng:\n'+url;
+  if(navigator.share){
+    try{await navigator.share({title:'Hóa đơn'+(docData.soHD?(' '+docData.soHD):''),text:text,url:url});return;}
+    catch(err){if(err&&err.name==='AbortError')return;}
+  }
+  try{await navigator.clipboard.writeText(url);alert('📋 Máy này chưa mở được cửa sổ chia sẻ nên link đã được copy.\nDán vào Zalo / Messenger / SMS để gửi khách:\n\n'+url);}
+  catch(e){prompt('Copy link hóa đơn gửi khách:',url);}
+}
 async function skCopy(t){try{await navigator.clipboard.writeText(t);toast('Đã sao chép hóa đơn');}catch(e){toast('Không sao chép được');}}
 function skPrintReceipt(){const o=window._skLastReceipt;if(!o)return;skq('#sk-print').innerHTML='<div class="p-shop">'+escHtml((skShopName||'CỬA HÀNG').toUpperCase())+'</div><div class="p-time">'+skDT(o.when)+'</div><hr>'+o.items.map(i=>'<div class="p-l1">'+escHtml(i.name)+'</div><div class="p-l2"><span>'+i.qty+(i.unit?(' '+escHtml(i.unit)):'')+' x '+fmt(i.price)+'</span><span>'+fmt(i.price*i.qty)+'</span></div>').join('')+'<hr>'+(o.discount>0?'<div class="p-l2"><span>Giảm giá</span><span>-'+fmt(o.discount)+'</span></div>':'')+'<div class="p-tot"><span>TỔNG</span><span>'+fmt(o.total)+'</span></div><div class="p-l2"><span>'+skMethodLabel(o.method)+'</span><span></span></div>'+(o.method==='cash'&&o.paid!=null?('<div class="p-l2"><span>Khách đưa</span><span>'+fmt(o.paid)+'</span></div><div class="p-l2"><span>Thối</span><span>'+fmt(o.change||0)+'</span></div>'):'')+'<div class="p-thx">Cảm ơn quý khách!</div>';window.print();}
 
@@ -3306,7 +3516,7 @@ function skBind(){
       case 'cat-pick':skKhoCat=el.dataset.cat||'';skRenderKho();break;
       case 'period':skPeriod=el.dataset.p;skRenderReport();break;
       case 'rp-preset':skRpPreset(el.dataset.preset);break;
-      case 'rc-share':skReceiptShare();break; case 'rc-copy':skReceiptCopy();break; case 'rc-print':skPrintMenu();break;
+      case 'rc-share':skReceiptShare();break; case 'hd-share':skShareInvoice();break; case 'rc-copy':skReceiptCopy();break; case 'rc-print':skPrintMenu();break;
       case 'np-scan':skNpScan();break; case 'np-add':skNpAddProduct(id);break; case 'np-inc':skNpInc(parseInt(i,10));break; case 'np-dec':skNpDec(parseInt(i,10));break; case 'np-del':skNpDel(parseInt(i,10));break; case 'np-cost':skNpCost(parseInt(i,10));break; case 'np-qty':skNpQty(parseInt(i,10));break; case 'np-save':skSavePurchase();break; case 'np-newprod':skOpenProd(null);break;
       case 'sup-list':skModalOpen('#sk-sup');break; case 'sup-new':skOpenSupplier(null);break; case 'sup-edit':skOpenSupplier(id);break; case 'sup-save':skSaveSupplier();break; case 'sup-del':skDelSupplier();break; case 'sup-pay':skPaySupplier(id);break;
       case 'num-ok':skNumOk();break; case 'num-close':skNumClose();break;
@@ -4239,7 +4449,7 @@ try { window.__skBusy = function(){
   <div id="sk-sup-form" class="sk-modal"><div class="sk-card"><h3 id="sk-sf-title">Thêm nhà cung cấp</h3><label class="sk-fld">Tên NCC<input id="sk-sf-name" class="sk-inp"></label><label class="sk-fld">Điện thoại<input id="sk-sf-phone" class="sk-inp" inputmode="tel"></label><label class="sk-fld">Địa chỉ<input id="sk-sf-addr" class="sk-inp"></label><div class="sk-card-acts"><button class="sk-btn red" id="sk-sf-del" data-act="sup-del" style="display:none">Xóa</button><span style="flex:1"></span><button class="sk-btn ghost" data-act="modal-close" data-target="#sk-sup-form">Hủy</button><button class="sk-btn green" data-act="sup-save">Lưu</button></div></div></div>
 
   <!-- RECEIPT -->
-  <div id="sk-rc" class="sk-modal"><div class="sk-card"><div id="sk-rc-body" class="sk-rc-body"></div><div class="sk-card-acts"><button class="sk-btn ghost" data-act="modal-close" data-target="#sk-rc">Đóng</button><button class="sk-btn outline" data-act="rc-print">🖨 In</button><button class="sk-btn outline" data-act="rc-copy">Sao chép</button><button class="sk-btn green" data-act="rc-share">Chia sẻ</button></div></div></div>
+  <div id="sk-rc" class="sk-modal"><div class="sk-card"><div id="sk-rc-body" class="sk-rc-body"></div><div class="sk-card-acts"><button class="sk-btn ghost" data-act="modal-close" data-target="#sk-rc">Đóng</button><button class="sk-btn outline" data-act="rc-print">🖨 In</button><button class="sk-btn outline" data-act="rc-copy">Sao chép</button><button class="sk-btn green" data-act="hd-share">🔗 Gửi link &amp; ký nhận</button></div></div></div>
 
   <!-- HISTORY -->
   <div id="sk-hist" class="sk-modal"><div class="sk-card"><h3>Lịch sử nhập / xuất kho</h3><div id="sk-hist-body" class="sk-hist-body"></div><div class="sk-card-acts"><span style="flex:1"></span><button class="sk-btn green" data-act="modal-close" data-target="#sk-hist">Đóng</button></div></div></div>
