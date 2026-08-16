@@ -276,8 +276,8 @@
 .sn-doc .sn-title{text-align:center;font-size:1.2em;font-weight:800;margin:6px 0 2px;text-transform:uppercase;}
 .sn-doc .sn-when{text-align:center;font-size:.86em;color:#444;margin-bottom:10px;}
 .sn-doc .sn-meta{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;font-size:.92em;margin:8px 0 10px;border-top:1px solid #999;border-bottom:1px solid #999;padding:8px 0;}
-.sn-doc table{width:100%;border-collapse:collapse;font-size:.9em;}
-.sn-doc th,.sn-doc td{border:1px solid #333;padding:5px 7px;vertical-align:top;}
+.sn-doc table{width:100%;border-collapse:collapse;font-size:.9em;table-layout:fixed;}
+.sn-doc th,.sn-doc td{border:1px solid #333;padding:5px 7px;vertical-align:top;word-wrap:break-word;overflow-wrap:break-word;}
 .sn-doc th{background:#eef2f5;font-weight:700;text-align:center;}
 .sn-doc td.c{text-align:center;}
 .sn-doc td.r{text-align:right;white-space:nowrap;}
@@ -307,9 +307,20 @@
   body.sn-printing > *{display:none !important;}
   body.sn-printing #sn-print-sheet{display:block !important;visibility:visible !important;position:static;color:#000;}
   body.sn-printing #sn-print-sheet *{visibility:visible !important;}
-  /* Khổ A5: thu nhỏ chữ cho vừa trang */
-  body.sn-printing.sn-a5 .sn-doc{font-size:11px;}
-  body.sn-printing.sn-a5 .sn-doc table{font-size:.86em;}
+  /* Ép lề & nền chuẩn khi in — tránh máy in tự chèn lề/đẩy nội dung tụt xuống */
+  body.sn-printing{margin:0 !important;padding:0 !important;background:#fff !important;}
+  body.sn-printing #sn-print-sheet,body.sn-printing .sn-doc{margin:0 !important;}
+  /* Khổ A5: bóp gọn cho vừa 1 trang (giảm cỡ chữ, giảm padding ô, thu gọn chữ ký) */
+  body.sn-printing.sn-a5 .sn-doc{font-size:10.5px;}
+  body.sn-printing.sn-a5 .sn-doc table{font-size:.85em;}
+  body.sn-printing.sn-a5 .sn-doc th,body.sn-printing.sn-a5 .sn-doc td{padding:3px 5px;}
+  body.sn-printing.sn-a5 .sn-doc .sn-title{font-size:1.15em;margin:3px 0 2px;}
+  body.sn-printing.sn-a5 .sn-doc .sn-when{margin-bottom:6px;}
+  body.sn-printing.sn-a5 .sn-doc .sn-period{margin:-4px 0 8px;}
+  body.sn-printing.sn-a5 .sn-doc .sn-meta{margin:6px 0 8px;padding:6px 0;}
+  body.sn-printing.sn-a5 .sn-doc .sn-sum{margin-top:8px;}
+  body.sn-printing.sn-a5 .sn-doc .sn-sign{margin-top:16px;}
+  body.sn-printing.sn-a5 .sn-doc .sn-sign .sn-space{height:42px;}
   .sn-doc thead{display:table-header-group;} /* lặp lại tiêu đề cột ở mỗi trang */
   .sn-doc tr{page-break-inside:avoid;}
   .sn-doc .sn-sign{page-break-inside:avoid;}
@@ -2295,9 +2306,9 @@ async function snBuildDocHtml(){
   const bal=data.bal, totMua=data.totMua, totTra=data.totTra; // bal khớp dòng cuối bảng
   let sumTxt;
   const _endLbl=(bal>0||bal<0)&&(rng.hasFrom||rng.hasTo)?' cuối kỳ':'';
-  if(bal>0)sumTxt='Khách còn nợ'+_endLbl+': <b>'+snMoney(bal)+' ₫</b>';
-  else if(bal<0)sumTxt='Mình nợ khách'+_endLbl+': <b>'+snMoney(-bal)+' ₫</b>';
-  else sumTxt='<b>Đã thanh toán xong (0 ₫)</b>';
+  if(bal>0)sumTxt='Khách còn nợ'+_endLbl+': <b>'+snMoney(bal)+' đ</b>';
+  else if(bal<0)sumTxt='Mình nợ khách'+_endLbl+': <b>'+snMoney(-bal)+' đ</b>';
+  else sumTxt='<b>Đã thanh toán xong (0 đ)</b>';
   const now=new Date();
   const whenStr=fmtDateRaw(now)+' '+now.toLocaleTimeString('vi-VN',{hour:'2-digit',minute:'2-digit'});
   const metaR=[c.phone?('ĐT: '+escHtml(c.phone)):'',c.address?('Đ/c: '+escHtml(c.address)):''].filter(Boolean).join('<br>');
@@ -2309,7 +2320,7 @@ async function snBuildDocHtml(){
   const emptyRow='<tr><td class="c">–</td><td colspan="4" style="text-align:center;color:#6b7280">(Không có giao dịch trong kỳ)</td><td class="r b">'+openCell+'</td></tr>';
   const bodyRows=rowsArr.length?rowsArr.join(''):(rng.hasFrom?emptyRow:'');
   const body = (rowsArr.length||rng.hasFrom)
-    ? ('<table><thead><tr><th style="width:34px">STT</th><th style="width:112px">Ngày giờ</th><th>Nội dung</th><th style="width:92px">Mua (₫)</th><th style="width:92px">Trả (₫)</th><th style="width:100px">Còn lại (₫)</th></tr></thead><tbody>'
+    ? ('<table><thead><tr><th style="width:8%">STT</th><th style="width:20%">Ngày giờ</th><th style="width:24%">Nội dung</th><th style="width:13%">Mua (đ)</th><th style="width:13%">Trả (đ)</th><th style="width:22%">Còn lại (đ)</th></tr></thead><tbody>'
         + openRow + bodyRows
         + '</tbody><tfoot><tr><td class="c" colspan="3">'+(rng.hasFrom||rng.hasTo?'PHÁT SINH TRONG KỲ':'TỔNG CỘNG')+'</td><td class="r">'+snMoney(totMua)+'</td><td class="r">'+snMoney(totTra)+'</td><td class="r">'+footBal+'</td></tr></tfoot></table>')
     : '<div class="sn-empty">Chưa có giao dịch nào.</div>';
@@ -2376,7 +2387,7 @@ window.snClosePrint=function(){const m=document.getElementById('sn-print-modal')
 window.snPrintDoc=function(html,size){
   const sheet=document.getElementById('sn-print-sheet');if(!sheet)return;
   if(html!=null)sheet.innerHTML=html;
-  const sz=(size==='A5')?'A5':'A4';const mg=(sz==='A5')?'10mm':'12mm';
+  const sz=(size==='A5')?'A5':'A4';const mg=(sz==='A5')?'8mm':'12mm';
   const old=document.getElementById('sn-page-style');if(old)old.remove();
   const st=document.createElement('style');st.id='sn-page-style';
   st.textContent='@media print{@page{size:'+sz+';margin:'+mg+'}}';
