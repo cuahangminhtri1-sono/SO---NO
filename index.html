@@ -307,9 +307,12 @@
   body.sn-printing > *{display:none !important;}
   body.sn-printing #sn-print-sheet{display:block !important;visibility:visible !important;position:static;color:#000;}
   body.sn-printing #sn-print-sheet *{visibility:visible !important;}
-  /* Ép lề & nền chuẩn khi in — tránh máy in tự chèn lề/đẩy nội dung tụt xuống */
-  body.sn-printing{margin:0 !important;padding:0 !important;background:#fff !important;}
-  body.sn-printing #sn-print-sheet,body.sn-printing .sn-doc{margin:0 !important;}
+  /* CHẶN ĐẨY NỘI DUNG XUỐNG: body có min-height:100vh nên khi in dư chỗ -> nội dung bị dồn xuống đáy.
+     Ép thân trang cao auto + lề/nền chuẩn -> tờ bảng kê dính sát mép TRÊN, không còn trắng đầu trang. */
+  html{margin:0 !important;padding:0 !important;}
+  body.sn-printing{margin:0 !important;padding:0 !important;background:#fff !important;min-height:0 !important;height:auto !important;display:block !important;}
+  body.sn-printing #sn-print-sheet,body.sn-printing .sn-doc{margin:0 !important;padding-top:0 !important;}
+  body.sn-printing .sn-doc>*:first-child{margin-top:0 !important;}
   /* Khổ A5: bóp gọn cho vừa 1 trang (giảm cỡ chữ, giảm padding ô, thu gọn chữ ký) */
   body.sn-printing.sn-a5 .sn-doc{font-size:10.5px;}
   body.sn-printing.sn-a5 .sn-doc table{font-size:.85em;}
