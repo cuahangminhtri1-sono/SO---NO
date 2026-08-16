@@ -1206,16 +1206,17 @@ function hdInvoiceHtml(d){
       +'<td class="hd-c-line">'+fmt(lt)+'</td>'
     +'</tr>';
   }).join('');
+  const dueAmt=isDebt?(Number(d.total)||0):(_hdShort?(-_hdCh):0);
   let qrHtml='';
-  if(isDebt && s.bankBin && s.account){
+  if(dueAmt>0 && s.bankBin && s.account){
     const info=encodeURIComponent('Thanh toan HD'+(d.soHD?(' '+d.soHD):'')+(d.customerName?(' '+d.customerName):''));
     const aName=encodeURIComponent(s.accName||'');
-    const qrUrl='https://img.vietqr.io/image/'+s.bankBin+'-'+s.account+'-compact2.png?amount='+Math.round(Number(d.total)||0)+'&addInfo='+info+'&accountName='+aName;
+    const qrUrl='https://img.vietqr.io/image/'+s.bankBin+'-'+s.account+'-compact2.png?amount='+Math.round(dueAmt)+'&addInfo='+info+'&accountName='+aName;
     qrHtml='<div class="pub-card hd-qr-card">'
       +'<div class="hd-qr-title">💳 Quét mã để thanh toán</div>'
       +'<div class="hd-qr-sub">Số tiền điền sẵn — quét bằng app ngân hàng</div>'
       +'<div class="qr-box"><img src="'+qrUrl+'" alt="QR" onerror="this.parentElement.innerHTML=\'<p style=color:#999;padding:20px>Không tải được QR</p>\'">'
-        +'<div class="qr-label">💰 Số tiền: <b style="color:#c0392b">'+fmt(d.total||0)+'</b></div>'
+        +'<div class="qr-label">💰 Số tiền: <b style="color:#a15c00">'+fmt(dueAmt)+'</b></div>'
         +'<div class="qr-label">🏦 '+escHtml(s.bankName||'')+' – '+escHtml(s.account||'')+'</div>'
         +'<div class="qr-label">👤 '+escHtml(s.accName||'')+'</div>'
       +'</div></div>';
