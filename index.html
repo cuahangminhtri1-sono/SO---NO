@@ -324,6 +324,10 @@
   body.sn-printing.sn-a5 .sn-doc .sn-sum{margin-top:8px;}
   body.sn-printing.sn-a5 .sn-doc .sn-sign{margin-top:16px;}
   body.sn-printing.sn-a5 .sn-doc .sn-sign .sn-space{height:42px;}
+  /* LẤP ĐẦY chiều cao trang: cho tờ bảng kê cao ~bằng nguyên trang -> buộc bắt đầu từ MÉP TRÊN,
+     KHÔNG còn để máy in canh giữa/dồn xuống. Nội dung dài hơn 1 trang vẫn tự sang trang 2 bình thường. */
+  body.sn-printing.sn-a5 .sn-doc{min-height:192mm;}
+  body.sn-printing:not(.sn-a5) .sn-doc{min-height:271mm;}
   .sn-doc thead{display:table-header-group;} /* lặp lại tiêu đề cột ở mỗi trang */
   .sn-doc tr{page-break-inside:avoid;}
   .sn-doc .sn-sign{page-break-inside:avoid;}
@@ -726,7 +730,7 @@ import { getFirestore, initializeFirestore, persistentLocalCache, persistentMult
   getDocs, query, where, orderBy, onSnapshot, serverTimestamp, setDoc, getDoc, runTransaction, limit, writeBatch, increment, collectionGroup }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-const APP_BUILD = "2026-08-13a"; // ⬆️ ĐỔI MỖI LẦN DEPLOY (đặt TRÙNG tên cache trong sw.js) — hiện ở ⚙️ Cài đặt để biết máy đã chạy bản mới chưa
+const APP_BUILD = "2026-08-16-inA5"; // ⬆️ ĐỔI MỖI LẦN DEPLOY (đặt TRÙNG tên cache trong sw.js) — hiện ở ⚙️ Cài đặt để biết máy đã chạy bản mới chưa
 const firebaseConfig = {
   apiKey: "AIzaSyA_kjQ-CdASRkf50Glz3kQajlkD5qGWC4k",
   authDomain: "so-no-cc57a.firebaseapp.com",
