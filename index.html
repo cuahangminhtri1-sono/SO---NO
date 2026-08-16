@@ -3041,6 +3041,7 @@ function skRenderCart(){
 }
 function skOpenCart(){if(!skCart.length){toast('Giỏ đang trống');return;}skq('#sk-cart-sheet').classList.add('on');skScrim(true);}
 function skCloseCart(){skq('#sk-cart-sheet').classList.remove('on');if(!skAnyModal())skScrim(false);}
+function skAddMore(){skCloseCart();toast('🛒 Đơn được giữ nguyên — chọn thêm hàng rồi bấm nút giỏ để mở lại & thanh toán');}
 function skEditDiscount(){skNum('Giảm giá cả đơn (đồng)',skDiscount||0,v=>{skDiscount=Math.max(0,v);skRenderCart();});}
 
 /* ---- GIỮ ĐƠN (nhiều đơn cùng lúc) ---- */
@@ -3511,7 +3512,7 @@ function skBind(){
       case 'scan-sell':skScanSell();break; case 'scan-lookup':skScanLookup();break; case 'scan-stop':skStopScan();break; case 'scan-manual':skManualCode();break;
       case 'sess-start':skSessionStart(el.dataset.mode);break; case 'sess-commit':skSessionCommit();break; case 'sess-qty':skSessQty(id,parseInt(el.dataset.d,10));break; case 'sess-set':skSessSet(id);break;
       case 'cart-add':skAddToCart(id);break; case 'cart-inc':skCartInc(key);break; case 'cart-dec':skCartDec(key);break; case 'cart-del':skCartDel(key);break; case 'cart-price':skCartPrice(key);break; case 'cart-qty':skCartQty(key);break;
-      case 'cart-discount':skEditDiscount();break; case 'cart-open':skOpenCart();break; case 'cart-close':skCloseCart();break; case 'toggle-askprice':skToggleAskPrice();break; case 'toggle-askqty':skToggleAskQty();break;
+      case 'cart-discount':skEditDiscount();break; case 'cart-open':skOpenCart();break; case 'cart-close':skCloseCart();break; case 'cart-more':skAddMore();break; case 'toggle-askprice':skToggleAskPrice();break; case 'toggle-askqty':skToggleAskQty();break;
       case 'hold':skHoldOrder();break; case 'held-list':skOpenHeld();break; case 'held-resume':skResumeHeld(id);break; case 'held-del':skDelHeld(id);break;
       case 'orders':skOpenOrders();break; case 'ret-open':skStartReturn(id);break; case 'ret-qty':skRetQty(parseInt(i,10),parseInt(el.dataset.d,10));break; case 'ret-set':skRetSet(parseInt(i,10));break; case 'ret-do':skDoReturn();break;
       case 'pay-cash':skPayCash();break; case 'pay-qr':skPayQR();break; case 'pay-debt':skPayDebt();break; case 'cash-ok':skCashConfirm();break; case 'qr-ok':skQRConfirm();break;
@@ -4403,6 +4404,7 @@ try { window.__skBusy = function(){
   <div id="sk-cart-sheet" class="sk-sheet">
     <div class="sk-sheet-grip"></div>
     <div class="sk-sheet-head"><b>Giỏ hàng</b><button class="sk-sheet-x" data-act="cart-close">×</button></div>
+    <button data-act="cart-more" style="width:100%;margin:0 0 10px;padding:12px;border:1.5px dashed #0d7a5f;background:#eafaf4;color:#0a5f4a;font-weight:800;font-size:14px;border-radius:12px">➕ Khách mua thêm — chọn thêm hàng (đơn vẫn giữ)</button>
     <div id="sk-cart-items" class="sk-cart-items"></div>
     <input id="sk-note" class="sk-note" placeholder="Ghi chú đơn (tuỳ chọn)">
     <div style="margin:6px 0 12px"><div class="sk-sum-r"><span>Tạm tính</span><span id="sk-sub">0đ</span></div><div class="sk-sum-r tap" data-act="cart-discount"><span>Giảm giá</span><span id="sk-disc">Thêm giảm giá</span></div><div class="sk-sum-r grand"><span>Tổng cộng</span><span id="sk-grand">0đ</span></div></div>
