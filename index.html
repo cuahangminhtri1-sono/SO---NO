@@ -3478,6 +3478,7 @@ function skDrawReport(box,offline){
   // ── Tổng hợp kỳ đang xem ──
   let subTot=0,rev=0,cost=0,cash=0,qr=0,debt=0,ordersSold=0,discountTot=0,refundTot=0,unitsTot=0,tsCount=0;
   const prodStat={},catStat={},byHour=new Array(24).fill(0),byHourCnt=new Array(24).fill(0);
+  const soldIds={},dayMap={},custMap={};
   list.forEach(o=>{
     const ret=retByOrder[o.id]||{refund:0,cogs:0,qtyByName:{}};
     const g=Number(o.total)||0;
@@ -3488,16 +3489,20 @@ function skDrawReport(box,offline){
     let ocost=0;
     (o.items||[]).forEach(i=>{
       const c=skCogsLine(i);ocost+=c;const q=Number(i.qty)||0;unitsTot+=q;
+      if(i&&i.id!=null)soldIds[i.id]=true;
       const ps=prodStat[i.name]||(prodStat[i.name]={qty:0,rev:0,cost:0});ps.qty+=q;ps.rev+=(Number(i.price)||0)*q;ps.cost+=c;
       const pInfo=skProducts.find(x=>x.id===i.id);
       const cat=(pInfo&&pInfo.category&&String(pInfo.category).trim())||'Chưa phân nhóm';
       const cs=catStat[cat]||(catStat[cat]={rev:0,cost:0,qty:0});cs.rev+=(Number(i.price)||0)*q;cs.cost+=c;cs.qty+=q;
     });
-    const cogsApplied=Math.min(Math.max(0,Number(ret.cogs)||0),ocost);cost+=(ocost-cogsApplied);
+    const cogsApplied=Math.min(Math.max(0,Number(ret.cogs)||0),ocost);const dcost=ocost-cogsApplied;cost+=dcost;
     Object.keys(ret.qtyByName).forEach(nm=>{if(prodStat[nm])prodStat[nm].qty=Math.max(0,prodStat[nm].qty-ret.qtyByName[nm]);});
     if(o.method==='cash')cash+=net;else if(o.method==='qr')qr+=net;else if(o.method==='debt')debt+=net;
     if(net>0)ordersSold++;
-    if(o.createdAt){const d=skOrderDate(o),hr=d.getHours();if(hr>=0&&hr<24){byHour[hr]+=net;byHourCnt[hr]++;tsCount++;}}
+    const d=skOrderDate(o);
+    if(o.createdAt){const hr=d.getHours();if(hr>=0&&hr<24){byHour[hr]+=net;byHourCnt[hr]++;tsCount++;}}
+    const dk=d.toDateString();const dm=dayMap[dk]||(dayMap[dk]={d:d,rev:0,profit:0,n:0});dm.rev+=net;dm.profit+=(net-dcost);if(net>0)dm.n++;
+    const cn=o.customerName&&String(o.customerName).trim();if(cn){const cm=custMap[cn]||(custMap[cn]={rev:0,n:0});cm.rev+=net;cm.n++;}
   });
   const profit=rev-cost;
   const margin=rev>0?(profit/rev*100):null;
@@ -3508,6 +3513,17 @@ function skDrawReport(box,offline){
   const NB=n=>Number(n||0).toLocaleString('vi-VN');
   const D1=n=>{const v=Number(n)||0;return (Math.round(v*10)/10).toLocaleString('vi-VN');};
   const kk=n=>{const v=Math.round(Number(n)||0);return v>=1000?(Math.round(v/100)/10).toLocaleString('vi-VN')+'k':NB(v);};
+  const mBadge=m=>m==='cash'?'<em class="rpx-mb cash">Tiền mặt</em>':(m==='qr'?'<em class="rpx-mb qr">CK</em>':(m==='debt'?'<em class="rpx-mb debt">Nợ</em>':''));
+  // gom cột biểu đồ theo ngày (doanh thu + lãi cùng thang) — tự chứa, không phụ thuộc helper ngoài
+  function dayBuckets(orders,from,to){
+    const dayMs=86400000,maxBars=31;const start=new Date(from);start.setHours(0,0,0,0);const end=new Date(to);end.setHours(0,0,0,0);
+    const nD=Math.round((end-start)/dayMs)+1;const raw=[];const idx={};
+    for(let i=0;i<nD;i++){const d=new Date(start);d.setDate(d.getDate()+i);const r={date:new Date(d),key:d.toDateString(),rev:0,profit:0};raw.push(r);idx[r.key]=r;}
+    orders.forEach(o=>{const r=idx[skOrderDate(o).toDateString()];if(!r)return;const ret=retByOrder[o.id]||{refund:0,cogs:0};const g=Number(o.total)||0;const rf=Math.min(Math.max(0,Number(ret.refund)||0),g);const net=g-rf;let oc=0;(o.items||[]).forEach(i=>{oc+=skCogsLine(i);});const ca=Math.min(Math.max(0,Number(ret.cogs)||0),oc);r.rev+=net;r.profit+=(net-(oc-ca));});
+    let bars;if(raw.length<=maxBars){bars=raw.map(r=>({label:r.date.getDate()+'/'+(r.date.getMonth()+1),rev:r.rev,profit:r.profit}));}
+    else{const size=Math.ceil(raw.length/maxBars);bars=[];for(let i=0;i<raw.length;i+=size){const c=raw.slice(i,i+size);bars.push({label:c[0].date.getDate()+'/'+(c[0].date.getMonth()+1),rev:c.reduce((a,x)=>a+x.rev,0),profit:c.reduce((a,x)=>a+x.profit,0)});}}
+    const step=Math.max(1,Math.ceil(bars.length/8));bars.forEach((b,i)=>{b.show=(i%step===0)||(i===bars.length-1);});return bars;
+  }
 
   let h='';
   if(offline)h+='<div class="rpx-mut" style="color:#b45309;margin:0 0 8px">⚠️ Đang dùng dữ liệu tạm trong máy — kiểm tra mạng rồi mở lại.</div>';
@@ -3519,7 +3535,25 @@ function skDrawReport(box,offline){
   const nowStr=(new Date()).toLocaleTimeString('vi-VN',{hour:'2-digit',minute:'2-digit'});
   h+='<div class="rpx-head"><span class="rpx-head-ic">📊</span><div class="rpx-head-tx"><b>'+escHtml(periodLabel)+'</b><span>'+ordersSold+' đơn bán · cập nhật '+nowStr+'</span></div></div>';
 
-  // ── TỒN KHO (không phụ thuộc kỳ — luôn hiển thị) ──
+  // ── CÔNG NỢ (Sổ Nợ) — snapshot hiện tại, không phụ thuộc kỳ ──
+  let debtHtml='';
+  if(typeof customers!=='undefined'&&Array.isArray(customers)&&customers.length){
+    let oweMe=0,iOwe=0,nDebt=0;const debtors=[];
+    customers.forEach(c=>{const dv=Number(c&&c.debt)||0;if(dv>0){oweMe+=dv;nDebt++;debtors.push(c);}else if(dv<0){iOwe+=-dv;}});
+    if(oweMe>0||iOwe>0){
+      debtors.sort((a,b)=>(Number(b.debt)||0)-(Number(a.debt)||0));
+      const dMx=Math.max(1,...debtors.slice(0,5).map(c=>Number(c.debt)||0));
+      debtHtml+='<div class="rpx-card"><div class="rpx-ct"><i class="acc-red"></i>Công nợ <small class="rpx-ct-sub">hiện tại</small></div>'
+        +'<div class="rpx-invstats"><div class="rpx-invstat owe"><span>Khách nợ mình</span><b>'+fmt(oweMe)+'</b></div><div class="rpx-invstat iowe"><span>Mình nợ khách</span><b>'+fmt(iOwe)+'</b></div><div class="rpx-invstat"><span>Khách đang nợ</span><b>'+nDebt+'</b></div></div>';
+      if(debtors.length){
+        debtHtml+='<div class="rpx-invhint">Nợ nhiều nhất:</div>';
+        debtors.slice(0,5).forEach(c=>{const dv=Number(c.debt)||0;const sh=Math.round(dv/dMx*100);debtHtml+='<div class="rpx-drow"><div class="rpx-dmain"><div class="rpx-dname">'+escHtml(c.name||'(không tên)')+'</div><div class="rpx-pbar red"><i style="width:'+sh+'%"></i></div></div><b class="rpx-dval">'+fmt(dv)+'</b></div>';});
+      }
+      debtHtml+='</div>';
+    }
+  }
+
+  // ── TỒN KHO — snapshot hiện tại, không phụ thuộc kỳ ──
   let invHtml='';
   if(Array.isArray(skProducts)&&skProducts.length){
     let stockVal=0,low=0,out=0;const lowList=[];
@@ -3534,7 +3568,7 @@ function skDrawReport(box,offline){
   }
 
   if(!list.length){
-    h+='<div class="rpx-empty"><div class="rpx-empty-ic">🧾</div><b>Kỳ này chưa có đơn hàng nào</b><span>Bán hàng ở tab “Bán”, hoặc chọn khoảng thời gian khác để xem báo cáo.</span></div>'+invHtml;
+    h+='<div class="rpx-empty"><div class="rpx-empty-ic">🧾</div><b>Kỳ này chưa có đơn hàng nào</b><span>Bán hàng ở tab “Bán”, hoặc chọn khoảng thời gian khác để xem báo cáo.</span></div>'+debtHtml+invHtml;
   }else{
     // ── HERO: Lãi + biên + cấu thành doanh thu ──
     const costPct=rev>0?Math.max(0,Math.min(100,cost/rev*100)):0;
@@ -3575,30 +3609,43 @@ function skDrawReport(box,offline){
       +(debt>0?'<div class="rpx-paynote">💡 Khoản bán nợ đã ghi vào Sổ Nợ của khách.</div>':'')
       +'</div>';
 
-    // ── BIỂU ĐỒ DOANH THU ──
+    // ── CÔNG NỢ ──
+    h+=debtHtml;
+
+    // ── BIỂU ĐỒ DOANH THU + LÃI ──
     let bars,trendTitle;
-    if(cb){bars=skRpBuckets(list,cb,retByOrder);trendTitle='Doanh thu theo ngày';}
+    if(cb){bars=dayBuckets(list,cb.from,cb.to);trendTitle='Doanh thu & lãi theo ngày';}
     else{
       const nDays=skPeriod==='today'?7:(parseInt(skPeriod,10)||7);
       const now=new Date(),to=new Date(now),from=new Date(now);from.setHours(0,0,0,0);from.setDate(from.getDate()-(nDays-1));
       const winList=skRpOrders.filter(o=>{const d=skOrderDate(o);return d>=from&&d<=to;});
-      bars=skRpBuckets(winList,{from:from,to:to},retByOrder);
-      trendTitle='Doanh thu '+nDays+' ngày';
+      bars=dayBuckets(winList,from,to);
+      trendTitle='Doanh thu & lãi '+nDays+' ngày';
     }
-    const mx=Math.max(1,...bars.map(d=>d.sum));
-    const daysWithSales=bars.filter(d=>d.sum>0).length;
-    const avg=daysWithSales>0?bars.reduce((s,d)=>s+d.sum,0)/bars.length:0;
-    const peak=bars.reduce((a,b)=>b.sum>a.sum?b:a,{sum:-1,label:''});
-    const avgH=mx>0?Math.max(0,Math.min(100,avg/mx*100)):0;
+    const mx=Math.max(1,...bars.map(d=>d.rev));
+    const daysWithSales=bars.filter(d=>d.rev>0).length;
+    const avg=daysWithSales>0?bars.reduce((s,d)=>s+d.rev,0)/bars.length:0;
+    const peak=bars.reduce((a,b)=>b.rev>a.rev?b:a,{rev:-1,label:''});
     const showVal=bars.length<=10;
     h+='<div class="rpx-card"><div class="rpx-ct"><i class="acc-green"></i>'+trendTitle+'</div>';
-    if(bars.some(d=>d.sum>0)){
-      h+='<div class="rpx-chart">'+(avg>0?'<div class="rpx-avg" style="bottom:'+avgH.toFixed(1)+'%"><span>TB '+kk(avg)+'</span></div>':'');
-      bars.forEach(d=>{const hgt=Math.round(d.sum/mx*100);const isPeak=d.sum===peak.sum&&d.sum>0;h+='<div class="rpx-bar">'+(showVal&&d.sum>0?'<span class="rpx-bval">'+kk(d.sum)+'</span>':'')+'<div class="rpx-fill'+(isPeak?' peak':'')+'" style="height:'+Math.max(d.sum>0?4:0,hgt)+'%"></div><span class="rpx-lb">'+((d.show!==false)?escHtml(d.label):'')+'</span></div>';});
+    if(bars.some(d=>d.rev>0)){
+      h+='<div class="rpx-chart">';
+      bars.forEach(d=>{const hgt=Math.round(d.rev/mx*100);const isPeak=d.rev===peak.rev&&d.rev>0;const isLoss=d.profit<0&&d.rev>0;const pp=(d.rev>0&&d.profit>0)?Math.max(0,Math.min(100,d.profit/d.rev*100)):0;const cpp=Math.max(0,100-pp);h+='<div class="rpx-bar">'+(showVal&&d.rev>0?'<span class="rpx-bval">'+kk(d.rev)+'</span>':'')+'<div class="rpx-fill'+(isPeak?' peak':'')+(isLoss?' loss':'')+'" style="height:'+Math.max(d.rev>0?4:0,hgt)+'%">'+(isLoss?'':('<i class="seg-pro" style="height:'+pp.toFixed(1)+'%"></i><i class="seg-cost" style="height:'+cpp.toFixed(1)+'%"></i>'))+'</div><span class="rpx-lb">'+((d.show!==false)?escHtml(d.label):'')+'</span></div>';});
       h+='</div>';
-      h+='<div class="rpx-chips"><span>📈 Cao nhất <b>'+fmt(peak.sum)+'</b>'+(peak.label?' ('+escHtml(peak.label)+')':'')+'</span><span>➗ TB/ngày <b>'+fmt(Math.round(avg))+'</b></span></div>';
+      h+='<div class="rpx-chart-legend"><span><em class="d-pro"></em>Lãi</span><span><em class="d-cst"></em>Vốn</span></div>';
+      h+='<div class="rpx-chips"><span>📈 Cao nhất <b>'+fmt(peak.rev)+'</b>'+(peak.label?' ('+escHtml(peak.label)+')':'')+'</span><span>➗ TB/ngày <b>'+fmt(Math.round(avg))+'</b></span><span>💰 Tổng lãi <b>'+fmt(profit)+'</b></span></div>';
     }else h+='<div class="rpx-mut">Chưa có doanh thu trong khoảng này.</div>';
     h+='</div>';
+
+    // ── BẢNG CHI TIẾT THEO NGÀY ──
+    const dayArr=Object.keys(dayMap).map(k=>dayMap[k]).filter(x=>x.n>0||x.rev>0).sort((a,b)=>b.d-a.d);
+    if(dayArr.length){
+      h+='<div class="rpx-card"><div class="rpx-ct"><i class="acc-green"></i>Chi tiết theo ngày</div>'
+        +'<div class="rpx-daytbl"><div class="rpx-dt-h"><span>Ngày</span><span>Đơn</span><span>Doanh thu</span><span>Lãi</span></div>';
+      dayArr.slice(0,31).forEach(x=>{const dd=x.d;const lb=String(dd.getDate()).padStart(2,'0')+'/'+String(dd.getMonth()+1).padStart(2,'0');h+='<div class="rpx-dt-r"><span>'+lb+'</span><span>'+x.n+'</span><span>'+fmt(x.rev)+'</span><b'+(x.profit<0?' class="loss"':'')+'>'+fmt(x.profit)+'</b></div>';});
+      if(dayArr.length>31)h+='<div class="rpx-mut" style="padding:8px 0 0">…và '+(dayArr.length-31)+' ngày trước nữa</div>';
+      h+='</div></div>';
+    }
 
     // ── GIỜ BÁN CHẠY ──
     if(tsCount>0){
@@ -3611,8 +3658,8 @@ function skDrawReport(box,offline){
       h+='</div>';
     }
 
-    // ── SẢN PHẨM BÁN CHẠY ──
-    const prodArr=Object.keys(prodStat).map(k=>Object.assign({name:k},prodStat[k])).filter(p=>p.qty>0);
+    // ── SẢN PHẨM BÁN CHẠY (theo doanh thu) ──
+    const prodArr=Object.keys(prodStat).map(k=>Object.assign({name:k},prodStat[k])).filter(p=>p.qty>0&&p.rev>0);
     const topRev=prodArr.slice().sort((a,b)=>b.rev-a.rev).slice(0,8);
     const revMx=Math.max(1,...topRev.map(p=>p.rev));
     h+='<div class="rpx-card"><div class="rpx-ct"><i class="acc-green"></i>Sản phẩm bán chạy <small class="rpx-ct-sub">theo doanh thu</small></div>';
@@ -3625,6 +3672,29 @@ function skDrawReport(box,offline){
     }else h+='<div class="rpx-mut">Chưa có dữ liệu.</div>';
     h+='</div>';
 
+    // ── SẢN PHẨM LÃI CAO / THẤP (theo biên) ──
+    if(prodArr.length>=2){
+      const byMargin=prodArr.map(p=>({name:p.name,m:(p.rev>0?(p.rev-p.cost)/p.rev*100:0),pr:p.rev-p.cost,rev:p.rev})).sort((a,b)=>b.m-a.m);
+      const hi=byMargin.slice(0,3),lo=byMargin.slice(-3).reverse();
+      const mrow=x=>'<div class="rpx-mrow"><span class="rpx-mname">'+escHtml(x.name)+'</span><span class="rpx-mpct'+(x.m<0?' loss':'')+'">'+D1(x.m)+'%</span><span class="rpx-mrev">lãi '+fmt(x.pr)+'</span></div>';
+      h+='<div class="rpx-card"><div class="rpx-ct"><i class="acc-blue"></i>Biên lợi nhuận theo sản phẩm</div>'
+        +'<div class="rpx-mhdr up">▲ Lãi cao nhất</div>'+hi.map(mrow).join('')
+        +'<div class="rpx-mhdr dn">▼ Lãi thấp nhất</div>'+lo.map(mrow).join('')
+        +'</div>';
+    }
+
+    // ── HÀNG BÁN CHẬM / CHƯA BÁN (tồn > 0, không bán trong kỳ) ──
+    if(Array.isArray(skProducts)&&skProducts.length){
+      const dead=skProducts.filter(p=>(Number(p.stock)||0)>0&&!soldIds[p.id]).map(p=>({name:p.name,stock:Number(p.stock)||0,val:(Number(p.stock)||0)*(Number(p.cost)||0),unit:p.baseUnit||''})).sort((a,b)=>b.val-a.val);
+      if(dead.length){
+        const deadVal=dead.reduce((s,x)=>s+x.val,0);
+        h+='<div class="rpx-card"><div class="rpx-ct"><i class="acc-gold"></i>Hàng bán chậm <small class="rpx-ct-sub">chưa bán trong kỳ</small></div>'
+          +'<div class="rpx-deadsum">💤 '+dead.length+' mặt hàng còn tồn nhưng chưa bán · vốn đọng <b>'+fmt(deadVal)+'</b></div>';
+        dead.slice(0,6).forEach(x=>{h+='<div class="rpx-invrow"><span class="rpx-invname">'+escHtml(x.name)+'</span><span class="rpx-invtag mut">Tồn '+skN(x.stock)+' '+escHtml(x.unit)+' · '+fmt(x.val)+'</span></div>';});
+        h+='</div>';
+      }
+    }
+
     // ── NHÓM HÀNG ──
     const catArr=Object.keys(catStat).map(k=>Object.assign({name:k},catStat[k])).filter(c=>c.rev>0).sort((a,b)=>b.rev-a.rev);
     if(catArr.length>1){
@@ -3634,10 +3704,27 @@ function skDrawReport(box,offline){
       h+='</div>';
     }
 
-    // ── TỒN KHO (dùng lại invHtml đã dựng ở trên) ──
+    // ── TOP KHÁCH MUA (trong kỳ) ──
+    const custArr=Object.keys(custMap).map(k=>({name:k,rev:custMap[k].rev,n:custMap[k].n})).filter(c=>c.rev>0).sort((a,b)=>b.rev-a.rev);
+    if(custArr.length){
+      const cMx=Math.max(1,...custArr.slice(0,5).map(c=>c.rev));
+      h+='<div class="rpx-card"><div class="rpx-ct"><i class="acc-green"></i>Khách mua nhiều nhất <small class="rpx-ct-sub">trong kỳ</small></div>';
+      custArr.slice(0,5).forEach((c,i)=>{const sh=Math.round(c.rev/cMx*100);h+='<div class="rpx-prow"><div class="rpx-prank'+(i<3?(' r'+(i+1)):'')+'">'+(i+1)+'</div><div class="rpx-pmain"><div class="rpx-pname">'+escHtml(c.name)+'</div><div class="rpx-psub">'+c.n+' đơn</div><div class="rpx-pbar"><i style="width:'+sh+'%"></i></div></div><div class="rpx-pval"><b>'+fmt(c.rev)+'</b></div></div>';});
+      h+='</div>';
+    }
+
+    // ── ĐƠN HÀNG GẦN NHẤT ──
+    const recent=list.slice().sort((a,b)=>skOrderDate(b)-skOrderDate(a)).slice(0,5);
+    if(recent.length){
+      h+='<div class="rpx-card"><div class="rpx-ct"><i class="acc-gold"></i>Đơn gần nhất</div>';
+      recent.forEach(o=>{const d=skOrderDate(o);const tm=String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');const who=(o.customerName&&String(o.customerName).trim())||'Khách lẻ';h+='<div class="rpx-orow"><div class="rpx-omain"><div class="rpx-oname">'+escHtml(who)+' '+mBadge(o.method)+'</div><div class="rpx-otime">'+tm+'</div></div><b class="rpx-oval">'+fmt(Number(o.total)||0)+'</b></div>';});
+      h+='</div>';
+    }
+
+    // ── TỒN KHO ──
     h+=invHtml;
 
-    h+='<div class="rpx-foot">Số liệu theo <b>giá vốn đã khóa lúc bán</b>. Hàng trả trừ vào đúng kỳ đã bán · Tồn kho là số hiện tại.</div>';
+    h+='<div class="rpx-foot">Số liệu theo <b>giá vốn đã khóa lúc bán</b>. Hàng trả trừ vào đúng kỳ đã bán · Công nợ & tồn kho là số hiện tại.</div>';
   }
 
   box.innerHTML=h;
@@ -4617,8 +4704,15 @@ try { window.__skBusy = function(){
 #pos-screen .rpx-avg span{position:absolute;right:0;top:-8px;background:#fef6e0;color:#a5771a;font-size:9.5px;font-weight:700;padding:1px 6px;border-radius:6px;border:1px solid #f0dfae}
 #pos-screen .rpx-bar{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;position:relative;z-index:2}
 #pos-screen .rpx-bval{font-size:9px;color:#5f7a70;font-weight:700;margin-bottom:3px;white-space:nowrap}
-#pos-screen .rpx-fill{width:100%;max-width:30px;background:linear-gradient(#17b083,#0c6f53);border-radius:6px 6px 2px 2px;min-height:3px;transition:height .3s ease}
-#pos-screen .rpx-fill.peak{background:linear-gradient(#f2c14e,#dd9a1e);box-shadow:0 0 0 2px rgba(221,154,30,.18)}
+#pos-screen .rpx-fill{width:100%;max-width:30px;background:#e7efeb;border-radius:6px 6px 2px 2px;min-height:3px;transition:height .3s ease;display:flex;flex-direction:column;overflow:hidden}
+#pos-screen .rpx-fill .seg-pro{width:100%;background:linear-gradient(#16b48a,#0e8f6c)}
+#pos-screen .rpx-fill .seg-cost{width:100%;background:#f0d488}
+#pos-screen .rpx-fill.loss{background:linear-gradient(#e0695b,#c33528)}
+#pos-screen .rpx-fill.peak{box-shadow:0 0 0 2px rgba(12,111,83,.28)}
+#pos-screen .rpx-chart-legend{display:flex;gap:16px;margin-top:9px;font-size:11.5px;color:#5f7a70}
+#pos-screen .rpx-chart-legend span{display:flex;align-items:center;gap:6px}
+#pos-screen .rpx-chart-legend em{width:10px;height:10px;border-radius:3px}
+#pos-screen .rpx-chart-legend em.d-pro{background:#12a37a}#pos-screen .rpx-chart-legend em.d-cst{background:#f0d488}
 #pos-screen .rpx-lb{font-size:9.5px;color:#8a978f;margin-top:5px;white-space:nowrap;position:absolute;top:100%}
 #pos-screen .rpx-chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:26px}
 #pos-screen .rpx-chips span{flex:1;min-width:120px;background:#f4f8f6;border:1px solid #e7efe9;border-radius:10px;padding:8px 11px;font-size:11.5px;color:#5f7a70}
@@ -4677,6 +4771,52 @@ try { window.__skBusy = function(){
 /* Foot */
 #pos-screen .rpx-foot{font-size:11px;color:#9aa8a2;text-align:center;line-height:1.55;padding:4px 8px 10px}
 #pos-screen .rpx-foot b{color:#7a8983}
+
+/* ===== v2: Công nợ · bảng ngày · biên SP · hàng bán chậm · top khách · đơn gần nhất ===== */
+#pos-screen .rpx-ct i.acc-red{background:#c0392b}
+#pos-screen .rpx-invstat.owe{background:#fdeeec;border-color:#f5cdc6}#pos-screen .rpx-invstat.owe b{color:#c0392b}
+#pos-screen .rpx-invstat.iowe{background:#e9f1fe;border-color:#cfe0fb}#pos-screen .rpx-invstat.iowe b{color:#1d4ed8}
+#pos-screen .rpx-pbar.red i{background:linear-gradient(90deg,#e2685a,#c0392b)}
+/* debtor rows */
+#pos-screen .rpx-drow{display:flex;align-items:center;gap:11px;padding:9px 0;border-bottom:1px solid #f2f5f3}
+#pos-screen .rpx-drow:last-child{border-bottom:none}
+#pos-screen .rpx-dmain{flex:1;min-width:0}
+#pos-screen .rpx-dname{font-size:13px;font-weight:700;color:#1a2e28;margin-bottom:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#pos-screen .rpx-dval{font-size:13px;font-weight:800;color:#c0392b;flex:none;font-variant-numeric:tabular-nums}
+/* per-day table */
+#pos-screen .rpx-daytbl{display:flex;flex-direction:column}
+#pos-screen .rpx-dt-h,#pos-screen .rpx-dt-r{display:grid;grid-template-columns:52px 40px 1fr 1fr;gap:6px;align-items:center}
+#pos-screen .rpx-dt-h{font-size:11px;font-weight:700;color:#9aa8a2;padding-bottom:7px;border-bottom:1.5px solid #eef2f0}
+#pos-screen .rpx-dt-h span:nth-child(3),#pos-screen .rpx-dt-h span:nth-child(4),#pos-screen .rpx-dt-r span:nth-child(3),#pos-screen .rpx-dt-r b{text-align:right}
+#pos-screen .rpx-dt-h span:nth-child(2),#pos-screen .rpx-dt-r span:nth-child(2){text-align:center}
+#pos-screen .rpx-dt-r{font-size:12.5px;color:#41615a;padding:8px 0;border-bottom:1px solid #f4f7f5;font-variant-numeric:tabular-nums}
+#pos-screen .rpx-dt-r:last-child{border-bottom:none}
+#pos-screen .rpx-dt-r b{font-weight:800;color:#0a5f4a}
+#pos-screen .rpx-dt-r b.loss{color:#c0392b}
+/* margin high/low */
+#pos-screen .rpx-mhdr{font-size:11.5px;font-weight:800;margin:10px 0 4px;letter-spacing:.2px}
+#pos-screen .rpx-mhdr.up{color:#0a7d54}#pos-screen .rpx-mhdr.dn{color:#b5493a}
+#pos-screen .rpx-mrow{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid #f4f7f5;font-size:13px}
+#pos-screen .rpx-mrow:last-child{border-bottom:none}
+#pos-screen .rpx-mname{flex:1;min-width:0;font-weight:600;color:#26332e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#pos-screen .rpx-mpct{flex:none;font-weight:800;color:#0a7d54;font-variant-numeric:tabular-nums;min-width:52px;text-align:right}
+#pos-screen .rpx-mpct.loss{color:#c0392b}
+#pos-screen .rpx-mrev{flex:none;font-size:11px;color:#9aa8a2;min-width:96px;text-align:right}
+/* dead stock */
+#pos-screen .rpx-deadsum{background:#fbf7ec;border:1px solid #f0e4c6;border-radius:10px;padding:9px 11px;font-size:12px;color:#8a6d1e;line-height:1.5;margin-bottom:10px}
+#pos-screen .rpx-deadsum b{color:#6b5310}
+#pos-screen .rpx-invtag.mut{background:#f1f4f2;color:#6b7872}
+/* recent orders */
+#pos-screen .rpx-orow{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid #f2f5f3}
+#pos-screen .rpx-orow:last-child{border-bottom:none}
+#pos-screen .rpx-omain{min-width:0}
+#pos-screen .rpx-oname{font-size:13px;font-weight:700;color:#1a2e28;display:flex;align-items:center;gap:7px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#pos-screen .rpx-otime{font-size:11px;color:#9aa8a2;margin-top:2px}
+#pos-screen .rpx-oval{font-size:13.5px;font-weight:800;color:#0a5f4a;flex:none;font-variant-numeric:tabular-nums}
+#pos-screen .rpx-mb{font-size:9.5px;font-weight:800;padding:2px 7px;border-radius:999px;font-style:normal;flex:none}
+#pos-screen .rpx-mb.cash{background:#e3f4ed;color:#0a7d54}
+#pos-screen .rpx-mb.qr{background:#e6effd;color:#1d4ed8}
+#pos-screen .rpx-mb.debt{background:#fdf0e3;color:#b9791a}
 </style>
 
 <div id="pos-screen">
