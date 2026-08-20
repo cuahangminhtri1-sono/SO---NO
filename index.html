@@ -2397,7 +2397,7 @@ window.snPrintDoc=function(html,size){
   const sz=(size==='A5')?'A5':'A4';const mg=(sz==='A5')?'8mm':'12mm';
   const old=document.getElementById('sn-page-style');if(old)old.remove();
   const st=document.createElement('style');st.id='sn-page-style';
-  st.textContent='@media print{@page{'+(sz==='A5'?'':'size:'+sz+';')+'margin:'+mg+'}}';
+  st.textContent='@media print{@page{size:'+(sz==='A5'?'portrait':sz)+';margin:'+mg+'}}';
   document.body.appendChild(st);
   window.__snPrinting=true;
   document.body.classList.add('sn-printing');
