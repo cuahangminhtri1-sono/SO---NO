@@ -3472,33 +3472,174 @@ async function skRenderReport(){
 function skDrawReport(box,offline){
   const cb=skPeriod==='custom'?skRpBounds():null;
   const list=skRpOrders.filter(o=>skInPeriod(skOrderDate(o),skPeriod));
-  // ── HÀNG TRẢ: gộp theo ĐƠN GỐC (khớp orderId, KHÔNG theo ngày trả) để trừ vào ĐÚNG kỳ đã bán. Không trả quá số đã mua nên mỗi đơn ≥ 0 → doanh thu không âm. ──
+  // ── Hàng trả gộp theo ĐƠN GỐC (giữ NGUYÊN cách tính cũ để số khớp tuyệt đối) ──
   const retByOrder={};
   (skRpReturns||[]).forEach(r=>{const oid=r&&r.orderId;if(!oid)return;const e=retByOrder[oid]||(retByOrder[oid]={refund:0,cogs:0,qtyByName:{}});e.refund+=Number(r.refund)||0;(r.items||[]).forEach(li=>{e.cogs+=skReturnLineCost(r,li);const nm=li&&li.name;if(nm!=null)e.qtyByName[nm]=(e.qtyByName[nm]||0)+(Number(li.qty)||0);});});
-  let rev=0,cost=0,cash=0,qr=0,debt=0,ordersSold=0;const prod={};
-  list.forEach(o=>{const ret=retByOrder[o.id]||{refund:0,cogs:0,qtyByName:{}};const gross=Number(o.total)||0;
-    const refundApplied=Math.min(Math.max(0,Number(ret.refund)||0),gross);   // hàng trả không vượt tổng đơn → doanh thu mỗi đơn ≥ 0 (chặn dữ liệu trả trùng/quá tay)
-    const net=gross-refundApplied;rev+=net;
-    let ocost=0;(o.items||[]).forEach(i=>{const c=skCogsLine(i);ocost+=c;prod[i.name]=(prod[i.name]||0)+i.qty;});
-    const cogsApplied=Math.min(Math.max(0,Number(ret.cogs)||0),ocost);cost+=(ocost-cogsApplied);   // vốn hàng trả ≤ vốn đơn → vốn mỗi đơn ≥ 0
-    Object.keys(ret.qtyByName).forEach(nm=>{if(prod[nm]!=null)prod[nm]=Math.max(0,prod[nm]-ret.qtyByName[nm]);});   // bán chạy: trừ hàng trả nhưng không âm
+  // ── Tổng hợp kỳ đang xem ──
+  let subTot=0,rev=0,cost=0,cash=0,qr=0,debt=0,ordersSold=0,discountTot=0,refundTot=0,unitsTot=0,tsCount=0;
+  const prodStat={},catStat={},byHour=new Array(24).fill(0),byHourCnt=new Array(24).fill(0);
+  list.forEach(o=>{
+    const ret=retByOrder[o.id]||{refund:0,cogs:0,qtyByName:{}};
+    const g=Number(o.total)||0;
+    subTot+=Number(o.subtotal)||(g+(Number(o.discount)||0));
+    discountTot+=Number(o.discount)||0;
+    const refundApplied=Math.min(Math.max(0,Number(ret.refund)||0),g);refundTot+=refundApplied;
+    const net=g-refundApplied;rev+=net;
+    let ocost=0;
+    (o.items||[]).forEach(i=>{
+      const c=skCogsLine(i);ocost+=c;const q=Number(i.qty)||0;unitsTot+=q;
+      const ps=prodStat[i.name]||(prodStat[i.name]={qty:0,rev:0,cost:0});ps.qty+=q;ps.rev+=(Number(i.price)||0)*q;ps.cost+=c;
+      const pInfo=skProducts.find(x=>x.id===i.id);
+      const cat=(pInfo&&pInfo.category&&String(pInfo.category).trim())||'Chưa phân nhóm';
+      const cs=catStat[cat]||(catStat[cat]={rev:0,cost:0,qty:0});cs.rev+=(Number(i.price)||0)*q;cs.cost+=c;cs.qty+=q;
+    });
+    const cogsApplied=Math.min(Math.max(0,Number(ret.cogs)||0),ocost);cost+=(ocost-cogsApplied);
+    Object.keys(ret.qtyByName).forEach(nm=>{if(prodStat[nm])prodStat[nm].qty=Math.max(0,prodStat[nm].qty-ret.qtyByName[nm]);});
     if(o.method==='cash')cash+=net;else if(o.method==='qr')qr+=net;else if(o.method==='debt')debt+=net;
     if(net>0)ordersSold++;
+    if(o.createdAt){const d=skOrderDate(o),hr=d.getHours();if(hr>=0&&hr<24){byHour[hr]+=net;byHourCnt[hr]++;tsCount++;}}
   });
-  const profit=rev-cost;const top=Object.keys(prod).map(k=>[k,prod[k]]).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  const profit=rev-cost;
+  const margin=rev>0?(profit/rev*100):null;
+  const aov=ordersSold>0?(rev/ordersSold):0;
+  const ipo=ordersSold>0?(unitsTot/ordersSold):0;
+  const payTot=cash+qr+debt;
+  const pctOf=(a,b)=>b>0?Math.round(a/b*100):0;
+  const NB=n=>Number(n||0).toLocaleString('vi-VN');
+  const D1=n=>{const v=Number(n)||0;return (Math.round(v*10)/10).toLocaleString('vi-VN');};
+  const kk=n=>{const v=Math.round(Number(n)||0);return v>=1000?(Math.round(v/100)/10).toLocaleString('vi-VN')+'k':NB(v);};
+
   let h='';
-  if(offline)h+='<div class="sk-mut" style="margin:0 0 8px;color:#b45309">⚠️ Đang dùng dữ liệu tạm trong máy (chưa tải được đầy đủ — kiểm tra mạng rồi mở lại).</div>';
-  if(cb){const nD=Math.round((new Date(cb.to.getFullYear(),cb.to.getMonth(),cb.to.getDate())-new Date(cb.from.getFullYear(),cb.from.getMonth(),cb.from.getDate()))/86400000)+1;h+='<div class="sk-rp-head">📅 '+skDMY(cb.from)+' – '+skDMY(cb.to)+' · <b>'+nD+' ngày</b> · '+ordersSold+' đơn bán</div>';}
-  h+='<div class="sk-cards"><div class="sk-c c-rev"><span>Thành tiền</span><b>'+fmt(rev)+'</b></div><div class="sk-c"><span>Vốn</span><b>'+fmt(cost)+'</b></div><div class="sk-c c-pro"><span>Lãi</span><b>'+fmt(profit)+'</b></div><div class="sk-c"><span>Số đơn bán</span><b>'+ordersSold+'</b></div></div>';
-  h+='<div class="sk-pay3"><div class="p-cash"><span>Tiền mặt</span><b>'+fmt(cash)+'</b></div><div class="p-qr"><span>Chuyển khoản</span><b>'+fmt(qr)+'</b></div><div class="p-debt"><span>Bán nợ</span><b>'+fmt(debt)+'</b></div></div>';
-  if(cb){
-    const bars=skRpBuckets(list,cb,retByOrder);const mx=Math.max(1,...bars.map(d=>d.sum));
-    h+='<div class="sk-block"><div class="sk-bt">Thành tiền theo ngày ('+skDMY(cb.from)+' – '+skDMY(cb.to)+')</div>'+(bars.length?('<div class="sk-chart">'+bars.map(d=>'<div class="sk-bar"><div class="sk-bar-fill" style="height:'+Math.round(d.sum/mx*100)+'%"></div><span class="sk-bar-lb">'+(d.show?d.label:'')+'</span></div>').join('')+'</div>'):'<div class="sk-mut">Chưa có dữ liệu trong khoảng này.</div>')+'</div>';
-  }else{
-    const days=[];const now=new Date();for(let i=6;i>=0;i--){const d=new Date(now);d.setHours(0,0,0,0);d.setDate(d.getDate()-i);days.push({label:(d.getDate()+'/'+(d.getMonth()+1)),key:d.toDateString(),sum:0});}skRpOrders.forEach(o=>{const dd=days.find(x=>x.key===skOrderDate(o).toDateString());if(dd){const g=Number(o.total)||0;const rf=Math.min(Math.max(0,(retByOrder[o.id]&&retByOrder[o.id].refund)||0),g);dd.sum+=(g-rf);}});const mx=Math.max(1,...days.map(d=>d.sum));
-    h+='<div class="sk-block"><div class="sk-bt">Thành tiền 7 ngày</div><div class="sk-chart">'+days.map(d=>'<div class="sk-bar"><div class="sk-bar-fill" style="height:'+Math.round(d.sum/mx*100)+'%"></div><span class="sk-bar-lb">'+d.label+'</span></div>').join('')+'</div></div>';
+  if(offline)h+='<div class="rpx-mut" style="color:#b45309;margin:0 0 8px">⚠️ Đang dùng dữ liệu tạm trong máy — kiểm tra mạng rồi mở lại.</div>';
+
+  // ── Đầu kỳ ──
+  let periodLabel;
+  if(cb){const nD=Math.round((new Date(cb.to.getFullYear(),cb.to.getMonth(),cb.to.getDate())-new Date(cb.from.getFullYear(),cb.from.getMonth(),cb.from.getDate()))/86400000)+1;periodLabel=skDMY(cb.from)+' – '+skDMY(cb.to)+' · '+nD+' ngày';}
+  else periodLabel=(skPeriod==='today'?'Hôm nay':(skPeriod==='7'?'7 ngày gần đây':(skPeriod==='30'?'30 ngày gần đây':String(skPeriod))));
+  const nowStr=(new Date()).toLocaleTimeString('vi-VN',{hour:'2-digit',minute:'2-digit'});
+  h+='<div class="rpx-head"><span class="rpx-head-ic">📊</span><div class="rpx-head-tx"><b>'+escHtml(periodLabel)+'</b><span>'+ordersSold+' đơn bán · cập nhật '+nowStr+'</span></div></div>';
+
+  // ── TỒN KHO (không phụ thuộc kỳ — luôn hiển thị) ──
+  let invHtml='';
+  if(Array.isArray(skProducts)&&skProducts.length){
+    let stockVal=0,low=0,out=0;const lowList=[];
+    skProducts.forEach(p=>{const st=Number(p.stock)||0;const cst=Number(p.cost)||0;stockVal+=st*cst;const mn=Number(p.minStock)||0;if(st<=0){out++;lowList.push(p);}else if(mn>0&&st<=mn){low++;lowList.push(p);}});
+    invHtml+='<div class="rpx-card"><div class="rpx-ct"><i class="acc-gold"></i>Tồn kho <small class="rpx-ct-sub">hiện tại</small></div>'
+      +'<div class="rpx-invstats"><div class="rpx-invstat"><span>Giá trị tồn</span><b>'+fmt(stockVal)+'</b></div><div class="rpx-invstat'+(low>0?' warn':'')+'"><span>Sắp hết</span><b>'+low+'</b></div><div class="rpx-invstat'+(out>0?' danger':'')+'"><span>Hết hàng</span><b>'+out+'</b></div></div>';
+    if(lowList.length){
+      invHtml+='<div class="rpx-invhint">Cần nhập thêm:</div>';
+      lowList.slice(0,5).forEach(p=>{const st=Number(p.stock)||0;const mn=Number(p.minStock)||0;const dngr=st<=0;invHtml+='<div class="rpx-invrow"><span class="rpx-invname">'+escHtml(p.name)+'</span><span class="rpx-invtag '+(dngr?'danger':'warn')+'">'+(dngr?'Hết hàng':('Còn '+skN(st)+(mn?(' / min '+skN(mn)):'')+' '+escHtml(p.baseUnit||'')))+'</span></div>';});
+    }
+    invHtml+='</div>';
   }
-  h+='<div class="sk-block"><div class="sk-bt">Bán chạy</div>'+(top.length?top.map(function(t,i){return '<div class="sk-toprow"><span>'+(i+1)+'. '+escHtml(t[0])+'</span><b>'+skN(t[1])+'</b></div>';}).join(''):'<div class="sk-mut">Chưa có dữ liệu.</div>')+'</div>';
+
+  if(!list.length){
+    h+='<div class="rpx-empty"><div class="rpx-empty-ic">🧾</div><b>Kỳ này chưa có đơn hàng nào</b><span>Bán hàng ở tab “Bán”, hoặc chọn khoảng thời gian khác để xem báo cáo.</span></div>'+invHtml;
+  }else{
+    // ── HERO: Lãi + biên + cấu thành doanh thu ──
+    const costPct=rev>0?Math.max(0,Math.min(100,cost/rev*100)):0;
+    const profPct=Math.max(0,100-costPct);
+    h+='<div class="rpx-hero">'
+      +'<div class="rpx-hero-top"><span class="rpx-hero-label">LÃI GỘP · '+escHtml(cb?'kỳ đã chọn':periodLabel)+'</span>'
+      +(margin==null?'':'<span class="rpx-hero-margin'+(profit<0?' loss':'')+'">Biên '+D1(margin)+'%</span>')+'</div>'
+      +'<div class="rpx-hero-val'+(profit<0?' loss':'')+'">'+fmt(profit)+'</div>'
+      +'<div class="rpx-hero-bar"><i class="c-cost" style="width:'+costPct.toFixed(1)+'%"></i><i class="c-pro" style="width:'+profPct.toFixed(1)+'%"></i></div>'
+      +'<div class="rpx-hero-legend"><span><em class="d-rev"></em>Doanh thu <b>'+fmt(rev)+'</b></span><span><em class="d-cost"></em>Vốn <b>'+fmt(cost)+'</b></span></div>'
+      +'</div>';
+
+    // ── KPI ──
+    h+='<div class="rpx-kpis">'
+      +'<div class="rpx-kpi"><span class="k-l">Đơn bán</span><b class="k-b">'+NB(ordersSold)+'</b><span class="k-s">'+NB(Math.round(unitsTot))+' món</span></div>'
+      +'<div class="rpx-kpi"><span class="k-l">Đơn trung bình</span><b class="k-b">'+fmt(Math.round(aov))+'</b><span class="k-s">'+D1(ipo)+' món/đơn</span></div>'
+      +'<div class="rpx-kpi"><span class="k-l">Giảm giá</span><b class="k-b">'+fmt(discountTot)+'</b><span class="k-s">'+pctOf(discountTot,subTot)+'% tạm tính</span></div>'
+      +'<div class="rpx-kpi"><span class="k-l">Hàng trả</span><b class="k-b">'+fmt(refundTot)+'</b><span class="k-s">'+pctOf(refundTot,subTot-discountTot)+'% doanh thu</span></div>'
+      +'</div>';
+
+    // ── DÒNG TIỀN ──
+    h+='<div class="rpx-card"><div class="rpx-ct"><i class="acc-green"></i>Dòng tiền</div><div class="rpx-flow">'
+      +'<div class="rpx-flow-row"><span>Tạm tính (giá bán)</span><b>'+fmt(subTot)+'</b></div>'
+      +'<div class="rpx-flow-row neg"><span>− Giảm giá</span><b>'+fmt(-discountTot)+'</b></div>'
+      +'<div class="rpx-flow-row neg"><span>− Hàng trả</span><b>'+fmt(-refundTot)+'</b></div>'
+      +'<div class="rpx-flow-row sum"><span>Doanh thu thuần</span><b>'+fmt(rev)+'</b></div>'
+      +'<div class="rpx-flow-row neg"><span>− Vốn hàng bán</span><b>'+fmt(-cost)+'</b></div>'
+      +'<div class="rpx-flow-row final"><span>Lãi gộp</span><b>'+fmt(profit)+'</b></div>'
+      +'</div></div>';
+
+    // ── THANH TOÁN ──
+    const cP=pctOf(cash,payTot),qP=pctOf(qr,payTot),dP=Math.max(0,100-cP-qP);
+    h+='<div class="rpx-card"><div class="rpx-ct"><i class="acc-blue"></i>Phương thức thanh toán</div>'
+      +'<div class="rpx-paybar">'+(payTot>0?('<i class="s-cash" style="width:'+cP+'%"></i><i class="s-qr" style="width:'+qP+'%"></i><i class="s-debt" style="width:'+dP+'%"></i>'):'')+'</div>'
+      +'<div class="rpx-payrow"><span class="p-n"><em class="d-cash"></em>Tiền mặt</span><span class="p-v">'+fmt(cash)+' <small>'+pctOf(cash,payTot)+'%</small></span></div>'
+      +'<div class="rpx-payrow"><span class="p-n"><em class="d-qr"></em>Chuyển khoản</span><span class="p-v">'+fmt(qr)+' <small>'+pctOf(qr,payTot)+'%</small></span></div>'
+      +'<div class="rpx-payrow"><span class="p-n"><em class="d-debt"></em>Bán nợ</span><span class="p-v">'+fmt(debt)+' <small>'+pctOf(debt,payTot)+'%</small></span></div>'
+      +(debt>0?'<div class="rpx-paynote">💡 Khoản bán nợ đã ghi vào Sổ Nợ của khách.</div>':'')
+      +'</div>';
+
+    // ── BIỂU ĐỒ DOANH THU ──
+    let bars,trendTitle;
+    if(cb){bars=skRpBuckets(list,cb,retByOrder);trendTitle='Doanh thu theo ngày';}
+    else{
+      const nDays=skPeriod==='today'?7:(parseInt(skPeriod,10)||7);
+      const now=new Date(),to=new Date(now),from=new Date(now);from.setHours(0,0,0,0);from.setDate(from.getDate()-(nDays-1));
+      const winList=skRpOrders.filter(o=>{const d=skOrderDate(o);return d>=from&&d<=to;});
+      bars=skRpBuckets(winList,{from:from,to:to},retByOrder);
+      trendTitle='Doanh thu '+nDays+' ngày';
+    }
+    const mx=Math.max(1,...bars.map(d=>d.sum));
+    const daysWithSales=bars.filter(d=>d.sum>0).length;
+    const avg=daysWithSales>0?bars.reduce((s,d)=>s+d.sum,0)/bars.length:0;
+    const peak=bars.reduce((a,b)=>b.sum>a.sum?b:a,{sum:-1,label:''});
+    const avgH=mx>0?Math.max(0,Math.min(100,avg/mx*100)):0;
+    const showVal=bars.length<=10;
+    h+='<div class="rpx-card"><div class="rpx-ct"><i class="acc-green"></i>'+trendTitle+'</div>';
+    if(bars.some(d=>d.sum>0)){
+      h+='<div class="rpx-chart">'+(avg>0?'<div class="rpx-avg" style="bottom:'+avgH.toFixed(1)+'%"><span>TB '+kk(avg)+'</span></div>':'');
+      bars.forEach(d=>{const hgt=Math.round(d.sum/mx*100);const isPeak=d.sum===peak.sum&&d.sum>0;h+='<div class="rpx-bar">'+(showVal&&d.sum>0?'<span class="rpx-bval">'+kk(d.sum)+'</span>':'')+'<div class="rpx-fill'+(isPeak?' peak':'')+'" style="height:'+Math.max(d.sum>0?4:0,hgt)+'%"></div><span class="rpx-lb">'+((d.show!==false)?escHtml(d.label):'')+'</span></div>';});
+      h+='</div>';
+      h+='<div class="rpx-chips"><span>📈 Cao nhất <b>'+fmt(peak.sum)+'</b>'+(peak.label?' ('+escHtml(peak.label)+')':'')+'</span><span>➗ TB/ngày <b>'+fmt(Math.round(avg))+'</b></span></div>';
+    }else h+='<div class="rpx-mut">Chưa có doanh thu trong khoảng này.</div>';
+    h+='</div>';
+
+    // ── GIỜ BÁN CHẠY ──
+    if(tsCount>0){
+      const hmx=Math.max(1,...byHour);
+      let peakH=0;for(let i=1;i<24;i++)if(byHour[i]>byHour[peakH])peakH=i;
+      h+='<div class="rpx-card"><div class="rpx-ct"><i class="acc-gold"></i>Giờ bán chạy</div><div class="rpx-hstrip">';
+      for(let i=0;i<24;i++){const hh=Math.round(byHour[i]/hmx*100);const isP=byHour[i]===byHour[peakH]&&byHour[i]>0;h+='<div class="rpx-hbar"><div class="rpx-hfill'+(isP?' peak':'')+'" style="height:'+Math.max(byHour[i]>0?6:0,hh)+'%"></div><span class="rpx-hlb">'+((i%6===0||i===23)?i:'&nbsp;')+'</span></div>';}
+      h+='</div>';
+      if(byHour[peakH]>0)h+='<div class="rpx-hnote">🔥 Đông khách nhất lúc <b>'+peakH+':00–'+((peakH+1)%24)+':00</b> · '+fmt(byHour[peakH])+' ('+byHourCnt[peakH]+' đơn)</div>';
+      h+='</div>';
+    }
+
+    // ── SẢN PHẨM BÁN CHẠY ──
+    const prodArr=Object.keys(prodStat).map(k=>Object.assign({name:k},prodStat[k])).filter(p=>p.qty>0);
+    const topRev=prodArr.slice().sort((a,b)=>b.rev-a.rev).slice(0,8);
+    const revMx=Math.max(1,...topRev.map(p=>p.rev));
+    h+='<div class="rpx-card"><div class="rpx-ct"><i class="acc-green"></i>Sản phẩm bán chạy <small class="rpx-ct-sub">theo doanh thu</small></div>';
+    if(topRev.length){
+      topRev.forEach((p,i)=>{const pr=p.rev-p.cost;const m=p.rev>0?Math.round(pr/p.rev*100):0;const share=Math.round(p.rev/revMx*100);
+        h+='<div class="rpx-prow"><div class="rpx-prank'+(i<3?(' r'+(i+1)):'')+'">'+(i+1)+'</div>'
+          +'<div class="rpx-pmain"><div class="rpx-pname">'+escHtml(p.name)+'</div><div class="rpx-psub">'+D1(p.qty)+' đã bán · biên '+m+'%</div><div class="rpx-pbar"><i style="width:'+share+'%"></i></div></div>'
+          +'<div class="rpx-pval"><b>'+fmt(p.rev)+'</b><span class="rpx-pprofit'+(pr<0?' loss':'')+'">lãi '+fmt(pr)+'</span></div></div>';
+      });
+    }else h+='<div class="rpx-mut">Chưa có dữ liệu.</div>';
+    h+='</div>';
+
+    // ── NHÓM HÀNG ──
+    const catArr=Object.keys(catStat).map(k=>Object.assign({name:k},catStat[k])).filter(c=>c.rev>0).sort((a,b)=>b.rev-a.rev);
+    if(catArr.length>1){
+      const catTot=catArr.reduce((s,c)=>s+c.rev,0);const cMx=Math.max(1,...catArr.map(c=>c.rev));
+      h+='<div class="rpx-card"><div class="rpx-ct"><i class="acc-blue"></i>Doanh thu theo nhóm</div>';
+      catArr.slice(0,6).forEach(c=>{const share=Math.round(c.rev/cMx*100);h+='<div class="rpx-catrow"><div class="rpx-catmain"><div class="rpx-catname">'+escHtml(c.name)+' <small>'+pctOf(c.rev,catTot)+'%</small></div><div class="rpx-pbar cat"><i style="width:'+share+'%"></i></div></div><b class="rpx-catval">'+fmt(c.rev)+'</b></div>';});
+      h+='</div>';
+    }
+
+    // ── TỒN KHO (dùng lại invHtml đã dựng ở trên) ──
+    h+=invHtml;
+
+    h+='<div class="rpx-foot">Số liệu theo <b>giá vốn đã khóa lúc bán</b>. Hàng trả trừ vào đúng kỳ đã bán · Tồn kho là số hiện tại.</div>';
+  }
+
   box.innerHTML=h;
 }
 
@@ -4395,6 +4536,147 @@ try { window.__skBusy = function(){
 #pos-screen #sk-print{display:none}
 @media print{body{visibility:hidden}#pos-screen #sk-print,#pos-screen #sk-print *{visibility:visible}#pos-screen #sk-print{display:block;position:fixed;left:0;top:0;width:58mm;padding:2mm;color:#000;font-family:ui-monospace,monospace;font-size:11px;line-height:1.45}#pos-screen #sk-print .p-shop{text-align:center;font-weight:800;font-size:13px}#pos-screen #sk-print .p-time{text-align:center;font-size:10px;margin-bottom:3px}#pos-screen #sk-print hr{border:none;border-top:1px dashed #000;margin:3px 0}#pos-screen #sk-print .p-l1{font-weight:700}#pos-screen #sk-print .p-l2{display:flex;justify-content:space-between}#pos-screen #sk-print .p-tot{display:flex;justify-content:space-between;font-weight:800;font-size:13px;margin-top:2px}#pos-screen #sk-print .p-thx{text-align:center;margin-top:5px}@page{size:58mm auto;margin:0}}
 @media (prefers-reduced-motion:reduce){#pos-screen *{animation:none!important;transition:none!important}}
+</style>
+
+<style>
+/* ===== BÁO CÁO CAO CẤP (premium) — chỉ thêm mới, KHÔNG sửa CSS cũ ===== */
+#pos-screen .sk-report{padding-bottom:8px}
+#pos-screen .rpx-mut{color:#8a978f;font-size:13px;text-align:center;padding:14px 4px}
+#pos-screen .rpx-card{background:#fff;border:1px solid #e7ede9;border-radius:16px;padding:14px;margin-bottom:11px;box-shadow:0 1px 2px rgba(16,40,32,.04),0 10px 26px -18px rgba(16,40,32,.22)}
+#pos-screen .rpx-ct{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:800;color:#15211d;margin-bottom:12px;letter-spacing:.1px}
+#pos-screen .rpx-ct i{width:4px;height:15px;border-radius:3px;background:#0d7a5f;flex:none}
+#pos-screen .rpx-ct i.acc-green{background:#0d7a5f}#pos-screen .rpx-ct i.acc-blue{background:#1f6feb}#pos-screen .rpx-ct i.acc-gold{background:#c78a12}
+#pos-screen .rpx-ct-sub{font-weight:600;color:#9aa8a2;font-size:11.5px;margin-left:auto}
+#pos-screen .rpx-num,#pos-screen .rpx-hero-val,#pos-screen .rpx-kpi b,#pos-screen .rpx-flow-row b,#pos-screen .rpx-pval b{font-variant-numeric:tabular-nums;font-feature-settings:"tnum"}
+
+/* Header */
+#pos-screen .rpx-head{display:flex;align-items:center;gap:11px;background:linear-gradient(135deg,#eef7f3,#e6f3ec);border:1px solid #d3e8dd;border-radius:14px;padding:11px 14px;margin-bottom:11px}
+#pos-screen .rpx-head-ic{font-size:19px;line-height:1}
+#pos-screen .rpx-head-tx{display:flex;flex-direction:column;line-height:1.35}
+#pos-screen .rpx-head-tx b{font-size:14.5px;color:#0a5f4a;font-weight:800}
+#pos-screen .rpx-head-tx span{font-size:11.5px;color:#5f7a70}
+
+/* Empty */
+#pos-screen .rpx-empty{background:#fff;border:1px dashed #cfdcd5;border-radius:16px;padding:30px 18px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:6px}
+#pos-screen .rpx-empty-ic{font-size:34px}
+#pos-screen .rpx-empty b{font-size:15px;color:#15211d}
+#pos-screen .rpx-empty span{font-size:12.5px;color:#8a978f;max-width:260px;line-height:1.5}
+
+/* Hero */
+#pos-screen .rpx-hero{position:relative;overflow:hidden;background:linear-gradient(140deg,#12916d 0%,#0c6f53 55%,#0a5c45 100%);border-radius:18px;padding:16px 17px 15px;margin-bottom:11px;color:#fff;box-shadow:0 12px 30px -14px rgba(10,92,69,.6)}
+#pos-screen .rpx-hero:before{content:"";position:absolute;top:-60px;right:-40px;width:180px;height:180px;background:radial-gradient(circle,rgba(255,255,255,.16),transparent 70%);pointer-events:none}
+#pos-screen .rpx-hero-top{display:flex;align-items:center;justify-content:space-between;gap:10px;position:relative}
+#pos-screen .rpx-hero-label{font-size:11px;font-weight:800;letter-spacing:1.2px;opacity:.9;text-transform:uppercase}
+#pos-screen .rpx-hero-margin{background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.28);border-radius:999px;font-size:11.5px;font-weight:800;padding:3px 11px;backdrop-filter:blur(2px)}
+#pos-screen .rpx-hero-margin.loss{background:rgba(255,120,100,.28);border-color:rgba(255,150,130,.5)}
+#pos-screen .rpx-hero-val{font-size:30px;font-weight:900;letter-spacing:-.5px;margin:7px 0 12px;position:relative;line-height:1}
+#pos-screen .rpx-hero-val.loss{color:#ffd9d2}
+#pos-screen .rpx-hero-bar{display:flex;height:9px;border-radius:6px;overflow:hidden;background:rgba(255,255,255,.16);position:relative}
+#pos-screen .rpx-hero-bar i{display:block;height:100%}
+#pos-screen .rpx-hero-bar i.c-cost{background:linear-gradient(90deg,#f2c14e,#e8a92b)}
+#pos-screen .rpx-hero-bar i.c-pro{background:linear-gradient(90deg,#bff5df,#7fe9c0)}
+#pos-screen .rpx-hero-legend{display:flex;gap:16px;margin-top:10px;font-size:12px;position:relative;flex-wrap:wrap}
+#pos-screen .rpx-hero-legend span{display:flex;align-items:center;gap:6px;opacity:.96}
+#pos-screen .rpx-hero-legend b{font-weight:800}
+#pos-screen .rpx-hero-legend em{width:9px;height:9px;border-radius:3px;flex:none}
+#pos-screen .rpx-hero-legend em.d-rev{background:#7fe9c0}#pos-screen .rpx-hero-legend em.d-cost{background:#f2c14e}
+
+/* KPI grid */
+#pos-screen .rpx-kpis{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:11px}
+#pos-screen .rpx-kpi{background:#fff;border:1px solid #e7ede9;border-radius:14px;padding:11px 12px;display:flex;flex-direction:column;gap:2px;box-shadow:0 1px 2px rgba(16,40,32,.03)}
+#pos-screen .rpx-kpi .k-l{font-size:11.5px;color:#6b7872;font-weight:600}
+#pos-screen .rpx-kpi .k-b{font-size:17px;font-weight:800;color:#15211d;line-height:1.15}
+#pos-screen .rpx-kpi .k-s{font-size:11px;color:#9aa8a2}
+
+/* Flow */
+#pos-screen .rpx-flow{display:flex;flex-direction:column}
+#pos-screen .rpx-flow-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 0;font-size:13.5px;color:#41615a;border-bottom:1px dashed #eef2f0}
+#pos-screen .rpx-flow-row b{font-weight:700;color:#26332e}
+#pos-screen .rpx-flow-row.neg b{color:#b5493a}
+#pos-screen .rpx-flow-row.sum{border-bottom:none;margin-top:2px;padding-top:11px;border-top:1.5px solid #e3ece7;font-weight:800;color:#0a5f4a}
+#pos-screen .rpx-flow-row.sum b{color:#0a5f4a;font-size:15px}
+#pos-screen .rpx-flow-row.final{border-bottom:none;background:#f2faf6;margin:6px -8px 0;padding:11px 12px;border-radius:11px;font-weight:800;color:#0a5f4a}
+#pos-screen .rpx-flow-row.final b{color:#0a5f4a;font-size:16.5px}
+
+/* Payment */
+#pos-screen .rpx-paybar{display:flex;height:11px;border-radius:7px;overflow:hidden;background:#eef2f0;margin-bottom:12px}
+#pos-screen .rpx-paybar i{display:block;height:100%}
+#pos-screen .rpx-paybar i.s-cash{background:#12916d}#pos-screen .rpx-paybar i.s-qr{background:#1f6feb}#pos-screen .rpx-paybar i.s-debt{background:#d69426}
+#pos-screen .rpx-payrow{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #f2f5f3;font-size:13.5px}
+#pos-screen .rpx-payrow:last-of-type{border-bottom:none}
+#pos-screen .rpx-payrow .p-n{display:flex;align-items:center;gap:8px;color:#41615a;font-weight:600}
+#pos-screen .rpx-payrow .p-n em{width:10px;height:10px;border-radius:3px}
+#pos-screen .rpx-payrow .p-n em.d-cash{background:#12916d}#pos-screen .rpx-payrow .p-n em.d-qr{background:#1f6feb}#pos-screen .rpx-payrow .p-n em.d-debt{background:#d69426}
+#pos-screen .rpx-payrow .p-v{font-weight:800;color:#26332e}
+#pos-screen .rpx-payrow .p-v small{font-weight:700;color:#9aa8a2;font-size:11px;margin-left:3px}
+#pos-screen .rpx-paynote{margin-top:10px;background:#fbf7ec;border:1px solid #f0e4c6;border-radius:10px;padding:8px 11px;font-size:12px;color:#8a6d1e;line-height:1.45}
+
+/* Chart */
+#pos-screen .rpx-chart{position:relative;display:flex;align-items:flex-end;gap:5px;height:132px;padding-top:14px;border-bottom:1.5px solid #eef2f0}
+#pos-screen .rpx-avg{position:absolute;left:0;right:0;border-top:1.5px dashed #c9a94f;z-index:1;pointer-events:none}
+#pos-screen .rpx-avg span{position:absolute;right:0;top:-8px;background:#fef6e0;color:#a5771a;font-size:9.5px;font-weight:700;padding:1px 6px;border-radius:6px;border:1px solid #f0dfae}
+#pos-screen .rpx-bar{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;position:relative;z-index:2}
+#pos-screen .rpx-bval{font-size:9px;color:#5f7a70;font-weight:700;margin-bottom:3px;white-space:nowrap}
+#pos-screen .rpx-fill{width:100%;max-width:30px;background:linear-gradient(#17b083,#0c6f53);border-radius:6px 6px 2px 2px;min-height:3px;transition:height .3s ease}
+#pos-screen .rpx-fill.peak{background:linear-gradient(#f2c14e,#dd9a1e);box-shadow:0 0 0 2px rgba(221,154,30,.18)}
+#pos-screen .rpx-lb{font-size:9.5px;color:#8a978f;margin-top:5px;white-space:nowrap;position:absolute;top:100%}
+#pos-screen .rpx-chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:26px}
+#pos-screen .rpx-chips span{flex:1;min-width:120px;background:#f4f8f6;border:1px solid #e7efe9;border-radius:10px;padding:8px 11px;font-size:11.5px;color:#5f7a70}
+#pos-screen .rpx-chips b{color:#0a5f4a;font-weight:800;font-variant-numeric:tabular-nums}
+
+/* Peak hours */
+#pos-screen .rpx-hstrip{display:flex;align-items:flex-end;gap:2px;height:76px;padding-bottom:14px;position:relative}
+#pos-screen .rpx-hbar{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;position:relative}
+#pos-screen .rpx-hfill{width:100%;max-width:12px;background:#cfe6dd;border-radius:3px 3px 0 0;min-height:2px}
+#pos-screen .rpx-hfill.peak{background:linear-gradient(#f2c14e,#dd9a1e)}
+#pos-screen .rpx-hlb{position:absolute;top:100%;margin-top:3px;font-size:8.5px;color:#9aa8a2}
+#pos-screen .rpx-hnote{margin-top:12px;background:#fbf7ec;border:1px solid #f0e4c6;border-radius:10px;padding:8px 11px;font-size:12px;color:#8a6d1e;line-height:1.45}
+#pos-screen .rpx-hnote b{color:#6b5310}
+
+/* Product rows */
+#pos-screen .rpx-prow{display:flex;align-items:center;gap:11px;padding:9px 0;border-bottom:1px solid #f2f5f3}
+#pos-screen .rpx-prow:last-child{border-bottom:none}
+#pos-screen .rpx-prank{width:24px;height:24px;flex:none;border-radius:8px;background:#eef2f0;color:#7a8983;font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center}
+#pos-screen .rpx-prank.r1{background:linear-gradient(135deg,#f5cf5a,#e0a41f);color:#5a4200}
+#pos-screen .rpx-prank.r2{background:linear-gradient(135deg,#dbe3e0,#b9c6c0);color:#465049}
+#pos-screen .rpx-prank.r3{background:linear-gradient(135deg,#efc59a,#d59a63);color:#5c3a19}
+#pos-screen .rpx-pmain{flex:1;min-width:0}
+#pos-screen .rpx-pname{font-size:13.5px;font-weight:700;color:#1a2e28;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#pos-screen .rpx-psub{font-size:11px;color:#9aa8a2;margin:1px 0 5px}
+#pos-screen .rpx-pbar{height:5px;border-radius:4px;background:#eef2f0;overflow:hidden}
+#pos-screen .rpx-pbar i{display:block;height:100%;background:linear-gradient(90deg,#17b083,#0c6f53);border-radius:4px}
+#pos-screen .rpx-pbar.cat i{background:linear-gradient(90deg,#4d90f4,#1f6feb)}
+#pos-screen .rpx-pval{text-align:right;flex:none}
+#pos-screen .rpx-pval b{display:block;font-size:13.5px;font-weight:800;color:#0a5f4a}
+#pos-screen .rpx-pprofit{font-size:10.5px;color:#9aa8a2}
+#pos-screen .rpx-pprofit.loss{color:#c0392b}
+
+/* Category rows */
+#pos-screen .rpx-catrow{display:flex;align-items:center;gap:11px;padding:9px 0;border-bottom:1px solid #f2f5f3}
+#pos-screen .rpx-catrow:last-child{border-bottom:none}
+#pos-screen .rpx-catmain{flex:1;min-width:0}
+#pos-screen .rpx-catname{font-size:13px;font-weight:700;color:#1a2e28;margin-bottom:5px}
+#pos-screen .rpx-catname small{color:#9aa8a2;font-weight:700;font-size:11px;margin-left:4px}
+#pos-screen .rpx-catval{font-size:13px;font-weight:800;color:#1f6feb;flex:none;font-variant-numeric:tabular-nums}
+
+/* Inventory */
+#pos-screen .rpx-invstats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:11px}
+#pos-screen .rpx-invstat{background:#f6f9f8;border:1px solid #e7efe9;border-radius:11px;padding:10px 8px;text-align:center}
+#pos-screen .rpx-invstat span{display:block;font-size:11px;color:#7a8983;margin-bottom:2px}
+#pos-screen .rpx-invstat b{font-size:15px;font-weight:800;color:#15211d;font-variant-numeric:tabular-nums}
+#pos-screen .rpx-invstat.warn{background:#fdf6e7;border-color:#f2e4bf}#pos-screen .rpx-invstat.warn b{color:#b9791a}
+#pos-screen .rpx-invstat.danger{background:#fdeeec;border-color:#f5cdc6}#pos-screen .rpx-invstat.danger b{color:#c0392b}
+#pos-screen .rpx-invhint{font-size:11.5px;font-weight:700;color:#7a8983;margin:2px 0 6px}
+#pos-screen .rpx-invrow{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid #f2f5f3;font-size:13px}
+#pos-screen .rpx-invrow:last-child{border-bottom:none}
+#pos-screen .rpx-invname{font-weight:600;color:#26332e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#pos-screen .rpx-invtag{flex:none;font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px}
+#pos-screen .rpx-invtag.warn{background:#fdf6e7;color:#b9791a}
+#pos-screen .rpx-invtag.danger{background:#fdeeec;color:#c0392b}
+
+/* Foot */
+#pos-screen .rpx-foot{font-size:11px;color:#9aa8a2;text-align:center;line-height:1.55;padding:4px 8px 10px}
+#pos-screen .rpx-foot b{color:#7a8983}
 </style>
 
 <div id="pos-screen">
