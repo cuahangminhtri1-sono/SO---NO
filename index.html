@@ -3582,12 +3582,14 @@ function skInit4(){
   skInit4Done=true;skLoadBank();
   try{onSnapshot(collection(db,'users',UID,'suppliers'),s=>{skSuppliers=s.docs.map(d=>Object.assign({id:d.id},d.data()));skRenderSuppliers();if(skView==='report')skRenderReport();},()=>{});}catch(e){}
   try{onSnapshot(collection(db,'users',UID,'staff'),s=>{skStaffList=s.docs.map(d=>Object.assign({id:d.id},d.data()));skRenderStaffMgmt();skApplyRole();},()=>{});}catch(e){}
+  try{onSnapshot(doc(db,'users',UID,'meta','permissions'),d=>{skPermMerge(d.exists()?d.data():{});skApplyRole();},()=>{});}catch(e){}
   try{onSnapshot(collection(db,'users',UID,'branches'),s=>{skBranches=s.docs.map(d=>Object.assign({id:d.id},d.data()));skRenderBranchSel();skRenderBranches();},()=>{});}catch(e){}
   Promise.all([skEnsureBranch(),skLoadStaffOnce()]).then(()=>skAfterReady());
 }
 async function skEnsureBranch(){try{const s=await getDocs(collection(db,'users',UID,'branches'));if(s.empty){setDoc(doc(db,'users',UID,'branches','main'),{name:'Chi nhánh chính',createdAt:serverTimestamp()}).catch(function(){});skBranch='main';}else if(!s.docs.find(d=>d.id===skBranch)){skBranch=s.docs[0].id;}}catch(e){skBranch='main';}}
 async function skLoadStaffOnce(){try{const s=await getDocs(collection(db,'users',UID,'staff'));skStaffList=s.docs.map(d=>Object.assign({id:d.id},d.data()));}catch(e){skStaffList=[];}
-  try{const ss=await getDoc(doc(db,'users',UID,'meta','shopSettings'));skRequirePin=ss.exists()?(ss.data().requirePin!==false):true;}catch(e){skRequirePin=true;}}
+  try{const ss=await getDoc(doc(db,'users',UID,'meta','shopSettings'));skRequirePin=ss.exists()?(ss.data().requirePin!==false):true;}catch(e){skRequirePin=true;}
+  try{const ps=await getDoc(doc(db,'users',UID,'meta','permissions'));skPermMerge(ps.exists()?ps.data():{});}catch(e){skPermMerge({});}}
 function skAfterReady(){skRenderBranchSel();skBranchSubs();if(skStaffList&&skStaffList.length&&skRequirePin!==false){skStaffGate();}else{skRole='owner';skStaff=null;skApplyRole();skGo('sell');}}
 function skBranchSubs(){
   if(skUnsubBP){try{skUnsubBP();}catch(e){}skUnsubBP=null;}if(skUnsubBO){try{skUnsubBO();}catch(e){}skUnsubBO=null;}if(skUnsubBR){try{skUnsubBR();}catch(e){}skUnsubBR=null;}
@@ -3622,7 +3624,7 @@ async function skDoTransfer(){skTransfer.target=skq('#sk-tr-target').value;skTra
 }
 
 /* ---- NHÂN VIÊN: CỔNG PIN + PHÂN QUYỀN ---- */
-function skApplyRole(){const el=skq('#pos-screen');if(!el)return;el.classList.remove('role-owner','role-manager','role-cashier');el.classList.add('role-'+(skRole||'owner'));const ind=skq('#sk-staffbtn');if(ind){ind.style.display=(skStaffList&&skStaffList.length)?'':'none';ind.textContent='👤 '+(skStaff?skStaff.name:'Đổi người');}}
+function skApplyRole(){const el=skq('#pos-screen');if(!el)return;el.classList.remove('role-owner','role-manager','role-cashier');el.classList.add('role-'+(skRole||'owner'));const ind=skq('#sk-staffbtn');if(ind){ind.style.display=(skStaffList&&skStaffList.length)?'':'none';ind.textContent='👤 '+(skStaff?skStaff.name:'Đổi người');}skApplyPerm();}
 function skStaffGate(){skRenderGateList();skq('#sk-gate-pin').style.display='none';skq('#sk-gate-list').style.display='';skq('#sk-gate').classList.add('on');}
 function skRenderGateList(){skq('#sk-gate-list').innerHTML='<div class="sk-gate-h">Ai đang bán hàng?</div>'+skStaffList.map(s=>'<button class="sk-gate-staff" data-act="gate-pick" data-id="'+s.id+'"><b>'+escHtml(s.name)+'</b><span>'+skRoleLabel(s.role)+'</span></button>').join('')+'<button class="sk-gate-forgot" data-act="pin-forgot">🔑 Quên PIN? — Chủ mở khóa</button>';}
 function skGatePick(id){_skGateStaff=skStaffList.find(s=>s.id===id);if(!_skGateStaff)return;_skPin='';skq('#sk-gate-who').textContent=_skGateStaff.name;skq('#sk-gate-list').style.display='none';skq('#sk-gate-pin').style.display='';skRenderPin();}
@@ -3767,6 +3769,7 @@ function skBind4(){
       case 'regate':skRegate();break; case 'gate-pick':skGatePick(id);break; case 'pin-key':skPinKey(el.dataset.k);break;
       case 'pin-forgot':skPinForgotShow();break; case 'pf-ok':skPinForgotOk();break; case 'pf-back':skPinForgotBack();break; case 'pin-toggle':skTogglePin();break;
       case 'staff-mgmt':skOpenStaffMgmt();break; case 'staff-new':skOpenStaffForm(null);break; case 'staff-edit':skOpenStaffForm(id);break; case 'staff-save':skSaveStaff();break; case 'staff-del':skDelStaff();break;
+      case 'perm-open':skOpenPerm();break; case 'perm-save':skSavePerm();break;
       case 'labels':skOpenLabels(id);break; case 'labels-print':skLabelMenu();break;
       case 'diag-run':case 'diag-rerun':skDiag();break;
     }
@@ -3775,6 +3778,52 @@ function skBind4(){
   bind('#sk-tr-search','input',skRenderTrPick);
 }
 
+
+/* ===== PHÂN QUYỀN v5: RBAC có cấu hình + CHẶN HÀNH ĐỘNG THẬT (không chỉ ẩn UI) ===== */
+const SK_CAPS=[
+  ['invview','Xem Kho (mở tab Kho, xem tồn)'],
+  ['invedit','Sửa Kho: thêm/sửa/xóa SP, nhập nhanh, kiểm kho, xuất hủy'],
+  ['purchase','Nhập hàng & Nhà cung cấp (tab Nhập)'],
+  ['report','Xem Báo cáo (doanh thu, lãi, đơn hàng)'],
+  ['discount','Giảm giá & Sửa giá bán khi thanh toán'],
+  ['refund','Trả hàng / Hoàn tiền'],
+  ['transfer','Chuyển kho giữa chi nhánh'],
+  ['branch','Quản lý chi nhánh (thêm/sửa/xóa)'],
+  ['staff','Quản lý nhân viên & phân quyền']
+];
+const SK_CAP_LABEL=SK_CAPS.reduce(function(o,x){o[x[0]]=x[1];return o;},{});
+const SK_PERM_DEFAULT={
+  manager:{invview:true,invedit:true,purchase:true,report:true,discount:true,refund:true,transfer:true,branch:false,staff:false},
+  cashier:{invview:false,invedit:false,purchase:false,report:false,discount:false,refund:false,transfer:false,branch:false,staff:false}
+};
+let SK_PERM={manager:Object.assign({},SK_PERM_DEFAULT.manager),cashier:Object.assign({},SK_PERM_DEFAULT.cashier)};
+function skPermMerge(v){v=v||{};['manager','cashier'].forEach(function(r){SK_PERM[r]=Object.assign({},SK_PERM_DEFAULT[r],v[r]||{});});}
+function skRoleCan(cap){var r=skRole||'owner';if(r==='owner')return true;var m=SK_PERM[r];return !!(m&&m[cap]===true);}
+const SK_ACT_CAP={
+  'prod-new':'invedit','prod-edit':'invedit','prod-save':'invedit','prod-del':'invedit',
+  'quick-in':'invedit','quick-out':'invedit','sess-start':'invedit','sess-commit':'invedit','np-newprod':'invedit',
+  'np-save':'purchase','sup-new':'purchase','sup-edit':'purchase','sup-save':'purchase','sup-del':'purchase','sup-pay':'purchase',
+  'cart-discount':'discount','cart-price':'discount',
+  'ret-open':'refund','ret-do':'refund',
+  'transfer-open':'transfer','transfer-do':'transfer',
+  'branch-new':'branch','branch-edit':'branch','branch-save':'branch','branch-del':'branch',
+  'staff-mgmt':'staff','staff-new':'staff','staff-edit':'staff','staff-save':'staff','staff-del':'staff','pin-toggle':'staff','perm-open':'staff','perm-save':'staff',
+  'diag-run':'report','diag-rerun':'report'
+};
+const SK_TAB_CAP={kho:'invview',nhap:'purchase',report:'report'};
+function skApplyPerm(){var el=skq('#pos-screen');if(!el)return;SK_CAPS.forEach(function(x){el.classList.toggle('no-'+x[0],!skRoleCan(x[0]));});}
+document.addEventListener('click',function(e){
+  var el=e.target.closest('[data-act]');if(!el)return;
+  if(!el.closest('#pos-screen'))return;
+  var a=el.dataset.act,cap=SK_ACT_CAP[a]||null;
+  if(a==='go')cap=SK_TAB_CAP[el.dataset.v]||null;
+  if(!cap)return;
+  if(skRoleCan(cap))return;
+  e.preventDefault();e.stopImmediatePropagation();
+  try{toast('🔒 '+(skStaff?skStaff.name:'Bạn')+' không có quyền: '+(SK_CAP_LABEL[cap]||cap));}catch(_){}
+},true);
+function skOpenPerm(){var b=skq('#sk-perm-body');if(!b)return;b.innerHTML=SK_CAPS.map(function(x){var k=x[0];return '<label class="sk-perm-row"><span class="sk-perm-l">'+x[1]+'</span><span><input type="checkbox" class="sk-perm-ck" data-role="manager" data-cap="'+k+'"'+(SK_PERM.manager[k]?' checked':'')+'></span><span><input type="checkbox" class="sk-perm-ck" data-role="cashier" data-cap="'+k+'"'+(SK_PERM.cashier[k]?' checked':'')+'></span></label>';}).join('');skModalOpen('#sk-perm');}
+async function skSavePerm(){var out={manager:{},cashier:{}};skqa('#sk-perm .sk-perm-ck').forEach(function(c){out[c.dataset.role][c.dataset.cap]=c.checked;});skPermMerge(out);skApplyRole();skCloseModal('#sk-perm');toast('✅ Đã lưu phân quyền');try{await setDoc(doc(db,'users',UID,'meta','permissions'),out,{merge:true});}catch(e){skErr(e,'Lưu phân quyền');}}
 
 /* ===== v4: BÁO LỖI QUYỀN RÕ RÀNG + KIỂM TRA KẾT NỐI ===== */
 function skErr(e,ctx){
@@ -4486,10 +4535,22 @@ try { window.__skBusy = function(){
 
   <style>
 #pos-screen .sk-branchbtn{background:rgba(255,255,255,.16);border:none;color:#fff;font-size:12px;font-weight:700;padding:7px 10px;border-radius:9px;max-width:140px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-#pos-screen.role-cashier .sk-tab[data-v="kho"],#pos-screen.role-cashier .sk-tab[data-v="nhap"],#pos-screen.role-cashier .sk-tab[data-v="report"]{display:none}
-#pos-screen.role-cashier .sk-tabs{grid-template-columns:1fr}
-#pos-screen.role-cashier .sk-owner,#pos-screen.role-cashier .sk-mgr{display:none!important}
-#pos-screen.role-manager .sk-owner{display:none!important}
+/* ===== PHÂN QUYỀN v5: ẩn UI theo quyền (JS chặn hành động mới là lớp bảo vệ chính) ===== */
+#pos-screen .sk-tabs{display:flex}
+#pos-screen .sk-tab{flex:1}
+#pos-screen.no-invview .sk-tab[data-v="kho"],#pos-screen.no-purchase .sk-tab[data-v="nhap"],#pos-screen.no-report .sk-tab[data-v="report"]{display:none}
+#pos-screen.no-discount [data-act="cart-discount"],#pos-screen.no-transfer [data-act="transfer-open"],#pos-screen.no-branch [data-act="branch-new"],#pos-screen.no-branch [data-act="branch-edit"],#pos-screen.no-staff [data-act="staff-mgmt"],#pos-screen.no-report [data-act="diag-run"]{display:none!important}
+#pos-screen.no-staff.no-report .sk-actbar.sk-owner{display:none!important}
+#pos-screen .sk-perm-tbl{border:1px solid #e3e8e5;border-radius:12px;overflow:hidden;margin-bottom:8px}
+#pos-screen .sk-perm-hd,#pos-screen .sk-perm-row{display:grid;grid-template-columns:1fr 62px 62px;align-items:center;gap:6px}
+#pos-screen .sk-perm-hd{background:#0d7a5f;color:#fff;font-weight:700;font-size:12.5px;padding:10px 11px}
+#pos-screen .sk-perm-hd span{text-align:center}#pos-screen .sk-perm-hd span:first-child{text-align:left}
+#pos-screen .sk-perm-row{padding:10px 11px;border-top:1px solid #eef2f0;font-size:13px}
+#pos-screen .sk-perm-row:nth-child(odd){background:#f7faf8}
+#pos-screen .sk-perm-l{line-height:1.35}
+#pos-screen .sk-perm-row span{text-align:center}#pos-screen .sk-perm-row span:first-child{text-align:left}
+#pos-screen .sk-perm-ck{width:22px;height:22px;accent-color:#0d7a5f}
+#pos-screen .sk-perm-tip{font-size:12px;color:#6b7872;line-height:1.55;background:#f7faf8;border-radius:9px;padding:9px;margin-bottom:10px}
 #pos-screen .sk-tr-chosen{background:#f7faf8;border:1px solid #e3ece8;border-radius:10px;padding:11px;font-size:14px;font-weight:600;margin-bottom:10px}
 #pos-screen .sk-note2{font-size:11.5px;color:#9aa6a0;line-height:1.5;background:#f7faf8;border-radius:9px;padding:9px;margin-bottom:10px}
 #pos-screen .sk-gate{position:fixed;inset:0;z-index:3000;background:#0d7a5f;display:none;align-items:center;justify-content:center;padding:18px}
@@ -4532,8 +4593,9 @@ try { window.__skBusy = function(){
 <div id="sk-transfer" class="sk-modal"><div class="sk-card"><h3>Chuyển kho sang chi nhánh khác</h3><select id="sk-tr-target" class="sk-inp" style="margin-bottom:10px"></select><div id="sk-tr-chosen" class="sk-tr-chosen">Chưa chọn sản phẩm</div><div class="sk-searchrow" style="position:static"><input id="sk-tr-search" class="sk-search" placeholder="Tìm sản phẩm để chuyển…"></div><div id="sk-tr-pick" class="sk-np-pick"></div><label class="sk-fld">Số lượng chuyển<input id="sk-tr-qty" class="sk-inp" inputmode="numeric"></label><div class="sk-card-acts"><button class="sk-btn ghost" data-act="modal-close" data-target="#sk-transfer">Hủy</button><span style="flex:1"></span><button class="sk-btn green" data-act="transfer-do">Chuyển</button></div></div></div>
 
 <!-- NHÂN VIÊN -->
-<div id="sk-staff" class="sk-modal"><div class="sk-card"><h3>Nhân viên &amp; phân quyền</h3><div class="sk-note2">Phân quyền ở đây khóa theo máy &amp; mã PIN (dùng cho máy bán hàng chung, có ghi nhận ai bán). Không phải bảo mật cấp máy chủ.</div><div style="background:#f3f7f5;border-radius:10px;padding:10px 12px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;gap:10px"><div style="font-size:13.5px"><b>Yêu cầu PIN khi mở Bán hàng</b><div style="color:#6b7872;font-size:12px">Tắt nếu bạn bán một mình — vào thẳng quyền Chủ, khỏi chọn người &amp; nhập PIN.</div></div><button class="sk-btn green" id="sk-pin-toggle" data-act="pin-toggle">🔒 ĐANG BẬT</button></div><div class="sk-note2" style="color:#0a5f4a">💡 Quên PIN? Bấm vào tên nhân viên bên dưới để xem/đổi PIN. Nếu kẹt ở cổng PIN, dùng nút "🔑 Quên PIN? — Chủ mở khóa".</div><div style="margin-bottom:10px"><button class="sk-btn green wide" data-act="staff-new">➕ Thêm nhân viên</button></div><div id="sk-staff-list" style="max-height:50vh;overflow-y:auto"></div><div class="sk-card-acts"><span style="flex:1"></span><button class="sk-btn ghost" data-act="modal-close" data-target="#sk-staff">Đóng</button></div></div></div>
+<div id="sk-staff" class="sk-modal"><div class="sk-card"><h3>Nhân viên &amp; phân quyền</h3><div class="sk-note2">Phân quyền ở đây khóa theo máy &amp; mã PIN (dùng cho máy bán hàng chung, có ghi nhận ai bán). Không phải bảo mật cấp máy chủ.</div><div style="background:#f3f7f5;border-radius:10px;padding:10px 12px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;gap:10px"><div style="font-size:13.5px"><b>Yêu cầu PIN khi mở Bán hàng</b><div style="color:#6b7872;font-size:12px">Tắt nếu bạn bán một mình — vào thẳng quyền Chủ, khỏi chọn người &amp; nhập PIN.</div></div><button class="sk-btn green" id="sk-pin-toggle" data-act="pin-toggle">🔒 ĐANG BẬT</button></div><div class="sk-note2" style="color:#0a5f4a">💡 Quên PIN? Bấm vào tên nhân viên bên dưới để xem/đổi PIN. Nếu kẹt ở cổng PIN, dùng nút "🔑 Quên PIN? — Chủ mở khóa".</div><div style="margin-bottom:10px"><button class="sk-btn outline wide" data-act="perm-open">⚙️ Tùy chỉnh quyền chi tiết (Quản lý / Thu ngân)</button></div><div style="margin-bottom:10px"><button class="sk-btn green wide" data-act="staff-new">➕ Thêm nhân viên</button></div><div id="sk-staff-list" style="max-height:50vh;overflow-y:auto"></div><div class="sk-card-acts"><span style="flex:1"></span><button class="sk-btn ghost" data-act="modal-close" data-target="#sk-staff">Đóng</button></div></div></div>
 <div id="sk-staff-form" class="sk-modal"><div class="sk-card sk-card-sm"><h3 id="sk-stf-title">Thêm nhân viên</h3><label class="sk-fld">Tên nhân viên<input id="sk-stf-name" class="sk-inp"></label><label class="sk-fld">Mã PIN (4–6 số)<input id="sk-stf-pin" class="sk-inp" inputmode="numeric" maxlength="6"></label><label class="sk-fld">Vai trò<select id="sk-stf-role" class="sk-inp"><option value="cashier">Thu ngân — chỉ bán hàng</option><option value="manager">Quản lý — bán + kho + báo cáo</option><option value="owner">Chủ — toàn quyền</option></select></label><div class="sk-card-acts"><button class="sk-btn red" id="sk-stf-del" data-act="staff-del" style="display:none">Xóa</button><span style="flex:1"></span><button class="sk-btn ghost" data-act="modal-close" data-target="#sk-staff-form">Hủy</button><button class="sk-btn green" data-act="staff-save">Lưu</button></div></div></div>
+<div id="sk-perm" class="sk-modal"><div class="sk-card"><h3>⚙️ Phân quyền chi tiết</h3><div class="sk-perm-tip">Tick = được phép. <b>Chủ</b> luôn có toàn quyền (không cần chỉnh). Bỏ tick để chặn — nhân viên bấm vào sẽ báo "không có quyền". Lưu xong áp dụng ngay trên mọi máy.</div><div class="sk-perm-tbl"><div class="sk-perm-hd"><span>Quyền thao tác</span><span>Quản lý</span><span>Thu ngân</span></div><div id="sk-perm-body"></div></div><div class="sk-card-acts"><button class="sk-btn ghost" data-act="modal-close" data-target="#sk-perm">Hủy</button><span style="flex:1"></span><button class="sk-btn green" data-act="perm-save">💾 Lưu phân quyền</button></div></div></div>
 
 <!-- TEM MÃ VẠCH -->
 <div id="sk-labels" class="sk-modal"><div class="sk-card sk-card-sm"><h3>In tem mã vạch</h3><div style="font-weight:700;font-size:15px" id="sk-lb-name"></div><div class="sk-mut" id="sk-lb-val" style="margin:4px 0 12px"></div><label class="sk-fld">Số lượng tem<input id="sk-lb-qty" class="sk-inp" inputmode="numeric" value="30"></label><label style="display:flex;align-items:center;gap:8px;font-size:14px;margin-bottom:10px;color:#15211d;font-weight:600"><input type="checkbox" id="sk-lb-price" checked> In kèm giá bán</label><div class="sk-card-acts"><button class="sk-btn ghost" data-act="modal-close" data-target="#sk-labels">Hủy</button><span style="flex:1"></span><button class="sk-btn green" data-act="labels-print">🖨 In tem</button></div></div></div>
