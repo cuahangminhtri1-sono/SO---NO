@@ -326,7 +326,7 @@
   body.sn-printing.sn-a5 .sn-doc .sn-sign .sn-space{height:42px;}
   /* LẤP ĐẦY chiều cao trang: cho tờ bảng kê cao ~bằng nguyên trang -> buộc bắt đầu từ MÉP TRÊN,
      KHÔNG còn để máy in canh giữa/dồn xuống. Nội dung dài hơn 1 trang vẫn tự sang trang 2 bình thường. */
-  body.sn-printing.sn-a5 .sn-doc{min-height:192mm;}
+  body.sn-printing.sn-a5 .sn-doc{min-height:192mm;max-width:132mm;margin-left:auto !important;margin-right:auto !important;}
   body.sn-printing:not(.sn-a5) .sn-doc{min-height:271mm;}
   .sn-doc thead{display:table-header-group;} /* lặp lại tiêu đề cột ở mỗi trang */
   .sn-doc tr{page-break-inside:avoid;}
