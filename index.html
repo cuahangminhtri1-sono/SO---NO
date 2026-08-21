@@ -333,6 +333,27 @@
   .sn-doc .sn-sign{page-break-inside:avoid;}
 }
 </style>
+<style id="appsw-css">
+/* ===== Thanh chuyển BÁN HÀNG / SỔ NỢ — dùng chung 2 màn, tự chứa, tiền tố appsw- ===== */
+.appsw{display:inline-flex;align-items:center;gap:6px;flex:0 0 auto;-webkit-tap-highlight-color:transparent}
+.appsw-tile{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:9px 15px;border:1.5px solid rgba(255,255,255,.22);background:transparent;color:#fff;border-radius:13px;font-family:inherit;font-weight:800;line-height:1;letter-spacing:.3px;cursor:pointer;white-space:nowrap;transition:opacity .15s,background .15s,border-color .15s,transform .1s}
+.appsw-ic{font-size:1.3em;line-height:1}
+.appsw-tx{font-size:.97em}
+.appsw-tile.on{background:rgba(255,255,255,.20);border-color:rgba(255,255,255,.58);opacity:1;box-shadow:0 2px 8px rgba(0,0,0,.20)}
+.appsw-tile.off{opacity:.5;border-color:rgba(255,255,255,.18);font-weight:700}
+.appsw-tile.off:hover{opacity:.8}
+.appsw-tile.off:active{opacity:.96;transform:scale(.97)}
+.appsw-div{width:2px;align-self:stretch;min-height:26px;margin:2px 1px;background:rgba(255,255,255,.28);border-radius:2px}
+.appsw-pos .appsw-tile{padding:7px 12px}
+.appsw-pos .appsw-tx{font-size:.9em}
+.appsw-pos .appsw-ic{font-size:1.2em}
+/* Ẩn tiêu đề mục trên POS cho gọn — GIỮ phần tử để JS ghi textContent không lỗi */
+#pos-screen .sk-top #sk-view-title{display:none}
+/* Header Sổ Nợ có nhiều nút tiện ích -> xếp 2 hàng cho gọn: thanh chuyển 1 hàng riêng ở trên, cụm nút xuống hàng dưới canh phải */
+#app header{flex-wrap:wrap;row-gap:10px}
+#app header .appsw{flex:1 1 100%;justify-content:center}
+#app header>div{flex:1 1 100%}
+</style>
 </head>
 <body>
 
@@ -381,10 +402,13 @@
 <!-- MAIN APP -->
 <div id="app">
   <header>
-    <h1>📒 Sổ Nợ</h1>
+    <nav class="appsw" aria-label="Chuyển Bán hàng / Sổ nợ">
+      <button type="button" class="appsw-tile off" onclick="openPOS()"><span class="appsw-ic">🛒</span><span class="appsw-tx">BÁN HÀNG</span></button>
+      <span class="appsw-div"></span>
+      <div class="appsw-tile on" aria-current="page"><span class="appsw-ic">📒</span><span class="appsw-tx">SỔ NỢ</span></div>
+    </nav>
     <div style="display:flex;gap:6px;align-items:center">
       <button class="btn-icon" id="admin-btn" onclick="openAdmin()" style="display:none">👑 Khách</button>
-      <button class="btn-icon" onclick="openPOS()" style="background:#0d7a5f;color:#fff;font-weight:600">🛒 Bán hàng</button>
       <button class="btn-icon" onclick="openSettings()">⚙️</button>
       <button class="btn-icon" onclick="doLogout()">Đăng xuất</button>
     </div>
@@ -5069,7 +5093,11 @@ try { window.__skBusy = function(){
 
 <div id="pos-screen">
   <div class="sk-top">
-    <button class="sk-x" data-act="close-pos">‹ Đóng</button>
+    <nav class="appsw appsw-pos" aria-label="Chuyển Bán hàng / Sổ nợ">
+      <div class="appsw-tile on" aria-current="page"><span class="appsw-ic">🛒</span><span class="appsw-tx">BÁN HÀNG</span></div>
+      <span class="appsw-div"></span>
+      <button type="button" class="appsw-tile off" data-act="close-pos"><span class="appsw-ic">📒</span><span class="appsw-tx">SỔ NỢ</span></button>
+    </nav>
     <div class="sk-title" id="sk-view-title">Bán hàng</div>
     <button class="sk-branchbtn" id="sk-branchbtn" data-act="branch-list">🏪 ▾</button>
   </div>
