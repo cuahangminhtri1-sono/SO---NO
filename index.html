@@ -333,27 +333,6 @@
   .sn-doc .sn-sign{page-break-inside:avoid;}
 }
 </style>
-<style id="appsw-css">
-/* ===== Thanh chuyển BÁN HÀNG / SỔ NỢ — dùng chung 2 màn, tự chứa, tiền tố appsw- ===== */
-.appsw{display:inline-flex;align-items:center;gap:6px;flex:0 0 auto;-webkit-tap-highlight-color:transparent}
-.appsw-tile{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:9px 15px;border:1.5px solid rgba(255,255,255,.22);background:transparent;color:#fff;border-radius:13px;font-family:inherit;font-weight:800;line-height:1;letter-spacing:.3px;cursor:pointer;white-space:nowrap;transition:opacity .15s,background .15s,border-color .15s,transform .1s}
-.appsw-ic{font-size:1.3em;line-height:1}
-.appsw-tx{font-size:.97em}
-.appsw-tile.on{background:rgba(255,255,255,.20);border-color:rgba(255,255,255,.58);opacity:1;box-shadow:0 2px 8px rgba(0,0,0,.20)}
-.appsw-tile.off{opacity:.5;border-color:rgba(255,255,255,.18);font-weight:700}
-.appsw-tile.off:hover{opacity:.8}
-.appsw-tile.off:active{opacity:.96;transform:scale(.97)}
-.appsw-div{width:2px;align-self:stretch;min-height:26px;margin:2px 1px;background:rgba(255,255,255,.28);border-radius:2px}
-.appsw-pos .appsw-tile{padding:7px 12px}
-.appsw-pos .appsw-tx{font-size:.9em}
-.appsw-pos .appsw-ic{font-size:1.2em}
-/* Ẩn tiêu đề mục trên POS cho gọn — GIỮ phần tử để JS ghi textContent không lỗi */
-#pos-screen .sk-top #sk-view-title{display:none}
-/* Header Sổ Nợ có nhiều nút tiện ích -> xếp 2 hàng cho gọn: thanh chuyển 1 hàng riêng ở trên, cụm nút xuống hàng dưới canh phải */
-#app header{flex-wrap:wrap;row-gap:10px}
-#app header .appsw{flex:1 1 100%;justify-content:center}
-#app header>div{flex:1 1 100%}
-</style>
 </head>
 <body>
 
@@ -402,13 +381,10 @@
 <!-- MAIN APP -->
 <div id="app">
   <header>
-    <nav class="appsw" aria-label="Chuyển Bán hàng / Sổ nợ">
-      <button type="button" class="appsw-tile off" onclick="openPOS()"><span class="appsw-ic">🛒</span><span class="appsw-tx">BÁN HÀNG</span></button>
-      <span class="appsw-div"></span>
-      <div class="appsw-tile on" aria-current="page"><span class="appsw-ic">📒</span><span class="appsw-tx">SỔ NỢ</span></div>
-    </nav>
+    <h1>📒 Sổ Nợ</h1>
     <div style="display:flex;gap:6px;align-items:center">
       <button class="btn-icon" id="admin-btn" onclick="openAdmin()" style="display:none">👑 Khách</button>
+      <button class="btn-icon" onclick="openPOS()" style="background:#0d7a5f;color:#fff;font-weight:600">🛒 Bán hàng</button>
       <button class="btn-icon" onclick="openSettings()">⚙️</button>
       <button class="btn-icon" onclick="doLogout()">Đăng xuất</button>
     </div>
@@ -5093,11 +5069,7 @@ try { window.__skBusy = function(){
 
 <div id="pos-screen">
   <div class="sk-top">
-    <nav class="appsw appsw-pos" aria-label="Chuyển Bán hàng / Sổ nợ">
-      <div class="appsw-tile on" aria-current="page"><span class="appsw-ic">🛒</span><span class="appsw-tx">BÁN HÀNG</span></div>
-      <span class="appsw-div"></span>
-      <button type="button" class="appsw-tile off" data-act="close-pos"><span class="appsw-ic">📒</span><span class="appsw-tx">SỔ NỢ</span></button>
-    </nav>
+    <button class="sk-x" data-act="close-pos">‹ Đóng</button>
     <div class="sk-title" id="sk-view-title">Bán hàng</div>
     <button class="sk-branchbtn" id="sk-branchbtn" data-act="branch-list">🏪 ▾</button>
   </div>
@@ -6384,5 +6356,199 @@ import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, getDocs, serv
   </div>
 </div>
 <div id="sn-print-sheet"></div>
+<!-- ═══════════════════════════════════════════════════════════════════════
+     GIAO DIỆN MỚI: Thanh đầu (BÁN HÀNG / SỔ NỢ / Cài đặt) + menu Cài đặt xổ xuống
+     — CHỈ THÊM. Không sửa 1 dòng code cũ. Dán NGUYÊN KHỐI này ngay TRƯỚC </body>.
+     — Ẩn header cũ bằng CSS, dựng thanh mới, nối vào đúng hàm/nút sẵn có.
+     ═══════════════════════════════════════════════════════════════════════ -->
+<style id="snbh-topbar-css">
+  /* Ẩn thanh đầu cũ (không xoá — mọi module vẫn tự chèn nút vào đó bình thường) */
+  #app > header{display:none !important;}
+
+  /* ===== THANH ĐẦU MỚI ===== */
+  .snbh-hdr{background:linear-gradient(180deg,#1c7040,#155f36);
+    padding:14px 14px 16px;
+    padding-top:calc(14px + env(safe-area-inset-top,0px));
+    padding-left:max(14px,env(safe-area-inset-left,0px));
+    padding-right:max(14px,env(safe-area-inset-right,0px));
+    display:flex;align-items:center;gap:10px;
+    box-shadow:0 3px 10px rgba(0,0,0,.18);position:sticky;top:0;z-index:90;}
+  .snbh-sell{flex:1 1 auto;display:flex;align-items:center;justify-content:center;gap:9px;
+    padding:13px 12px;border:1.5px solid rgba(255,255,255,.6);border-radius:14px;
+    background:rgba(255,255,255,.06);cursor:pointer;}
+  .snbh-sell:active{background:rgba(255,255,255,.15);}
+  .snbh-sell b{color:#fff;font-size:1.26em;font-weight:800;letter-spacing:.3px;}
+  .snbh-debt{display:flex;align-items:center;gap:8px;padding:6px;cursor:pointer;}
+  .snbh-debt b{color:#fff;font-size:1.26em;font-weight:800;letter-spacing:.3px;}
+  .snbh-ic{font-size:1.45em;line-height:1;filter:drop-shadow(0 1px 1px rgba(0,0,0,.18));}
+  .snbh-sell .snbh-ic{font-size:1.5em;}
+  .snbh-setwrap{position:relative;flex:0 0 auto;}
+  .snbh-set{display:flex;flex-direction:column;align-items:center;gap:2px;padding:4px 6px;cursor:pointer;}
+  .snbh-set .snbh-lbl{color:#fff;font-size:.72em;font-weight:600;opacity:.95;}
+
+  /* ===== MENU CÀI ĐẶT ===== */
+  .snbh-menu{position:absolute;top:100%;right:-4px;margin-top:8px;width:252px;max-width:80vw;
+    background:#fff;border-radius:16px;box-shadow:0 16px 44px rgba(0,0,0,.28);padding:6px;
+    opacity:0;transform:translateY(-8px) scale(.97);transform-origin:top right;
+    pointer-events:none;transition:.16s ease;z-index:120;}
+  .snbh-menu.on{opacity:1;transform:none;pointer-events:auto;}
+  .snbh-menu::before{content:"";position:absolute;top:-7px;right:24px;width:14px;height:14px;
+    background:#fff;transform:rotate(45deg);border-radius:3px;box-shadow:-2px -2px 5px rgba(0,0,0,.05);}
+  .snbh-mi{display:flex;align-items:center;gap:14px;padding:14px;cursor:pointer;border-radius:10px;}
+  .snbh-mi + .snbh-mi{border-top:1px solid #eef1f4;}
+  .snbh-mi:active{background:#f4f7f9;}
+  .snbh-mic{width:26px;text-align:center;font-size:1.16em;flex:0 0 auto;line-height:1;}
+  .snbh-mic svg{display:block;margin:0 auto;}
+  .snbh-mi label{font-size:1.04em;font-weight:600;color:#243;cursor:pointer;}
+  .snbh-mi.out label{color:#c0392b;}
+
+  /* ===== TINH CHỈNH KHỐI SẴN CÓ CHO KHỚP MẪU (chỉ CSS, không đụng JS) ===== */
+  #app .summary-bar{flex-direction:column !important;gap:9px !important;
+    border-radius:16px !important;padding:16px 18px !important;}
+  #app .summary-item{font-size:1.06em !important;font-weight:600;}
+  #app .summary-item b{font-size:1.05em;font-weight:800;}
+  #app #s-total{color:#16261d;}
+
+  #app .btn-tools{border-radius:14px !important;padding:15px !important;}
+  #app .search-input{border-radius:12px !important;padding:13px 15px !important;}
+  #app .btn-add{border-radius:12px !important;font-weight:800 !important;}
+  #app .tab-btn{border-radius:12px !important;padding:12px 4px !important;font-weight:600 !important;}
+  #app .tab-btn.active{box-shadow:0 3px 9px rgba(26,107,60,.28) !important;font-weight:800 !important;}
+
+  #app .customer-card{border-left-width:6px !important;border-radius:16px !important;
+    padding:15px 17px !important;box-shadow:0 3px 12px rgba(20,40,30,.09) !important;margin-bottom:12px !important;}
+  #app .cust-name{display:flex !important;flex-direction:column !important;align-items:flex-start !important;
+    gap:8px !important;font-size:1.13em !important;font-weight:800 !important;}
+  #app .cust-debt{font-size:1.2em !important;font-weight:800 !important;}
+  #app .cust-debt.zero{font-size:1.05em !important;}
+  #app .debt-badge{margin-left:0 !important;padding:3px 11px !important;border:1px solid #f3c3bc;}
+  #app .debt-badge.i-owe{border-color:#bcd0ff;}
+  #app .cust-meta{font-size:.9em !important;margin-top:8px !important;}
+</style>
+
+<script>
+(function(){
+  if (window.__SNBH_TOPBAR__) return; window.__SNBH_TOPBAR__ = true;
+
+  var LOGOUT_SVG = '<svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="#c0392b" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>';
+
+  function callFn(name){ try{ if (typeof window[name] === 'function'){ window[name](); return true; } }catch(e){} return false; }
+  function clickId(id){ try{ var el=document.getElementById(id); if(el){ el.click(); return true; } }catch(e){} return false; }
+  function clickSel(sel){ try{ var el=document.querySelector(sel); if(el){ el.click(); return true; } }catch(e){} return false; }
+  function say(m){ try{ if (typeof window.toast === 'function'){ window.toast(m); } }catch(e){} }
+
+  var menuEl=null, setWrapEl=null, backEl=null, adminItem=null, installItem=null, built=false;
+
+  var ACTIONS = {
+    sell:    function(){ closeMenu(); callFn('openPOS'); },
+    debt:    function(){ closeMenu(); try{ window.scrollTo(0,0); }catch(e){} },
+    account: function(){ closeMenu(); callFn('openSettings'); },
+    pass:    function(){ closeMenu(); if(!callFn('moDoiMatKhau')) clickSel('[data-dmk="1"]'); },
+    lock:    function(){ closeMenu(); if(!clickId('sn-lockbtn')) say('Đang tải Khóa sổ, thử lại sau giây lát…'); },
+    invite:  function(){ closeMenu(); if(!callFn('moGioiThieu')) clickSel('[data-gt="1"]'); },
+    admin:   function(){ closeMenu(); callFn('openAdmin'); },
+    install: function(){ closeMenu(); clickId('tsi-hb'); },
+    logout:  function(){ closeMenu(); callFn('doLogout'); }
+  };
+
+  function el(tag, cls){ var e=document.createElement(tag); if(cls) e.className=cls; return e; }
+
+  function mkItem(icon, text, act, extraCls){
+    var it = el('div', 'snbh-mi' + (extraCls ? (' '+extraCls) : ''));
+    it.setAttribute('data-snbh', act);
+    var ic = el('span', 'snbh-mic');
+    if (icon.charAt(0) === '<') ic.innerHTML = icon; else ic.textContent = icon;
+    var lb = document.createElement('label'); lb.textContent = text;
+    it.appendChild(ic); it.appendChild(lb);
+    it.addEventListener('click', ACTIONS[act]);
+    return it;
+  }
+
+  function build(){
+    if (built) return;
+    var app = document.getElementById('app');
+    if (!app) return;
+    if (document.getElementById('snbh-topbar')) { built = true; return; }
+
+    var bar = el('div', 'snbh-hdr'); bar.id = 'snbh-topbar';
+
+    // BÁN HÀNG
+    var sell = el('div', 'snbh-sell');
+    var sic = el('span', 'snbh-ic'); sic.textContent = '🛒';
+    var sb = document.createElement('b'); sb.textContent = 'BÁN HÀNG';
+    sell.appendChild(sic); sell.appendChild(sb);
+    sell.addEventListener('click', ACTIONS.sell);
+
+    // SỔ NỢ (màn hình hiện tại)
+    var debt = el('div', 'snbh-debt');
+    var dic = el('span', 'snbh-ic'); dic.textContent = '📒';
+    var dbb = document.createElement('b'); dbb.textContent = 'SỔ NỢ';
+    debt.appendChild(dic); debt.appendChild(dbb);
+    debt.addEventListener('click', ACTIONS.debt);
+
+    // CÀI ĐẶT + menu
+    setWrapEl = el('div', 'snbh-setwrap');
+    var set = el('div', 'snbh-set');
+    var gic = el('span', 'snbh-ic'); gic.textContent = '⚙️';
+    var glb = el('span', 'snbh-lbl'); glb.textContent = 'Cài đặt';
+    set.appendChild(gic); set.appendChild(glb);
+    set.addEventListener('click', function(ev){ if(ev && ev.stopPropagation) ev.stopPropagation(); toggleMenu(); });
+
+    menuEl = el('div', 'snbh-menu');
+    menuEl.appendChild(mkItem('🏦', 'Số tài khoản', 'account'));
+    menuEl.appendChild(mkItem('🔑', 'Đổi mật khẩu', 'pass'));
+    menuEl.appendChild(mkItem('🔒', 'Khóa sổ', 'lock'));
+    menuEl.appendChild(mkItem('🎁', 'Giới thiệu', 'invite'));
+    adminItem = mkItem('👑', 'Quản lý khách', 'admin'); adminItem.style.display = 'none';
+    menuEl.appendChild(adminItem);
+    installItem = mkItem('📲', 'Cài App vào máy', 'install'); installItem.style.display = 'none';
+    menuEl.appendChild(installItem);
+    menuEl.appendChild(mkItem(LOGOUT_SVG, 'Đăng xuất', 'logout', 'out'));
+
+    setWrapEl.appendChild(set); setWrapEl.appendChild(menuEl);
+
+    bar.appendChild(sell); bar.appendChild(debt); bar.appendChild(setWrapEl);
+    app.insertBefore(bar, app.firstChild);
+
+    // Đóng menu khi chạm ra ngoài
+    document.addEventListener('click', function(e){
+      if (!menuEl || menuEl.className.indexOf('on') < 0) return;
+      var n = e.target, inside = false;
+      while (n){ if (n === setWrapEl){ inside = true; break; } n = n.parentNode; }
+      if (!inside) closeMenu();
+    });
+
+    built = true;
+    syncExtras();
+  }
+
+  function toggleMenu(){
+    if (!menuEl) return;
+    var on = menuEl.classList.contains('on');
+    menuEl.classList.toggle('on', !on);
+  }
+  function closeMenu(){ if (menuEl) menuEl.classList.remove('on'); }
+
+  // Hiện "Quản lý khách" khi là tài khoản admin; hiện "Cài App" khi có nút cài của app
+  function syncExtras(){
+    try{
+      var ab = document.getElementById('admin-btn');
+      var showAdmin = !!(ab && ab.style && ab.style.display !== 'none');
+      if (adminItem) adminItem.style.display = showAdmin ? '' : 'none';
+    }catch(e){}
+    try{
+      var hb = document.getElementById('tsi-hb');
+      if (installItem) installItem.style.display = hb ? '' : 'none';
+    }catch(e){}
+  }
+
+  build();
+  document.addEventListener('DOMContentLoaded', build);
+  setTimeout(build, 300);
+  setInterval(syncExtras, 1000);
+})();
+</script>
+<!-- ═══════════════ HẾT: GIAO DIỆN MỚI ═══════════════ -->
+
 </body>
 </html>
