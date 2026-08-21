@@ -3477,7 +3477,7 @@ function skDrawReport(box,offline){
   (skRpReturns||[]).forEach(r=>{const oid=r&&r.orderId;if(!oid)return;const e=retByOrder[oid]||(retByOrder[oid]={refund:0,cogs:0,qtyByName:{}});e.refund+=Number(r.refund)||0;(r.items||[]).forEach(li=>{e.cogs+=skReturnLineCost(r,li);const nm=li&&li.name;if(nm!=null)e.qtyByName[nm]=(e.qtyByName[nm]||0)+(Number(li.qty)||0);});});
   // ── Tổng hợp kỳ đang xem ──
   let subTot=0,rev=0,cost=0,cash=0,qr=0,debt=0,ordersSold=0,discountTot=0,refundTot=0,unitsTot=0,tsCount=0;
-  const prodStat={},catStat={},byHour=new Array(24).fill(0),byHourCnt=new Array(24).fill(0);
+  const prodStat={},catStat={},byHour=new Array(24).fill(0),byHourCnt=new Array(24).fill(0),byDow=new Array(7).fill(0);
   const soldIds={},dayMap={},custMap={};
   list.forEach(o=>{
     const ret=retByOrder[o.id]||{refund:0,cogs:0,qtyByName:{}};
@@ -3501,6 +3501,7 @@ function skDrawReport(box,offline){
     if(net>0)ordersSold++;
     const d=skOrderDate(o);
     if(o.createdAt){const hr=d.getHours();if(hr>=0&&hr<24){byHour[hr]+=net;byHourCnt[hr]++;tsCount++;}}
+    byDow[d.getDay()]+=net;
     const dk=d.toDateString();const dm=dayMap[dk]||(dayMap[dk]={d:d,rev:0,profit:0,n:0});dm.rev+=net;dm.profit+=(net-dcost);if(net>0)dm.n++;
     const cn=o.customerName&&String(o.customerName).trim();if(cn){const cm=custMap[cn]||(custMap[cn]={rev:0,n:0});cm.rev+=net;cm.n++;}
   });
@@ -3509,223 +3510,259 @@ function skDrawReport(box,offline){
   const aov=ordersSold>0?(rev/ordersSold):0;
   const ipo=ordersSold>0?(unitsTot/ordersSold):0;
   const payTot=cash+qr+debt;
+  const roi=cost>0?(profit/cost*100):null;
+  let periodDays;
+  if(cb){periodDays=Math.round((new Date(cb.to.getFullYear(),cb.to.getMonth(),cb.to.getDate())-new Date(cb.from.getFullYear(),cb.from.getMonth(),cb.from.getDate()))/86400000)+1;}
+  else periodDays=(skPeriod==='today'?1:(parseInt(skPeriod,10)||7));
   const pctOf=(a,b)=>b>0?Math.round(a/b*100):0;
   const NB=n=>Number(n||0).toLocaleString('vi-VN');
   const D1=n=>{const v=Number(n)||0;return (Math.round(v*10)/10).toLocaleString('vi-VN');};
   const kk=n=>{const v=Math.round(Number(n)||0);return v>=1000?(Math.round(v/100)/10).toLocaleString('vi-VN')+'k':NB(v);};
   const mBadge=m=>m==='cash'?'<em class="rpx-mb cash">Tiền mặt</em>':(m==='qr'?'<em class="rpx-mb qr">CK</em>':(m==='debt'?'<em class="rpx-mb debt">Nợ</em>':''));
-  // gom cột biểu đồ theo ngày (doanh thu + lãi cùng thang) — tự chứa, không phụ thuộc helper ngoài
-  function dayBuckets(orders,from,to){
-    const dayMs=86400000,maxBars=31;const start=new Date(from);start.setHours(0,0,0,0);const end=new Date(to);end.setHours(0,0,0,0);
-    const nD=Math.round((end-start)/dayMs)+1;const raw=[];const idx={};
-    for(let i=0;i<nD;i++){const d=new Date(start);d.setDate(d.getDate()+i);const r={date:new Date(d),key:d.toDateString(),rev:0,profit:0};raw.push(r);idx[r.key]=r;}
-    orders.forEach(o=>{const r=idx[skOrderDate(o).toDateString()];if(!r)return;const ret=retByOrder[o.id]||{refund:0,cogs:0};const g=Number(o.total)||0;const rf=Math.min(Math.max(0,Number(ret.refund)||0),g);const net=g-rf;let oc=0;(o.items||[]).forEach(i=>{oc+=skCogsLine(i);});const ca=Math.min(Math.max(0,Number(ret.cogs)||0),oc);r.rev+=net;r.profit+=(net-(oc-ca));});
-    let bars;if(raw.length<=maxBars){bars=raw.map(r=>({label:r.date.getDate()+'/'+(r.date.getMonth()+1),rev:r.rev,profit:r.profit}));}
-    else{const size=Math.ceil(raw.length/maxBars);bars=[];for(let i=0;i<raw.length;i+=size){const c=raw.slice(i,i+size);bars.push({label:c[0].date.getDate()+'/'+(c[0].date.getMonth()+1),rev:c.reduce((a,x)=>a+x.rev,0),profit:c.reduce((a,x)=>a+x.profit,0)});}}
-    const step=Math.max(1,Math.ceil(bars.length/8));bars.forEach((b,i)=>{b.show=(i%step===0)||(i===bars.length-1);});return bars;
-  }
+  const DOWL=['CN','T2','T3','T4','T5','T6','T7'],DOWF=['Chủ nhật','Thứ 2','Thứ 3','Thứ 4','Thứ 5','Thứ 6','Thứ 7'];
+
+  // ══ AGGREGATE upfront (dùng chung cho Nhận định + các mục) ══
+  const prodArr=Object.keys(prodStat).map(k=>Object.assign({name:k},prodStat[k])).filter(p=>p.qty>0&&p.rev>0);
+  const prodRevTot=prodArr.reduce((s,p)=>s+p.rev,0);
+  const topRev=prodArr.slice().sort((a,b)=>b.rev-a.rev).slice(0,8);
+  // giờ đỉnh
+  let peakH=-1;if(tsCount>0){peakH=0;for(let i=1;i<24;i++)if(byHour[i]>byHour[peakH])peakH=i;}
+  // thứ đỉnh
+  const distinctDays=Object.keys(dayMap).length;
+  let peakDow=-1;if(distinctDays>=2){peakDow=0;for(let i=1;i<7;i++)if(byDow[i]>byDow[peakDow])peakDow=i;if(byDow[peakDow]<=0)peakDow=-1;}
+  // tồn kho + hàng bán chậm
+  let stockVal=0,low=0,out=0;const lowList=[];
+  if(Array.isArray(skProducts)){skProducts.forEach(p=>{const st=Number(p.stock)||0;const cst=Number(p.cost)||0;stockVal+=st*cst;const mn=Number(p.minStock)||0;if(st<=0){out++;lowList.push(p);}else if(mn>0&&st<=mn){low++;lowList.push(p);}});}
+  const deadArr=(Array.isArray(skProducts)?skProducts:[]).filter(p=>(Number(p.stock)||0)>0&&!soldIds[p.id]).map(p=>({name:p.name,stock:Number(p.stock)||0,val:(Number(p.stock)||0)*(Number(p.cost)||0),unit:p.baseUnit||''})).sort((a,b)=>b.val-a.val);
+  const deadVal=deadArr.reduce((s,x)=>s+x.val,0);
+  const daysOfStock=(cost>0&&periodDays>0&&stockVal>0)?(stockVal/(cost/periodDays)):null;
+  // công nợ
+  let oweMe=0,iOwe=0,nDebt=0;const debtors=[];
+  if(typeof customers!=='undefined'&&Array.isArray(customers)){customers.forEach(c=>{const dv=Number(c&&c.debt)||0;if(dv>0){oweMe+=dv;nDebt++;debtors.push(c);}else if(dv<0){iOwe+=-dv;}});debtors.sort((a,b)=>(Number(b.debt)||0)-(Number(a.debt)||0));}
 
   let h='';
   if(offline)h+='<div class="rpx-mut" style="color:#b45309;margin:0 0 8px">⚠️ Đang dùng dữ liệu tạm trong máy — kiểm tra mạng rồi mở lại.</div>';
 
   // ── Đầu kỳ ──
   let periodLabel;
-  if(cb){const nD=Math.round((new Date(cb.to.getFullYear(),cb.to.getMonth(),cb.to.getDate())-new Date(cb.from.getFullYear(),cb.from.getMonth(),cb.from.getDate()))/86400000)+1;periodLabel=skDMY(cb.from)+' – '+skDMY(cb.to)+' · '+nD+' ngày';}
+  if(cb)periodLabel=skDMY(cb.from)+' – '+skDMY(cb.to)+' · '+periodDays+' ngày';
   else periodLabel=(skPeriod==='today'?'Hôm nay':(skPeriod==='7'?'7 ngày gần đây':(skPeriod==='30'?'30 ngày gần đây':String(skPeriod))));
   const nowStr=(new Date()).toLocaleTimeString('vi-VN',{hour:'2-digit',minute:'2-digit'});
   h+='<div class="rpx-head"><span class="rpx-head-ic">📊</span><div class="rpx-head-tx"><b>'+escHtml(periodLabel)+'</b><span>'+ordersSold+' đơn bán · cập nhật '+nowStr+'</span></div></div>';
 
-  // ── CÔNG NỢ (Sổ Nợ) — snapshot hiện tại, không phụ thuộc kỳ ──
+  // ── snapshot cards (dựng sẵn, dùng ở cả nhánh rỗng) ──
   let debtHtml='';
-  if(typeof customers!=='undefined'&&Array.isArray(customers)&&customers.length){
-    let oweMe=0,iOwe=0,nDebt=0;const debtors=[];
-    customers.forEach(c=>{const dv=Number(c&&c.debt)||0;if(dv>0){oweMe+=dv;nDebt++;debtors.push(c);}else if(dv<0){iOwe+=-dv;}});
-    if(oweMe>0||iOwe>0){
-      debtors.sort((a,b)=>(Number(b.debt)||0)-(Number(a.debt)||0));
-      const dMx=Math.max(1,...debtors.slice(0,5).map(c=>Number(c.debt)||0));
-      debtHtml+='<div class="rpx-card"><div class="rpx-ct"><i class="acc-red"></i>Công nợ <small class="rpx-ct-sub">hiện tại</small></div>'
-        +'<div class="rpx-invstats"><div class="rpx-invstat owe"><span>Khách nợ mình</span><b>'+fmt(oweMe)+'</b></div><div class="rpx-invstat iowe"><span>Mình nợ khách</span><b>'+fmt(iOwe)+'</b></div><div class="rpx-invstat"><span>Khách đang nợ</span><b>'+nDebt+'</b></div></div>';
-      if(debtors.length){
-        debtHtml+='<div class="rpx-invhint">Nợ nhiều nhất:</div>';
-        debtors.slice(0,5).forEach(c=>{const dv=Number(c.debt)||0;const sh=Math.round(dv/dMx*100);debtHtml+='<div class="rpx-drow"><div class="rpx-dmain"><div class="rpx-dname">'+escHtml(c.name||'(không tên)')+'</div><div class="rpx-pbar red"><i style="width:'+sh+'%"></i></div></div><b class="rpx-dval">'+fmt(dv)+'</b></div>';});
-      }
-      debtHtml+='</div>';
-    }
+  if((typeof customers!=='undefined'&&Array.isArray(customers)&&customers.length)&&(oweMe>0||iOwe>0)){
+    const dMx=Math.max(1,...debtors.slice(0,5).map(c=>Number(c.debt)||0));
+    debtHtml+='<div class="rpx-card"><div class="rpx-ct"><i class="acc-red"></i>Công nợ <small class="rpx-ct-sub">hiện tại</small></div>'
+      +'<div class="rpx-invstats"><div class="rpx-invstat owe"><span>Khách nợ mình</span><b>'+fmt(oweMe)+'</b></div><div class="rpx-invstat iowe"><span>Mình nợ khách</span><b>'+fmt(iOwe)+'</b></div><div class="rpx-invstat"><span>Khách đang nợ</span><b>'+nDebt+'</b></div></div>';
+    if(debtors.length){debtHtml+='<div class="rpx-invhint">Nợ nhiều nhất:</div>';debtors.slice(0,5).forEach(c=>{const dv=Number(c.debt)||0;const sh=Math.round(dv/dMx*100);debtHtml+='<div class="rpx-drow"><div class="rpx-dmain"><div class="rpx-dname">'+escHtml(c.name||'(không tên)')+'</div><div class="rpx-pbar red"><i style="width:'+sh+'%"></i></div></div><b class="rpx-dval">'+fmt(dv)+'</b></div>';});}
+    debtHtml+='</div>';
   }
-
-  // ── TỒN KHO — snapshot hiện tại, không phụ thuộc kỳ ──
   let invHtml='';
   if(Array.isArray(skProducts)&&skProducts.length){
-    let stockVal=0,low=0,out=0;const lowList=[];
-    skProducts.forEach(p=>{const st=Number(p.stock)||0;const cst=Number(p.cost)||0;stockVal+=st*cst;const mn=Number(p.minStock)||0;if(st<=0){out++;lowList.push(p);}else if(mn>0&&st<=mn){low++;lowList.push(p);}});
     invHtml+='<div class="rpx-card"><div class="rpx-ct"><i class="acc-gold"></i>Tồn kho <small class="rpx-ct-sub">hiện tại</small></div>'
       +'<div class="rpx-invstats"><div class="rpx-invstat"><span>Giá trị tồn</span><b>'+fmt(stockVal)+'</b></div><div class="rpx-invstat'+(low>0?' warn':'')+'"><span>Sắp hết</span><b>'+low+'</b></div><div class="rpx-invstat'+(out>0?' danger':'')+'"><span>Hết hàng</span><b>'+out+'</b></div></div>';
-    if(lowList.length){
-      invHtml+='<div class="rpx-invhint">Cần nhập thêm:</div>';
-      lowList.slice(0,5).forEach(p=>{const st=Number(p.stock)||0;const mn=Number(p.minStock)||0;const dngr=st<=0;invHtml+='<div class="rpx-invrow"><span class="rpx-invname">'+escHtml(p.name)+'</span><span class="rpx-invtag '+(dngr?'danger':'warn')+'">'+(dngr?'Hết hàng':('Còn '+skN(st)+(mn?(' / min '+skN(mn)):'')+' '+escHtml(p.baseUnit||'')))+'</span></div>';});
-    }
+    if(lowList.length){invHtml+='<div class="rpx-invhint">Cần nhập thêm:</div>';lowList.slice(0,5).forEach(p=>{const st=Number(p.stock)||0;const mn=Number(p.minStock)||0;const dngr=st<=0;invHtml+='<div class="rpx-invrow"><span class="rpx-invname">'+escHtml(p.name)+'</span><span class="rpx-invtag '+(dngr?'danger':'warn')+'">'+(dngr?'Hết hàng':('Còn '+skN(st)+(mn?(' / min '+skN(mn)):'')+' '+escHtml(p.baseUnit||'')))+'</span></div>';});}
     invHtml+='</div>';
   }
 
   if(!list.length){
     h+='<div class="rpx-empty"><div class="rpx-empty-ic">🧾</div><b>Kỳ này chưa có đơn hàng nào</b><span>Bán hàng ở tab “Bán”, hoặc chọn khoảng thời gian khác để xem báo cáo.</span></div>'+debtHtml+invHtml;
-  }else{
-    // ── HERO: Lãi + biên + cấu thành doanh thu ──
-    const costPct=rev>0?Math.max(0,Math.min(100,cost/rev*100)):0;
-    const profPct=Math.max(0,100-costPct);
-    h+='<div class="rpx-hero">'
-      +'<div class="rpx-hero-top"><span class="rpx-hero-label">LÃI GỘP · '+escHtml(cb?'kỳ đã chọn':periodLabel)+'</span>'
-      +(margin==null?'':'<span class="rpx-hero-margin'+(profit<0?' loss':'')+'">Biên '+D1(margin)+'%</span>')+'</div>'
-      +'<div class="rpx-hero-val'+(profit<0?' loss':'')+'">'+fmt(profit)+'</div>'
-      +'<div class="rpx-hero-bar"><i class="c-cost" style="width:'+costPct.toFixed(1)+'%"></i><i class="c-pro" style="width:'+profPct.toFixed(1)+'%"></i></div>'
-      +'<div class="rpx-hero-legend"><span><em class="d-rev"></em>Doanh thu <b>'+fmt(rev)+'</b></span><span><em class="d-cost"></em>Vốn <b>'+fmt(cost)+'</b></span></div>'
-      +'</div>';
-
-    // ── KPI ──
-    h+='<div class="rpx-kpis">'
-      +'<div class="rpx-kpi"><span class="k-l">Đơn bán</span><b class="k-b">'+NB(ordersSold)+'</b><span class="k-s">'+NB(Math.round(unitsTot))+' món</span></div>'
-      +'<div class="rpx-kpi"><span class="k-l">Đơn trung bình</span><b class="k-b">'+fmt(Math.round(aov))+'</b><span class="k-s">'+D1(ipo)+' món/đơn</span></div>'
-      +'<div class="rpx-kpi"><span class="k-l">Giảm giá</span><b class="k-b">'+fmt(discountTot)+'</b><span class="k-s">'+pctOf(discountTot,subTot)+'% tạm tính</span></div>'
-      +'<div class="rpx-kpi"><span class="k-l">Hàng trả</span><b class="k-b">'+fmt(refundTot)+'</b><span class="k-s">'+pctOf(refundTot,subTot-discountTot)+'% doanh thu</span></div>'
-      +'</div>';
-
-    // ── DÒNG TIỀN ──
-    h+='<div class="rpx-card"><div class="rpx-ct"><i class="acc-green"></i>Dòng tiền</div><div class="rpx-flow">'
-      +'<div class="rpx-flow-row"><span>Tạm tính (giá bán)</span><b>'+fmt(subTot)+'</b></div>'
-      +'<div class="rpx-flow-row neg"><span>− Giảm giá</span><b>'+fmt(-discountTot)+'</b></div>'
-      +'<div class="rpx-flow-row neg"><span>− Hàng trả</span><b>'+fmt(-refundTot)+'</b></div>'
-      +'<div class="rpx-flow-row sum"><span>Doanh thu thuần</span><b>'+fmt(rev)+'</b></div>'
-      +'<div class="rpx-flow-row neg"><span>− Vốn hàng bán</span><b>'+fmt(-cost)+'</b></div>'
-      +'<div class="rpx-flow-row final"><span>Lãi gộp</span><b>'+fmt(profit)+'</b></div>'
-      +'</div></div>';
-
-    // ── THANH TOÁN ──
-    const cP=pctOf(cash,payTot),qP=pctOf(qr,payTot),dP=Math.max(0,100-cP-qP);
-    h+='<div class="rpx-card"><div class="rpx-ct"><i class="acc-blue"></i>Phương thức thanh toán</div>'
-      +'<div class="rpx-paybar">'+(payTot>0?('<i class="s-cash" style="width:'+cP+'%"></i><i class="s-qr" style="width:'+qP+'%"></i><i class="s-debt" style="width:'+dP+'%"></i>'):'')+'</div>'
-      +'<div class="rpx-payrow"><span class="p-n"><em class="d-cash"></em>Tiền mặt</span><span class="p-v">'+fmt(cash)+' <small>'+pctOf(cash,payTot)+'%</small></span></div>'
-      +'<div class="rpx-payrow"><span class="p-n"><em class="d-qr"></em>Chuyển khoản</span><span class="p-v">'+fmt(qr)+' <small>'+pctOf(qr,payTot)+'%</small></span></div>'
-      +'<div class="rpx-payrow"><span class="p-n"><em class="d-debt"></em>Bán nợ</span><span class="p-v">'+fmt(debt)+' <small>'+pctOf(debt,payTot)+'%</small></span></div>'
-      +(debt>0?'<div class="rpx-paynote">💡 Khoản bán nợ đã ghi vào Sổ Nợ của khách.</div>':'')
-      +'</div>';
-
-    // ── CÔNG NỢ ──
-    h+=debtHtml;
-
-    // ── BIỂU ĐỒ DOANH THU + LÃI ──
-    let bars,trendTitle;
-    if(cb){bars=dayBuckets(list,cb.from,cb.to);trendTitle='Doanh thu & lãi theo ngày';}
-    else{
-      const nDays=skPeriod==='today'?7:(parseInt(skPeriod,10)||7);
-      const now=new Date(),to=new Date(now),from=new Date(now);from.setHours(0,0,0,0);from.setDate(from.getDate()-(nDays-1));
-      const winList=skRpOrders.filter(o=>{const d=skOrderDate(o);return d>=from&&d<=to;});
-      bars=dayBuckets(winList,from,to);
-      trendTitle='Doanh thu & lãi '+nDays+' ngày';
-    }
-    const mx=Math.max(1,...bars.map(d=>d.rev));
-    const daysWithSales=bars.filter(d=>d.rev>0).length;
-    const avg=daysWithSales>0?bars.reduce((s,d)=>s+d.rev,0)/bars.length:0;
-    const peak=bars.reduce((a,b)=>b.rev>a.rev?b:a,{rev:-1,label:''});
-    const showVal=bars.length<=10;
-    h+='<div class="rpx-card"><div class="rpx-ct"><i class="acc-green"></i>'+trendTitle+'</div>';
-    if(bars.some(d=>d.rev>0)){
-      h+='<div class="rpx-chart">';
-      bars.forEach(d=>{const hgt=Math.round(d.rev/mx*100);const isPeak=d.rev===peak.rev&&d.rev>0;const isLoss=d.profit<0&&d.rev>0;const pp=(d.rev>0&&d.profit>0)?Math.max(0,Math.min(100,d.profit/d.rev*100)):0;const cpp=Math.max(0,100-pp);h+='<div class="rpx-bar">'+(showVal&&d.rev>0?'<span class="rpx-bval">'+kk(d.rev)+'</span>':'')+'<div class="rpx-fill'+(isPeak?' peak':'')+(isLoss?' loss':'')+'" style="height:'+Math.max(d.rev>0?4:0,hgt)+'%">'+(isLoss?'':('<i class="seg-pro" style="height:'+pp.toFixed(1)+'%"></i><i class="seg-cost" style="height:'+cpp.toFixed(1)+'%"></i>'))+'</div><span class="rpx-lb">'+((d.show!==false)?escHtml(d.label):'')+'</span></div>';});
-      h+='</div>';
-      h+='<div class="rpx-chart-legend"><span><em class="d-pro"></em>Lãi</span><span><em class="d-cst"></em>Vốn</span></div>';
-      h+='<div class="rpx-chips"><span>📈 Cao nhất <b>'+fmt(peak.rev)+'</b>'+(peak.label?' ('+escHtml(peak.label)+')':'')+'</span><span>➗ TB/ngày <b>'+fmt(Math.round(avg))+'</b></span><span>💰 Tổng lãi <b>'+fmt(profit)+'</b></span></div>';
-    }else h+='<div class="rpx-mut">Chưa có doanh thu trong khoảng này.</div>';
-    h+='</div>';
-
-    // ── BẢNG CHI TIẾT THEO NGÀY ──
-    const dayArr=Object.keys(dayMap).map(k=>dayMap[k]).filter(x=>x.n>0||x.rev>0).sort((a,b)=>b.d-a.d);
-    if(dayArr.length){
-      h+='<div class="rpx-card"><div class="rpx-ct"><i class="acc-green"></i>Chi tiết theo ngày</div>'
-        +'<div class="rpx-daytbl"><div class="rpx-dt-h"><span>Ngày</span><span>Đơn</span><span>Doanh thu</span><span>Lãi</span></div>';
-      dayArr.slice(0,31).forEach(x=>{const dd=x.d;const lb=String(dd.getDate()).padStart(2,'0')+'/'+String(dd.getMonth()+1).padStart(2,'0');h+='<div class="rpx-dt-r"><span>'+lb+'</span><span>'+x.n+'</span><span>'+fmt(x.rev)+'</span><b'+(x.profit<0?' class="loss"':'')+'>'+fmt(x.profit)+'</b></div>';});
-      if(dayArr.length>31)h+='<div class="rpx-mut" style="padding:8px 0 0">…và '+(dayArr.length-31)+' ngày trước nữa</div>';
-      h+='</div></div>';
-    }
-
-    // ── GIỜ BÁN CHẠY ──
-    if(tsCount>0){
-      const hmx=Math.max(1,...byHour);
-      let peakH=0;for(let i=1;i<24;i++)if(byHour[i]>byHour[peakH])peakH=i;
-      h+='<div class="rpx-card"><div class="rpx-ct"><i class="acc-gold"></i>Giờ bán chạy</div><div class="rpx-hstrip">';
-      for(let i=0;i<24;i++){const hh=Math.round(byHour[i]/hmx*100);const isP=byHour[i]===byHour[peakH]&&byHour[i]>0;h+='<div class="rpx-hbar"><div class="rpx-hfill'+(isP?' peak':'')+'" style="height:'+Math.max(byHour[i]>0?6:0,hh)+'%"></div><span class="rpx-hlb">'+((i%6===0||i===23)?i:'&nbsp;')+'</span></div>';}
-      h+='</div>';
-      if(byHour[peakH]>0)h+='<div class="rpx-hnote">🔥 Đông khách nhất lúc <b>'+peakH+':00–'+((peakH+1)%24)+':00</b> · '+fmt(byHour[peakH])+' ('+byHourCnt[peakH]+' đơn)</div>';
-      h+='</div>';
-    }
-
-    // ── SẢN PHẨM BÁN CHẠY (theo doanh thu) ──
-    const prodArr=Object.keys(prodStat).map(k=>Object.assign({name:k},prodStat[k])).filter(p=>p.qty>0&&p.rev>0);
-    const topRev=prodArr.slice().sort((a,b)=>b.rev-a.rev).slice(0,8);
-    const revMx=Math.max(1,...topRev.map(p=>p.rev));
-    h+='<div class="rpx-card"><div class="rpx-ct"><i class="acc-green"></i>Sản phẩm bán chạy <small class="rpx-ct-sub">theo doanh thu</small></div>';
-    if(topRev.length){
-      topRev.forEach((p,i)=>{const pr=p.rev-p.cost;const m=p.rev>0?Math.round(pr/p.rev*100):0;const share=Math.round(p.rev/revMx*100);
-        h+='<div class="rpx-prow"><div class="rpx-prank'+(i<3?(' r'+(i+1)):'')+'">'+(i+1)+'</div>'
-          +'<div class="rpx-pmain"><div class="rpx-pname">'+escHtml(p.name)+'</div><div class="rpx-psub">'+D1(p.qty)+' đã bán · biên '+m+'%</div><div class="rpx-pbar"><i style="width:'+share+'%"></i></div></div>'
-          +'<div class="rpx-pval"><b>'+fmt(p.rev)+'</b><span class="rpx-pprofit'+(pr<0?' loss':'')+'">lãi '+fmt(pr)+'</span></div></div>';
-      });
-    }else h+='<div class="rpx-mut">Chưa có dữ liệu.</div>';
-    h+='</div>';
-
-    // ── SẢN PHẨM LÃI CAO / THẤP (theo biên) ──
-    if(prodArr.length>=2){
-      const byMargin=prodArr.map(p=>({name:p.name,m:(p.rev>0?(p.rev-p.cost)/p.rev*100:0),pr:p.rev-p.cost,rev:p.rev})).sort((a,b)=>b.m-a.m);
-      const hi=byMargin.slice(0,3),lo=byMargin.slice(-3).reverse();
-      const mrow=x=>'<div class="rpx-mrow"><span class="rpx-mname">'+escHtml(x.name)+'</span><span class="rpx-mpct'+(x.m<0?' loss':'')+'">'+D1(x.m)+'%</span><span class="rpx-mrev">lãi '+fmt(x.pr)+'</span></div>';
-      h+='<div class="rpx-card"><div class="rpx-ct"><i class="acc-blue"></i>Biên lợi nhuận theo sản phẩm</div>'
-        +'<div class="rpx-mhdr up">▲ Lãi cao nhất</div>'+hi.map(mrow).join('')
-        +'<div class="rpx-mhdr dn">▼ Lãi thấp nhất</div>'+lo.map(mrow).join('')
-        +'</div>';
-    }
-
-    // ── HÀNG BÁN CHẬM / CHƯA BÁN (tồn > 0, không bán trong kỳ) ──
-    if(Array.isArray(skProducts)&&skProducts.length){
-      const dead=skProducts.filter(p=>(Number(p.stock)||0)>0&&!soldIds[p.id]).map(p=>({name:p.name,stock:Number(p.stock)||0,val:(Number(p.stock)||0)*(Number(p.cost)||0),unit:p.baseUnit||''})).sort((a,b)=>b.val-a.val);
-      if(dead.length){
-        const deadVal=dead.reduce((s,x)=>s+x.val,0);
-        h+='<div class="rpx-card"><div class="rpx-ct"><i class="acc-gold"></i>Hàng bán chậm <small class="rpx-ct-sub">chưa bán trong kỳ</small></div>'
-          +'<div class="rpx-deadsum">💤 '+dead.length+' mặt hàng còn tồn nhưng chưa bán · vốn đọng <b>'+fmt(deadVal)+'</b></div>';
-        dead.slice(0,6).forEach(x=>{h+='<div class="rpx-invrow"><span class="rpx-invname">'+escHtml(x.name)+'</span><span class="rpx-invtag mut">Tồn '+skN(x.stock)+' '+escHtml(x.unit)+' · '+fmt(x.val)+'</span></div>';});
-        h+='</div>';
-      }
-    }
-
-    // ── NHÓM HÀNG ──
-    const catArr=Object.keys(catStat).map(k=>Object.assign({name:k},catStat[k])).filter(c=>c.rev>0).sort((a,b)=>b.rev-a.rev);
-    if(catArr.length>1){
-      const catTot=catArr.reduce((s,c)=>s+c.rev,0);const cMx=Math.max(1,...catArr.map(c=>c.rev));
-      h+='<div class="rpx-card"><div class="rpx-ct"><i class="acc-blue"></i>Doanh thu theo nhóm</div>';
-      catArr.slice(0,6).forEach(c=>{const share=Math.round(c.rev/cMx*100);h+='<div class="rpx-catrow"><div class="rpx-catmain"><div class="rpx-catname">'+escHtml(c.name)+' <small>'+pctOf(c.rev,catTot)+'%</small></div><div class="rpx-pbar cat"><i style="width:'+share+'%"></i></div></div><b class="rpx-catval">'+fmt(c.rev)+'</b></div>';});
-      h+='</div>';
-    }
-
-    // ── TOP KHÁCH MUA (trong kỳ) ──
-    const custArr=Object.keys(custMap).map(k=>({name:k,rev:custMap[k].rev,n:custMap[k].n})).filter(c=>c.rev>0).sort((a,b)=>b.rev-a.rev);
-    if(custArr.length){
-      const cMx=Math.max(1,...custArr.slice(0,5).map(c=>c.rev));
-      h+='<div class="rpx-card"><div class="rpx-ct"><i class="acc-green"></i>Khách mua nhiều nhất <small class="rpx-ct-sub">trong kỳ</small></div>';
-      custArr.slice(0,5).forEach((c,i)=>{const sh=Math.round(c.rev/cMx*100);h+='<div class="rpx-prow"><div class="rpx-prank'+(i<3?(' r'+(i+1)):'')+'">'+(i+1)+'</div><div class="rpx-pmain"><div class="rpx-pname">'+escHtml(c.name)+'</div><div class="rpx-psub">'+c.n+' đơn</div><div class="rpx-pbar"><i style="width:'+sh+'%"></i></div></div><div class="rpx-pval"><b>'+fmt(c.rev)+'</b></div></div>';});
-      h+='</div>';
-    }
-
-    // ── ĐƠN HÀNG GẦN NHẤT ──
-    const recent=list.slice().sort((a,b)=>skOrderDate(b)-skOrderDate(a)).slice(0,5);
-    if(recent.length){
-      h+='<div class="rpx-card"><div class="rpx-ct"><i class="acc-gold"></i>Đơn gần nhất</div>';
-      recent.forEach(o=>{const d=skOrderDate(o);const tm=String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');const who=(o.customerName&&String(o.customerName).trim())||'Khách lẻ';h+='<div class="rpx-orow"><div class="rpx-omain"><div class="rpx-oname">'+escHtml(who)+' '+mBadge(o.method)+'</div><div class="rpx-otime">'+tm+'</div></div><b class="rpx-oval">'+fmt(Number(o.total)||0)+'</b></div>';});
-      h+='</div>';
-    }
-
-    // ── TỒN KHO ──
-    h+=invHtml;
-
-    h+='<div class="rpx-foot">Số liệu theo <b>giá vốn đã khóa lúc bán</b>. Hàng trả trừ vào đúng kỳ đã bán · Công nợ & tồn kho là số hiện tại.</div>';
+    box.innerHTML=h;return;
   }
+
+  // ── HERO ──
+  const costPct=rev>0?Math.max(0,Math.min(100,cost/rev*100)):0;const profPct=Math.max(0,100-costPct);
+  h+='<div class="rpx-hero">'
+    +'<div class="rpx-hero-top"><span class="rpx-hero-label">LÃI GỘP · '+escHtml(cb?'kỳ đã chọn':periodLabel)+'</span>'
+    +(margin==null?'':'<span class="rpx-hero-margin'+(profit<0?' loss':'')+'">Biên '+D1(margin)+'%</span>')+'</div>'
+    +'<div class="rpx-hero-val'+(profit<0?' loss':'')+'">'+fmt(profit)+'</div>'
+    +'<div class="rpx-hero-bar"><i class="c-cost" style="width:'+costPct.toFixed(1)+'%"></i><i class="c-pro" style="width:'+profPct.toFixed(1)+'%"></i></div>'
+    +'<div class="rpx-hero-legend"><span><em class="d-rev"></em>Doanh thu <b>'+fmt(rev)+'</b></span><span><em class="d-cost"></em>Vốn <b>'+fmt(cost)+'</b></span></div>'
+    +'</div>';
+
+  // ── NHẬN ĐỊNH TỰ ĐỘNG ──
+  const ins=[];
+  if(margin!=null){if(margin>=40)ins.push(['✅','Biên lợi nhuận tốt: <b>'+D1(margin)+'%</b>']);else if(margin<15)ins.push(['⚠️','Biên lợi nhuận thấp: <b>'+D1(margin)+'%</b> — nên xem lại giá bán hoặc giá nhập']);else ins.push(['📊','Biên lợi nhuận: <b>'+D1(margin)+'%</b>']);}
+  if(topRev.length&&prodRevTot>0){const sh=Math.round(topRev[0].rev/prodRevTot*100);if(sh>=30)ins.push(['🎯','<b>'+escHtml(topRev[0].name)+'</b> chiếm '+sh+'% doanh thu — khá phụ thuộc một mặt hàng']);}
+  if(deadVal>0)ins.push(['💤','<b>'+deadArr.length+'</b> mặt hàng chưa bán trong kỳ · vốn đọng <b>'+fmt(deadVal)+'</b>']);
+  if(oweMe>0)ins.push(['📌','Đang có <b>'+fmt(oweMe)+'</b> phải thu từ '+nDebt+' khách'+(debtors.length?(' (nhiều nhất: '+escHtml(debtors[0].name||'')+')'):'')]);
+  if(peakDow>=0)ins.push(['📅','Bán tốt nhất vào <b>'+DOWF[peakDow]+'</b>']);
+  else if(peakH>=0&&byHour[peakH]>0)ins.push(['🔥','Đông khách nhất lúc <b>'+peakH+':00–'+((peakH+1)%24)+':00</b>']);
+  if(payTot>0){const mx=Math.max(cash,qr,debt);const sh=Math.round(mx/payTot*100);if(sh>=70){const nm=mx===cash?'tiền mặt':(mx===qr?'chuyển khoản':'bán nợ');ins.push(['💳',sh+'% doanh thu qua <b>'+nm+'</b>']);}}
+  if(subTot>0&&discountTot>0){const sh=Math.round(discountTot/subTot*100);if(sh>=5)ins.push(['🏷️','Đã giảm giá <b>'+fmt(discountTot)+'</b> ('+sh+'% tạm tính)']);}
+  if((subTot-discountTot)>0&&refundTot>0){const sh=Math.round(refundTot/(subTot-discountTot)*100);if(sh>=5)ins.push(['↩️','Tỷ lệ hàng trả <b>'+sh+'%</b> doanh thu']);}
+  if(ins.length){
+    h+='<div class="rpx-card rpx-insc"><div class="rpx-ct"><i class="acc-green"></i>Nhận định nhanh</div>';
+    ins.slice(0,6).forEach(x=>{h+='<div class="rpx-ins"><span class="rpx-ins-ic">'+x[0]+'</span><span class="rpx-ins-tx">'+x[1]+'</span></div>';});
+    h+='</div>';
+  }
+
+  // ── KPI ──
+  h+='<div class="rpx-kpis">'
+    +'<div class="rpx-kpi"><span class="k-l">Đơn bán</span><b class="k-b">'+NB(ordersSold)+'</b><span class="k-s">'+NB(Math.round(unitsTot))+' món</span></div>'
+    +'<div class="rpx-kpi"><span class="k-l">Đơn trung bình</span><b class="k-b">'+fmt(Math.round(aov))+'</b><span class="k-s">'+D1(ipo)+' món/đơn</span></div>'
+    +'<div class="rpx-kpi"><span class="k-l">Giảm giá</span><b class="k-b">'+fmt(discountTot)+'</b><span class="k-s">'+pctOf(discountTot,subTot)+'% tạm tính</span></div>'
+    +'<div class="rpx-kpi"><span class="k-l">Hàng trả</span><b class="k-b">'+fmt(refundTot)+'</b><span class="k-s">'+pctOf(refundTot,subTot-discountTot)+'% doanh thu</span></div>'
+    +'</div>';
+
+  // ── CHỈ SỐ CHUYÊN SÂU ──
+  h+='<div class="rpx-card"><div class="rpx-ct"><i class="acc-blue"></i>Chỉ số chuyên sâu</div><div class="rpx-ratios">'
+    +'<div class="rpx-ratio"><span>ROI trên vốn</span><b'+(roi!=null&&roi<0?' class="loss"':'')+'>'+(roi==null?'—':D1(roi)+'%')+'</b></div>'
+    +'<div class="rpx-ratio"><span>Lãi TB/đơn</span><b'+(profit<0?' class="loss"':'')+'>'+(ordersSold>0?fmt(Math.round(profit/ordersSold)):'—')+'</b></div>'
+    +'<div class="rpx-ratio"><span>Vốn TB/đơn</span><b>'+(ordersSold>0?fmt(Math.round(cost/ordersSold)):'—')+'</b></div>'
+    +'<div class="rpx-ratio"><span>Số ngày còn tồn kho</span><b>'+(daysOfStock==null?'—':(D1(daysOfStock)+' ngày'))+'</b></div>'
+    +'</div><div class="rpx-ratio-note">ROI = lãi ÷ vốn · Số ngày tồn = giá trị tồn ÷ vốn bán mỗi ngày (ước tính theo nhịp kỳ này)</div></div>';
+
+  // ── DÒNG TIỀN ──
+  h+='<div class="rpx-card"><div class="rpx-ct"><i class="acc-green"></i>Dòng tiền</div><div class="rpx-flow">'
+    +'<div class="rpx-flow-row"><span>Tạm tính (giá bán)</span><b>'+fmt(subTot)+'</b></div>'
+    +'<div class="rpx-flow-row neg"><span>− Giảm giá</span><b>'+fmt(-discountTot)+'</b></div>'
+    +'<div class="rpx-flow-row neg"><span>− Hàng trả</span><b>'+fmt(-refundTot)+'</b></div>'
+    +'<div class="rpx-flow-row sum"><span>Doanh thu thuần</span><b>'+fmt(rev)+'</b></div>'
+    +'<div class="rpx-flow-row neg"><span>− Vốn hàng bán</span><b>'+fmt(-cost)+'</b></div>'
+    +'<div class="rpx-flow-row final"><span>Lãi gộp</span><b>'+fmt(profit)+'</b></div>'
+    +'</div></div>';
+
+  // ── THANH TOÁN (donut chính xác bằng conic-gradient) ──
+  const cP=pctOf(cash,payTot),qP=pctOf(qr,payTot),dP=Math.max(0,100-cP-qP);
+  const aDeg=payTot>0?cash/payTot*360:0,bDeg=payTot>0?qr/payTot*360:0;
+  const domV=Math.max(cash,qr,debt),domL=payTot<=0?'':(domV===cash?'tiền mặt':(domV===qr?'chuyển khoản':'bán nợ')),domP=payTot>0?Math.round(domV/payTot*100):0;
+  h+='<div class="rpx-card"><div class="rpx-ct"><i class="acc-blue"></i>Phương thức thanh toán</div>';
+  if(payTot>0){
+    const grad='conic-gradient(#12916d 0 '+aDeg.toFixed(2)+'deg,#1f6feb '+aDeg.toFixed(2)+'deg '+(aDeg+bDeg).toFixed(2)+'deg,#d69426 '+(aDeg+bDeg).toFixed(2)+'deg 360deg)';
+    h+='<div class="rpx-donut-wrap"><div class="rpx-donut" style="background:'+grad+'"><div class="rpx-donut-hole"><b>'+domP+'%</b><span>'+domL+'</span></div></div>'
+      +'<div class="rpx-donut-side">'
+      +'<div class="rpx-payrow"><span class="p-n"><em class="d-cash"></em>Tiền mặt</span><span class="p-v">'+fmt(cash)+' <small>'+cP+'%</small></span></div>'
+      +'<div class="rpx-payrow"><span class="p-n"><em class="d-qr"></em>Chuyển khoản</span><span class="p-v">'+fmt(qr)+' <small>'+qP+'%</small></span></div>'
+      +'<div class="rpx-payrow"><span class="p-n"><em class="d-debt"></em>Bán nợ</span><span class="p-v">'+fmt(debt)+' <small>'+dP+'%</small></span></div>'
+      +'</div></div>';
+  }else h+='<div class="rpx-mut">Chưa có giao dịch.</div>';
+  h+=(debt>0?'<div class="rpx-paynote">💡 Khoản bán nợ đã ghi vào Sổ Nợ của khách.</div>':'')+'</div>';
+
+  // ── CÔNG NỢ ──
+  h+=debtHtml;
+
+  // ── BIỂU ĐỒ DOANH THU + LÃI ──
+  function dayBuckets(orders,from,to){
+    const dayMs=86400000,maxBars=31;const start=new Date(from);start.setHours(0,0,0,0);const end=new Date(to);end.setHours(0,0,0,0);
+    const nD=Math.round((end-start)/dayMs)+1;const raw=[];const idx={};
+    for(let i=0;i<nD;i++){const dd=new Date(start);dd.setDate(dd.getDate()+i);const r={date:new Date(dd),key:dd.toDateString(),rev:0,profit:0};raw.push(r);idx[r.key]=r;}
+    orders.forEach(o=>{const r=idx[skOrderDate(o).toDateString()];if(!r)return;const ret=retByOrder[o.id]||{refund:0,cogs:0};const g=Number(o.total)||0;const rf=Math.min(Math.max(0,Number(ret.refund)||0),g);const net=g-rf;let oc=0;(o.items||[]).forEach(i=>{oc+=skCogsLine(i);});const ca=Math.min(Math.max(0,Number(ret.cogs)||0),oc);r.rev+=net;r.profit+=(net-(oc-ca));});
+    let bars;if(raw.length<=maxBars){bars=raw.map(r=>({label:r.date.getDate()+'/'+(r.date.getMonth()+1),rev:r.rev,profit:r.profit}));}
+    else{const size=Math.ceil(raw.length/maxBars);bars=[];for(let i=0;i<raw.length;i+=size){const c=raw.slice(i,i+size);bars.push({label:c[0].date.getDate()+'/'+(c[0].date.getMonth()+1),rev:c.reduce((a,x)=>a+x.rev,0),profit:c.reduce((a,x)=>a+x.profit,0)});}}
+    const step=Math.max(1,Math.ceil(bars.length/8));bars.forEach((b,i)=>{b.show=(i%step===0)||(i===bars.length-1);});return bars;
+  }
+  let bars,trendTitle;
+  if(cb){bars=dayBuckets(list,cb.from,cb.to);trendTitle='Doanh thu & lãi theo ngày';}
+  else{const nDays=skPeriod==='today'?7:(parseInt(skPeriod,10)||7);const now=new Date(),to=new Date(now),from=new Date(now);to.setHours(23,59,59,999);from.setHours(0,0,0,0);from.setDate(from.getDate()-(nDays-1));const winList=skRpOrders.filter(o=>{const dd=skOrderDate(o);return dd>=from&&dd<=to;});bars=dayBuckets(winList,from,to);trendTitle='Doanh thu & lãi '+nDays+' ngày';}
+  const mx=Math.max(1,...bars.map(d=>d.rev));
+  const daysWithSales=bars.filter(d=>d.rev>0).length;
+  const avg=daysWithSales>0?bars.reduce((s,d)=>s+d.rev,0)/bars.length:0;
+  const peak=bars.reduce((a,b)=>b.rev>a.rev?b:a,{rev:-1,label:''});
+  const showVal=bars.length<=10;
+  h+='<div class="rpx-card"><div class="rpx-ct"><i class="acc-green"></i>'+trendTitle+'</div>';
+  if(bars.some(d=>d.rev>0)){
+    h+='<div class="rpx-chart">';
+    bars.forEach(d=>{const hgt=Math.round(d.rev/mx*100);const isPeak=d.rev===peak.rev&&d.rev>0;const isLoss=d.profit<0&&d.rev>0;const pp=(d.rev>0&&d.profit>0)?Math.max(0,Math.min(100,d.profit/d.rev*100)):0;const cpp=Math.max(0,100-pp);h+='<div class="rpx-bar">'+(showVal&&d.rev>0?'<span class="rpx-bval">'+kk(d.rev)+'</span>':'')+'<div class="rpx-fill'+(isPeak?' peak':'')+(isLoss?' loss':'')+'" style="height:'+Math.max(d.rev>0?4:0,hgt)+'%">'+(isLoss?'':('<i class="seg-pro" style="height:'+pp.toFixed(1)+'%"></i><i class="seg-cost" style="height:'+cpp.toFixed(1)+'%"></i>'))+'</div><span class="rpx-lb">'+((d.show!==false)?escHtml(d.label):'')+'</span></div>';});
+    h+='</div><div class="rpx-chart-legend"><span><em class="d-pro"></em>Lãi</span><span><em class="d-cst"></em>Vốn</span></div>';
+    h+='<div class="rpx-chips"><span>📈 Cao nhất <b>'+fmt(peak.rev)+'</b>'+(peak.label?' ('+escHtml(peak.label)+')':'')+'</span><span>➗ TB/ngày <b>'+fmt(Math.round(avg))+'</b></span><span>💰 Tổng lãi <b>'+fmt(profit)+'</b></span></div>';
+  }else h+='<div class="rpx-mut">Chưa có doanh thu trong khoảng này.</div>';
+  h+='</div>';
+
+  // ── BẢNG CHI TIẾT THEO NGÀY ──
+  const dayArr=Object.keys(dayMap).map(k=>dayMap[k]).filter(x=>x.n>0||x.rev>0).sort((a,b)=>b.d-a.d);
+  if(dayArr.length){
+    h+='<div class="rpx-card"><div class="rpx-ct"><i class="acc-green"></i>Chi tiết theo ngày</div><div class="rpx-daytbl"><div class="rpx-dt-h"><span>Ngày</span><span>Đơn</span><span>Doanh thu</span><span>Lãi</span></div>';
+    dayArr.slice(0,31).forEach(x=>{const dd=x.d;const lb=String(dd.getDate()).padStart(2,'0')+'/'+String(dd.getMonth()+1).padStart(2,'0');h+='<div class="rpx-dt-r"><span>'+lb+'</span><span>'+x.n+'</span><span>'+fmt(x.rev)+'</span><b'+(x.profit<0?' class="loss"':'')+'>'+fmt(x.profit)+'</b></div>';});
+    if(dayArr.length>31)h+='<div class="rpx-mut" style="padding:8px 0 0">…và '+(dayArr.length-31)+' ngày trước nữa</div>';
+    h+='</div></div>';
+  }
+
+  // ── NHỊP BÁN THEO THỨ ──
+  if(peakDow>=0){
+    const dmx=Math.max(1,...byDow);const ord=[1,2,3,4,5,6,0];
+    h+='<div class="rpx-card"><div class="rpx-ct"><i class="acc-gold"></i>Nhịp bán theo thứ</div><div class="rpx-dow">';
+    ord.forEach(di=>{const v=byDow[di];const hh=Math.round(v/dmx*100);const isP=di===peakDow&&v>0;h+='<div class="rpx-dowbar"><div class="rpx-dowfill'+(isP?' peak':'')+'" style="height:'+Math.max(v>0?6:0,hh)+'%"></div><span class="rpx-dowlb'+(isP?' peak':'')+'">'+DOWL[di]+'</span></div>';});
+    h+='</div><div class="rpx-hnote">📅 Bán tốt nhất vào <b>'+DOWF[peakDow]+'</b> · '+fmt(byDow[peakDow])+'</div></div>';
+  }
+
+  // ── GIỜ BÁN CHẠY ──
+  if(tsCount>0&&peakH>=0){
+    const hmx=Math.max(1,...byHour);
+    h+='<div class="rpx-card"><div class="rpx-ct"><i class="acc-gold"></i>Giờ bán chạy</div><div class="rpx-hstrip">';
+    for(let i=0;i<24;i++){const hh=Math.round(byHour[i]/hmx*100);const isP=byHour[i]===byHour[peakH]&&byHour[i]>0;h+='<div class="rpx-hbar"><div class="rpx-hfill'+(isP?' peak':'')+'" style="height:'+Math.max(byHour[i]>0?6:0,hh)+'%"></div><span class="rpx-hlb">'+((i%6===0||i===23)?i:'&nbsp;')+'</span></div>';}
+    h+='</div>';
+    if(byHour[peakH]>0)h+='<div class="rpx-hnote">🔥 Đông khách nhất lúc <b>'+peakH+':00–'+((peakH+1)%24)+':00</b> · '+fmt(byHour[peakH])+' ('+byHourCnt[peakH]+' đơn)</div>';
+    h+='</div>';
+  }
+
+  // ── SẢN PHẨM BÁN CHẠY ──
+  const revMx=Math.max(1,...topRev.map(p=>p.rev));
+  h+='<div class="rpx-card"><div class="rpx-ct"><i class="acc-green"></i>Sản phẩm bán chạy <small class="rpx-ct-sub">theo doanh thu</small></div>';
+  if(topRev.length){topRev.forEach((p,i)=>{const pr=p.rev-p.cost;const m=p.rev>0?Math.round(pr/p.rev*100):0;const share=Math.round(p.rev/revMx*100);h+='<div class="rpx-prow"><div class="rpx-prank'+(i<3?(' r'+(i+1)):'')+'">'+(i+1)+'</div><div class="rpx-pmain"><div class="rpx-pname">'+escHtml(p.name)+'</div><div class="rpx-psub">'+D1(p.qty)+' đã bán · biên '+m+'%</div><div class="rpx-pbar"><i style="width:'+share+'%"></i></div></div><div class="rpx-pval"><b>'+fmt(p.rev)+'</b><span class="rpx-pprofit'+(pr<0?' loss':'')+'">lãi '+fmt(pr)+'</span></div></div>';});}
+  else h+='<div class="rpx-mut">Chưa có dữ liệu.</div>';
+  h+='</div>';
+
+  // ── PHÂN TÍCH ABC (80/20) ──
+  if(prodArr.length>=3&&prodRevTot>0){
+    const sorted=prodArr.slice().sort((a,b)=>b.rev-a.rev);let prev=0;const A=[],B=[],C=[];
+    sorted.forEach(p=>{if(prev<80)A.push(p);else if(prev<95)B.push(p);else C.push(p);prev+=p.rev/prodRevTot*100;});
+    const rev=g=>g.reduce((s,p)=>s+p.rev,0);const aR=rev(A),bR=rev(B),cR=rev(C);const tot=prodArr.length;
+    const seg=(v)=>prodRevTot>0?(v/prodRevTot*100):0;
+    h+='<div class="rpx-card"><div class="rpx-ct"><i class="acc-blue"></i>Phân tích ABC <small class="rpx-ct-sub">80/20</small></div>'
+      +'<div class="rpx-abcbar"><i class="a" style="width:'+seg(aR).toFixed(1)+'%"></i><i class="b" style="width:'+seg(bR).toFixed(1)+'%"></i><i class="c" style="width:'+seg(cR).toFixed(1)+'%"></i></div>'
+      +'<div class="rpx-abcrow"><span class="rpx-abct a">A</span><span class="rpx-abcn">'+A.length+' SP ('+Math.round(A.length/tot*100)+'% mặt hàng)</span><b class="rpx-abcv">'+Math.round(seg(aR))+'% DT</b></div>'
+      +'<div class="rpx-abcrow"><span class="rpx-abct b">B</span><span class="rpx-abcn">'+B.length+' SP ('+Math.round(B.length/tot*100)+'% mặt hàng)</span><b class="rpx-abcv">'+Math.round(seg(bR))+'% DT</b></div>'
+      +'<div class="rpx-abcrow"><span class="rpx-abct c">C</span><span class="rpx-abcn">'+C.length+' SP ('+Math.round(C.length/tot*100)+'% mặt hàng)</span><b class="rpx-abcv">'+Math.round(seg(cR))+'% DT</b></div>'
+      +'<div class="rpx-ratio-note">Nhóm A là số ít mặt hàng chủ lực — ưu tiên giữ hàng & chăm sóc. Nhóm C đóng góp ít, cân nhắc giảm tồn.</div></div>';
+  }
+
+  // ── BIÊN LỢI NHUẬN THEO SP ──
+  if(prodArr.length>=2){
+    const byMargin=prodArr.map(p=>({name:p.name,m:(p.rev>0?(p.rev-p.cost)/p.rev*100:0),pr:p.rev-p.cost})).sort((a,b)=>b.m-a.m);
+    const hi=byMargin.slice(0,3),lo=byMargin.slice(-3).reverse();
+    const mrow=x=>'<div class="rpx-mrow"><span class="rpx-mname">'+escHtml(x.name)+'</span><span class="rpx-mpct'+(x.m<0?' loss':'')+'">'+D1(x.m)+'%</span><span class="rpx-mrev">lãi '+fmt(x.pr)+'</span></div>';
+    h+='<div class="rpx-card"><div class="rpx-ct"><i class="acc-blue"></i>Biên lợi nhuận theo sản phẩm</div><div class="rpx-mhdr up">▲ Lãi cao nhất</div>'+hi.map(mrow).join('')+'<div class="rpx-mhdr dn">▼ Lãi thấp nhất</div>'+lo.map(mrow).join('')+'</div>';
+  }
+
+  // ── HÀNG BÁN CHẬM ──
+  if(deadArr.length){
+    h+='<div class="rpx-card"><div class="rpx-ct"><i class="acc-gold"></i>Hàng bán chậm <small class="rpx-ct-sub">chưa bán trong kỳ</small></div><div class="rpx-deadsum">💤 '+deadArr.length+' mặt hàng còn tồn nhưng chưa bán · vốn đọng <b>'+fmt(deadVal)+'</b></div>';
+    deadArr.slice(0,6).forEach(x=>{h+='<div class="rpx-invrow"><span class="rpx-invname">'+escHtml(x.name)+'</span><span class="rpx-invtag mut">Tồn '+skN(x.stock)+' '+escHtml(x.unit)+' · '+fmt(x.val)+'</span></div>';});
+    h+='</div>';
+  }
+
+  // ── NHÓM HÀNG ──
+  const catArr=Object.keys(catStat).map(k=>Object.assign({name:k},catStat[k])).filter(c=>c.rev>0).sort((a,b)=>b.rev-a.rev);
+  if(catArr.length>1){
+    const catTot=catArr.reduce((s,c)=>s+c.rev,0);const cMx=Math.max(1,...catArr.map(c=>c.rev));
+    h+='<div class="rpx-card"><div class="rpx-ct"><i class="acc-blue"></i>Doanh thu theo nhóm</div>';
+    catArr.slice(0,6).forEach(c=>{const share=Math.round(c.rev/cMx*100);h+='<div class="rpx-catrow"><div class="rpx-catmain"><div class="rpx-catname">'+escHtml(c.name)+' <small>'+pctOf(c.rev,catTot)+'%</small></div><div class="rpx-pbar cat"><i style="width:'+share+'%"></i></div></div><b class="rpx-catval">'+fmt(c.rev)+'</b></div>';});
+    h+='</div>';
+  }
+
+  // ── TOP KHÁCH MUA ──
+  const custArr=Object.keys(custMap).map(k=>({name:k,rev:custMap[k].rev,n:custMap[k].n})).filter(c=>c.rev>0).sort((a,b)=>b.rev-a.rev);
+  if(custArr.length){
+    const cMx=Math.max(1,...custArr.slice(0,5).map(c=>c.rev));
+    h+='<div class="rpx-card"><div class="rpx-ct"><i class="acc-green"></i>Khách mua nhiều nhất <small class="rpx-ct-sub">trong kỳ</small></div>';
+    custArr.slice(0,5).forEach((c,i)=>{const sh=Math.round(c.rev/cMx*100);h+='<div class="rpx-prow"><div class="rpx-prank'+(i<3?(' r'+(i+1)):'')+'">'+(i+1)+'</div><div class="rpx-pmain"><div class="rpx-pname">'+escHtml(c.name)+'</div><div class="rpx-psub">'+c.n+' đơn</div><div class="rpx-pbar"><i style="width:'+sh+'%"></i></div></div><div class="rpx-pval"><b>'+fmt(c.rev)+'</b></div></div>';});
+    h+='</div>';
+  }
+
+  // ── ĐƠN GẦN NHẤT ──
+  const recent=list.slice().sort((a,b)=>skOrderDate(b)-skOrderDate(a)).slice(0,5);
+  if(recent.length){
+    h+='<div class="rpx-card"><div class="rpx-ct"><i class="acc-gold"></i>Đơn gần nhất</div>';
+    recent.forEach(o=>{const d=skOrderDate(o);const tm=String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');const who=(o.customerName&&String(o.customerName).trim())||'Khách lẻ';h+='<div class="rpx-orow"><div class="rpx-omain"><div class="rpx-oname">'+escHtml(who)+' '+mBadge(o.method)+'</div><div class="rpx-otime">'+tm+'</div></div><b class="rpx-oval">'+fmt(Number(o.total)||0)+'</b></div>';});
+    h+='</div>';
+  }
+
+  // ── TỒN KHO ──
+  h+=invHtml;
+  h+='<div class="rpx-foot">Số liệu theo <b>giá vốn đã khóa lúc bán</b>. Hàng trả trừ vào đúng kỳ đã bán · Công nợ & tồn kho là số hiện tại.</div>';
 
   box.innerHTML=h;
 }
@@ -4817,6 +4854,47 @@ try { window.__skBusy = function(){
 #pos-screen .rpx-mb.cash{background:#e3f4ed;color:#0a7d54}
 #pos-screen .rpx-mb.qr{background:#e6effd;color:#1d4ed8}
 #pos-screen .rpx-mb.debt{background:#fdf0e3;color:#b9791a}
+
+/* ===== v3: nhận định · chỉ số · donut · nhịp theo thứ · ABC ===== */
+/* Nhận định tự động */
+#pos-screen .rpx-insc{background:linear-gradient(180deg,#f4faf7,#ffffff)}
+#pos-screen .rpx-ins{display:flex;align-items:flex-start;gap:10px;padding:8px 0;border-bottom:1px solid #f1f5f3;font-size:13px;color:#33433d;line-height:1.5}
+#pos-screen .rpx-ins:last-child{border-bottom:none}
+#pos-screen .rpx-ins-ic{flex:none;font-size:15px;line-height:1.4}
+#pos-screen .rpx-ins-tx{min-width:0}
+#pos-screen .rpx-ins-tx b{font-weight:800;color:#15211d}
+/* Chỉ số chuyên sâu */
+#pos-screen .rpx-ratios{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+#pos-screen .rpx-ratio{background:#f6f9f8;border:1px solid #e7efe9;border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:3px}
+#pos-screen .rpx-ratio span{font-size:11.5px;color:#6b7872;font-weight:600}
+#pos-screen .rpx-ratio b{font-size:16px;font-weight:800;color:#0a5f4a;font-variant-numeric:tabular-nums}
+#pos-screen .rpx-ratio b.loss{color:#c0392b}
+#pos-screen .rpx-ratio-note{font-size:10.5px;color:#9aa8a2;line-height:1.5;margin-top:9px}
+/* Donut thanh toán */
+#pos-screen .rpx-donut-wrap{display:flex;align-items:center;gap:15px;margin-bottom:4px;flex-wrap:wrap}
+#pos-screen .rpx-donut{width:104px;height:104px;border-radius:50%;position:relative;flex:none;box-shadow:0 4px 14px -6px rgba(16,40,32,.3)}
+#pos-screen .rpx-donut-hole{position:absolute;inset:17px;background:#fff;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center}
+#pos-screen .rpx-donut-hole b{font-size:20px;font-weight:900;color:#15211d;line-height:1;font-variant-numeric:tabular-nums}
+#pos-screen .rpx-donut-hole span{font-size:9.5px;color:#8a978f;margin-top:2px;text-align:center;max-width:66px}
+#pos-screen .rpx-donut-side{flex:1;min-width:150px}
+#pos-screen .rpx-donut-side .rpx-payrow{padding:6px 0}
+/* Nhịp theo thứ */
+#pos-screen .rpx-dow{display:flex;align-items:flex-end;gap:7px;height:92px;padding-bottom:18px}
+#pos-screen .rpx-dowbar{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;position:relative}
+#pos-screen .rpx-dowfill{width:100%;max-width:26px;background:linear-gradient(#5fd0aa,#0e8f6c);border-radius:5px 5px 0 0;min-height:3px}
+#pos-screen .rpx-dowfill.peak{background:linear-gradient(#f2c14e,#dd9a1e)}
+#pos-screen .rpx-dowlb{position:absolute;top:100%;margin-top:5px;font-size:10.5px;color:#8a978f;font-weight:600}
+#pos-screen .rpx-dowlb.peak{color:#b9791a;font-weight:800}
+/* ABC */
+#pos-screen .rpx-abcbar{display:flex;height:13px;border-radius:7px;overflow:hidden;background:#eef2f0;margin-bottom:12px}
+#pos-screen .rpx-abcbar i{display:block;height:100%}
+#pos-screen .rpx-abcbar i.a{background:#0e8f6c}#pos-screen .rpx-abcbar i.b{background:#5cc0f2}#pos-screen .rpx-abcbar i.c{background:#d9dee0}
+#pos-screen .rpx-abcrow{display:flex;align-items:center;gap:11px;padding:8px 0;border-bottom:1px solid #f4f7f5;font-size:13px}
+#pos-screen .rpx-abcrow:last-of-type{border-bottom:none}
+#pos-screen .rpx-abct{flex:none;width:24px;height:24px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;color:#fff}
+#pos-screen .rpx-abct.a{background:#0e8f6c}#pos-screen .rpx-abct.b{background:#3aa7e0}#pos-screen .rpx-abct.c{background:#b9c2c5}
+#pos-screen .rpx-abcn{flex:1;min-width:0;color:#41615a;font-weight:600}
+#pos-screen .rpx-abcv{flex:none;font-weight:800;color:#15211d;font-variant-numeric:tabular-nums}
 </style>
 
 <div id="pos-screen">
