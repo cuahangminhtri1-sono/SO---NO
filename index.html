@@ -4432,6 +4432,176 @@ try { window.__skBusy = function(){
   } catch(_){}
   return false;
 }; } catch(_){}
+
+/* ================== [THÊM MỚI] KHÓA SỔ NỢ + ĐỒNG BỘ PHÂN QUYỀN ==================
+   - Chỉ THÊM, không sửa 1 nét nào của code cũ (bọc hàm + chèn CSS/nút bằng JS).
+   - "Khóa Sổ Nợ": đồng bộ trên MỌI thiết bị qua Firestore (users/UID/meta/security).
+     Mở khóa cần MẬT KHẨU đăng nhập -> chống rủi ro quên đăng xuất.
+   - Thêm quyền "Sửa Sổ Nợ" (debtedit) vào bảng Phân quyền sẵn có (đồng bộ theo permissions).
+================================================================================ */
+(function(){
+  var DEBT_LOCK=false;              // trạng thái khóa (đồng bộ từ Firestore)
+  var LBL='Sửa Sổ Nợ: thêm/sửa/xóa công nợ & khách hàng';
+
+  /* --- 1) Thêm quyền debtedit vào RBAC sẵn có (mutate, KHÔNG tạo tên top-level mới) --- */
+  try{
+    if(typeof SK_CAPS!=='undefined' && Array.isArray(SK_CAPS) && !SK_CAPS.some(function(x){return x[0]==='debtedit';}))
+      SK_CAPS.push(['debtedit',LBL]);
+    if(typeof SK_CAP_LABEL!=='undefined' && SK_CAP_LABEL) SK_CAP_LABEL['debtedit']=LBL;
+    if(typeof SK_PERM_DEFAULT!=='undefined' && SK_PERM_DEFAULT){
+      if(SK_PERM_DEFAULT.manager && !('debtedit' in SK_PERM_DEFAULT.manager)) SK_PERM_DEFAULT.manager.debtedit=false;
+      if(SK_PERM_DEFAULT.cashier && !('debtedit' in SK_PERM_DEFAULT.cashier)) SK_PERM_DEFAULT.cashier.debtedit=false;
+    }
+    if(typeof SK_PERM!=='undefined' && SK_PERM){
+      if(SK_PERM.manager && !('debtedit' in SK_PERM.manager)) SK_PERM.manager.debtedit=false;
+      if(SK_PERM.cashier && !('debtedit' in SK_PERM.cashier)) SK_PERM.cashier.debtedit=false;
+    }
+  }catch(_){}
+
+  /* --- 2) Quy tắc: được sửa công nợ khi (KHÔNG khóa) VÀ (vai trò có quyền) --- */
+  function canEditDebt(){
+    var roleOk=true; try{ if(typeof skRoleCan==='function') roleOk=skRoleCan('debtedit'); }catch(_){ roleOk=true; }
+    return !DEBT_LOCK && roleOk;
+  }
+  function debtDeny(){
+    try{ toast(DEBT_LOCK
+      ? '🔒 Sổ Nợ đang KHÓA — mở khóa bằng mật khẩu để sửa công nợ.'
+      : '🔒 Bạn không có quyền sửa công nợ.'); }catch(_){}
+  }
+
+  /* --- 3) Ẩn/hiện nút sửa + cập nhật nút khóa --- */
+  function applyDebtPerm(){
+    try{ document.body.classList.toggle('sn-lockedit', !canEditDebt()); }catch(_){}
+    updateLockBtn();
+  }
+  function updateLockBtn(){
+    var b=document.getElementById('sn-lockbtn'); if(!b)return;
+    if(DEBT_LOCK){ b.textContent='🔒'; b.setAttribute('aria-label','Mở khóa Sổ Nợ'); b.title='Sổ Nợ ĐANG KHÓA (mọi thiết bị) — chạm để mở khóa bằng mật khẩu'; b.style.background='#c0392b'; b.style.color='#fff'; }
+    else{ b.textContent='🔓'; b.setAttribute('aria-label','Khóa Sổ Nợ'); b.title='Chạm để KHÓA sửa công nợ trên mọi thiết bị'; b.style.background='rgba(255,255,255,0.18)'; b.style.color='#fff'; }
+  }
+
+  /* --- 4) Ghi trạng thái khóa (đồng bộ mọi thiết bị) --- */
+  function setDebtLock(v){
+    if(typeof UID==='undefined' || !UID){ try{toast('Chưa đăng nhập');}catch(_){}; return; }
+    DEBT_LOCK=!!v; applyDebtPerm();                         // cập nhật ngay tại máy
+    try{
+      setDoc(doc(db,'users',UID,'meta','security'),
+        {debtLock:!!v, updatedAt:serverTimestamp(), updatedBy:(auth.currentUser&&auth.currentUser.email)||''},
+        {merge:true})
+      .then(function(){ try{toast(v?'🔒 Đã KHÓA Sổ Nợ trên mọi thiết bị':'🔓 Đã MỞ khóa Sổ Nợ');}catch(_){}} )
+      .catch(function(e){ try{toast('Lỗi lưu khóa: '+((e&&(e.code||e.message))||e));}catch(_){}} );
+    }catch(e){ try{toast('Lỗi lưu khóa: '+((e&&e.message)||e));}catch(_){}; }
+  }
+  function onLockBtnClick(){
+    if(DEBT_LOCK){ openUnlock(); }
+    else{
+      if(confirm('KHÓA sửa Sổ Nợ trên MỌI thiết bị?\n\n• Không ai sửa/xóa được công nợ cho tới khi bạn MỞ khóa bằng mật khẩu đăng nhập.\n• Áp dụng ngay cả với thiết bị bạn lỡ quên đăng xuất.\n\n(Bán hàng / thu tiền vẫn hoạt động bình thường.)'))
+        setDebtLock(true);
+    }
+  }
+
+  /* --- 5) Hộp nhập mật khẩu để mở khóa (reauth) --- */
+  function ensureUnlock(){
+    if(document.getElementById('sn-unlock-ov'))return;
+    var ov=document.createElement('div'); ov.id='sn-unlock-ov'; ov.className='sn-unlock-ov';
+    ov.innerHTML='<div class="sn-unlock-card"><div class="sn-unlock-h">🔓 Mở khóa Sổ Nợ</div>'
+      +'<div class="sn-unlock-sub">Nhập <b>mật khẩu đăng nhập</b> của bạn để cho phép sửa công nợ trở lại.</div>'
+      +'<input id="sn-unlock-pwd" type="password" class="sn-unlock-inp" placeholder="Mật khẩu đăng nhập" autocomplete="current-password">'
+      +'<div id="sn-unlock-msg" class="sn-unlock-msg"></div>'
+      +'<div class="sn-unlock-btns"><button id="sn-unlock-cancel" class="sn-unlock-b ghost" type="button">Hủy</button>'
+      +'<button id="sn-unlock-ok" class="sn-unlock-b ok" type="button">Mở khóa</button></div></div>';
+    document.body.appendChild(ov);
+    ov.addEventListener('click',function(e){ if(e.target===ov) closeUnlock(); });
+    document.getElementById('sn-unlock-cancel').addEventListener('click',closeUnlock);
+    document.getElementById('sn-unlock-ok').addEventListener('click',doUnlock);
+    document.getElementById('sn-unlock-pwd').addEventListener('keydown',function(e){ if(e.key==='Enter') doUnlock(); });
+  }
+  function openUnlock(){ ensureUnlock(); var p=document.getElementById('sn-unlock-pwd'),m=document.getElementById('sn-unlock-msg'); if(p)p.value=''; if(m)m.textContent=''; document.getElementById('sn-unlock-ov').classList.add('on'); setTimeout(function(){ try{p&&p.focus();}catch(_){}} ,80); }
+  function closeUnlock(){ var ov=document.getElementById('sn-unlock-ov'); if(ov)ov.classList.remove('on'); }
+  async function doUnlock(){
+    var p=document.getElementById('sn-unlock-pwd'),m=document.getElementById('sn-unlock-msg');
+    var pwd=(p&&p.value)||'';
+    if(!pwd){ if(m){m.style.color='#c0392b';m.textContent='Nhập mật khẩu.';} return; }
+    if(!auth.currentUser||!auth.currentUser.email){ if(m){m.style.color='#c0392b';m.textContent='Chưa xác định tài khoản. Hãy đăng nhập lại.';} return; }
+    if(m){ m.style.color='#6b7872'; m.textContent='Đang kiểm tra…'; }
+    try{
+      var cred=EmailAuthProvider.credential(auth.currentUser.email,pwd);
+      await reauthenticateWithCredential(auth.currentUser,cred);
+      setDebtLock(false); closeUnlock();
+    }catch(e){
+      var code=String((e&&e.code)||''); if(m){ m.style.color='#c0392b'; m.textContent=/too-many-requests/.test(code)?'Thử quá nhiều lần. Đợi vài phút rồi thử lại.':'Mật khẩu không đúng.'; }
+    }
+  }
+
+  /* --- 6) Bọc các hàm sửa công nợ (KHÔNG sửa thân hàm gốc) --- */
+  function wrapEdit(name){
+    var orig=window[name]; if(typeof orig!=='function')return;
+    window[name]=function(){ if(!canEditDebt()){ debtDeny(); return; } return orig.apply(this,arguments); };
+  }
+  ['saveTx','delTx','delTxFromEdit','deleteCustomer','saveNewCustomer','openTx','openEditTx','openAddCustomer','runImport','runFullRestore'].forEach(wrapEdit);
+
+  /* --- 7) Bọc skApplyRole để cập nhật quyền Sổ Nợ khi đổi vai trò (POS) --- */
+  try{
+    if(typeof skApplyRole==='function'){
+      var _origApplyRole=skApplyRole;
+      skApplyRole=function(){ var r; try{ r=_origApplyRole.apply(this,arguments); }catch(_){} try{ applyDebtPerm(); }catch(_){} return r; };
+    }
+  }catch(_){}
+
+  /* --- 8) CSS (một khối, tự chèn) --- */
+  try{
+    var st=document.createElement('style'); st.id='sn-lock-css';
+    st.textContent='body.sn-lockedit .sn-editonly{display:none!important;}'
+      +'#app header>div{flex-wrap:wrap;justify-content:flex-end;}'
+      +'#sn-lockbtn{cursor:pointer;font-size:1em;line-height:1;}'
+      +'.sn-unlock-ov{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;z-index:100000;padding:16px;}'
+      +'.sn-unlock-ov.on{display:flex;}'
+      +'.sn-unlock-card{background:#fff;border-radius:16px;padding:20px;max-width:360px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.3);}'
+      +'.sn-unlock-h{font-size:1.15em;font-weight:800;margin-bottom:6px;color:#1f2937;}'
+      +'.sn-unlock-sub{font-size:.88em;color:#6b7280;margin-bottom:14px;line-height:1.5;}'
+      +'.sn-unlock-inp{width:100%;box-sizing:border-box;border:1px solid #d1d5db;border-radius:10px;padding:12px;font-size:1em;margin-bottom:8px;}'
+      +'.sn-unlock-msg{font-size:.85em;min-height:18px;margin-bottom:10px;}'
+      +'.sn-unlock-btns{display:flex;gap:8px;}'
+      +'.sn-unlock-b{flex:1;border:none;border-radius:10px;padding:12px;font-size:.95em;font-weight:700;cursor:pointer;}'
+      +'.sn-unlock-b.ghost{background:#eef0f2;color:#374151;}'
+      +'.sn-unlock-b.ok{background:#0d7a5f;color:#fff;}';
+    document.head.appendChild(st);
+  }catch(_){}
+
+  /* --- 9) Gắn class cho các nút "chỉ hiện khi được sửa" --- */
+  try{
+    document.querySelectorAll('#modal-detail [onclick*="openTx("], #modal-detail [onclick*="deleteCustomer("], #app .btn-add, #tx-del-btn')
+      .forEach(function(el){ el.classList.add('sn-editonly'); });
+  }catch(_){}
+
+  /* --- 10) Chèn nút khóa vào thanh tiêu đề Sổ Nợ --- */
+  try{
+    var hdrRow=document.querySelector('#app header > div');
+    if(hdrRow && !document.getElementById('sn-lockbtn')){
+      var b=document.createElement('button'); b.id='sn-lockbtn'; b.className='btn-icon'; b.type='button';
+      b.addEventListener('click',onLockBtnClick);
+      hdrRow.insertBefore(b, hdrRow.firstChild);
+    }
+  }catch(_){}
+
+  /* --- 11) Đồng bộ khóa + phân quyền trên MỌI thiết bị (luôn bật, không cần mở POS) --- */
+  var _syncOn=false;
+  function startSync(uid){
+    if(_syncOn||!uid)return; _syncOn=true;
+    try{ onSnapshot(doc(db,'users',uid,'meta','permissions'),function(d){ try{ if(typeof skPermMerge==='function') skPermMerge(d.exists()?d.data():{}); }catch(_){} try{ if(typeof skApplyRole==='function') skApplyRole(); }catch(_){} applyDebtPerm(); },function(){}); }catch(_){}
+    try{ onSnapshot(doc(db,'users',uid,'meta','security'),function(d){ DEBT_LOCK=!!(d.exists()&&d.data().debtLock===true); applyDebtPerm(); },function(){}); }catch(_){}
+    applyDebtPerm();
+  }
+  try{
+    onAuthStateChanged(auth,function(u){
+      if(u){ startSync(u.uid); }
+      else{ _syncOn=false; DEBT_LOCK=false; applyDebtPerm(); }
+    });
+  }catch(_){}
+
+  /* --- 12) Áp dụng lần đầu --- */
+  try{ applyDebtPerm(); }catch(_){}
+})();
 </script>
 <style>
 #pos-screen{position:fixed;inset:0;z-index:2000;background:#eef1ef;display:none;flex-direction:column;color:#15211d;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
