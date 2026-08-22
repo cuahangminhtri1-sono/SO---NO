@@ -6357,42 +6357,46 @@ import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, getDocs, serv
 </div>
 <div id="sn-print-sheet"></div>
 <!-- ═══════════════════════════════════════════════════════════════════════
-     GIAO DIỆN MỚI: Thanh đầu (BÁN HÀNG / SỔ NỢ / Cài đặt) + menu Cài đặt xổ xuống
+     GIAO DIỆN MỚI: Nav "BÁN HÀNG / SỔ NỢ" đồng nhất (tab đang mở sáng lên)
+     trên CẢ 2 màn hình + menu Cài đặt xổ xuống.
      — CHỈ THÊM. Không sửa 1 dòng code cũ. Dán NGUYÊN KHỐI này ngay TRƯỚC </body>.
-     — Ẩn header cũ bằng CSS, dựng thanh mới, nối vào đúng hàm/nút sẵn có.
      ═══════════════════════════════════════════════════════════════════════ -->
 <style id="snbh-topbar-css">
-  /* Ẩn thanh đầu cũ (không xoá — mọi module vẫn tự chèn nút vào đó bình thường) */
+  /* Ẩn thanh đầu Sổ Nợ cũ (không xoá — mọi module vẫn tự chèn nút vào đó) */
   #app > header{display:none !important;}
 
-  /* ===== THANH ĐẦU MỚI ===== */
+  /* ===== THANH ĐẦU SỔ NỢ ===== */
   .snbh-hdr{background:linear-gradient(180deg,#1c7040,#155f36);
-    padding:14px 14px 16px;
-    padding-top:calc(14px + env(safe-area-inset-top,0px));
+    padding:12px 14px 14px;
+    padding-top:calc(12px + env(safe-area-inset-top,0px));
     padding-left:max(14px,env(safe-area-inset-left,0px));
     padding-right:max(14px,env(safe-area-inset-right,0px));
-    display:flex;align-items:center;gap:10px;
+    display:flex;align-items:center;gap:9px;
     box-shadow:0 3px 10px rgba(0,0,0,.18);position:sticky;top:0;z-index:90;}
-  .snbh-sell{flex:1 1 auto;display:flex;align-items:center;justify-content:center;gap:9px;
-    padding:13px 12px;border:1.5px solid rgba(255,255,255,.6);border-radius:14px;
-    background:rgba(255,255,255,.06);cursor:pointer;}
-  .snbh-sell:active{background:rgba(255,255,255,.15);}
-  .snbh-sell b{color:#fff;font-size:1.26em;font-weight:800;letter-spacing:.3px;}
-  .snbh-debt{display:flex;align-items:center;gap:8px;padding:6px;cursor:pointer;}
-  .snbh-debt b{color:#fff;font-size:1.26em;font-weight:800;letter-spacing:.3px;}
-  .snbh-ic{font-size:1.45em;line-height:1;filter:drop-shadow(0 1px 1px rgba(0,0,0,.18));}
-  .snbh-sell .snbh-ic{font-size:1.5em;}
-  .snbh-setwrap{position:relative;flex:0 0 auto;}
-  .snbh-set{display:flex;flex-direction:column;align-items:center;gap:2px;padding:4px 6px;cursor:pointer;}
-  .snbh-set .snbh-lbl{color:#fff;font-size:.72em;font-weight:600;opacity:.95;}
 
-  /* ===== MENU CÀI ĐẶT ===== */
+  /* ===== NAV 2 TAB (DÙNG CHUNG CHO CẢ 2 MÀN HÌNH) ===== */
+  .snbh-nav{display:flex;gap:8px;flex:1 1 auto;min-width:0;}
+  .snbh-tab{flex:1 1 0;min-width:0;display:flex;align-items:center;justify-content:center;gap:7px;
+    padding:11px 8px;border:1.6px solid rgba(255,255,255,.55);border-radius:12px;
+    background:rgba(255,255,255,.08);color:#fff;cursor:pointer;transition:background .15s,color .15s;}
+  .snbh-tab:active{background:rgba(255,255,255,.2);}
+  .snbh-tab .snbh-ic{font-size:1.28em;line-height:1;flex:0 0 auto;filter:drop-shadow(0 1px 1px rgba(0,0,0,.18));}
+  .snbh-tab b{font-size:1.1em;font-weight:800;letter-spacing:.3px;color:inherit;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .snbh-tab.active{background:#fff;color:#155f36;border-color:#fff;box-shadow:0 3px 10px rgba(0,0,0,.2);}
+  .snbh-tab.active .snbh-ic{filter:none;}
+
+  /* ===== CÀI ĐẶT + MENU (chỉ có trên màn Sổ Nợ) ===== */
+  .snbh-setwrap{position:relative;flex:0 0 auto;}
+  .snbh-set{display:flex;flex-direction:column;align-items:center;gap:2px;padding:4px 5px;cursor:pointer;}
+  .snbh-set .snbh-ic{font-size:1.4em;line-height:1;}
+  .snbh-set .snbh-lbl{color:#fff;font-size:.7em;font-weight:600;opacity:.95;}
   .snbh-menu{position:absolute;top:100%;right:-4px;margin-top:8px;width:252px;max-width:80vw;
     background:#fff;border-radius:16px;box-shadow:0 16px 44px rgba(0,0,0,.28);padding:6px;
     opacity:0;transform:translateY(-8px) scale(.97);transform-origin:top right;
     pointer-events:none;transition:.16s ease;z-index:120;}
   .snbh-menu.on{opacity:1;transform:none;pointer-events:auto;}
-  .snbh-menu::before{content:"";position:absolute;top:-7px;right:24px;width:14px;height:14px;
+  .snbh-menu::before{content:"";position:absolute;top:-7px;right:22px;width:14px;height:14px;
     background:#fff;transform:rotate(45deg);border-radius:3px;box-shadow:-2px -2px 5px rgba(0,0,0,.05);}
   .snbh-mi{display:flex;align-items:center;gap:14px;padding:14px;cursor:pointer;border-radius:10px;}
   .snbh-mi + .snbh-mi{border-top:1px solid #eef1f4;}
@@ -6402,19 +6406,22 @@ import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, getDocs, serv
   .snbh-mi label{font-size:1.04em;font-weight:600;color:#243;cursor:pointer;}
   .snbh-mi.out label{color:#c0392b;}
 
-  /* ===== TINH CHỈNH KHỐI SẴN CÓ CHO KHỚP MẪU (chỉ CSS, không đụng JS) ===== */
+  /* ===== MÀN BÁN HÀNG (POS): ẩn nút Đóng + tiêu đề, đồng bộ nền xanh ===== */
+  #pos-screen .sk-top{background:linear-gradient(180deg,#1c7040,#155f36) !important;gap:9px !important;}
+  #pos-screen .sk-top .sk-x{display:none !important;}
+  #pos-screen .sk-top #sk-view-title{display:none !important;}
+
+  /* ===== TINH CHỈNH KHỐI SẴN CÓ CHO KHỚP MẪU (chỉ CSS) ===== */
   #app .summary-bar{flex-direction:column !important;gap:9px !important;
     border-radius:16px !important;padding:16px 18px !important;}
   #app .summary-item{font-size:1.06em !important;font-weight:600;}
   #app .summary-item b{font-size:1.05em;font-weight:800;}
   #app #s-total{color:#16261d;}
-
   #app .btn-tools{border-radius:14px !important;padding:15px !important;}
   #app .search-input{border-radius:12px !important;padding:13px 15px !important;}
   #app .btn-add{border-radius:12px !important;font-weight:800 !important;}
   #app .tab-btn{border-radius:12px !important;padding:12px 4px !important;font-weight:600 !important;}
   #app .tab-btn.active{box-shadow:0 3px 9px rgba(26,107,60,.28) !important;font-weight:800 !important;}
-
   #app .customer-card{border-left-width:6px !important;border-radius:16px !important;
     padding:15px 17px !important;box-shadow:0 3px 12px rgba(20,40,30,.09) !important;margin-bottom:12px !important;}
   #app .cust-name{display:flex !important;flex-direction:column !important;align-items:flex-start !important;
@@ -6437,7 +6444,7 @@ import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, getDocs, serv
   function clickSel(sel){ try{ var el=document.querySelector(sel); if(el){ el.click(); return true; } }catch(e){} return false; }
   function say(m){ try{ if (typeof window.toast === 'function'){ window.toast(m); } }catch(e){} }
 
-  var menuEl=null, setWrapEl=null, backEl=null, adminItem=null, installItem=null, built=false;
+  var menuEl=null, setWrapEl=null, adminItem=null, installItem=null, built=false, posBuilt=false;
 
   var ACTIONS = {
     sell:    function(){ closeMenu(); callFn('openPOS'); },
@@ -6453,6 +6460,14 @@ import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, getDocs, serv
 
   function el(tag, cls){ var e=document.createElement(tag); if(cls) e.className=cls; return e; }
 
+  function mkTab(icon, label, active){
+    var t = el('div', 'snbh-tab' + (active ? ' active' : ''));
+    var ic = el('span', 'snbh-ic'); ic.textContent = icon;
+    var b = document.createElement('b'); b.textContent = label;
+    t.appendChild(ic); t.appendChild(b);
+    return t;
+  }
+
   function mkItem(icon, text, act, extraCls){
     var it = el('div', 'snbh-mi' + (extraCls ? (' '+extraCls) : ''));
     it.setAttribute('data-snbh', act);
@@ -6464,6 +6479,7 @@ import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, getDocs, serv
     return it;
   }
 
+  /* ===== THANH ĐẦU MÀN SỔ NỢ ===== */
   function build(){
     if (built) return;
     var app = document.getElementById('app');
@@ -6472,21 +6488,11 @@ import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, getDocs, serv
 
     var bar = el('div', 'snbh-hdr'); bar.id = 'snbh-topbar';
 
-    // BÁN HÀNG
-    var sell = el('div', 'snbh-sell');
-    var sic = el('span', 'snbh-ic'); sic.textContent = '🛒';
-    var sb = document.createElement('b'); sb.textContent = 'BÁN HÀNG';
-    sell.appendChild(sic); sell.appendChild(sb);
-    sell.addEventListener('click', ACTIONS.sell);
+    var nav = el('div', 'snbh-nav');
+    var sellTab = mkTab('🛒', 'BÁN HÀNG', false); sellTab.addEventListener('click', ACTIONS.sell);
+    var debtTab = mkTab('📒', 'SỔ NỢ', true);      debtTab.addEventListener('click', ACTIONS.debt);
+    nav.appendChild(sellTab); nav.appendChild(debtTab);
 
-    // SỔ NỢ (màn hình hiện tại)
-    var debt = el('div', 'snbh-debt');
-    var dic = el('span', 'snbh-ic'); dic.textContent = '📒';
-    var dbb = document.createElement('b'); dbb.textContent = 'SỔ NỢ';
-    debt.appendChild(dic); debt.appendChild(dbb);
-    debt.addEventListener('click', ACTIONS.debt);
-
-    // CÀI ĐẶT + menu
     setWrapEl = el('div', 'snbh-setwrap');
     var set = el('div', 'snbh-set');
     var gic = el('span', 'snbh-ic'); gic.textContent = '⚙️';
@@ -6506,11 +6512,9 @@ import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, getDocs, serv
     menuEl.appendChild(mkItem(LOGOUT_SVG, 'Đăng xuất', 'logout', 'out'));
 
     setWrapEl.appendChild(set); setWrapEl.appendChild(menuEl);
-
-    bar.appendChild(sell); bar.appendChild(debt); bar.appendChild(setWrapEl);
+    bar.appendChild(nav); bar.appendChild(setWrapEl);
     app.insertBefore(bar, app.firstChild);
 
-    // Đóng menu khi chạm ra ngoài
     document.addEventListener('click', function(e){
       if (!menuEl || menuEl.className.indexOf('on') < 0) return;
       var n = e.target, inside = false;
@@ -6522,19 +6526,30 @@ import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, getDocs, serv
     syncExtras();
   }
 
-  function toggleMenu(){
-    if (!menuEl) return;
-    var on = menuEl.classList.contains('on');
-    menuEl.classList.toggle('on', !on);
+  /* ===== NAV TRÊN MÀN BÁN HÀNG (POS) — thay chỗ nút Đóng ===== */
+  function buildPos(){
+    if (posBuilt) return;
+    var top = document.querySelector('#pos-screen .sk-top');
+    if (!top) return;
+    if (document.getElementById('snbh-posnav')) { posBuilt = true; return; }
+
+    var nav = el('div', 'snbh-nav'); nav.id = 'snbh-posnav';
+    var sellTab = mkTab('🛒', 'BÁN HÀNG', true);   // đang ở POS -> sáng, không làm gì
+    var debtTab = mkTab('📒', 'SỔ NỢ', false);      // -> đóng POS về Sổ Nợ (qua delegation)
+    debtTab.setAttribute('data-act', 'close-pos');
+    nav.appendChild(sellTab); nav.appendChild(debtTab);
+
+    top.insertBefore(nav, top.firstChild);
+    posBuilt = true;
   }
+
+  function toggleMenu(){ if (!menuEl) return; menuEl.classList.toggle('on', !menuEl.classList.contains('on')); }
   function closeMenu(){ if (menuEl) menuEl.classList.remove('on'); }
 
-  // Hiện "Quản lý khách" khi là tài khoản admin; hiện "Cài App" khi có nút cài của app
   function syncExtras(){
     try{
       var ab = document.getElementById('admin-btn');
-      var showAdmin = !!(ab && ab.style && ab.style.display !== 'none');
-      if (adminItem) adminItem.style.display = showAdmin ? '' : 'none';
+      if (adminItem) adminItem.style.display = (ab && ab.style && ab.style.display !== 'none') ? '' : 'none';
     }catch(e){}
     try{
       var hb = document.getElementById('tsi-hb');
@@ -6542,9 +6557,10 @@ import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, getDocs, serv
     }catch(e){}
   }
 
-  build();
-  document.addEventListener('DOMContentLoaded', build);
-  setTimeout(build, 300);
+  function boot(){ build(); buildPos(); }
+  boot();
+  document.addEventListener('DOMContentLoaded', boot);
+  setTimeout(boot, 300);
   setInterval(syncExtras, 1000);
 })();
 </script>
