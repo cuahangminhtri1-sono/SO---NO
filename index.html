@@ -41,8 +41,8 @@
   header{background:var(--primary);color:white;padding:14px 16px;padding-top:calc(14px + env(safe-area-inset-top,0px));padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,0.15);}
   header h1{font-size:1.15em;font-weight:700;}
   .btn-icon{background:rgba(255,255,255,0.18);border:none;color:white;padding:7px 11px;border-radius:7px;cursor:pointer;font-size:0.82em;}
-  .main{padding:16px;padding-bottom:calc(16px + var(--safe-bot));max-width:700px;margin:0 auto;}
-  .top-bar{display:flex;gap:10px;margin-bottom:16px;}
+  .main{padding:8px 16px;padding-bottom:calc(16px + var(--safe-bot));max-width:700px;margin:0 auto;}
+  .top-bar{display:flex;gap:10px;margin-bottom:8px;}
   .search-input{flex:1;padding:11px 14px;border:1.5px solid var(--border);border-radius:8px;font-size:0.95em;outline:none;background:white;}
   .search-input:focus{border-color:var(--primary);}
   .btn-add{padding:11px 18px;background:var(--primary);color:white;border:none;border-radius:8px;font-size:0.95em;font-weight:600;cursor:pointer;white-space:nowrap;}
@@ -130,7 +130,7 @@
   .tx-date{color:var(--muted);font-size:0.8em;}
   .tx-bal{font-size:0.78em;font-weight:700;margin-top:2px;white-space:nowrap;}
   .tx-del{background:none;border:none;color:#bbb;cursor:pointer;font-size:1em;padding:2px 6px;margin-left:6px;}
-  .tab-btns{display:flex;gap:8px;margin-bottom:16px;}
+  .tab-btns{display:flex;gap:8px;margin-bottom:8px;}
   .tab-btn{flex:1;padding:9px;border:1.5px solid var(--border);background:white;border-radius:8px;cursor:pointer;font-size:0.88em;color:var(--muted);}
   .tab-btn.active{background:var(--primary);color:white;border-color:var(--primary);font-weight:600;}
   .empty{text-align:center;color:var(--muted);padding:40px 20px;}
@@ -395,7 +395,7 @@
       <div class="summary-item">Khách nợ mình<b id="s-debt" style="color:#c0392b">0đ</b></div>
       <div class="summary-item">Mình nợ khách<b id="s-owe" style="color:#1d4ed8">0đ</b></div>
     </div>
-    <div class="export-bar" style="margin:0 0 12px;border-top:none;padding-top:0">
+    <div class="export-bar" style="margin:0 0 8px;border-top:none;padding-top:0">
       <button class="btn-tools" onclick="openTools()">🧰 Công cụ &amp; Sao lưu</button>
     </div>
     <div class="expiry-banner" id="expiry-banner" style="display:none"></div>
@@ -7144,7 +7144,7 @@ import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, getDocs, serv
   /* ===== Ô TÓM TẮT: 3 THẺ RỜI GỌN, RÕ RÀNG, ĐẸP MẮT (chỉ CSS, chèn thêm — đè khối mẫu ở trên) ===== */
   #app .summary-bar{flex-direction:row !important;flex-wrap:nowrap !important;gap:7px !important;
     align-items:stretch !important;background:transparent !important;border:none !important;
-    border-radius:0 !important;padding:0 !important;margin-bottom:12px !important;}
+    border-radius:0 !important;padding:0 !important;margin-bottom:8px !important;}
   #app .summary-item{flex:1 1 0 !important;min-width:0 !important;
     display:flex !important;flex-direction:column !important;align-items:center !important;
     justify-content:center !important;text-align:center !important;gap:5px !important;
