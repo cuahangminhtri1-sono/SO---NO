@@ -5159,15 +5159,16 @@ try { window.__skBusy = function(){
 
   function makeBtn(id,cls){var b=D.createElement('button');b.id=id;b.className=cls;b.type='button';b.innerHTML='📊 Báo cáo chi tiết';b.addEventListener('click',openReport);return b;}
   function injectButtons(){
-    // 1) màn hình chính: cạnh nút 🧰 Công cụ
+    // 1) ĐẶT GỌN trong ⚙️ Cài đặt (modal-settings) — ngay trên nút Hủy/Lưu
     try{
-      var tools=D.querySelector('.main .export-bar .btn-tools')||D.querySelector('.btn-tools');
-      if(tools&&tools.parentNode&&!D.getElementById('snr-open-main')){
-        var b1=makeBtn('snr-open-main','btn-tools snr-openbtn');
-        tools.parentNode.insertBefore(b1,tools);
+      var mb=D.querySelector('#modal-settings .modal-btns');
+      if(mb&&mb.parentNode&&!D.getElementById('snr-open-set')){
+        var bs=makeBtn('snr-open-set','btn-tools snr-openbtn');
+        bs.addEventListener('click',function(){try{var m=D.getElementById('modal-settings');if(m)m.classList.remove('active');}catch(_){}});
+        mb.parentNode.insertBefore(bs,mb);
       }
     }catch(e){}
-    // 2) trong modal Công cụ & Sao lưu
+    // 2) tiện tay để luôn trong 🧰 Công cụ & Sao lưu (cùng chỗ Xuất/Sao lưu)
     try{
       var bar=D.querySelector('#modal-tools .export-bar');
       if(bar&&!D.getElementById('snr-open-modal')){
