@@ -3470,6 +3470,7 @@ async function skRenderReport(){
   const rById={};(fr||[]).forEach(r=>{rById[r.id]=r;});(skReturns||[]).forEach(r=>{if(!rById[r.id])rById[r.id]=r;});
   skRpOrders=Object.values(oById);skRpReturns=Object.values(rById);
   skDrawReport(box,(fo===null));
+  try{var _snEl=skq('#sk-report-sndebt');if(_snEl&&window.renderSnReportInto)window.renderSnReportInto(_snEl,skPeriod,skRpFrom,skRpTo);}catch(_){}
 }
 function skDrawReport(box,offline){
   const cb=skPeriod==='custom'?skRpBounds():null;
@@ -4898,8 +4899,8 @@ try { window.__skBusy = function(){
   }
 
   /* ---------- Dựng HTML báo cáo ---------- */
-  function draw(){
-    var box=D.getElementById('snr-body'); if(!box)return;
+  function draw(target){
+    var box=target||D.getElementById('snr-body'); if(!box)return;
     if(typeof UID==='undefined'||!UID){box.innerHTML='<div class="snr-hint">🔒 Hãy đăng nhập để xem báo cáo.</div>';return;}
     if(!_loaded){box.innerHTML='<div class="snr-hint">⏳ Đang tải dữ liệu giao dịch…</div>';return;}
     if(_period==='custom'&&!periodRange()){box.innerHTML='<div class="snr-hint">📅 Chọn <b>Từ ngày</b> và <b>Đến ngày</b> ở trên để xem báo cáo theo khoảng bạn muốn.</div>';return;}
@@ -5174,6 +5175,22 @@ try { window.__skBusy = function(){
   function boot(){ injectCSS(); buildUI(); }
   if(D.readyState==='loading')D.addEventListener('DOMContentLoaded',boot); else boot();
   try{ window.openSnReport = openReport; }catch(_){}
+
+  // Vẽ báo cáo Sổ Nợ chi tiết TRỰC TIẾP vào 1 khung bất kỳ (để nhúng CHUNG trong Báo cáo POS)
+  var _inlineEl=null;
+  function renderInto(el, period, from, to){
+    if(!el)return;
+    _inlineEl=el;
+    if(period!=null)_period=period;
+    if(from!=null)_from=from;
+    if(to!=null)_to=to;
+    if(typeof UID==='undefined'||!UID){el.innerHTML='<div class="snr-hint">🔒 Hãy đăng nhập để xem báo cáo Sổ Nợ.</div>';return;}
+    if(_loaded){draw(el);return;}
+    el.innerHTML='<div class="snr-hint">⏳ Đang tải dữ liệu công nợ…</div>';
+    if(_loading)return; // lần tải đang chạy sẽ tự vẽ vào khung mới nhất khi xong
+    loadTx(function(done,total){if(!_loaded&&_inlineEl)_inlineEl.innerHTML='<div class="snr-hint">⏳ Đang tải… '+done+'/'+total+' khách</div>';}).then(function(){if(_inlineEl)draw(_inlineEl);});
+  }
+  try{ window.renderSnReportInto = renderInto; }catch(_){}
 
   /* ---------- CSS tự chứa (namespace snr-) ---------- */
   function injectCSS(){
@@ -5799,7 +5816,7 @@ try { window.__skBusy = function(){
     </section>
 
     <!-- BÁO CÁO -->
-    <section id="sk-v-report" class="sk-view"><div class="sk-actbar sk-owner" style="margin-bottom:10px"><button data-act="staff-mgmt">👤 Quản lý nhân viên</button><button data-act="diag-run">🔌 Kiểm tra kết nối & quyền</button></div><button type="button" class="sk-btn green wide" style="margin-bottom:10px" onclick="if(window.openSnReport){window.openSnReport();}else{try{toast('Đang mở báo cáo Sổ Nợ…');}catch(_){}}">📒 Báo cáo Sổ Nợ chi tiết</button>
+    <section id="sk-v-report" class="sk-view"><div class="sk-actbar sk-owner" style="margin-bottom:10px"><button data-act="staff-mgmt">👤 Quản lý nhân viên</button><button data-act="diag-run">🔌 Kiểm tra kết nối & quyền</button></div>
       <div id="sk-period" class="sk-period"><button data-act="period" data-p="today" class="sk-on">Hôm nay</button><button data-act="period" data-p="7">7 ngày</button><button data-act="period" data-p="30">30 ngày</button><button data-act="period" data-p="custom">Tùy chọn</button></div>
       <div id="sk-rp-range" class="sk-rp-range" style="display:none">
         <div class="sk-rp-dates">
@@ -5809,6 +5826,8 @@ try { window.__skBusy = function(){
         <div class="sk-rp-presets"><button data-act="rp-preset" data-preset="month">Tháng này</button><button data-act="rp-preset" data-preset="lastmonth">Tháng trước</button><button data-act="rp-preset" data-preset="year">Năm nay</button></div>
       </div>
       <div id="sk-report" class="sk-report"></div>
+      <div id="sk-report-sndivider" style="margin:20px 0 12px;padding:11px 14px;background:linear-gradient(135deg,#0a5f4a,#12916d);color:#fff;border-radius:12px;font-weight:700;font-size:1.02em;display:flex;align-items:center;gap:8px;box-shadow:0 2px 8px rgba(10,95,74,.18)">📒 Báo cáo Sổ Nợ chi tiết</div>
+      <div id="sk-report-sndebt"></div>
     </section>
   </div>
 
