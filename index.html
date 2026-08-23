@@ -5159,16 +5159,7 @@ try { window.__skBusy = function(){
 
   function makeBtn(id,cls){var b=D.createElement('button');b.id=id;b.className=cls;b.type='button';b.innerHTML='📊 Báo cáo chi tiết';b.addEventListener('click',openReport);return b;}
   function injectButtons(){
-    // 1) ĐẶT GỌN trong ⚙️ Cài đặt (modal-settings) — ngay trên nút Hủy/Lưu
-    try{
-      var mb=D.querySelector('#modal-settings .modal-btns');
-      if(mb&&mb.parentNode&&!D.getElementById('snr-open-set')){
-        var bs=makeBtn('snr-open-set','btn-tools snr-openbtn');
-        bs.addEventListener('click',function(){try{var m=D.getElementById('modal-settings');if(m)m.classList.remove('active');}catch(_){}});
-        mb.parentNode.insertBefore(bs,mb);
-      }
-    }catch(e){}
-    // 2) tiện tay để luôn trong 🧰 Công cụ & Sao lưu (cùng chỗ Xuất/Sao lưu)
+    // Chỉ đặt trong 🧰 Công cụ & Sao lưu (cùng chỗ Xuất/Sao lưu)
     try{
       var bar=D.querySelector('#modal-tools .export-bar');
       if(bar&&!D.getElementById('snr-open-modal')){
