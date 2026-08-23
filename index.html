@@ -730,7 +730,7 @@ import { getFirestore, initializeFirestore, persistentLocalCache, persistentMult
   getDocs, query, where, orderBy, onSnapshot, serverTimestamp, setDoc, getDoc, runTransaction, limit, writeBatch, increment, collectionGroup }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-const APP_BUILD = "2026-08-16-inA5"; // ⬆️ ĐỔI MỖI LẦN DEPLOY (đặt TRÙNG tên cache trong sw.js) — hiện ở ⚙️ Cài đặt để biết máy đã chạy bản mới chưa
+const APP_BUILD = "2026-08-23-chinhanh"; // ⬆️ ĐỔI MỖI LẦN DEPLOY (đặt TRÙNG tên cache trong sw.js) — hiện ở ⚙️ Cài đặt để biết máy đã chạy bản mới chưa
 const firebaseConfig = {
   apiKey: "AIzaSyA_kjQ-CdASRkf50Glz3kQajlkD5qGWC4k",
   authDomain: "so-no-cc57a.firebaseapp.com",
@@ -765,6 +765,7 @@ let BILLING = null;             // nạp từ Firestore billing/info nếu admin
 // Kho dữ liệu tên trần (products, orders, customers…) = app 'sono' theo Firestore Rules.
 const MA_APP = 'sono';        // mã app NÀY. TrọSafe dùng 'tro' · Cafe dùng 'cafe'
 const MA_POS = 'sono_pos';    // gói Bán hàng (POS) = add-on riêng của Sổ Nợ
+const MA_CN  = 'sono_cn';     // gói CHI NHÁNH (thêm) = add-on tính tiền theo tháng như POS
 const licRef = (uid, app) => doc(db, 'accounts', uid, 'lic', app);
 let LICMAP = {};              // admin: { uid: { sono:{...}, sono_pos:{...} } }
 
@@ -787,6 +788,7 @@ function _permHint(e){return (e&&e.code==='permission-denied')?' — Firestore R
 function priceFor(app){var B=BILLING||{};
   if(app==='sono')return (B.priceSono>0?B.priceSono:(B.pricePerMonth>0?B.pricePerMonth:10000));
   if(app==='sono_pos')return (B.pricePos>0?B.pricePos:(B.posPricePerMonth>0?B.posPricePerMonth:0));
+  if(app==='sono_cn')return (B.priceCn>0?B.priceCn:(B.priceCnPerMonth>0?B.priceCnPerMonth:10000));
   if(app==='tro')return (B.priceTro>0?B.priceTro:(B.price>0?B.price:50000));
   if(app==='cafe')return (B.priceCafe>0?B.priceCafe:(B.pricePerMonth>0?B.pricePerMonth:10000));
   return 0;}
@@ -3855,7 +3857,7 @@ async function skEnsureBranch(){try{const s=await getDocs(collection(db,'users',
 async function skLoadStaffOnce(){try{const s=await getDocs(collection(db,'users',UID,'staff'));skStaffList=s.docs.map(d=>Object.assign({id:d.id},d.data()));}catch(e){skStaffList=[];}
   try{const ss=await getDoc(doc(db,'users',UID,'meta','shopSettings'));skRequirePin=ss.exists()?(ss.data().requirePin!==false):true;}catch(e){skRequirePin=true;}
   try{const ps=await getDoc(doc(db,'users',UID,'meta','permissions'));skPermMerge(ps.exists()?ps.data():{});}catch(e){skPermMerge({});}}
-function skAfterReady(){skRenderBranchSel();skBranchSubs();if(skStaffList&&skStaffList.length&&skRequirePin!==false){skStaffGate();}else{skRole='owner';skStaff=null;skApplyRole();skGo('sell');}}
+function skAfterReady(){skLoadCn();skRenderBranchSel();skBranchSubs();if(skStaffList&&skStaffList.length&&skRequirePin!==false){skStaffGate();}else{skRole='owner';skStaff=null;skApplyRole();skGo('sell');}}
 function skBranchSubs(){
   if(skUnsubBP){try{skUnsubBP();}catch(e){}skUnsubBP=null;}if(skUnsubBO){try{skUnsubBO();}catch(e){}skUnsubBO=null;}if(skUnsubBR){try{skUnsubBR();}catch(e){}skUnsubBR=null;}
   skProducts=[];skOrders=[];skReturns=[];
@@ -3868,10 +3870,151 @@ function skBranchSubs(){
 function skRenderBranchSel(){const b=skq('#sk-branchbtn');if(b)b.textContent='🏪 '+skBranchName(skBranch)+' ▾';}
 function skOpenBranches(){skRenderBranches();skModalOpen('#sk-branch');}
 function skRenderBranches(){const box=skq('#sk-branch-list');if(!box)return;box.innerHTML=skBranches.map(b=>'<div class="sk-row"><div class="sk-row-main" data-act="branch-switch" data-id="'+b.id+'"><div class="sk-row-name">'+(b.id===skBranch?'✓ ':'')+escHtml(b.name)+'</div><div class="sk-row-sub">'+(b.id===skBranch?'Đang chọn':'Chạm để chuyển')+'</div></div><button class="sk-btn ghost sk-owner" data-act="branch-edit" data-id="'+b.id+'">✎</button></div>').join('');}
-function skSwitchBranch(id){if(id===skBranch){skCloseModal('#sk-branch');return;}skBranch=id;skCart=[];skDiscount=0;skBranchSubs();skRenderCart();skRenderBranchSel();skCloseModal('#sk-branch');skGo('sell');toast('Đã chuyển: '+skBranchName(id));}
-function skOpenBranchForm(id){skBrEditId=id||null;const b=id?skBranches.find(x=>x.id===id):{};skq('#sk-bf-title').textContent=id?'Sửa chi nhánh':'Thêm chi nhánh';skq('#sk-bf-name').value=b.name||'';skq('#sk-bf-del').style.display=(id&&skBranches.length>1)?'':'none';skModalOpen('#sk-branch-form');}
-async function skSaveBranch(){const name=skq('#sk-bf-name').value.trim();if(!name){toast('Nhập tên chi nhánh');return;}try{if(skBrEditId)updateDoc(doc(db,'users',UID,'branches',skBrEditId),{name:name}).catch(function(e){skErr(e,'Lưu chi nhánh');});else addDoc(collection(db,'users',UID,'branches'),{name:name,createdAt:serverTimestamp()}).catch(function(e){skErr(e,'Lưu chi nhánh');});skCloseModal('#sk-branch-form');toast('✅ Đã lưu chi nhánh');markDirty();}catch(e){skErr(e,'Lưu chi nhánh');}}
+function skSwitchBranch(id){if(!skBranchAllowed(id)){skCloseModal('#sk-branch');skCnUpsell(true);return;}if(id===skBranch){skCloseModal('#sk-branch');return;}skBranch=id;skCart=[];skDiscount=0;skBranchSubs();skRenderCart();skRenderBranchSel();skCloseModal('#sk-branch');skGo('sell');toast('Đã chuyển: '+skBranchName(id));}
+function skOpenBranchForm(id){if(!id&&skBranches.length>=skMaxCn){skCloseModal('#sk-branch');skCnUpsell(false);return;}skBrEditId=id||null;const b=id?skBranches.find(x=>x.id===id):{};skq('#sk-bf-title').textContent=id?'Sửa chi nhánh':'Thêm chi nhánh';skq('#sk-bf-name').value=b.name||'';skq('#sk-bf-del').style.display=(id&&skBranches.length>1)?'':'none';skModalOpen('#sk-branch-form');}
+async function skSaveBranch(){const name=skq('#sk-bf-name').value.trim();if(!name){toast('Nhập tên chi nhánh');return;}if(!skBrEditId&&skBranches.length>=skMaxCn){skCloseModal('#sk-branch-form');skCnUpsell(false);return;}try{if(skBrEditId)updateDoc(doc(db,'users',UID,'branches',skBrEditId),{name:name}).catch(function(e){skErr(e,'Lưu chi nhánh');});else addDoc(collection(db,'users',UID,'branches'),{name:name,createdAt:serverTimestamp()}).catch(function(e){skErr(e,'Lưu chi nhánh');});skCloseModal('#sk-branch-form');toast('✅ Đã lưu chi nhánh');markDirty();}catch(e){skErr(e,'Lưu chi nhánh');}}
 async function skDelBranch(){if(!skBrEditId)return;if(skBranches.length<=1){toast('Phải còn ít nhất 1 chi nhánh');return;}if(skBrEditId===skBranch){toast('Không xóa chi nhánh đang dùng');return;}try{deleteDoc(doc(db,'users',UID,'branches',skBrEditId)).catch(function(e){skErr(e,'Xóa chi nhánh');});skCloseModal('#sk-branch-form');toast('Đã xóa chi nhánh');markDirty();}catch(e){skErr(e,'Xóa chi nhánh');}}
+
+/* ═══════════ CHI NHÁNH THÊM — TÍNH TIỀN THEO THÁNG (add-on giống POS) ═══════════
+   Chi nhánh chính (main) luôn miễn phí kèm gói POS. Mỗi chi nhánh THÊM là 1 suất,
+   thuê theo tháng qua giấy phép accounts/{uid}/lic/sono_cn { qty, paidUntil, active }.
+   maxCn = 1 + (số suất còn hạn). Khoá ở APP (khách shop không rành kỹ thuật);
+   admin cấp/duyệt bằng app quản trị. KHÔNG đụng Firestore rules.
+   Grandfather: chi nhánh đã có TRƯỚC khi bật thu phí (meta/cn.base) không bị khoá. */
+let skMaxCn = 1, skCnQty = 0, skCnBase = 0, skCnInfo = null, skCnLoaded = false;
+let _cnWantQty = 1, _cnWantMonths = 1;
+function _cnMs(ts){ if(!ts)return 0; if(typeof ts==='number')return ts; if(ts.toMillis)return ts.toMillis(); if(ts.seconds!=null)return ts.seconds*1000; var d=ts.toDate?ts.toDate():new Date(ts); return isNaN(d)?0:d.getTime(); }
+function _cnLic(d){
+  if(!d)return{ok:false,qty:0};
+  var qty=Math.max(0,Math.floor(Number(d.qty)||0));
+  if(d.active===false)return{ok:false,qty:qty,expired:true};
+  if(d.paidUntil){var u=d.paidUntil.toDate?d.paidUntil.toDate():new Date(d.paidUntil);
+    if(!isNaN(u))return{ok:u.getTime()>=Date.now(),until:u,expired:u.getTime()<Date.now(),qty:qty};}
+  return{ok:true,forever:true,qty:qty};   // paidUntil rỗng = vĩnh viễn
+}
+function skBranchOrder(){
+  return skBranches.slice().sort(function(a,b){
+    if(a.id==='main')return -1; if(b.id==='main')return 1;
+    var ta=_cnMs(a.createdAt), tb=_cnMs(b.createdAt);
+    if(ta!==tb)return ta-tb;
+    return String(a.id).localeCompare(String(b.id));
+  });
+}
+function skAllowedBranchIds(){ return skBranchOrder().slice(0, Math.max(1, skMaxCn)).map(function(b){return b.id;}); }
+function skBranchAllowed(id){ if(!skCnLoaded||id==='main'||!id)return true; return skAllowedBranchIds().indexOf(id)>-1; }
+async function skLoadCn(){
+  try{ if(typeof isAdmin==='function'&&isAdmin()){ skCnInfo={ok:true,admin:true}; skCnQty=99999; skCnBase=99999; skMaxCn=99999; try{skRenderBranchSel();}catch(e){} return; } }catch(e){}
+  try{ var L=await getDoc(licRef(UID,MA_CN)); skCnInfo=(L&&L.exists())?_cnLic(L.data()):{ok:false,qty:0}; }
+  catch(e){ skCnInfo=skCnInfo||{ok:false,qty:0}; }
+  var qty=(skCnInfo&&skCnInfo.qty)||0, ok=!!(skCnInfo&&skCnInfo.ok);
+  /* Grandfather: đọc/ghi 1 lần số chi nhánh THÊM đã có trước khi bật thu phí */
+  var base=null;
+  try{ var g=await getDoc(doc(db,'users',UID,'meta','cn')); if(g&&g.exists()&&g.data().base!=null) base=Math.max(0,Math.floor(Number(g.data().base)||0)); }catch(e){}
+  if(base===null){
+    try{ var bs=await getDocs(collection(db,'users',UID,'branches')); var cnt=(bs&&bs.size)||skBranches.length||1; base=Math.max(0,cnt-1);
+         setDoc(doc(db,'users',UID,'meta','cn'),{base:base,setAt:serverTimestamp()},{merge:true}).catch(function(){}); }
+    catch(e){ base=Math.max(0,(skBranches.length||1)-1); }   /* lỗi mạng: tạm tính, KHÔNG ghi → lần sau ghi */
+  }
+  skCnBase=base; skCnQty=qty;
+  skMaxCn=Math.max(1+base, 1+(ok?qty:0));
+  skCnLoaded=true;
+  try{
+    if(!skBranchAllowed(skBranch)){ skBranch='main'; if(typeof skBranchSubs==='function')skBranchSubs(); if(typeof skRenderCart==='function')skRenderCart(); }
+    skRenderBranchSel(); if(typeof skRenderBranches==='function')skRenderBranches();
+  }catch(e){}
+}
+/* ── Màn NÂNG CẤP / MUA thêm chi nhánh (khách) — quét QR, giống luồng gia hạn POS ── */
+function skCnUpsell(fromSwitch){
+  var curExtras=Math.max(0, skBranches.length-1);
+  _cnWantQty=Math.max(1, skCnQty||0, curExtras + (fromSwitch?0:1));
+  _cnWantMonths=1;
+  var el=document.getElementById('cn-upsell');
+  if(!el){ el=document.createElement('div'); el.id='cn-upsell'; document.body.appendChild(el); }
+  el.style.cssText='position:fixed;inset:0;z-index:100000;background:rgba(15,30,25,.55);display:flex;align-items:center;justify-content:center;padding:16px;overflow:auto';
+  el.onclick=function(e){ if(e.target===el) skCnCloseUpsell(); };
+  skCnRenderUpsell(!!fromSwitch);
+}
+function skCnCloseUpsell(){ var el=document.getElementById('cn-upsell'); if(el)el.remove(); }
+function skCnRenderUpsell(fromSwitch){
+  var el=document.getElementById('cn-upsell'); if(!el)return;
+  var unit=(typeof priceFor==='function')?priceFor(MA_CN):0;
+  var bank=(typeof renewBank==='function')?renewBank():null;
+  var email=(auth.currentUser&&auth.currentUser.email)||'';
+  var total=giaGiaHan(unit,_cnWantMonths)*_cnWantQty;
+  var newMax=1+_cnWantQty;
+  var mBtns=[1,3,6,12].map(function(m){return '<button type="button" class="cn-m'+(m===_cnWantMonths?' on':'')+'" data-cnm="'+m+'">'+m+' tháng'+(thangTang(m)>0?' 🎁':'')+'</button>';}).join('');
+  var hanLine='';
+  if(skCnInfo&&skCnInfo.until){ var days=Math.ceil((skCnInfo.until.getTime()-Date.now())/86400000);
+    hanLine = skCnInfo.ok
+      ? '<div class="cn-han ok">📅 Gói chi nhánh: hạn tới <b>'+fmtDateRaw(skCnInfo.until)+'</b> — còn '+days+' ngày</div>'
+      : '<div class="cn-han bad">⛔ Gói chi nhánh đã HẾT HẠN ngày <b>'+fmtDateRaw(skCnInfo.until)+'</b></div>'; }
+  var head = fromSwitch
+    ? '🔒 Chi nhánh này cần <b>gói Chi nhánh</b> còn hạn'
+    : '🏪 Bạn đang dùng <b>'+skBranches.length+'/'+skMaxCn+'</b> chi nhánh';
+  var saveNote = (thangTang(_cnWantMonths)>0 && unit>0)
+    ? '<div class="cn-save">🎁 Gói năm: tặng '+thangTang(_cnWantMonths)+' tháng — chỉ trả tiền '+thangTinhTien(_cnWantMonths)+' tháng · Tiết kiệm '+fmt(unit*_cnWantMonths*_cnWantQty-total)+' <s>'+fmt(unit*_cnWantMonths*_cnWantQty)+'</s></div>' : '';
+  var body;
+  if(unit<=0){
+    body='<div class="cn-warn">Chủ phần mềm chưa đặt <b>giá chi nhánh thêm</b>. Vui lòng liên hệ để được mở thêm chi nhánh.</div>';
+  }else{
+    var qrBlock='';
+    if(bank){
+      var info=email+' CN'+_cnWantQty;
+      var qrUrl='https://img.vietqr.io/image/'+bank.bin+'-'+bank.account+'-compact2.png?amount='+total+'&addInfo='+encodeURIComponent(info)+'&accountName='+encodeURIComponent(bank.accName||'');
+      qrBlock='<div class="cn-qrbox"><img class="cn-qr-img" src="'+qrUrl+'" alt="QR mua chi nhánh"><div class="cn-qrlab">Quét bằng app ngân hàng — số tiền &amp; nội dung điền sẵn</div></div>'
+        +'<div class="cn-info">'
+        +'<div class="cn-line"><span>🏦 Ngân hàng</span><b>'+escHtml(bank.bankName||'')+'</b></div>'
+        +'<div class="cn-line"><span>🔢 Số TK</span><b>'+escHtml(bank.account)+' <button type="button" class="cn-cp" data-cp="'+escHtml(bank.account)+'">Copy</button></b></div>'
+        +'<div class="cn-line"><span>👤 Chủ TK</span><b>'+escHtml(bank.accName||'')+'</b></div>'
+        +'<div class="cn-line"><span>💰 Số tiền</span><b>'+fmt(total)+' <button type="button" class="cn-cp" data-cp="'+total+'">Copy</button></b></div>'
+        +'<div class="cn-line"><span>📝 Nội dung</span><b style="word-break:break-all">'+escHtml(info)+' <button type="button" class="cn-cp" data-cp="'+escHtml(info)+'">Copy</button></b></div>'
+        +'</div>'
+        +'<div class="cn-note">⚠️ Giữ <b>nguyên nội dung</b> khi chuyển khoản để chủ phần mềm mở đúng số chi nhánh. Sau khi CK, chi nhánh sẽ được mở trong thời gian sớm nhất.</div>';
+    }else{
+      qrBlock='<div class="cn-warn">Chủ phần mềm chưa cấu hình tài khoản nhận tiền. Vui lòng liên hệ trực tiếp để mở thêm chi nhánh.</div>';
+    }
+    body=''
+      +'<div class="cn-row"><span>Số chi nhánh thêm muốn dùng</span>'
+      +'<div class="cn-step"><button type="button" class="cn-dec">−</button><b id="cn-qty">'+_cnWantQty+'</b><button type="button" class="cn-inc">+</button></div></div>'
+      +'<div class="cn-sub">Sau khi mở: dùng được <b>'+newMax+'</b> chi nhánh (1 chính + '+_cnWantQty+' thêm) · '+fmt(unit)+'/chi nhánh/tháng</div>'
+      +'<div class="cn-months">'+mBtns+'</div>'
+      +'<div class="cn-total">Tổng: <b>'+fmt(total)+'</b></div>'
+      +saveNote
+      +qrBlock;
+  }
+  el.innerHTML='<div class="cn-card">'
+    +'<div class="cn-head">'+head+'</div>'
+    +hanLine
+    +body
+    +'<a class="cn-hot" href="tel:0977823979">📞 Gọi hotline hỗ trợ: 0977 823 979</a>'
+    +'<button type="button" class="cn-close">Đóng</button>'
+    +'</div>'
+    +'<style>#cn-upsell .cn-card{background:#fff;border-radius:18px;max-width:420px;width:100%;padding:18px;box-shadow:0 20px 60px rgba(0,0,0,.35);font-size:14px;color:#243}'
+    +'#cn-upsell .cn-head{font-size:16px;font-weight:800;color:#0a5f4a;margin-bottom:10px;line-height:1.4}'
+    +'#cn-upsell .cn-han{border-radius:10px;padding:8px 11px;font-size:.86em;margin-bottom:10px}#cn-upsell .cn-han.ok{background:#e8f6f0;color:#0a6b4f}#cn-upsell .cn-han.bad{background:#fdecec;color:#b02a2a}'
+    +'#cn-upsell .cn-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:10px 0 4px;font-weight:700}'
+    +'#cn-upsell .cn-step{display:flex;align-items:center;gap:12px}#cn-upsell .cn-step button{width:38px;height:38px;border-radius:10px;border:1px solid #cbd5cf;background:#f2f7f5;font-size:20px;font-weight:800;cursor:pointer;line-height:1}#cn-upsell .cn-step b{min-width:26px;text-align:center;font-size:18px}'
+    +'#cn-upsell .cn-sub{color:#5a6b64;font-size:.84em;margin-bottom:10px;line-height:1.45}'
+    +'#cn-upsell .cn-months{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px}#cn-upsell .cn-m{flex:1 1 40%;padding:9px;border-radius:10px;border:1px solid #cbd5cf;background:#f7faf9;font-weight:700;cursor:pointer}#cn-upsell .cn-m.on{background:#0d7a5f;color:#fff;border-color:#0d7a5f}'
+    +'#cn-upsell .cn-total{font-size:15px;font-weight:800;margin:4px 0 6px}#cn-upsell .cn-total b{color:#c0392b;font-size:19px}'
+    +'#cn-upsell .cn-save{background:#fff8e1;border:1px solid #ffe08a;border-radius:8px;padding:7px 10px;color:#8a5a00;font-size:.82em;font-weight:700;line-height:1.45;margin-bottom:8px}'
+    +'#cn-upsell .cn-qrbox{text-align:center;margin:8px 0}#cn-upsell .cn-qrbox img{width:190px;height:190px;object-fit:contain;border:1px solid #e3ece9;border-radius:12px;background:#fff}#cn-upsell .cn-qrlab{font-size:.8em;color:#5a6b64;margin-top:4px}'
+    +'#cn-upsell .cn-info{border:1px solid #e3ece9;border-radius:12px;overflow:hidden;margin-bottom:8px}#cn-upsell .cn-line{display:flex;justify-content:space-between;gap:10px;padding:8px 11px;border-bottom:1px solid #eef3f1;font-size:.9em}#cn-upsell .cn-line:last-child{border-bottom:none}#cn-upsell .cn-line span{color:#5a6b64}#cn-upsell .cn-cp{border:none;background:#eaf3f0;color:#0a5f4a;border-radius:7px;padding:2px 8px;font-size:.85em;font-weight:700;cursor:pointer;margin-left:6px}'
+    +'#cn-upsell .cn-note{background:#fff7e6;font-size:.82em;color:#8a6d00;border-radius:8px;padding:8px 10px;line-height:1.45;margin-bottom:8px}'
+    +'#cn-upsell .cn-warn{background:#fff3cd;border:1px solid #ffe08a;border-radius:10px;padding:12px;color:#8a6d00;font-size:.9em;line-height:1.5;margin-bottom:8px}'
+    +'#cn-upsell .cn-hot{display:flex;align-items:center;justify-content:center;gap:8px;background:#16a34a;color:#fff;border-radius:10px;padding:12px;font-weight:800;text-decoration:none;margin-bottom:8px}'
+    +'#cn-upsell .cn-close{width:100%;background:#e9eeec;border:none;border-radius:10px;padding:12px;font-weight:800;color:#334;cursor:pointer}'
+    +'</style>';
+  var q=function(s){return el.querySelector(s);};
+  var im=q('.cn-qr-img'); if(im)im.onerror=function(){ this.style.display='none'; };
+  var dec=q('.cn-dec'), inc=q('.cn-inc');
+  if(dec)dec.onclick=function(){ _cnWantQty=Math.max(1,_cnWantQty-1); skCnRenderUpsell(fromSwitch); };
+  if(inc)inc.onclick=function(){ _cnWantQty=Math.min(50,_cnWantQty+1); skCnRenderUpsell(fromSwitch); };
+  Array.prototype.forEach.call(el.querySelectorAll('.cn-m'),function(b){ b.onclick=function(){ _cnWantMonths=parseInt(b.getAttribute('data-cnm'),10)||1; skCnRenderUpsell(fromSwitch); }; });
+  Array.prototype.forEach.call(el.querySelectorAll('.cn-cp'),function(b){ b.onclick=function(){ if(typeof copyText==='function')copyText(b.getAttribute('data-cp')); }; });
+  var cl=q('.cn-close'); if(cl)cl.onclick=skCnCloseUpsell;
+}
+/* ═══════════ HẾT MODULE CHI NHÁNH THÊM ═══════════ */
 
 /* ---- CHUYỂN KHO GIỮA CHI NHÁNH ---- */
 function skOpenTransfer(){skTransfer={pid:'',qty:0,target:''};const tg=skq('#sk-tr-target');tg.innerHTML='<option value="">— Chuyển sang chi nhánh —</option>'+skBranches.filter(b=>b.id!==skBranch).map(b=>'<option value="'+b.id+'">'+escHtml(b.name)+'</option>').join('');skq('#sk-tr-search').value='';skq('#sk-tr-pick').innerHTML='';skq('#sk-tr-chosen').textContent='Chưa chọn sản phẩm';skq('#sk-tr-qty').value='';skModalOpen('#sk-transfer');}
