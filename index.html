@@ -5173,6 +5173,7 @@ try { window.__skBusy = function(){
   /* ---------- Khởi động ---------- */
   function boot(){ injectCSS(); buildUI(); }
   if(D.readyState==='loading')D.addEventListener('DOMContentLoaded',boot); else boot();
+  try{ window.openSnReport = openReport; }catch(_){}
 
   /* ---------- CSS tự chứa (namespace snr-) ---------- */
   function injectCSS(){
@@ -5798,7 +5799,7 @@ try { window.__skBusy = function(){
     </section>
 
     <!-- BÁO CÁO -->
-    <section id="sk-v-report" class="sk-view"><div class="sk-actbar sk-owner" style="margin-bottom:10px"><button data-act="staff-mgmt">👤 Quản lý nhân viên</button><button data-act="diag-run">🔌 Kiểm tra kết nối & quyền</button></div>
+    <section id="sk-v-report" class="sk-view"><div class="sk-actbar sk-owner" style="margin-bottom:10px"><button data-act="staff-mgmt">👤 Quản lý nhân viên</button><button data-act="diag-run">🔌 Kiểm tra kết nối & quyền</button></div><button type="button" class="sk-btn green wide" style="margin-bottom:10px" onclick="if(window.openSnReport){window.openSnReport();}else{try{toast('Đang mở báo cáo Sổ Nợ…');}catch(_){}}">📒 Báo cáo Sổ Nợ chi tiết</button>
       <div id="sk-period" class="sk-period"><button data-act="period" data-p="today" class="sk-on">Hôm nay</button><button data-act="period" data-p="7">7 ngày</button><button data-act="period" data-p="30">30 ngày</button><button data-act="period" data-p="custom">Tùy chọn</button></div>
       <div id="sk-rp-range" class="sk-rp-range" style="display:none">
         <div class="sk-rp-dates">
