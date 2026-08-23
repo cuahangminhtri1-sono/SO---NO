@@ -3930,7 +3930,7 @@ function skCnUpsell(fromSwitch){
   _cnWantMonths=1;
   var el=document.getElementById('cn-upsell');
   if(!el){ el=document.createElement('div'); el.id='cn-upsell'; document.body.appendChild(el); }
-  el.style.cssText='position:fixed;inset:0;z-index:100000;background:rgba(15,30,25,.55);display:flex;align-items:center;justify-content:center;padding:16px;overflow:auto';
+  el.style.cssText='position:fixed;inset:0;z-index:100000;background:rgba(15,30,25,.55);display:flex;align-items:safe center;justify-content:center;padding:16px;overflow:auto';
   el.onclick=function(e){ if(e.target===el) skCnCloseUpsell(); };
   skCnRenderUpsell(!!fromSwitch);
 }
