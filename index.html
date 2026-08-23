@@ -4745,6 +4745,563 @@ try { window.__skBusy = function(){
   /* --- 12) Áp dụng lần đầu --- */
   try{ applyDebtPerm(); }catch(_){}
 })();
+
+/* ═══ CHÈN THÊM: BÁO CÁO CHI TIẾT SỔ NỢ (tự chứa, không sửa code cũ) ═══ */
+/* ═══════════════════════════════════════════════════════════════════════════
+   BÁO CÁO CHI TIẾT — SỔ NỢ  (tự chứa · CHỈ THÊM MỚI · KHÔNG sửa dòng cũ)
+   Tái dùng biến của module Sổ Nợ: db, UID, customers, collection, getDocs, query
+   Không ghi dữ liệu — chỉ đọc & hiển thị. Không tạo listener nền.
+   ═══════════════════════════════════════════════════════════════════════════ */
+(function(){
+  'use strict';
+  if (window.__snRepInit) return; window.__snRepInit = true;
+  var D = document;
+
+  /* ---------- Helper tự chứa (không phụ thuộc hàm ngoài) ---------- */
+  function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+  function vnd(n){return Math.round(Number(n)||0).toLocaleString('vi-VN')+'đ';}
+  function num(n){return Math.round(Number(n)||0).toLocaleString('vi-VN');}
+  function kk(n){var v=Math.round(Number(n)||0);return v>=10000?(Math.round(v/100)/10).toLocaleString('vi-VN')+'k':num(v);}
+  function tsToDate(ts){if(ts==null||ts==='')return null;try{if(ts&&typeof ts.toDate==='function')return ts.toDate();var d=new Date(ts);return isNaN(d)?null:d;}catch(e){return null;}}
+  function entryMs(t){if(!t)return 0;if(t.createdAtMs!=null){var v=Number(t.createdAtMs);if(!isNaN(v)&&v>0)return v;}var c=t.createdAt;if(c){if(typeof c.toMillis==='function'){try{return c.toMillis();}catch(e){}}if(c.seconds!=null)return Number(c.seconds)*1000;}var d=tsToDate(t.date);return d?d.getTime():0;}
+  function dayMsOf(t){var d=tsToDate(t&&t.date);if(!d){var e=entryMs(t);if(e)d=new Date(e);}if(!d||isNaN(d))return 0;return new Date(d.getFullYear(),d.getMonth(),d.getDate()).getTime();}
+  function startOfDay(d){return new Date(d.getFullYear(),d.getMonth(),d.getDate()).getTime();}
+  function dmy(ms){var d=new Date(ms);return d.getDate()+'/'+(d.getMonth()+1)+'/'+d.getFullYear();}
+  function dm(ms){var d=new Date(ms);return String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0');}
+  function hm(ms){if(!ms)return '';var d=new Date(ms);if(isNaN(d))return '';return d.toLocaleTimeString('vi-VN',{hour:'2-digit',minute:'2-digit'});}
+  var DOWF=['Chủ nhật','Thứ 2','Thứ 3','Thứ 4','Thứ 5','Thứ 6','Thứ 7'];
+
+  /* ---------- State ---------- */
+  var _tx=[];        // {custId,custName,isMua,amount,dayMs,entryMs,note}
+  var _lastAct={};   // custId -> dayMs giao dịch gần nhất
+  var _loaded=false, _loading=false, _errCount=0, _reqId=0;
+  var _period='30';  // today|7|30|month|all|custom
+  var _from='', _to='';
+
+  /* ---------- Nạp toàn bộ giao dịch (đọc 1 lần, cache lại) ---------- */
+  function loadTx(onProgress){
+    var myReq=++_reqId;
+    _loading=true; _tx=[]; _lastAct={}; _errCount=0;
+    var cs=(typeof customers!=='undefined'&&Array.isArray(customers))?customers.slice():[];
+    var total=cs.length, done=0, idx=0;
+    function worker(){
+      return (function step(){
+        if(idx>=cs.length||myReq!==_reqId)return Promise.resolve();
+        var c=cs[idx++];
+        // KHÔNG orderBy → không bị loại doc thiếu field 'date'; tự sắp xếp khi cần.
+        return getDocs(collection(db,'users',UID,'customers',c.id,'transactions'))
+          .then(function(snap){
+            var lastDay=0;
+            snap.docs.forEach(function(dd){
+              var t=dd.data();
+              var amount=Math.round(Number(t.amount)||0);
+              var dMs=dayMsOf(t), eMs=entryMs(t);
+              var nt=(t.note||'')+((t.memo)?(( t.note?' · ':'')+t.memo):'');
+              _tx.push({custId:c.id,custName:(c.name||'(không tên)'),isMua:(t.type==='mua'),amount:amount,dayMs:dMs,entryMs:(eMs||dMs),note:String(nt).slice(0,120)});
+              if(dMs>lastDay)lastDay=dMs;
+            });
+            if(lastDay>0)_lastAct[c.id]=lastDay;
+          })
+          .catch(function(){_errCount++;})
+          .then(function(){done++;if(onProgress&&myReq===_reqId)onProgress(done,total);return step();});
+      })();
+    }
+    var CONC=Math.min(10,Math.max(1,cs.length)), ws=[];
+    for(var i=0;i<CONC;i++)ws.push(worker());
+    return Promise.all(ws).then(function(){ if(myReq!==_reqId)return; _loaded=true; _loading=false; });
+  }
+
+  /* ---------- Khoảng thời gian của kỳ (so theo NGÀY 0h) ---------- */
+  function periodRange(){
+    var now=new Date(), t0=startOfDay(now);
+    if(_period==='today')return {fromDay:t0,toDay:t0,label:'Hôm nay',days:1};
+    if(_period==='7')return {fromDay:t0-6*864e5,toDay:t0,label:'7 ngày gần đây',days:7};
+    if(_period==='30')return {fromDay:t0-29*864e5,toDay:t0,label:'30 ngày gần đây',days:30};
+    if(_period==='month'){var f=new Date(now.getFullYear(),now.getMonth(),1).getTime();return {fromDay:f,toDay:t0,label:'Tháng '+(now.getMonth()+1)+'/'+now.getFullYear(),days:Math.round((t0-f)/864e5)+1};}
+    if(_period==='custom'){
+      var cf=_from?new Date(_from+'T00:00:00'):null, ct=_to?new Date(_to+'T00:00:00'):null;
+      if(!cf||!ct||isNaN(cf)||isNaN(ct))return null;
+      var fm=startOfDay(cf), tm=startOfDay(ct); if(fm>tm){var x=fm;fm=tm;tm=x;}
+      return {fromDay:fm,toDay:tm,label:dmy(fm)+' – '+dmy(tm),days:Math.round((tm-fm)/864e5)+1};
+    }
+    return {fromDay:-Infinity,toDay:Infinity,label:'Tất cả thời gian',days:null};
+  }
+
+  /* ---------- Tổng hợp toàn bộ số liệu của báo cáo ---------- */
+  function compute(){
+    var r=periodRange();
+    var cs=(typeof customers!=='undefined'&&Array.isArray(customers))?customers:[];
+    var t0=startOfDay(new Date());
+
+    // — Snapshot công nợ HIỆN TẠI (không theo kỳ) — khớp tuyệt đối cách app tính c.debt —
+    var oweMe=0,iOwe=0,nDebt=0,nIOwe=0,nDone=0,debtors=[],creditors=[];
+    cs.forEach(function(c){var dv=Number(c.debt)||0;if(dv>0){oweMe+=dv;nDebt++;debtors.push(c);}else if(dv<0){iOwe+=-dv;nIOwe++;creditors.push(c);}else nDone++;});
+    debtors.sort(function(a,b){return (Number(b.debt)||0)-(Number(a.debt)||0);});
+    creditors.sort(function(a,b){return (Number(a.debt)||0)-(Number(b.debt)||0);});
+
+    // — Tuổi nợ theo lần giao dịch gần nhất (chỉ khách đang nợ mình) —
+    var aging={b1:0,b2:0,b3:0,b4:0}, agingN={b1:0,b2:0,b3:0,b4:0}, stale=[];
+    debtors.forEach(function(c){
+      var last=_lastAct[c.id]||0, days=last?Math.round((t0-last)/864e5):null, dv=Number(c.debt)||0;
+      var bk=(days==null)?'b4':(days<=7?'b1':(days<=30?'b2':(days<=90?'b3':'b4')));
+      aging[bk]+=dv; agingN[bk]++;
+      stale.push({name:(c.name||'(không tên)'),debt:dv,days:days,last:last});
+    });
+    stale.sort(function(a,b){var ad=(a.days==null?1e9:a.days),bd=(b.days==null?1e9:b.days);if(ad!==bd)return bd-ad;return b.debt-a.debt;});
+
+    // — Khách mới trong kỳ —
+    var newCust=0;
+    if(r){cs.forEach(function(c){var cd=tsToDate(c.createdAt);if(cd){var dms=startOfDay(cd);if(dms>=r.fromDay&&dms<=r.toDay)newCust++;}});}
+
+    // — Dòng tiền theo kỳ (từ transactions) —
+    var sumMua=0,sumTra=0,cntMua=0,cntTra=0;
+    var dayMap={}, custFlow={}, byDow=new Array(7).fill(0), active={};
+    function inR(t){return r&&t.dayMs>=r.fromDay&&t.dayMs<=r.toDay;}
+    if(r){
+      _tx.forEach(function(t){
+        if(!inR(t))return;
+        active[t.custId]=1;
+        if(t.isMua){sumMua+=t.amount;cntMua++;}else{sumTra+=t.amount;cntTra++;}
+        var e=dayMap[t.dayMs]||(dayMap[t.dayMs]={mua:0,tra:0}); if(t.isMua)e.mua+=t.amount;else e.tra+=t.amount;
+        var cf=custFlow[t.custId]||(custFlow[t.custId]={name:t.custName,mua:0,tra:0}); if(t.isMua)cf.mua+=t.amount;else cf.tra+=t.amount;
+        if(t.dayMs>0)byDow[new Date(t.dayMs).getDay()]+=1;
+      });
+    }
+    var nActive=Object.keys(active).length;
+    var flowNet=sumMua-sumTra; // >0: bán chịu nhiều hơn thu → nợ ròng tăng
+
+    // — Top phát sinh trong kỳ —
+    var flowArr=Object.keys(custFlow).map(function(k){return custFlow[k];});
+    var topPay=flowArr.filter(function(x){return x.tra>0;}).sort(function(a,b){return b.tra-a.tra;}).slice(0,5);
+    var topBuy=flowArr.filter(function(x){return x.mua>0;}).sort(function(a,b){return b.mua-a.mua;}).slice(0,5);
+
+    // — Chuỗi ngày cho biểu đồ + bảng —
+    var dayRows=[];
+    if(r&&isFinite(r.fromDay)&&isFinite(r.toDay)){
+      for(var d=r.fromDay; d<=r.toDay; d+=864e5){var e=dayMap[d]||{mua:0,tra:0};dayRows.push({dayMs:d,mua:e.mua,tra:e.tra});}
+    }else{
+      var keys=Object.keys(dayMap).map(Number).sort(function(a,b){return a-b;});
+      keys.forEach(function(k){dayRows.push({dayMs:k,mua:dayMap[k].mua,tra:dayMap[k].tra});});
+    }
+
+    // — Giao dịch gần nhất (toàn bộ, không theo kỳ) —
+    var recent=_tx.slice().sort(function(a,b){return (b.entryMs||b.dayMs)-(a.entryMs||a.dayMs);}).slice(0,8);
+
+    // — Thứ giao dịch nhiều nhất —
+    var peakDow=-1, distinctDays=Object.keys(dayMap).length;
+    if(distinctDays>=2){peakDow=0;for(var i=1;i<7;i++)if(byDow[i]>byDow[peakDow])peakDow=i;if(byDow[peakDow]<=0)peakDow=-1;}
+
+    return {r:r,oweMe:oweMe,iOwe:iOwe,nDebt:nDebt,nIOwe:nIOwe,nDone:nDone,nCust:cs.length,
+      debtors:debtors,creditors:creditors,aging:aging,agingN:agingN,stale:stale,
+      newCust:newCust,sumMua:sumMua,sumTra:sumTra,cntMua:cntMua,cntTra:cntTra,flowNet:flowNet,
+      nActive:nActive,topPay:topPay,topBuy:topBuy,dayRows:dayRows,recent:recent,byDow:byDow,peakDow:peakDow};
+  }
+
+  /* ---------- Dựng HTML báo cáo ---------- */
+  function draw(){
+    var box=D.getElementById('snr-body'); if(!box)return;
+    if(typeof UID==='undefined'||!UID){box.innerHTML='<div class="snr-hint">🔒 Hãy đăng nhập để xem báo cáo.</div>';return;}
+    if(!_loaded){box.innerHTML='<div class="snr-hint">⏳ Đang tải dữ liệu giao dịch…</div>';return;}
+    if(_period==='custom'&&!periodRange()){box.innerHTML='<div class="snr-hint">📅 Chọn <b>Từ ngày</b> và <b>Đến ngày</b> ở trên để xem báo cáo theo khoảng bạn muốn.</div>';return;}
+
+    var A=compute(), r=A.r, h='';
+    var t0=startOfDay(new Date());
+    var net=A.oweMe-A.iOwe;
+    var nowStr=(new Date()).toLocaleTimeString('vi-VN',{hour:'2-digit',minute:'2-digit'});
+
+    if(_errCount>0)h+='<div class="snr-warn">⚠️ '+_errCount+' khách chưa đọc được dữ liệu (kiểm tra mạng rồi bấm 🔄).</div>';
+
+    // HEAD
+    h+='<div class="snr-head"><span class="snr-head-ic">📊</span><div class="snr-head-tx"><b>'+esc(r.label)+'</b><span>'+A.nCust+' khách · cập nhật '+nowStr+'</span></div></div>';
+
+    // HERO — nợ ròng hiện tại
+    h+='<div class="snr-hero"><div class="snr-hero-top"><span class="snr-hero-label">NỢ RÒNG HIỆN TẠI</span><span class="snr-hero-tag">'+A.nCust+' khách</span></div>'
+      +'<div class="snr-hero-val'+(net<0?' neg':'')+'">'+(net<0?('Mình nợ '+vnd(-net)):vnd(net))+'</div>'
+      +'<div class="snr-hero-legend"><span><em class="c-red"></em>Khách nợ mình <b>'+vnd(A.oweMe)+'</b></span><span><em class="c-blue"></em>Mình nợ khách <b>'+vnd(A.iOwe)+'</b></span></div></div>';
+
+    // KPI công nợ hiện tại
+    h+='<div class="snr-kpis">'
+      +'<div class="snr-kpi red"><span class="k-l">Khách đang nợ</span><b class="k-b">'+num(A.nDebt)+'</b><span class="k-s">'+vnd(A.oweMe)+'</span></div>'
+      +'<div class="snr-kpi blue"><span class="k-l">Mình đang nợ</span><b class="k-b">'+num(A.nIOwe)+'</b><span class="k-s">'+vnd(A.iOwe)+'</span></div>'
+      +'<div class="snr-kpi"><span class="k-l">Đã xong</span><b class="k-b">'+num(A.nDone)+'</b><span class="k-s">tất toán</span></div>'
+      +'<div class="snr-kpi"><span class="k-l">Tổng khách</span><b class="k-b">'+num(A.nCust)+'</b><span class="k-s">trong sổ</span></div>'
+      +'</div>';
+
+    // NHẬN ĐỊNH NHANH
+    var ins=[];
+    if(A.oweMe>0)ins.push(['📌','Đang có <b>'+vnd(A.oweMe)+'</b> phải thu từ '+A.nDebt+' khách'+(A.debtors.length?(' — nhiều nhất <b>'+esc(A.debtors[0].name||'')+'</b> ('+vnd(Number(A.debtors[0].debt)||0)+')'):'')]);
+    var overN=A.agingN.b3+A.agingN.b4, overV=A.aging.b3+A.aging.b4;
+    if(overV>0)ins.push(['⏰','<b>'+vnd(overV)+'</b> ('+overN+' khách) nợ <b>trên 30 ngày</b> chưa trả — nên nhắc sớm']);
+    if(r&&(A.sumTra>0||A.sumMua>0)){
+      if(A.flowNet>0)ins.push(['📈','Kỳ này bán chịu thêm <b>'+vnd(A.sumMua)+'</b>, thu về <b>'+vnd(A.sumTra)+'</b> → nợ ròng <b>tăng '+vnd(A.flowNet)+'</b>']);
+      else if(A.flowNet<0)ins.push(['✅','Kỳ này thu <b>'+vnd(A.sumTra)+'</b> nhiều hơn bán chịu <b>'+vnd(A.sumMua)+'</b> → thu hồi nợ ròng <b>'+vnd(-A.flowNet)+'</b>']);
+      else ins.push(['⚖️','Kỳ này thu và bán chịu cân bằng ('+vnd(A.sumTra)+')']);
+    }
+    if(A.stale.length&&A.stale[0].days!=null&&A.stale[0].days>=30)ins.push(['🕒','<b>'+esc(A.stale[0].name)+'</b> đã '+A.stale[0].days+' ngày không giao dịch, còn nợ <b>'+vnd(A.stale[0].debt)+'</b>']);
+    if(A.iOwe>0)ins.push(['💸','Mình đang nợ khách <b>'+vnd(A.iOwe)+'</b> ('+A.nIOwe+' khách) — nhớ thanh toán']);
+    if(A.newCust>0)ins.push(['🆕','Có <b>'+A.newCust+'</b> khách mới trong kỳ']);
+    if(A.peakDow>=0)ins.push(['📅','Giao dịch nhiều nhất vào <b>'+DOWF[A.peakDow]+'</b>']);
+    if(ins.length){
+      h+='<div class="snr-card snr-insc"><div class="snr-ct"><i class="ac-g"></i>Nhận định nhanh</div>';
+      ins.slice(0,6).forEach(function(x){h+='<div class="snr-ins"><span class="snr-ins-ic">'+x[0]+'</span><span class="snr-ins-tx">'+x[1]+'</span></div>';});
+      h+='</div>';
+    }
+
+    // DÒNG TIỀN TRONG KỲ
+    h+='<div class="snr-card"><div class="snr-ct"><i class="ac-g"></i>Dòng tiền trong kỳ <small class="snr-ct-sub">'+esc(r.label)+'</small></div><div class="snr-flow">'
+      +'<div class="snr-flow-row"><span>🛒 Bán chịu (ghi nợ)</span><b class="rd">'+vnd(A.sumMua)+'</b></div>'
+      +'<div class="snr-flow-row"><span>💰 Thu tiền (khách trả)</span><b class="gr">'+vnd(A.sumTra)+'</b></div>'
+      +'<div class="snr-flow-row sum"><span>Nợ ròng phát sinh</span><b class="'+(A.flowNet>0?'rd':(A.flowNet<0?'gr':''))+'">'+(A.flowNet>0?'+':'')+vnd(A.flowNet)+'</b></div>'
+      +'</div><div class="snr-flow-meta">'+A.cntMua+' lần ghi nợ · '+A.cntTra+' lần thu · '+A.nActive+' khách hoạt động</div></div>';
+
+    // BIỂU ĐỒ THU vs GHI NỢ THEO NGÀY
+    h+=drawFlowChart(A.dayRows, r);
+
+    // TUỔI NỢ (AGING)
+    if(A.nDebt>0){
+      var agTot=A.oweMe||1;
+      var segs=[['b1','0–7 ngày','#12916d'],['b2','8–30 ngày','#c78a12'],['b3','31–90 ngày','#e8843a'],['b4','>90 ngày','#c0392b']];
+      h+='<div class="snr-card"><div class="snr-ct"><i class="ac-r"></i>Tuổi nợ phải thu <small class="snr-ct-sub">theo lần GD gần nhất</small></div>';
+      h+='<div class="snr-agbar">';
+      segs.forEach(function(s){var w=A.aging[s[0]]/agTot*100;if(w>0)h+='<i style="width:'+w.toFixed(2)+'%;background:'+s[2]+'"></i>';});
+      h+='</div>';
+      segs.forEach(function(s){var v=A.aging[s[0]],n=A.agingN[s[0]];if(n>0||v>0)h+='<div class="snr-agrow"><span class="snr-agdot" style="background:'+s[2]+'"></span><span class="snr-agn">'+s[1]+'</span><span class="snr-agc">'+n+' khách</span><b class="snr-agv">'+vnd(v)+'</b></div>';});
+      h+='<div class="snr-note">Nợ càng lâu càng khó thu — ưu tiên nhắc nhóm <b>trên 30 ngày</b>. Tuổi nợ tính theo ngày giao dịch gần nhất của khách.</div></div>';
+    }
+
+    // TOP KHÁCH NỢ MÌNH
+    if(A.debtors.length){
+      var dMx=Math.max(1,Number(A.debtors[0].debt)||0);
+      h+='<div class="snr-card"><div class="snr-ct"><i class="ac-r"></i>Khách nợ mình nhiều nhất</div>';
+      A.debtors.slice(0,8).forEach(function(c,i){var dv=Number(c.debt)||0;var sh=Math.round(dv/dMx*100);var last=_lastAct[c.id]||0;var days=last?Math.round((t0-last)/864e5):null;
+        h+='<div class="snr-prow"><div class="snr-prank'+(i<3?(' r'+(i+1)):'')+'">'+(i+1)+'</div><div class="snr-pmain"><div class="snr-pname">'+esc(c.name||'(không tên)')+(c.phone?'<small> · '+esc(c.phone)+'</small>':'')+'</div><div class="snr-pbar red"><i style="width:'+sh+'%"></i></div></div><div class="snr-pval"><b class="rd">'+vnd(dv)+'</b>'+(days!=null?'<span class="snr-psub">'+days+' ngày trước</span>':'')+'</div></div>';});
+      h+='</div>';
+    }
+
+    // KHÁCH LÂU CHƯA TRẢ
+    var staleShow=A.stale.filter(function(x){return x.days==null||x.days>=15;}).slice(0,6);
+    if(staleShow.length){
+      h+='<div class="snr-card"><div class="snr-ct"><i class="ac-gold"></i>Khách lâu chưa giao dịch <small class="snr-ct-sub">còn nợ</small></div>';
+      staleShow.forEach(function(x){h+='<div class="snr-srow"><span class="snr-sname">'+esc(x.name)+'</span><span class="snr-stag">'+(x.days==null?'chưa có mốc':(x.days+' ngày'))+'</span><b class="snr-sval rd">'+vnd(x.debt)+'</b></div>';});
+      h+='<div class="snr-note">Danh sách nên ưu tiên đi đòi/nhắc nợ.</div></div>';
+    }
+
+    // MÌNH NỢ KHÁCH
+    if(A.creditors.length){
+      var iMx=Math.max(1,-(Number(A.creditors[0].debt)||0));
+      h+='<div class="snr-card"><div class="snr-ct"><i class="ac-b"></i>Mình đang nợ khách</div>';
+      A.creditors.slice(0,6).forEach(function(c,i){var dv=-(Number(c.debt)||0);var sh=Math.round(dv/iMx*100);
+        h+='<div class="snr-prow"><div class="snr-prank">'+(i+1)+'</div><div class="snr-pmain"><div class="snr-pname">'+esc(c.name||'(không tên)')+(c.phone?'<small> · '+esc(c.phone)+'</small>':'')+'</div><div class="snr-pbar blue"><i style="width:'+sh+'%"></i></div></div><div class="snr-pval"><b class="bl">'+vnd(dv)+'</b></div></div>';});
+      h+='</div>';
+    }
+
+    // TOP THU / TOP BÁN CHỊU TRONG KỲ
+    if(A.topPay.length){
+      var pMx=Math.max(1,A.topPay[0].tra);
+      h+='<div class="snr-card"><div class="snr-ct"><i class="ac-g"></i>Khách trả nhiều nhất <small class="snr-ct-sub">trong kỳ</small></div>';
+      A.topPay.forEach(function(x,i){var sh=Math.round(x.tra/pMx*100);h+='<div class="snr-prow"><div class="snr-prank'+(i<3?(' r'+(i+1)):'')+'">'+(i+1)+'</div><div class="snr-pmain"><div class="snr-pname">'+esc(x.name)+'</div><div class="snr-pbar"><i style="width:'+sh+'%"></i></div></div><div class="snr-pval"><b class="gr">'+vnd(x.tra)+'</b></div></div>';});
+      h+='</div>';
+    }
+    if(A.topBuy.length){
+      var bMx=Math.max(1,A.topBuy[0].mua);
+      h+='<div class="snr-card"><div class="snr-ct"><i class="ac-r"></i>Khách bán chịu nhiều nhất <small class="snr-ct-sub">trong kỳ</small></div>';
+      A.topBuy.forEach(function(x,i){var sh=Math.round(x.mua/bMx*100);h+='<div class="snr-prow"><div class="snr-prank'+(i<3?(' r'+(i+1)):'')+'">'+(i+1)+'</div><div class="snr-pmain"><div class="snr-pname">'+esc(x.name)+'</div><div class="snr-pbar red"><i style="width:'+sh+'%"></i></div></div><div class="snr-pval"><b class="rd">'+vnd(x.mua)+'</b></div></div>';});
+      h+='</div>';
+    }
+
+    // BẢNG CHI TIẾT THEO NGÀY
+    var rows=A.dayRows.filter(function(x){return x.mua>0||x.tra>0;}).sort(function(a,b){return b.dayMs-a.dayMs;});
+    if(rows.length){
+      h+='<div class="snr-card"><div class="snr-ct"><i class="ac-g"></i>Chi tiết theo ngày</div><div class="snr-daytbl"><div class="snr-dt-h"><span>Ngày</span><span>Thu</span><span>Ghi nợ</span><span>Ròng</span></div>';
+      rows.slice(0,40).forEach(function(x){var n=x.mua-x.tra;h+='<div class="snr-dt-r"><span>'+dm(x.dayMs)+'</span><span class="gr">'+kk(x.tra)+'</span><span class="rd">'+kk(x.mua)+'</span><b class="'+(n>0?'rd':(n<0?'gr':''))+'">'+(n>0?'+':'')+kk(n)+'</b></div>';});
+      if(rows.length>40)h+='<div class="snr-note">…và '+(rows.length-40)+' ngày nữa</div>';
+      h+='</div></div>';
+    }
+
+    // GIAO DỊCH GẦN NHẤT
+    if(A.recent.length){
+      h+='<div class="snr-card"><div class="snr-ct"><i class="ac-gold"></i>Giao dịch gần nhất</div><div class="snr-recent">';
+      A.recent.forEach(function(t){var when=(t.entryMs?dm(t.entryMs):dm(t.dayMs))+(hm(t.entryMs)?(' '+hm(t.entryMs)):'');
+        h+='<div class="snr-rrow"><div class="snr-rleft"><span class="snr-rtag '+(t.isMua?'mua':'tra')+'">'+(t.isMua?'🛒 Mua':'💰 Trả')+'</span><div class="snr-rmid"><div class="snr-rname">'+esc(t.custName)+'</div>'+(t.note?'<div class="snr-rnote">'+esc(t.note)+'</div>':'')+'</div></div><div class="snr-rright"><b class="'+(t.isMua?'rd':'gr')+'">'+(t.isMua?'+':'−')+vnd(t.amount)+'</b><span class="snr-rdate">'+when+'</span></div></div>';});
+      h+='</div></div>';
+    }
+
+    h+='<div class="snr-foot">Số liệu công nợ (nợ ròng, khách nợ) là <b>hiện tại</b>. Dòng tiền, biểu đồ, khách mới tính theo <b>kỳ đã chọn</b>. Đọc trực tiếp từ dữ liệu — khớp với sổ.</div>';
+    box.innerHTML=h;
+  }
+
+  /* ---------- Biểu đồ cột thu vs ghi nợ ---------- */
+  function drawFlowChart(dayRows, r){
+    var rows=dayRows||[];
+    var h='<div class="snr-card"><div class="snr-ct"><i class="ac-g"></i>Thu &amp; Ghi nợ theo ngày</div>';
+    if(!rows.length||!rows.some(function(x){return x.mua>0||x.tra>0;})){return h+'<div class="snr-mut">Kỳ này chưa có giao dịch.</div></div>';}
+    // gộp nếu quá nhiều cột
+    var MAXB=14, buckets;
+    if(rows.length<=MAXB){buckets=rows.map(function(x){return {label:dm(x.dayMs),mua:x.mua,tra:x.tra};});}
+    else{var size=Math.ceil(rows.length/MAXB);buckets=[];for(var i=0;i<rows.length;i+=size){var c=rows.slice(i,i+size);buckets.push({label:dm(c[0].dayMs),mua:c.reduce(function(a,x){return a+x.mua;},0),tra:c.reduce(function(a,x){return a+x.tra;},0)});}}
+    var mx=1;buckets.forEach(function(b){if(b.mua>mx)mx=b.mua;if(b.tra>mx)mx=b.tra;});
+    var step=Math.max(1,Math.ceil(buckets.length/8));
+    h+='<div class="snr-gchart">';
+    buckets.forEach(function(b,i){
+      var hm2=Math.round(b.mua/mx*100), ht=Math.round(b.tra/mx*100);
+      var showL=(i%step===0)||(i===buckets.length-1);
+      h+='<div class="snr-gcol"><div class="snr-gbars">'
+        +'<div class="snr-gbar tra" style="height:'+Math.max(b.tra>0?4:0,ht)+'%" title="Thu '+vnd(b.tra)+'"></div>'
+        +'<div class="snr-gbar mua" style="height:'+Math.max(b.mua>0?4:0,hm2)+'%" title="Ghi nợ '+vnd(b.mua)+'"></div>'
+        +'</div><span class="snr-glb">'+(showL?esc(b.label):'&nbsp;')+'</span></div>';
+    });
+    h+='</div><div class="snr-glegend"><span><em class="c-green"></em>Thu (trả)</span><span><em class="c-red2"></em>Ghi nợ (mua)</span></div></div>';
+    return h;
+  }
+
+  /* ---------- Xuất Excel / CSV ---------- */
+  function exportReport(){
+    try{
+      var A=compute(), r=A.r, t0=startOfDay(new Date());
+      var dateStr=new Date().toISOString().slice(0,10);
+      if(typeof XLSX!=='undefined'&&XLSX&&XLSX.utils){
+        var wb=XLSX.utils.book_new();
+        var s1=[['BÁO CÁO SỔ NỢ'],['Kỳ báo cáo',r.label],['Xuất lúc',new Date().toLocaleString('vi-VN')],[],
+          ['— CÔNG NỢ HIỆN TẠI —'],
+          ['Tổng khách',A.nCust],['Khách đang nợ mình (số khách)',A.nDebt],['Khách nợ mình (tiền)',A.oweMe],
+          ['Mình đang nợ khách (số khách)',A.nIOwe],['Mình nợ khách (tiền)',A.iOwe],
+          ['Nợ ròng (khách nợ − mình nợ)',A.oweMe-A.iOwe],['Đã tất toán',A.nDone],[],
+          ['— DÒNG TIỀN TRONG KỲ —'],
+          ['Bán chịu / ghi nợ',A.sumMua],['Thu tiền / khách trả',A.sumTra],['Nợ ròng phát sinh',A.flowNet],
+          ['Số lần ghi nợ',A.cntMua],['Số lần thu',A.cntTra],['Khách hoạt động',A.nActive],['Khách mới',A.newCust],[],
+          ['— TUỔI NỢ PHẢI THU —'],
+          ['0–7 ngày',A.aging.b1,A.agingN.b1+' khách'],['8–30 ngày',A.aging.b2,A.agingN.b2+' khách'],
+          ['31–90 ngày',A.aging.b3,A.agingN.b3+' khách'],['>90 ngày',A.aging.b4,A.agingN.b4+' khách']];
+        var ws1=XLSX.utils.aoa_to_sheet(s1);ws1['!cols']=[{wch:34},{wch:16},{wch:12}];
+        XLSX.utils.book_append_sheet(wb,ws1,'Tổng quan');
+
+        var s2=[['STT','Khách hàng','SĐT','Số nợ (đ)','Trạng thái','Ngày GD gần nhất','Số ngày']];
+        var arr=(typeof customers!=='undefined'&&Array.isArray(customers))?customers.slice():[];
+        arr.sort(function(a,b){return (Number(b.debt)||0)-(Number(a.debt)||0);});
+        arr.forEach(function(c,i){var dv=Number(c.debt)||0;var last=_lastAct[c.id]||0;var days=last?Math.round((t0-last)/864e5):'';
+          s2.push([i+1,c.name||'',c.phone||'',dv,(dv>0?'Khách nợ mình':(dv<0?'Mình nợ khách':'Đã xong')),(last?dmy(last):''),days]);});
+        var ws2=XLSX.utils.aoa_to_sheet(s2);ws2['!cols']=[{wch:5},{wch:26},{wch:14},{wch:14},{wch:16},{wch:16},{wch:8}];
+        XLSX.utils.book_append_sheet(wb,ws2,'Công nợ hiện tại');
+
+        var s3=[['Ngày','Thu (đ)','Ghi nợ (đ)','Ròng (đ)']];
+        A.dayRows.filter(function(x){return x.mua>0||x.tra>0;}).sort(function(a,b){return b.dayMs-a.dayMs;})
+          .forEach(function(x){s3.push([dmy(x.dayMs),x.tra,x.mua,x.mua-x.tra]);});
+        var ws3=XLSX.utils.aoa_to_sheet(s3);ws3['!cols']=[{wch:12},{wch:14},{wch:14},{wch:14}];
+        XLSX.utils.book_append_sheet(wb,ws3,'Theo ngày');
+
+        XLSX.writeFile(wb,'BaoCao-SoNo-'+dateStr+'.xlsx');
+      }else{
+        // CSV dự phòng
+        var lines=['Khách hàng,SĐT,Số nợ,Trạng thái,Ngày GD gần nhất,Số ngày'];
+        var arr2=(typeof customers!=='undefined'&&Array.isArray(customers))?customers.slice():[];
+        arr2.sort(function(a,b){return (Number(b.debt)||0)-(Number(a.debt)||0);});
+        arr2.forEach(function(c){var dv=Number(c.debt)||0;var last=_lastAct[c.id]||0;var days=last?Math.round((t0-last)/864e5):'';
+          function q(v){return '"'+String(v==null?'':v).replace(/"/g,'""')+'"';}
+          lines.push([q(c.name||''),q(c.phone||''),dv,q(dv>0?'Khách nợ mình':(dv<0?'Mình nợ khách':'Đã xong')),q(last?dmy(last):''),days].join(','));});
+        var blob=new Blob(['\ufeff'+lines.join('\n')],{type:'text/csv;charset=utf-8'});
+        var a=D.createElement('a');a.href=URL.createObjectURL(blob);a.download='BaoCao-SoNo-'+dateStr+'.csv';a.click();setTimeout(function(){URL.revokeObjectURL(a.href);},1500);
+      }
+    }catch(e){ try{alert('Lỗi xuất báo cáo: '+(e&&e.message?e.message:e));}catch(_){}}
+  }
+
+  /* ---------- Mở / đóng & tải ---------- */
+  function refresh(){
+    var box=D.getElementById('snr-body'); if(box)box.innerHTML='<div class="snr-hint">⏳ Đang tải dữ liệu giao dịch…</div>';
+    loadTx(function(done,total){var b=D.getElementById('snr-body');if(b&&!_loaded)b.innerHTML='<div class="snr-hint">⏳ Đang tải… '+done+'/'+total+' khách</div>';})
+      .then(function(){draw();});
+  }
+  function openReport(){
+    var ov=D.getElementById('snr-ov'); if(!ov)return;
+    ov.classList.add('on'); D.body.style.overflow='hidden';
+    syncChips();
+    if(!_loaded&&!_loading)refresh(); else draw();
+  }
+  function closeReport(){var ov=D.getElementById('snr-ov');if(ov)ov.classList.remove('on');D.body.style.overflow='';}
+  function syncChips(){
+    var wrap=D.getElementById('snr-period'); if(!wrap)return;
+    wrap.querySelectorAll('button').forEach(function(b){b.classList.toggle('on',b.dataset.p===_period);});
+    var cr=D.getElementById('snr-range'); if(cr)cr.style.display=(_period==='custom')?'':'none';
+  }
+
+  /* ---------- Dựng UI (overlay + nút mở) ---------- */
+  function buildUI(){
+    if(D.getElementById('snr-ov'))return;
+    var ov=D.createElement('div'); ov.id='snr-ov'; ov.className='snr-ov';
+    ov.innerHTML=''+
+      '<div class="snr-topbar">'+
+        '<button class="snr-x" id="snr-close">‹ Quay lại</button>'+
+        '<div class="snr-title">📊 Báo cáo Sổ Nợ</div>'+
+        '<div class="snr-acts"><button class="snr-ic" id="snr-refresh" title="Tải lại">🔄</button><button class="snr-ic" id="snr-export" title="Xuất Excel">📥</button></div>'+
+      '</div>'+
+      '<div class="snr-periodwrap"><div class="snr-period" id="snr-period">'+
+        '<button data-p="today">Hôm nay</button>'+
+        '<button data-p="7">7 ngày</button>'+
+        '<button data-p="30">30 ngày</button>'+
+        '<button data-p="month">Tháng này</button>'+
+        '<button data-p="all">Tất cả</button>'+
+        '<button data-p="custom">Tùy chọn</button>'+
+      '</div><div class="snr-range" id="snr-range" style="display:none"><label>Từ <input type="date" id="snr-from"></label><label>Đến <input type="date" id="snr-to"></label></div></div>'+
+      '<div class="snr-body" id="snr-body"></div>';
+    D.body.appendChild(ov);
+
+    // sự kiện
+    D.getElementById('snr-close').addEventListener('click',closeReport);
+    D.getElementById('snr-refresh').addEventListener('click',refresh);
+    D.getElementById('snr-export').addEventListener('click',exportReport);
+    D.getElementById('snr-period').addEventListener('click',function(e){var b=e.target.closest('button[data-p]');if(!b)return;_period=b.dataset.p;syncChips();draw();});
+    var ff=D.getElementById('snr-from'),tt=D.getElementById('snr-to');
+    if(ff)ff.addEventListener('change',function(){_from=this.value;_period='custom';syncChips();draw();});
+    if(tt)tt.addEventListener('change',function(){_to=this.value;_period='custom';syncChips();draw();});
+
+    // nút mở trên màn hình Sổ Nợ (chèn cạnh nút Công cụ) + trong modal Công cụ
+    injectButtons();
+  }
+
+  function makeBtn(id,cls){var b=D.createElement('button');b.id=id;b.className=cls;b.type='button';b.innerHTML='📊 Báo cáo chi tiết';b.addEventListener('click',openReport);return b;}
+  function injectButtons(){
+    // 1) màn hình chính: cạnh nút 🧰 Công cụ
+    try{
+      var tools=D.querySelector('.main .export-bar .btn-tools')||D.querySelector('.btn-tools');
+      if(tools&&tools.parentNode&&!D.getElementById('snr-open-main')){
+        var b1=makeBtn('snr-open-main','btn-tools snr-openbtn');
+        tools.parentNode.insertBefore(b1,tools);
+      }
+    }catch(e){}
+    // 2) trong modal Công cụ & Sao lưu
+    try{
+      var bar=D.querySelector('#modal-tools .export-bar');
+      if(bar&&!D.getElementById('snr-open-modal')){
+        var b2=makeBtn('snr-open-modal','btn-tools snr-openbtn');
+        b2.addEventListener('click',function(){try{var m=D.getElementById('modal-tools');if(m)m.classList.remove('active');}catch(_){}}); 
+        bar.insertBefore(b2,bar.firstChild);
+      }
+    }catch(e){}
+  }
+
+  /* ---------- Khởi động ---------- */
+  function boot(){ injectCSS(); buildUI(); }
+  if(D.readyState==='loading')D.addEventListener('DOMContentLoaded',boot); else boot();
+
+  /* ---------- CSS tự chứa (namespace snr-) ---------- */
+  function injectCSS(){
+    if(D.getElementById('snr-css'))return;
+    var css=''+
+'.snr-ov{position:fixed;inset:0;z-index:4000;background:#f0f4f8;display:none;flex-direction:column;overflow:hidden}'+
+'.snr-ov.on{display:flex}'+
+'.snr-topbar{display:flex;align-items:center;gap:8px;background:#1a6b3c;color:#fff;padding:12px 12px;padding-top:calc(12px + env(safe-area-inset-top,0px));box-shadow:0 2px 8px rgba(0,0,0,.15);flex:none}'+
+'.snr-x{background:rgba(255,255,255,.18);color:#fff;border:none;border-radius:8px;padding:8px 12px;font-size:.92em;font-weight:600;cursor:pointer;white-space:nowrap}'+
+'.snr-title{font-size:1.05em;font-weight:700;flex:1;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}'+
+'.snr-acts{display:flex;gap:6px}'+
+'.snr-ic{background:rgba(255,255,255,.18);border:none;border-radius:8px;width:38px;height:36px;font-size:1.05em;cursor:pointer;color:#fff}'+
+'.snr-periodwrap{background:#fff;border-bottom:1px solid #e2e8e5;flex:none;padding:8px 10px}'+
+'.snr-period{display:flex;gap:6px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}'+
+'.snr-period::-webkit-scrollbar{display:none}'+
+'.snr-period button{flex:0 0 auto;padding:7px 13px;border:1.5px solid #d1d5db;background:#fff;border-radius:20px;font-size:.86em;color:#6b7280;cursor:pointer;white-space:nowrap;font-weight:600}'+
+'.snr-period button.on{background:#1a6b3c;color:#fff;border-color:#1a6b3c}'+
+'.snr-range{display:flex;gap:10px;margin-top:8px;flex-wrap:wrap}'+
+'.snr-range label{font-size:.82em;color:#555;display:flex;flex-direction:column;gap:3px;flex:1;min-width:130px}'+
+'.snr-range input{padding:8px 10px;border:1.5px solid #d1d5db;border-radius:8px;font-size:.9em}'+
+'.snr-body{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:12px 12px calc(28px + env(safe-area-inset-bottom,0px))}'+
+'.snr-hint,.snr-mut,.snr-note,.snr-foot{color:#6b7280;font-size:.85em}'+
+'.snr-hint{text-align:center;padding:40px 16px;line-height:1.6}'+
+'.snr-warn{background:#fff7ed;border:1px solid #fed7aa;color:#b45309;border-radius:10px;padding:9px 12px;font-size:.82em;margin-bottom:10px}'+
+'.snr-head{display:flex;align-items:center;gap:11px;background:linear-gradient(135deg,#eef7f3,#e6f3ec);border:1px solid #d3e8dd;border-radius:14px;padding:11px 14px;margin-bottom:11px}'+
+'.snr-head-ic{font-size:19px;line-height:1}'+
+'.snr-head-tx{display:flex;flex-direction:column;line-height:1.35}'+
+'.snr-head-tx b{font-size:14.5px;color:#0a5f4a}'+
+'.snr-head-tx span{font-size:11.5px;color:#5f7a70}'+
+'.snr-hero{position:relative;overflow:hidden;background:linear-gradient(140deg,#12916d,#0c6f53 55%,#0a5c45);border-radius:18px;padding:16px 17px 15px;margin-bottom:11px;color:#fff;box-shadow:0 12px 30px -14px rgba(10,92,69,.6)}'+
+'.snr-hero-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}'+
+'.snr-hero-label{font-size:11.5px;letter-spacing:.6px;color:#cdeee1;font-weight:700}'+
+'.snr-hero-tag{font-size:11px;background:rgba(255,255,255,.16);padding:3px 9px;border-radius:20px}'+
+'.snr-hero-val{font-size:27px;font-weight:800;letter-spacing:.2px;line-height:1.15}'+
+'.snr-hero-val.neg{color:#ffd9d0}'+
+'.snr-hero-legend{display:flex;gap:14px;margin-top:11px;flex-wrap:wrap}'+
+'.snr-hero-legend span{font-size:11.5px;color:#dff2ea;display:flex;align-items:center;gap:5px}'+
+'.snr-hero-legend b{color:#fff;font-size:12.5px}'+
+'.snr-hero-legend em{width:9px;height:9px;border-radius:3px;display:inline-block}'+
+'.snr-hero-legend em.c-red{background:#ffb3a7}.snr-hero-legend em.c-blue{background:#9ec5ff}'+
+'.snr-kpis{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:11px}'+
+'.snr-kpi{background:#fff;border:1px solid #e7ede9;border-radius:14px;padding:11px 12px;box-shadow:0 1px 2px rgba(16,40,32,.04)}'+
+'.snr-kpi .k-l{font-size:11px;color:#7d8c85;font-weight:600}'+
+'.snr-kpi .k-b{display:block;font-size:19px;font-weight:800;color:#15211d;margin:2px 0}'+
+'.snr-kpi .k-s{font-size:11px;color:#9aa8a2}'+
+'.snr-kpi.red{border-color:#f4d3cd}.snr-kpi.red .k-b{color:#c0392b}'+
+'.snr-kpi.blue{border-color:#cfe0fb}.snr-kpi.blue .k-b{color:#1d4ed8}'+
+'.snr-card{background:#fff;border:1px solid #e7ede9;border-radius:16px;padding:14px;margin-bottom:11px;box-shadow:0 1px 2px rgba(16,40,32,.04),0 10px 26px -18px rgba(16,40,32,.22)}'+
+'.snr-ct{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:800;color:#15211d;margin-bottom:12px}'+
+'.snr-ct i{width:4px;height:15px;border-radius:3px;flex:none;background:#0d7a5f}'+
+'.snr-ct i.ac-g{background:#0d7a5f}.snr-ct i.ac-b{background:#1f6feb}.snr-ct i.ac-r{background:#c0392b}.snr-ct i.ac-gold{background:#c78a12}'+
+'.snr-ct-sub{font-weight:600;color:#9aa8a2;font-size:11.5px;margin-left:auto}'+
+'.snr-insc .snr-ins{display:flex;gap:9px;align-items:flex-start;padding:7px 0;border-top:1px dashed #eef2f0}'+
+'.snr-insc .snr-ins:first-of-type{border-top:none}'+
+'.snr-ins-ic{font-size:15px;line-height:1.3;flex:none}'+
+'.snr-ins-tx{font-size:12.8px;color:#33403b;line-height:1.5}'+
+'.snr-ins-tx b{color:#12312a}'+
+'.snr-flow-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-top:1px dashed #eef2f0;font-size:13px;color:#3a4842}'+
+'.snr-flow-row:first-child{border-top:none}'+
+'.snr-flow-row b{font-size:13.5px}'+
+'.snr-flow-row.sum{border-top:2px solid #e2ebe7;margin-top:2px;font-weight:800;color:#15211d}'+
+'.snr-flow-meta{font-size:11.5px;color:#9aa8a2;margin-top:8px}'+
+'.rd{color:#c0392b}.gr{color:#0d7a5f}.bl{color:#1d4ed8}'+
+'.snr-agbar{display:flex;height:14px;border-radius:8px;overflow:hidden;background:#eef2f0;margin-bottom:12px}'+
+'.snr-agbar i{height:100%}'+
+'.snr-agrow{display:flex;align-items:center;gap:8px;padding:6px 0;font-size:12.5px;color:#3a4842}'+
+'.snr-agdot{width:10px;height:10px;border-radius:3px;flex:none}'+
+'.snr-agn{flex:1}.snr-agc{color:#8b998f;font-size:11.5px}.snr-agv{font-weight:800;min-width:88px;text-align:right}'+
+'.snr-prow{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px dashed #eef2f0}'+
+'.snr-prow:first-of-type{border-top:none}'+
+'.snr-prank{width:24px;height:24px;border-radius:8px;background:#eef2f0;color:#5f7a70;font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center;flex:none}'+
+'.snr-prank.r1{background:#fef3c7;color:#b45309}.snr-prank.r2{background:#e5e7eb;color:#4b5563}.snr-prank.r3{background:#fde4d0;color:#c2620f}'+
+'.snr-pmain{flex:1;min-width:0}'+
+'.snr-pname{font-size:13px;font-weight:600;color:#22302b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}'+
+'.snr-pname small{color:#9aa8a2;font-weight:500}'+
+'.snr-pbar{height:6px;border-radius:4px;background:#eef2f0;margin-top:5px;overflow:hidden}'+
+'.snr-pbar i{display:block;height:100%;background:#0d7a5f;border-radius:4px}'+
+'.snr-pbar.red i{background:#c0392b}.snr-pbar.blue i{background:#1d4ed8}'+
+'.snr-pval{text-align:right;flex:none}'+
+'.snr-pval b{font-size:13px}'+
+'.snr-psub{display:block;font-size:10.5px;color:#9aa8a2;margin-top:1px}'+
+'.snr-srow{display:flex;align-items:center;gap:8px;padding:7px 0;border-top:1px dashed #eef2f0}'+
+'.snr-srow:first-of-type{border-top:none}'+
+'.snr-sname{flex:1;font-size:12.8px;color:#22302b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}'+
+'.snr-stag{font-size:11px;color:#b45309;background:#fff7ed;border:1px solid #fed7aa;border-radius:20px;padding:2px 8px;white-space:nowrap}'+
+'.snr-sval{font-weight:800;font-size:12.8px;min-width:78px;text-align:right}'+
+'.snr-daytbl{font-size:12.5px}'+
+'.snr-dt-h{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:4px;color:#8b998f;font-weight:700;font-size:11px;padding-bottom:6px;border-bottom:1px solid #eef2f0}'+
+'.snr-dt-h span:not(:first-child),.snr-dt-r span:not(:first-child),.snr-dt-r b{text-align:right}'+
+'.snr-dt-r{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:4px;padding:6px 0;border-top:1px dashed #f1f4f2}'+
+'.snr-dt-r b{font-weight:800}'+
+'.snr-gchart{display:flex;align-items:flex-end;gap:3px;height:130px;padding:6px 0 2px}'+
+'.snr-gcol{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;min-width:0;height:100%}'+
+'.snr-gbars{display:flex;gap:2px;align-items:flex-end;justify-content:center;width:100%;height:100%}'+
+'.snr-gbar{width:42%;max-width:16px;border-radius:3px 3px 0 0;min-height:0}'+
+'.snr-gbar.tra{background:linear-gradient(180deg,#16a97f,#0d7a5f)}'+
+'.snr-gbar.mua{background:linear-gradient(180deg,#e05c48,#c0392b)}'+
+'.snr-glb{font-size:9.5px;color:#9aa8a2;margin-top:4px;white-space:nowrap;transform:rotate(-45deg);transform-origin:top center;height:14px}'+
+'.snr-glegend{display:flex;gap:16px;justify-content:center;margin-top:14px}'+
+'.snr-glegend span{font-size:11.5px;color:#5f7a70;display:flex;align-items:center;gap:5px}'+
+'.snr-glegend em{width:10px;height:10px;border-radius:3px;display:inline-block}'+
+'.snr-glegend em.c-green{background:#0d7a5f}.snr-glegend em.c-red2{background:#c0392b}'+
+'.snr-recent{display:flex;flex-direction:column}'+
+'.snr-rrow{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:9px 0;border-top:1px dashed #eef2f0}'+
+'.snr-rrow:first-child{border-top:none}'+
+'.snr-rleft{display:flex;gap:9px;align-items:flex-start;min-width:0;flex:1}'+
+'.snr-rtag{font-size:10.5px;font-weight:700;border-radius:7px;padding:3px 7px;white-space:nowrap;flex:none}'+
+'.snr-rtag.mua{background:#fdecea;color:#c0392b}.snr-rtag.tra{background:#e8f5ee;color:#0d7a5f}'+
+'.snr-rmid{min-width:0}'+
+'.snr-rname{font-size:12.8px;font-weight:600;color:#22302b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}'+
+'.snr-rnote{font-size:11px;color:#9aa8a2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:170px}'+
+'.snr-rright{text-align:right;flex:none}'+
+'.snr-rright b{font-size:13px}'+
+'.snr-rdate{display:block;font-size:10.5px;color:#9aa8a2;margin-top:1px}'+
+'.snr-note{margin-top:10px;line-height:1.5}'+
+'.snr-foot{text-align:center;padding:6px 8px 16px;line-height:1.6}'+
+'.snr-openbtn{background:#0d7a5f!important;color:#fff!important;border-color:#0d7a5f!important}';
+    var st=D.createElement('style'); st.id='snr-css'; st.textContent=css; D.head.appendChild(st);
+  }
+
+})();
 </script>
 <style>
 #pos-screen{position:fixed;inset:0;z-index:2000;background:#eef1ef;display:none;flex-direction:column;color:#15211d;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
