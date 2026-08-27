@@ -4693,6 +4693,22 @@ try { window.__skBusy = function(){
     }
   }catch(_){}
 
+  /* --- 1b) Thêm quyền debtpay (CHỈ ghi khách TRẢ tiền) song song, KHÔNG tạo tên top-level mới --- */
+  var LBL_PAY='Thu nợ: ghi khách TRẢ tiền (không thêm/sửa/xóa nợ)';
+  try{
+    if(typeof SK_CAPS!=='undefined' && Array.isArray(SK_CAPS) && !SK_CAPS.some(function(x){return x[0]==='debtpay';}))
+      SK_CAPS.push(['debtpay',LBL_PAY]);
+    if(typeof SK_CAP_LABEL!=='undefined' && SK_CAP_LABEL) SK_CAP_LABEL['debtpay']=LBL_PAY;
+    if(typeof SK_PERM_DEFAULT!=='undefined' && SK_PERM_DEFAULT){
+      if(SK_PERM_DEFAULT.manager && !('debtpay' in SK_PERM_DEFAULT.manager)) SK_PERM_DEFAULT.manager.debtpay=false;
+      if(SK_PERM_DEFAULT.cashier && !('debtpay' in SK_PERM_DEFAULT.cashier)) SK_PERM_DEFAULT.cashier.debtpay=false;
+    }
+    if(typeof SK_PERM!=='undefined' && SK_PERM){
+      if(SK_PERM.manager && !('debtpay' in SK_PERM.manager)) SK_PERM.manager.debtpay=false;
+      if(SK_PERM.cashier && !('debtpay' in SK_PERM.cashier)) SK_PERM.cashier.debtpay=false;
+    }
+  }catch(_){}
+
   /* --- 2) Quy tắc: được sửa công nợ khi (KHÔNG khóa) VÀ (vai trò có quyền) --- */
   function canEditDebt(){
     var roleOk=true; try{ if(typeof skRoleCan==='function') roleOk=skRoleCan('debtedit'); }catch(_){ roleOk=true; }
@@ -4703,10 +4719,21 @@ try { window.__skBusy = function(){
       ? '🔒 Sổ Nợ đang KHÓA — mở khóa bằng mật khẩu để sửa công nợ.'
       : '🔒 Bạn không có quyền sửa công nợ.'); }catch(_){}
   }
+  /* Được phép GHI KHÁCH TRẢ tiền khi (KHÔNG khóa) VÀ (có quyền debtedit HOẶC debtpay) */
+  function canPayDebt(){
+    var ok=false; try{ if(typeof skRoleCan==='function') ok=(skRoleCan('debtedit')||skRoleCan('debtpay')); }catch(_){ ok=false; }
+    return !DEBT_LOCK && ok;
+  }
+  function payDeny(){
+    try{ toast(DEBT_LOCK
+      ? '🔒 Sổ Nợ đang KHÓA — mở khóa bằng mật khẩu để ghi trả nợ.'
+      : '🔒 Bạn không có quyền ghi khách trả nợ.'); }catch(_){}
+  }
 
   /* --- 3) Ẩn/hiện nút sửa + cập nhật nút khóa --- */
   function applyDebtPerm(){
     try{ document.body.classList.toggle('sn-lockedit', !canEditDebt()); }catch(_){}
+    try{ document.body.classList.toggle('sn-canpay', canPayDebt()); }catch(_){}
     updateLockBtn();
   }
   function updateLockBtn(){
@@ -4773,7 +4800,26 @@ try { window.__skBusy = function(){
     var orig=window[name]; if(typeof orig!=='function')return;
     window[name]=function(){ if(!canEditDebt()){ debtDeny(); return; } return orig.apply(this,arguments); };
   }
-  ['saveTx','delTx','delTxFromEdit','deleteCustomer','saveNewCustomer','openTx','openEditTx','openAddCustomer','runImport','runFullRestore'].forEach(wrapEdit);
+  ['delTx','delTxFromEdit','deleteCustomer','saveNewCustomer','openEditTx','openAddCustomer','runImport','runFullRestore'].forEach(wrapEdit);
+  /* openTx & saveTx: phân nhánh theo loại giao dịch — 'tra' (khách trả) cho phép khi có quyền thu nợ; còn lại cần quyền sửa nợ */
+  try{
+    var _openTx=window.openTx, _saveTx=window.saveTx;
+    if(typeof _openTx==='function'){
+      window.openTx=function(type){
+        if(type==='tra'){ if(!canPayDebt()){ payDeny(); return; } }
+        else{ if(!canEditDebt()){ debtDeny(); return; } }
+        return _openTx.apply(this,arguments);
+      };
+    }
+    if(typeof _saveTx==='function'){
+      window.saveTx=function(){
+        var isPay=false; try{ isPay=(!editingTxId && currentTxType==='tra'); }catch(_){ isPay=false; }
+        if(isPay){ if(!canPayDebt()){ payDeny(); return; } }
+        else{ if(!canEditDebt()){ debtDeny(); return; } }
+        return _saveTx.apply(this,arguments);
+      };
+    }
+  }catch(_){}
 
   /* --- 7) Bọc skApplyRole để cập nhật quyền Sổ Nợ khi đổi vai trò (POS) --- */
   try{
@@ -4799,7 +4845,8 @@ try { window.__skBusy = function(){
       +'.sn-unlock-btns{display:flex;gap:8px;}'
       +'.sn-unlock-b{flex:1;border:none;border-radius:10px;padding:12px;font-size:.95em;font-weight:700;cursor:pointer;}'
       +'.sn-unlock-b.ghost{background:#eef0f2;color:#374151;}'
-      +'.sn-unlock-b.ok{background:#0d7a5f;color:#fff;}';
+      +'.sn-unlock-b.ok{background:#0d7a5f;color:#fff;}'
+      +'body.sn-lockedit.sn-canpay #modal-detail .sn-paybtn{display:block!important;}';
     document.head.appendChild(st);
   }catch(_){}
 
@@ -4807,6 +4854,13 @@ try { window.__skBusy = function(){
   try{
     document.querySelectorAll('#modal-detail [onclick*="openTx("], #modal-detail [onclick*="deleteCustomer("], #app .btn-add, #tx-del-btn')
       .forEach(function(el){ el.classList.add('sn-editonly'); });
+  }catch(_){}
+
+  /* --- 9b) Nút "💰 Trả" vẫn hiện cho người CHỈ có quyền thu nợ; ẩn nút "🛒 Mua" của họ --- */
+  try{
+    document.querySelectorAll('#modal-detail [onclick*="openTx(\'tra\')"]')
+      .forEach(function(el){ el.classList.add('sn-paybtn'); });
+    var _mua=document.getElementById('tx-type-mua'); if(_mua) _mua.classList.add('sn-editonly');
   }catch(_){}
 
   /* --- 10) Chèn nút khóa vào thanh tiêu đề Sổ Nợ --- */
