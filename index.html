@@ -7571,29 +7571,31 @@ import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, getDocs, serv
   }catch(_){}
 
   /* ---------- (2)(3) Phát hiện chính xác "còn ghi chưa lên máy chủ" bằng Firestore ----------
-     Dùng LẠI đúng app Firebase đã khởi tạo (getApp) — KHÔNG tạo mới, KHÔNG thêm lượt đọc. */
+     Dùng LẠI đúng app Firebase đã khởi tạo (getApp) — KHÔNG tạo mới, KHÔNG thêm lượt đọc.
+     Có RETRY: khối này chạy TRƯỚC module chính, nên chờ tới khi Firebase sẵn sàng rồi mới gắn. */
   try{
-    import("https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js").then(function(appMod){
-      return import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js").then(function(fs){
-        var db;
-        try{ db = fs.getFirestore(appMod.getApp()); }catch(e){ return; }
+    Promise.all([
+      import("https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js"),
+      import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js")
+    ]).then(function(mods){
+      var appMod=mods[0], fs=mods[1];
+      function wire(db){
         function arm(){
-          try{
-            fs.waitForPendingWrites(db).then(function(){
-              if(pending){ pending=false; render(); }
-            }).catch(function(){});
-          }catch(e){}
+          try{ fs.waitForPendingWrites(db).then(function(){ if(pending){pending=false;render();} }).catch(function(){}); }catch(e){}
         }
-        try{
-          fs.onSnapshotsInSync(db, function(){
-            /* Vừa có thay đổi cục bộ được áp — kiểm tra còn ghi chưa xác nhận không */
-            pending=true; render(); arm();
-          });
-        }catch(e){}
-        /* Đối soát hàng đợi còn sót từ phiên trước (nếu đang online) */
-        pending=true; render(); arm();
-      });
-    }).catch(function(){ /* SDK chưa sẵn sàng / mở lạnh khi offline: bỏ qua, lớp offline vẫn chạy */ });
+        try{ fs.onSnapshotsInSync(db, function(){ pending=true; render(); arm(); }); }catch(e){}
+        pending=true; render(); arm();   /* đối soát hàng đợi còn sót từ phiên trước */
+      }
+      var tries=0;
+      (function acquire(){
+        tries++;
+        var app=null, db=null;
+        try{ app=appMod.getApp(); }catch(e){ app=null; }
+        if(app){ try{ db=fs.getFirestore(app); }catch(e){ db=null; } }
+        if(db){ wire(db); return; }
+        if(tries<40){ setTimeout(acquire, 300); }   /* chờ module chính initializeApp (tối đa ~12s) */
+      })();
+    }).catch(function(){ /* mở lạnh khi offline / SDK chưa sẵn sàng: bỏ qua, lớp offline vẫn chạy */ });
   }catch(_){}
 
   render();
