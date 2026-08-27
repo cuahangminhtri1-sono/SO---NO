@@ -2871,6 +2871,7 @@ document.querySelectorAll('.modal-overlay').forEach(el=>{
 */
 let skProducts=[],skOrders=[],skReturns=[],skSuppliers=[],skView='sell',skPeriod='today',skKhoCat='',skRpFrom='',skRpTo='',skRpOrders=[],skRpReturns=[],skRpReqId=0;
 let skCart=[],skDiscount=0,skOrderNote='',skHeld=[];
+let SK_ALLOW_NEGATIVE_STOCK=true; /* Cho phép BÁN ÂM KHO: hàng chưa nhập trên App vẫn bán được, tồn xuống số âm; sau nhập lại sẽ cộng bù. Đổi thành false để chặn bán quá tồn như cũ. */
 let skAskPrice=(function(){try{return localStorage.getItem('sk_ask_price')==='1';}catch(e){return false;}})();
 let skAskQty=(function(){try{const v=localStorage.getItem('sk_ask_qty');return v===null?true:v==='1';}catch(e){return true;}})(); // MẶC ĐỊNH BẬT: bấm SP là hỏi số lượng ngay
 let skNp={supplierId:'',supplierName:'',items:[],note:'',paid:0};
@@ -2982,7 +2983,7 @@ function skRenderGrid(){
   if(!list.length){box.innerHTML='<div class="sk-empty">'+(skProducts.length?'Không tìm thấy.':'Chưa có sản phẩm. Vào tab <b>Nhập hàng</b> hoặc <b>Kho</b> để thêm.')+'</div>';return;}
   list.sort((a,b)=>(a.name||'').localeCompare(b.name||'','vi'));
   box.innerHTML=list.map(p=>{const o=(p.stock||0)<=0,lo=!o&&(p.stock||0)<=(p.minStock||0);const multi=(p.units||[]).length>0;
-    return '<button class="sk-tile'+(o?' out':'')+'" data-act="cart-add" data-id="'+p.id+'"'+(o?' disabled':'')+'>'+(p.image?'<img class="sk-tile-img" src="'+escHtml(p.image)+'" loading="lazy">':'')+'<div class="sk-tile-name">'+escHtml(p.name)+'</div><div class="sk-tile-price">'+fmt(p.price||0)+(multi?'<span class="sk-tile-u">+đv</span>':'')+'</div><div class="sk-tile-stock'+(lo?' warn':'')+(o?' danger':'')+'">Tồn '+skN(p.stock||0)+' '+escHtml(p.baseUnit||'')+'</div></button>';
+    return '<button class="sk-tile'+(o?' out':'')+'" data-act="cart-add" data-id="'+p.id+'"'+((o&&!SK_ALLOW_NEGATIVE_STOCK)?' disabled':'')+'>'+(p.image?'<img class="sk-tile-img" src="'+escHtml(p.image)+'" loading="lazy">':'')+'<div class="sk-tile-name">'+escHtml(p.name)+'</div><div class="sk-tile-price">'+fmt(p.price||0)+(multi?'<span class="sk-tile-u">+đv</span>':'')+'</div><div class="sk-tile-stock'+(lo?' warn':'')+(o?' danger':'')+'">Tồn '+skN(p.stock||0)+' '+escHtml(p.baseUnit||'')+'</div></button>';
   }).join('');
 }
 
@@ -3035,13 +3036,13 @@ async function skSessionCommit(){if(!skSession){skStopScan();return;}const ents=
 /* ---- GIỎ HÀNG (theo đơn vị) ---- */
 function skCartBaseInCart(pid){return skCart.filter(c=>c.id===pid).reduce((s,c)=>s+c.baseQty,0);}
 function skAddToCart(id){const p=skProducts.find(x=>x.id===id);if(!p)return;skPickUnit(p,function(u){skCartAddLine(p,u);});}
-function skCartAddLine(p,u){const ratio=u.ratio||1;const key=p.id+'|'+u.name;const line=skCart.find(c=>c.key===key);const avail=(p.stock||0)-skCartBaseInCart(p.id);if(avail<=0){toast('Hết tồn: '+p.name+' (còn '+skN(p.stock||0)+' '+(p.baseUnit||'')+')');return;}const maxUnits=Math.round((avail/ratio)*1e6)/1e6;
-  if(line){if(avail<ratio){toast('Chỉ còn '+skN(maxUnits)+' '+u.name);return;}line.qty=Math.round((line.qty+1)*1e6)/1e6;line.baseQty=Math.round(line.qty*ratio*1e6)/1e6;skRenderCart();skRenderGrid();return;}                                   // đã có trong giỏ → +1 (chỉnh bằng ± hoặc gõ số trong giỏ)
-  const _addNew=function(qty,price){let q=Number(qty);if(!(q>0))q=1;if(q>maxUnits){q=maxUnits;toast('Chỉ còn '+skN(maxUnits)+' '+u.name+' — đã thêm '+skN(maxUnits));}q=Math.round(q*1e6)/1e6;skCart.push({key:key,id:p.id,name:p.name,unit:u.name,ratio:ratio,price:price,cost:(p.cost||0)*ratio,qty:q,baseQty:Math.round(q*ratio*1e6)/1e6});skRenderCart();skRenderGrid();};
+function skCartAddLine(p,u){const ratio=u.ratio||1;const key=p.id+'|'+u.name;const line=skCart.find(c=>c.key===key);const avail=(p.stock||0)-skCartBaseInCart(p.id);if(!SK_ALLOW_NEGATIVE_STOCK&&avail<=0){toast('Hết tồn: '+p.name+' (còn '+skN(p.stock||0)+' '+(p.baseUnit||'')+')');return;}const maxUnits=Math.round((avail/ratio)*1e6)/1e6;
+  if(line){if(!SK_ALLOW_NEGATIVE_STOCK&&avail<ratio){toast('Chỉ còn '+skN(maxUnits)+' '+u.name);return;}line.qty=Math.round((line.qty+1)*1e6)/1e6;line.baseQty=Math.round(line.qty*ratio*1e6)/1e6;skRenderCart();skRenderGrid();return;}                                   // đã có trong giỏ → +1 (chỉnh bằng ± hoặc gõ số trong giỏ)
+  const _addNew=function(qty,price){let q=Number(qty);if(!(q>0))q=1;if(!SK_ALLOW_NEGATIVE_STOCK&&q>maxUnits){q=maxUnits;toast('Chỉ còn '+skN(maxUnits)+' '+u.name+' — đã thêm '+skN(maxUnits));}q=Math.round(q*1e6)/1e6;skCart.push({key:key,id:p.id,name:p.name,unit:u.name,ratio:ratio,price:price,cost:(p.cost||0)*ratio,qty:q,baseQty:Math.round(q*ratio*1e6)/1e6});skRenderCart();skRenderGrid();};
   const _askPrice=function(qty){if(skAskPrice&&!skScanOn){skNum('Giá bán: '+p.name+' ('+u.name+')',u.price,function(v){_addNew(qty,v>0?v:(u.price||0));});}else{_addNew(qty,u.price);}};
   if(skAskQty&&!skScanOn){skNum('Số lượng ('+u.name+'): '+p.name,1,function(v){_askPrice(v>0?v:1);},{decimal:true});}else{_askPrice(1);}   // BẬT hỏi SL + KHÔNG quét mã → hỏi số lượng lúc thêm; để trống/≤0 = 1
 }
-function skCartInc(key){const l=skCart.find(c=>c.key===key);if(!l)return;const p=skProducts.find(x=>x.id===l.id);if(p&&(p.stock||0)<skCartBaseInCart(l.id)+l.ratio){toast('Hết tồn: '+l.name);return;}l.qty++;l.baseQty=l.qty*l.ratio;skRenderCart();skRenderGrid();}
+function skCartInc(key){const l=skCart.find(c=>c.key===key);if(!l)return;const p=skProducts.find(x=>x.id===l.id);if(!SK_ALLOW_NEGATIVE_STOCK&&p&&(p.stock||0)<skCartBaseInCart(l.id)+l.ratio){toast('Hết tồn: '+l.name);return;}l.qty++;l.baseQty=l.qty*l.ratio;skRenderCart();skRenderGrid();}
 function skCartDec(key){const l=skCart.find(c=>c.key===key);if(!l)return;l.qty--;if(l.qty<=0)skCart=skCart.filter(c=>c.key!==key);else l.baseQty=l.qty*l.ratio;skRenderCart();skRenderGrid();}
 function skCartDel(key){skCart=skCart.filter(c=>c.key!==key);skRenderCart();skRenderGrid();}
 function skCartPrice(key){const l=skCart.find(c=>c.key===key);if(!l)return;skNum('Sửa giá: '+l.name+' ('+l.unit+')',l.price,v=>{if(v>=0){l.price=v;skRenderCart();}});}
@@ -3262,7 +3263,7 @@ async function skFinalize(method,extra){
   const need={};items.forEach(i=>{need[i.id]=(need[i.id]||0)+i.baseQty;});const pids=Object.keys(need);
   // GUARD TỒN KHO tại chỗ (bằng dữ liệu đã đồng bộ trong máy) — thay cho việc đọc máy chủ trong runTransaction.
   // Nhờ vậy đơn hàng vẫn tạo được khi OFFLINE. Đây là cùng triết lý với Sổ Nợ (tin _curTxs đang có trong máy).
-  for(let k=0;k<pids.length;k++){const id=pids[k];const p=skProducts.find(x=>x.id===id);const cur=p?(p.stock||0):0;if(cur<need[id]){toast('Không đủ tồn: '+((p||{}).name||'')+' (còn '+skN(cur)+')');return;}}
+  if(!SK_ALLOW_NEGATIVE_STOCK){for(let k=0;k<pids.length;k++){const id=pids[k];const p=skProducts.find(x=>x.id===id);const cur=p?(p.stock||0):0;if(cur<need[id]){toast('Không đủ tồn: '+((p||{}).name||'')+' (còn '+skN(cur)+')');return;}}}
   const customer=extra.customer||null;let custRef=null,isNew=false;
   if(method==='debt'&&customer){if(customer.id)custRef=doc(db,'users',UID,'customers',customer.id);else{custRef=doc(collection(db,'users',UID,'customers'));isNew=true;}}
   const orderRef=doc(bcol('orders'));
@@ -3868,7 +3869,7 @@ function skNumOk(){const raw=skq('#sk-num-input').value;skNumClose();const cb=_s
 function skNumClose(){skq('#sk-num').classList.remove('on');if(!skAnyModal())skScrim(false);}
 /* ---- Gõ số lượng trực tiếp (khỏi bấm +/− nhiều lần) ---- */
 function skNpQty(i){const it=skNp.items[i];if(!it)return;skNum('Số lượng nhập: '+it.name+' ('+it.unit+')',it.qty,function(v){if(v>0){it.qty=v;it.baseQty=Math.round(it.qty*it.ratio*1e6)/1e6;}else{skNp.items.splice(i,1);}skRenderNp();},{decimal:true});}
-function skCartQty(key){const l=skCart.find(c=>c.key===key);if(!l)return;skNum('Số lượng: '+l.name+' ('+l.unit+')',l.qty,function(v){if(v>0){const p=skProducts.find(x=>x.id===l.id);const other=skCartBaseInCart(l.id)-l.baseQty;if(p&&(p.stock||0)<other+v*l.ratio){toast('Hết tồn: '+l.name+' (còn '+skN(p.stock||0)+' '+(p.baseUnit||'')+')');return;}l.qty=v;l.baseQty=Math.round(l.qty*l.ratio*1e6)/1e6;skRenderCart();skRenderGrid();}else{skCart=skCart.filter(c=>c.key!==key);skRenderCart();skRenderGrid();}},{decimal:true});}
+function skCartQty(key){const l=skCart.find(c=>c.key===key);if(!l)return;skNum('Số lượng: '+l.name+' ('+l.unit+')',l.qty,function(v){if(v>0){const p=skProducts.find(x=>x.id===l.id);const other=skCartBaseInCart(l.id)-l.baseQty;if(!SK_ALLOW_NEGATIVE_STOCK&&p&&(p.stock||0)<other+v*l.ratio){toast('Hết tồn: '+l.name+' (còn '+skN(p.stock||0)+' '+(p.baseUnit||'')+')');return;}l.qty=v;l.baseQty=Math.round(l.qty*l.ratio*1e6)/1e6;skRenderCart();skRenderGrid();}else{skCart=skCart.filter(c=>c.key!==key);skRenderCart();skRenderGrid();}},{decimal:true});}
 function skSessSet(id){if(!skSession)return;const it=skSession.items[id];if(!it)return;if(skSession.mode==='count'){skNum('Số đếm thực tế: '+it.name,it.counted,function(v){it.counted=Math.max(0,v);skRenderSession();},{decimal:true});}else{skNum('Số lượng: '+it.name,it.qty,function(v){if(v>0){it.qty=v;}else{delete skSession.items[id];}skRenderSession();},{decimal:true});}}
 function skRetSet(i){const o=skRetOrder;if(!o)return;const it=(o.items||[])[i];if(!it)return;const mx=(o._max&&o._max[i]!=null)?o._max[i]:(it.qty||0);skNum('Số trả lại (tối đa '+skN(mx)+'): '+it.name,o._ret[i]||0,function(v){o._ret[i]=Math.max(0,Math.min(mx,v));skRenderReturn();},{decimal:true});}
 function numFromStr(v){const n=parseFloat(String(v).replace(/[^\d.-]/g,''));return isNaN(n)?0:n;}
