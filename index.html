@@ -1908,7 +1908,7 @@ window.saveSettings=async()=>{
   const account=document.getElementById('set-account').value.trim();
   const accName=document.getElementById('set-accname').value.trim().toUpperCase();
   if(!bankBin||!account||!accName){alert('Vui lòng điền đầy đủ!');return;}
-  setDoc(doc(db,'users',UID,'meta','shopSettings'),{bankBin,bankName,account,accName}).catch(function(e){alert('Lỗi lưu cài đặt: '+(e.message||e));});
+  setDoc(doc(db,'users',UID,'meta','shopSettings'),{bankBin,bankName,account,accName},{merge:true}).catch(function(e){alert('Lỗi lưu cài đặt: '+(e.message||e));});
   markDirty();
   closeModal('modal-settings');
   alert('✅ Đã lưu cài đặt ngân hàng!');
@@ -2065,7 +2065,14 @@ window.toggleAuto=(cb)=>{
 window.dismissDailyBanner=()=>{_bannerDismissed=true;hideDailyBanner();};
 window.runDailyBackup=async()=>{
   const btn=document.getElementById('daily-save-btn');const old=btn?btn.textContent:'';if(btn){btn.textContent='⏳...';btn.disabled=true;}
-  try{const r=await doBackupDownload();markBackedUp();toast('💾 Đã lưu file ('+r.nC+' khách)');}
+  try{
+    const data=await buildFullBackupV2();
+    const blob=new Blob([JSON.stringify(data)],{type:'application/json'});
+    const _n=new Date();const ds=`${_n.getDate()}-${_n.getMonth()+1}-${_n.getFullYear()}`;
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`SoNo-BanHang-ToanBo-${ds}.json`;
+    document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+    const r=_fullCounts(data);markBackedUp();toast('💾 Đã lưu TOÀN BỘ ('+r.nC+' khách · '+r.nP+' SP · '+r.nO+' đơn)');
+  }
   catch(e){alert('Lỗi lưu: '+e.message);}
   if(btn){btn.textContent=old;btn.disabled=false;}
 };
@@ -2153,6 +2160,7 @@ window.runImport=async()=>{
   if(mode==='replace'){
     if(!confirm('⚠️ CHẾ ĐỘ GHI ĐÈ:\nToàn bộ khách & giao dịch HIỆN TẠI sẽ bị XOÁ rồi thay bằng file.\nKhông thể hoàn tác. Bạn chắc chắn?'))return;
     if(!confirm('Xác nhận lần 2: XOÁ hết dữ liệu cũ và thay bằng file?'))return;
+    if(!(await _safetyBackupBeforeWipe())){ alert('⛔ CHƯA sao lưu được dữ liệu hiện tại — KHÔNG ghi đè để tránh mất dữ liệu.\nHãy kiểm tra mạng/bộ nhớ rồi thử lại.'); return; }
   }
   const runBtn=document.getElementById('imp-run'),cancelBtn=document.getElementById('imp-cancel');
   runBtn.disabled=true;cancelBtn.disabled=true;document.getElementById('imp-log').textContent='';
@@ -2857,9 +2865,12 @@ window.deleteCustomer=async()=>{
     return;
   }
   if(!confirm('Công nợ đã về 0 ✅\nXoá hẳn khách "'+(c.name||'')+'" khỏi sổ?'))return;
+  const _cid=currentCustomerId;
+  /* Xoá luôn toàn bộ giao dịch con để không còn dữ liệu mồ côi (Firestore không tự xoá subcollection khi xoá khách) */
+  try{const _tx=await getDocs(collection(db,'users',UID,'customers',_cid,'transactions'));for(const _td of _tx.docs)await deleteDoc(doc(db,'users',UID,'customers',_cid,'transactions',_td.id));}catch(e){}
   const batch=writeBatch(db);
   if(c?.shareToken){batch.delete(doc(db,'shares',c.shareToken));}
-  batch.delete(doc(db,'users',UID,'customers',currentCustomerId));
+  batch.delete(doc(db,'users',UID,'customers',_cid));
   batch.commit().catch(err=>{toast('⚠️ Lỗi xoá khách: '+(err&&err.message?err.message:err));});
   markDirty();
   closeModal('modal-detail');
@@ -4532,6 +4543,18 @@ function _posPath(bId,n){return bId==='main'?collection(db,'users',UID,n):collec
 function _tsIso(v){try{const d=(v&&v.toDate)?v.toDate():new Date(v);return isNaN(d)?null:d.toISOString();}catch(e){return null;}}
 function _isoDate(iso){if(!iso)return null;const d=new Date(iso);return isNaN(d)?null:d;}
 
+/* CỨU HỘ: tự tải 1 file sao lưu ĐẦY ĐỦ ngay TRƯỚC khi GHI ĐÈ. Trả về true nếu tải được;
+   false thì HỦY ghi đè để tuyệt đối không mất dữ liệu khi lỡ đứt giữa chừng. */
+async function _safetyBackupBeforeWipe(){
+  try{
+    const data=await buildFullBackupV2();
+    const blob=new Blob([JSON.stringify(data)],{type:'application/json'});
+    const _n=new Date();const ds=`${_n.getDate()}-${_n.getMonth()+1}-${_n.getFullYear()}-${_n.getHours()}h${_n.getMinutes()}`;
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`CUUHO-TruocKhiGhiDe-${ds}.json`;
+    document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+    return true;
+  }catch(e){ return false; }
+}
 async function buildFullBackupV2(){
   const out={app:'sono-full',version:1,exportedAt:new Date().toISOString(),settings:null,
     customers:[],pos:{branches:[],suppliers:[],supplierPayments:[],staff:[],byBranch:{}}};
@@ -4606,6 +4629,7 @@ window.runFullRestore=async()=>{
   if(mode==='replace'){
     if(!confirm('⚠️ GHI ĐÈ TOÀN BỘ:\nXoá hết Sổ Nợ + Bán hàng hiện tại rồi thay bằng file.\nKhông thể hoàn tác. Chắc chắn?'))return;
     if(!confirm('Xác nhận lần 2: XOÁ HẾT và thay bằng file?'))return;
+    if(!(await _safetyBackupBeforeWipe())){ alert('⛔ CHƯA sao lưu được dữ liệu hiện tại — KHÔNG ghi đè để tránh mất dữ liệu.\nHãy kiểm tra mạng/bộ nhớ rồi thử lại.'); return; }
   }
   const runBtn=document.getElementById('full-run'),cancelBtn=document.getElementById('full-cancel');
   if(runBtn)runBtn.disabled=true;if(cancelBtn)cancelBtn.disabled=true;
