@@ -7475,5 +7475,133 @@ import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, getDocs, serv
 </script>
 <!-- ═══════════════ HẾT: GIAO DIỆN MỚI ═══════════════ -->
 
+<!-- ═══════════════════════════════════════════════════════════════════════
+     🔒 LÁ CHẮN DỮ LIỆU (Data Safety Shield) — CHỈ THÊM, KHÔNG SỬA 1 DÒNG CŨ.
+     Mục tiêu: TUYỆT ĐỐI KHÔNG MẤT dữ liệu Sổ Nợ / Bán hàng khi offline.
+     Gồm 3 lớp:
+       (1) BẬT LƯU TRỮ BỀN VỮNG — để trình duyệt/điện thoại KHÔNG tự xoá
+           hàng đợi ghi offline của Firestore (nguyên nhân mất dữ liệu số 1).
+       (2) HIỆN TRẠNG THÁI đồng bộ (chỉ hiện khi mất mạng / đang đồng bộ).
+       (3) CẢNH BÁO trước khi đóng app nếu còn dữ liệu CHƯA lên máy chủ.
+     Toàn bộ bọc try/catch: nếu có bất kỳ lỗi gì, app vẫn chạy y hệt như cũ.
+     Dán NGUYÊN KHỐI này ngay TRƯỚC  </body>.
+     ═══════════════════════════════════════════════════════════════════════ -->
+<script>
+(function(){
+  "use strict";
+  try{
+
+  /* ---------- Huy hiệu nhỏ (chỉ hiện khi cần, không chặn thao tác) ---------- */
+  var pill=null, pillTimer=null;
+  function ensurePill(){
+    if(pill) return pill;
+    try{
+      pill=document.createElement('div');
+      pill.id='dsl-sync-pill';
+      pill.style.cssText='position:fixed;left:max(10px,env(safe-area-inset-left,0px));'
+        +'bottom:calc(10px + env(safe-area-inset-bottom,0px));z-index:95;max-width:80vw;'
+        +'padding:8px 12px;border-radius:999px;color:#fff;background:#555;'
+        +'font:600 12.5px/1.35 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;'
+        +'box-shadow:0 6px 18px rgba(0,0,0,.25);pointer-events:none;opacity:0;'
+        +'transform:translateY(6px);transition:opacity .2s,transform .2s;white-space:normal;';
+      (document.body||document.documentElement).appendChild(pill);
+    }catch(e){ pill=null; }
+    return pill;
+  }
+  function showPill(text,bg){
+    var p=ensurePill(); if(!p) return;
+    clearTimeout(pillTimer);
+    p.textContent=text; p.style.background=bg||'#555';
+    p.style.opacity='1'; p.style.transform='none';
+  }
+  function hidePill(delay){
+    var p=pill; if(!p) return;
+    clearTimeout(pillTimer);
+    pillTimer=setTimeout(function(){ try{p.style.opacity='0';p.style.transform='translateY(6px)';}catch(e){} }, delay||0);
+  }
+
+  /* ---------- Trạng thái ---------- */
+  var online  = (navigator.onLine!==false);
+  var pending = false;               /* còn dữ liệu chưa được máy chủ xác nhận? */
+  var syncingTimer=null, syncingShown=false;
+
+  function render(){
+    if(!online){
+      clearTimeout(syncingTimer); syncingTimer=null; syncingShown=false;
+      showPill('📴 Mất mạng — dữ liệu ĐANG LƯU AN TOÀN ở máy, tự đồng bộ khi có mạng lại', '#b45309');
+      return;
+    }
+    if(pending){
+      /* Chỉ hiện "đang đồng bộ" nếu kéo dài >600ms (tránh nhấp nháy khi đồng bộ tức thì) */
+      if(!syncingShown && !syncingTimer){
+        syncingTimer=setTimeout(function(){
+          syncingTimer=null;
+          if(pending && online){ syncingShown=true; showPill('🔄 Đang đồng bộ dữ liệu lên máy chủ…', '#2563eb'); }
+        }, 600);
+      }
+      return;
+    }
+    /* Online & đã sạch */
+    clearTimeout(syncingTimer); syncingTimer=null;
+    if(syncingShown){ syncingShown=false; showPill('✅ Đã đồng bộ an toàn lên máy chủ', '#15803d'); hidePill(2500); }
+    else { hidePill(0); }
+  }
+
+  /* ---------- Sự kiện mạng ---------- */
+  window.addEventListener('online',  function(){ online=true;  render(); });
+  window.addEventListener('offline', function(){ online=false; render(); });
+
+  /* ---------- (3) Cảnh báo trước khi đóng nếu còn dữ liệu chưa lên máy chủ ---------- */
+  window.addEventListener('beforeunload', function(e){
+    try{
+      if(!online || pending){ e.preventDefault(); e.returnValue=''; return ''; }
+    }catch(_){}
+  });
+
+  /* ---------- (1) BẬT LƯU TRỮ BỀN VỮNG (chống trình duyệt tự xoá dữ liệu offline) ---------- */
+  try{
+    if(navigator.storage && navigator.storage.persist){
+      navigator.storage.persisted().then(function(has){
+        return has ? true : navigator.storage.persist();
+      }).then(function(granted){
+        try{ console.log('[Lá chắn dữ liệu] Lưu trữ bền vững:',
+          granted ? 'ĐÃ BẬT ✅' : 'CHƯA cấp — hãy "Cài vào Màn hình chính" để bật vĩnh viễn'); }catch(_){}
+      }).catch(function(){});
+    }
+  }catch(_){}
+
+  /* ---------- (2)(3) Phát hiện chính xác "còn ghi chưa lên máy chủ" bằng Firestore ----------
+     Dùng LẠI đúng app Firebase đã khởi tạo (getApp) — KHÔNG tạo mới, KHÔNG thêm lượt đọc. */
+  try{
+    import("https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js").then(function(appMod){
+      return import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js").then(function(fs){
+        var db;
+        try{ db = fs.getFirestore(appMod.getApp()); }catch(e){ return; }
+        function arm(){
+          try{
+            fs.waitForPendingWrites(db).then(function(){
+              if(pending){ pending=false; render(); }
+            }).catch(function(){});
+          }catch(e){}
+        }
+        try{
+          fs.onSnapshotsInSync(db, function(){
+            /* Vừa có thay đổi cục bộ được áp — kiểm tra còn ghi chưa xác nhận không */
+            pending=true; render(); arm();
+          });
+        }catch(e){}
+        /* Đối soát hàng đợi còn sót từ phiên trước (nếu đang online) */
+        pending=true; render(); arm();
+      });
+    }).catch(function(){ /* SDK chưa sẵn sàng / mở lạnh khi offline: bỏ qua, lớp offline vẫn chạy */ });
+  }catch(_){}
+
+  render();
+
+  }catch(e){ /* Tuyệt đối không để lỗi của lá chắn ảnh hưởng tới app */ }
+})();
+</script>
+<!-- ═══════════════ HẾT: LÁ CHẮN DỮ LIỆU ═══════════════ -->
+
 </body>
 </html>
