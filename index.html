@@ -1037,7 +1037,7 @@ if(viewToken){
       const shopOwes=bal<0;     // cửa hàng đang nợ khách
       let qrHtml='';
       if(s&&s.bankBin&&s.account&&oweShop){
-        const info=encodeURIComponent('Thanh toan no '+d.name);
+        const info=encodeURIComponent(d.name+' chuyen tien');
         const aName=encodeURIComponent(s.accName);
         const qrUrl=`https://img.vietqr.io/image/${s.bankBin}-${s.account}-compact2.png?amount=${Math.round(d.debt)}&addInfo=${info}&accountName=${aName}`;
         qrHtml=`<div class="pub-card">
@@ -1229,7 +1229,7 @@ function hdInvoiceHtml(d){
   const dueAmt=isDebt?(Number(d.total)||0):(_hdShort?(-_hdCh):0);
   let qrHtml='';
   if(dueAmt>0 && s.bankBin && s.account){
-    const info=encodeURIComponent('Thanh toan HD'+(d.soHD?(' '+d.soHD):'')+(d.customerName?(' '+d.customerName):''));
+    const info=encodeURIComponent((d.customerName?(d.customerName+' '):'')+'chuyen tien');
     const aName=encodeURIComponent(s.accName||'');
     const qrUrl='https://img.vietqr.io/image/'+s.bankBin+'-'+s.account+'-compact2.png?amount='+Math.round(dueAmt)+'&addInfo='+info+'&accountName='+aName;
     qrHtml='<div class="pub-card hd-qr-card">'
@@ -3243,7 +3243,7 @@ async function skDelSupplier(){if(!skSupEditId)return;try{deleteDoc(doc(db,'user
 function skPaySupplier(id){const s=skSuppliers.find(x=>x.id===id);if(!s)return;skNum('Trả nợ NCC: '+s.name+' (còn '+fmt(s.debt||0)+')',s.debt||0,v=>{if(v<=0)return;const batch=writeBatch(db);batch.update(doc(db,'users',UID,'suppliers',id),{debt:increment(-v)});batch.set(doc(collection(db,'users',UID,'supplier_payments')),{supplierId:id,amount:v,at:serverTimestamp()});batch.commit().catch(e=>skErr(e,'Trả NCC'));toast('Đã trả NCC '+fmt(v));markDirty();});}
 
 /* ---- THANH TOÁN ---- */
-function skQRUrl(total){if(!skShopBank||!skShopBank.bin||!skShopBank.account)return null;return 'https://img.vietqr.io/image/'+skShopBank.bin+'-'+skShopBank.account+'-compact2.png?amount='+Math.round(total)+'&addInfo='+encodeURIComponent('Thanh toan don hang')+'&accountName='+encodeURIComponent(skShopBank.accName||'');}
+function skQRUrl(total){if(!skShopBank||!skShopBank.bin||!skShopBank.account)return null;return 'https://img.vietqr.io/image/'+skShopBank.bin+'-'+skShopBank.account+'-compact2.png?amount='+Math.round(total)+'&addInfo='+encodeURIComponent('chuyen tien')+'&accountName='+encodeURIComponent(skShopBank.accName||'');}
 function skPayCash(){if(!skCart.length)return;const t=skCartTotals();skq('#sk-cash-total').textContent=fmt(t.total);skq('#sk-cash-given').value='';skq('#sk-cash-change').textContent='—';skModalOpen('#sk-pay-cash');setTimeout(()=>skq('#sk-cash-given').focus(),60);}
 function skCashInput(){const t=skCartTotals();const g=parseFloat(String(skq('#sk-cash-given').value).replace(/[^\d]/g,''))||0;const ch=g-t.total;const el=skq('#sk-cash-change');el.textContent=g?(ch>=0?'Thối lại '+fmt(ch):'Còn thiếu '+fmt(-ch)):'—';el.className='sk-change '+(g&&ch<0?'neg':'pos');}
 function skCashConfirm(){const t=skCartTotals();const g=parseFloat(String(skq('#sk-cash-given').value).replace(/[^\d]/g,''))||t.total;skCloseModal('#sk-pay-cash');skFinalize('cash',{paid:g,change:g-t.total});}
