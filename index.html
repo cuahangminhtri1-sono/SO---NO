@@ -1108,13 +1108,16 @@ function _signItemHtml(s){
 function _renderSignCard(debt,signs){
   const isZero=(debt||0)===0;
   const shopOwes=(debt||0)<0;
+  const alreadySigned=signs.some(s=>Number(s.noTaiThoiDiemKy||0)===Number(debt||0)); // ĐÃ ký đúng số nợ hiện tại → ẩn form, không cho ký lại cùng một công nợ
   const listInner=signs.map(_signItemHtml).join('');
   const listBlock='<div class="sign-list-lab" id="sign-list-lab" style="'+(signs.length?'':'display:none')+'">🖊️ Đã ký xác nhận</div>'
     +'<div id="sign-list">'+listInner+'</div>';
   return '<div class="pub-card">'
     +'<div style="font-weight:700;margin-bottom:4px">✍️ Xác nhận công nợ</div>'
-    +'<div style="font-size:.82em;color:#666;margin-bottom:10px">'+(isZero?'Ký tên bên dưới để xác nhận tình trạng công nợ.':(shopOwes?'Ký tên bên dưới để xác nhận số tiền cửa hàng đang nợ bạn là đúng.':'Ký tên bên dưới để xác nhận số nợ nêu trên là đúng.'))+'</div>'
-    +'<div id="sign-form">'
+    +(alreadySigned
+        ?'<div class="sign-ok">✅ Công nợ này đã được ký xác nhận. Cảm ơn bạn!</div>'
+        :'<div style="font-size:.82em;color:#666;margin-bottom:10px">'+(isZero?'Ký tên bên dưới để xác nhận tình trạng công nợ.':(shopOwes?'Ký tên bên dưới để xác nhận số tiền cửa hàng đang nợ bạn là đúng.':'Ký tên bên dưới để xác nhận số nợ nêu trên là đúng.'))+'</div>')
+    +'<div id="sign-form"'+(alreadySigned?' style="display:none"':'')+'>'
       +'<input id="sign-name" class="sign-input" placeholder="Họ tên người ký" autocomplete="name">'
       +'<div class="sign-pad-lab">Ký vào ô bên dưới 👇</div>'
       +'<div class="sign-pad-box"><canvas id="sign-pad"></canvas><button type="button" class="sign-clear" id="sign-clear">Xoá</button></div>'
@@ -1291,14 +1294,17 @@ function _hdSignItemHtml(s){
     +'</div>';
 }
 function _renderHdSignCard(d,signs){
+  const alreadySigned=signs.length>0; // hóa đơn ĐÃ có chữ ký nhận hàng → ẩn form, không cho ký thêm cùng một hóa đơn
   const listInner=signs.map(_hdSignItemHtml).join('');
   const listBlock='<div class="sign-list-lab" id="sign-list-lab" style="'+(signs.length?'':'display:none')+'">🖊️ Đã ký nhận hàng</div>'
     +'<div id="sign-list">'+listInner+'</div>';
   const hasTot=(Number(d.total)||0)>0;
   return '<div class="pub-card">'
     +'<div style="font-weight:800;margin-bottom:4px;color:#0a5f4a">✍️ Xác nhận đã nhận đủ hàng</div>'
-    +'<div style="font-size:.82em;color:#666;margin-bottom:10px">Vui lòng ký tên bên dưới để xác nhận đã nhận đầy đủ hàng theo hóa đơn trên.</div>'
-    +'<div id="sign-form">'
+    +(alreadySigned
+        ?'<div class="sign-ok">✅ Hóa đơn này đã được ký xác nhận nhận đủ hàng. Cảm ơn bạn!</div>'
+        :'<div style="font-size:.82em;color:#666;margin-bottom:10px">Vui lòng ký tên bên dưới để xác nhận đã nhận đầy đủ hàng theo hóa đơn trên.</div>')
+    +'<div id="sign-form"'+(alreadySigned?' style="display:none"':'')+'>'
       +'<input id="sign-name" class="sign-input" placeholder="Họ tên người nhận" autocomplete="name">'
       +'<div class="sign-pad-lab">Ký vào ô bên dưới 👇</div>'
       +'<div class="sign-pad-box"><canvas id="sign-pad"></canvas><button type="button" class="sign-clear" id="sign-clear">Xoá</button></div>'
