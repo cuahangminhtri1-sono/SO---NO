@@ -1494,6 +1494,8 @@ if(!viewToken){
       maybeRenewNudge(acc);
       await loadReminderSettings();
       loadCustomers();
+      /* Nạp sẵn kho ngay khi mở app (giống Sổ nợ) để có cache offline: mất mạng vẫn có sản phẩm để bán */
+      try{skBranchSubs();}catch(e){}
     }else{
       UID=null;
       if(lock)lock.style.display='none';
