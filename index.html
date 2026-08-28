@@ -3101,7 +3101,7 @@ function skRenderOrders(){
   const q=(((skq('#sk-ord-search')||{}).value)||'').toLowerCase().trim();
   const retCnt={};(skReturns||[]).forEach(r=>{const oid=r&&r.orderId;if(oid)retCnt[oid]=(retCnt[oid]||0)+1;});
   const ml=m=>m==='debt'?'ghi nợ':m==='qr'?'chuyển khoản':'tiền mặt';
-  let list=skOrders.slice();
+  let list=skOrders.slice().sort((a,b)=>skOrderDate(b)-skOrderDate(a)); // sắp theo GIỜ BÁN THẬT (đơn sync trễ không nhảy lên đầu nữa)
   if(q)list=list.filter(o=>{const so=o.id?('#'+String(o.id).slice(-6).toUpperCase()):'';return (((o.customerName||'')+' '+so+' '+ml(o.method)).toLowerCase()).includes(q);});
   list=list.slice(0,80);
   if(!list.length){box.innerHTML='<div class="sk-empty">'+(q?'Không tìm thấy đơn khớp.':'Chưa có đơn hàng.')+'</div>';return;}
@@ -3291,7 +3291,7 @@ async function skFinalize(method,extra){
   const orderRef=doc(bcol('orders'));
   const hdToken=Math.random().toString(36).substring(2,10)+Date.now().toString(36); // mã link hóa đơn online (bền theo đơn)
   const batch=writeBatch(db);
-  batch.set(orderRef,{items:items,subtotal:sub,discount:disc,total:total,method:method,staffName:(typeof skStaff!=='undefined'&&skStaff?skStaff.name:null),paid:extra.paid||null,change:(extra.change!=null?extra.change:null),note:skOrderNote||'',customerId:(customer&&customer.id)||(isNew?custRef.id:null),customerName:(customer&&customer.name)||null,hdToken:hdToken,createdAt:serverTimestamp()});
+  batch.set(orderRef,{items:items,subtotal:sub,discount:disc,total:total,method:method,staffName:(typeof skStaff!=='undefined'&&skStaff?skStaff.name:null),paid:extra.paid||null,change:(extra.change!=null?extra.change:null),note:skOrderNote||'',customerId:(customer&&customer.id)||(isNew?custRef.id:null),customerName:(customer&&customer.name)||null,hdToken:hdToken,createdAt:serverTimestamp(),createdAtMs:Date.now()});
   pids.forEach(id=>{batch.update(bdoc('products',id),{stock:increment(-need[id])});batch.set(doc(bcol('stock_moves')),{productId:id,productName:(skProducts.find(x=>x.id===id)||{}).name||'',delta:-need[id],reason:'sale',orderId:orderRef.id,at:serverTimestamp()});}); // bán -> trừ tồn (increment âm) offline-safe
   if(custRef){const noteStr=items.map(i=>i.name+' '+skN(i.qty)+i.unit).join(', ');if(isNew)batch.set(custRef,{name:customer.name,phone:'',address:'',debt:total,createdAt:serverTimestamp()});else batch.update(custRef,{debt:increment(total)});const txRef=doc(collection(db,'users',UID,'customers',custRef.id,'transactions'));batch.set(txRef,{type:'mua',amount:total,note:noteStr,memo:'',orderId:orderRef.id,date:new Date(),createdAt:serverTimestamp(),createdAtMs:Date.now()});}
   batch.commit().catch(e=>skErr(e,'Tạo đơn'));
@@ -3492,7 +3492,10 @@ function skPrintMenu(){
 
 
 /* ---- BÁO CÁO ---- */
-function skOrderDate(o){return (o.createdAt&&o.createdAt.toDate)?o.createdAt.toDate():(o.createdAt instanceof Date?o.createdAt:new Date());}
+/* GIỜ BÁN THẬT của đơn: ưu tiên createdAtMs (ghi tại máy ngay lúc bán, server KHÔNG ghi đè khi sync trễ).
+   Đơn bán offline 23h50, tới 0h10 hôm sau mới sync thì createdAt (giờ server) là 0h10 → sai ngày.
+   Đơn CŨ chưa có createdAtMs vẫn chạy y hệt như trước → dữ liệu cũ không đổi một số nào. */
+function skOrderDate(o){var m=Number(o&&o.createdAtMs)||0;if(m>0)return new Date(m);return (o.createdAt&&o.createdAt.toDate)?o.createdAt.toDate():(o.createdAt instanceof Date?o.createdAt:new Date());}
 function skReturnDate(r){return (r&&r.at&&r.at.toDate)?r.at.toDate():((r&&r.at instanceof Date)?r.at:((r&&r.createdAt&&r.createdAt.toDate)?r.createdAt.toDate():new Date()));}
 // Vốn 1 dòng hàng: ưu tiên GIÁ VỐN ĐÃ KHÓA trong đơn lúc bán (chốt ngay thời điểm bán — chuẩn kế toán); đơn cũ chưa lưu vốn (>0) mới tạm dùng giá vốn Kho hiện tại; SP đã xóa thì dùng vốn lưu trong đơn.
 function skCogsLine(i){
@@ -3573,6 +3576,11 @@ async function skRenderReport(){
   try{
     const os=await getDocs(query(bcol('orders'),where('createdAt','>=',fFrom),where('createdAt','<=',fTo),orderBy('createdAt','asc')));
     fo=os.docs.map(d=>Object.assign({id:d.id},d.data()));
+    // Quét lần 2 theo GIỜ BÁN THẬT (createdAtMs): bắt đơn bán offline, sync trễ nên createdAt (giờ server) rơi ngoài kỳ.
+    // BẮT BUỘC có bước này — nếu thiếu, đơn bán 23h50 mà 0h10 mới sync sẽ biến mất khỏi báo cáo ngày hôm đó.
+    // try/catch riêng: lỗi ở đây KHÔNG được set fo=null (tránh báo nhầm "offline"). Trùng đơn sẽ bị khử theo id ở oById bên dưới.
+    try{const osB=await getDocs(query(bcol('orders'),where('createdAtMs','>=',fFrom.getTime()),where('createdAtMs','<=',fTo.getTime()),orderBy('createdAtMs','asc')));
+      osB.docs.forEach(d=>{fo.push(Object.assign({id:d.id},d.data()));});}catch(_){}
     // Phiếu trả: chỉ cần at >= đầu kỳ (phiếu trả luôn xảy ra SAU khi bán → mọi phiếu trả của đơn trong kỳ đều có at >= fFrom). Mở trên để bắt cả đơn trả ở kỳ sau.
     const rs=await getDocs(query(bcol('returns'),where('at','>=',fFrom),orderBy('at','asc')));
     fr=rs.docs.map(d=>Object.assign({id:d.id},d.data()));
@@ -4312,12 +4320,13 @@ const SK_CAPS=[
   ['refund','Trả hàng / Hoàn tiền'],
   ['transfer','Chuyển kho giữa chi nhánh'],
   ['branch','Quản lý chi nhánh (thêm/sửa/xóa)'],
-  ['staff','Quản lý nhân viên & phân quyền']
+  ['staff','Quản lý nhân viên & phân quyền'],
+  ['shift','Mở ca / Chốt ca (Quỹ ca) — bỏ tick để CHỦ tự mở & chốt']
 ];
 const SK_CAP_LABEL=SK_CAPS.reduce(function(o,x){o[x[0]]=x[1];return o;},{});
 const SK_PERM_DEFAULT={
-  manager:{invview:true,invedit:true,purchase:true,report:true,discount:true,refund:true,transfer:true,branch:false,staff:false},
-  cashier:{invview:false,invedit:false,purchase:false,report:false,discount:false,refund:false,transfer:false,branch:false,staff:false}
+  manager:{invview:true,invedit:true,purchase:true,report:true,discount:true,refund:true,transfer:true,branch:false,staff:false,shift:true},
+  cashier:{invview:false,invedit:false,purchase:false,report:false,discount:false,refund:false,transfer:false,branch:false,staff:false,shift:true}
 };
 let SK_PERM={manager:Object.assign({},SK_PERM_DEFAULT.manager),cashier:Object.assign({},SK_PERM_DEFAULT.cashier)};
 function skPermMerge(v){v=v||{};['manager','cashier'].forEach(function(r){SK_PERM[r]=Object.assign({},SK_PERM_DEFAULT[r],v[r]||{});});}
@@ -5523,6 +5532,8 @@ try { window.__skBusy = function(){
     return s?{id:s.id||'',name:s.name||'Nhân viên'}:{id:'',name:'Chủ'};}
   function CAN(){try{return skRoleCan('report');}catch(_){return true;}}
   function ISOWNER(){try{return (skRole||'owner')==='owner';}catch(_){return true;}}
+  /* quyền MỞ CA / CHỐT CA — chủ shop bật/tắt trong 👤 Nhân viên → ⚙️ Phân quyền. Mặc định BẬT. */
+  function CANSHIFT(){try{return skRoleCan('shift');}catch(_){return true;}}
   function P2(n){return String(n).padStart(2,'0');}
   function TM(ms){try{var d=new Date(Number(ms)||0);
     return P2(d.getHours())+':'+P2(d.getMinutes())+' '+P2(d.getDate())+'/'+P2(d.getMonth()+1);}catch(_){return '—';}}
@@ -5533,7 +5544,9 @@ try { window.__skBusy = function(){
   function val(sel){var e=(typeof sel==='string')?q(sel):sel;if(!e)return 0;
     var v=parseInt(String(e.value||'').replace(/[^\d]/g,''),10);return isNaN(v)?0:v;}
   function txt(sel){var e=q(sel);return e?String(e.value||'').trim():'';}
-  function ordMs(o){try{return skOrderDate(o).getTime();}catch(_){return 0;}}
+  /* GIỜ BÁN THẬT: ưu tiên createdAtMs (ghi tại máy lúc bán — không bị server ghi đè khi sync trễ);
+     đơn CŨ chưa có createdAtMs thì vẫn dùng createdAt như trước → không đổi hành vi dữ liệu cũ. */
+  function ordMs(o){try{var m=Number(o&&o.createdAtMs)||0;if(m>0)return m;return skOrderDate(o).getTime();}catch(_){return 0;}}
   function anyMs(v){try{var d=(v&&v.toDate)?v.toDate():(v instanceof Date?v:null);return d?d.getTime():0;}catch(_){return 0;}}
 
   /* ---------- lắng nghe dữ liệu theo chi nhánh ---------- */
@@ -5587,6 +5600,11 @@ try { window.__skBusy = function(){
     var f=new Date(Number(sh.openAtMs)||0), t=new Date(sh.closeAtMs?Number(sh.closeAtMs):Date.now());
     try{var s1=await getDocs(query(brCol(b,'orders'),where('createdAt','>=',f),where('createdAt','<=',t),orderBy('createdAt','asc')));
       os=s1.docs.map(function(d){return Object.assign({id:d.id},d.data());});}catch(e){ok=false;}
+    /* quét lần 2 theo GIỜ BÁN THẬT: bắt các đơn bán offline, sync trễ nên createdAt (giờ server) rơi ngoài khung ca.
+       Lỗi ở đây KHÔNG được set ok=false — tránh báo nhầm "mất mạng" khi chưa có đơn nào mang createdAtMs. */
+    try{var fMs=Number(sh.openAtMs)||0, tMs=sh.closeAtMs?Number(sh.closeAtMs):Date.now();
+      var s1b=await getDocs(query(brCol(b,'orders'),where('createdAtMs','>=',fMs),where('createdAtMs','<=',tMs),orderBy('createdAtMs','asc')));
+      s1b.docs.forEach(function(d){os.push(Object.assign({id:d.id},d.data()));});}catch(e){}
     try{var s2=await getDocs(query(brCol(b,'returns'),where('at','>=',f),orderBy('at','asc')));
       rs=s2.docs.map(function(d){return Object.assign({id:d.id},d.data());});}catch(e){ok=false;}
     try{var s3=await getDocs(query(brCol(b,'cashlog'),where('shiftId','==',sh.id)));
@@ -5751,12 +5769,14 @@ try { window.__skBusy = function(){
     var sug=last?R(last.openFloat):0;
     return head('💰 Quỹ ca — '+esc(BRN()))
       +'<div class="ca-sub">Chưa có ca nào đang mở tại chi nhánh này.</div>'
-      +'<div class="ca-note">🧾 <b>Đầu buổi:</b> chủ giao cho nhân viên bao nhiêu <b>tiền thối</b> thì nhập đúng số đó vào ô dưới rồi bấm <b>Mở ca</b>. Cuối buổi bấm <b>Chốt ca</b>, app sẽ tự tính số tiền mặt phải nộp lại.</div>'
-      +'<label class="sk-fld">Người trực ca<input id="ca-who" class="sk-inp" value="'+esc(ME().name)+'"></label>'
-      +'<label class="sk-fld">Quỹ đầu ca — tiền thối chủ giao (₫)<input id="ca-float" class="ca-money sk-inp" inputmode="numeric" placeholder="0" value="'+(sug?sug.toLocaleString('vi-VN'):'')+'"></label>'
-      +chips('ca-float')
-      +'<label class="sk-fld">Ghi chú (tuỳ chọn)<input id="ca-note" class="sk-inp" placeholder="ca sáng, ca chiều…"></label>'
-      +'<button class="sk-btn green wide" data-act="ca-do-open">▶️ Mở ca</button>'
+      +(CANSHIFT()
+        ?('<div class="ca-note">🧾 <b>Đầu buổi:</b> chủ giao cho nhân viên bao nhiêu <b>tiền thối</b> thì nhập đúng số đó vào ô dưới rồi bấm <b>Mở ca</b>. Cuối buổi bấm <b>Chốt ca</b>, app sẽ tự tính số tiền mặt phải nộp lại.</div>'
+          +'<label class="sk-fld">Người trực ca<input id="ca-who" class="sk-inp" value="'+esc(ME().name)+'"></label>'
+          +'<label class="sk-fld">Quỹ đầu ca — tiền thối chủ giao (₫)<input id="ca-float" class="ca-money sk-inp" inputmode="numeric" placeholder="0" value="'+(sug?sug.toLocaleString('vi-VN'):'')+'"></label>'
+          +chips('ca-float')
+          +'<label class="sk-fld">Ghi chú (tuỳ chọn)<input id="ca-note" class="sk-inp" placeholder="ca sáng, ca chiều…"></label>'
+          +'<button class="sk-btn green wide" data-act="ca-do-open">▶️ Mở ca</button>')
+        :'<div class="ca-note">🔒 Bạn không có quyền mở ca. <b>Chủ shop</b> sẽ mở ca khi giao tiền thối. Hãy báo chủ mở ca <b>trước khi bán đơn đầu tiên</b>.</div>')
       +(CAN()?'<button class="sk-btn wide" data-act="ca-hist" style="margin-top:8px">🕘 Lịch sử chốt ca</button>':'');
   }
 
@@ -5792,7 +5812,8 @@ try { window.__skBusy = function(){
        +'<button class="sk-btn" data-act="ca-cash" data-t="payin">➕ Thêm quỹ</button>'
      +'</div>'
      +'<button class="sk-btn wide" data-act="ca-logs" style="margin-bottom:8px">📜 Chi tiết các khoản thu / chi trong ca</button>'
-     +'<button class="sk-btn green wide" data-act="ca-close">🔒 CHỐT CA</button>';
+     +(CANSHIFT()?'<button class="sk-btn green wide" data-act="ca-close">🔒 CHỐT CA</button>'
+       :'<div class="ca-note">🔒 Bạn không có quyền chốt ca. Cuối buổi <b>giao tiền mặt cho chủ</b>, chủ sẽ đếm và bấm chốt ca.</div>');
     if(CAN())h+='<div class="ca-acts" style="margin-top:9px">'
        +'<button class="sk-btn" data-act="ca-editfloat">✏️ Sửa quỹ đầu</button>'
        +'<button class="sk-btn" data-act="ca-hist">🕘 Lịch sử</button>'
@@ -5901,7 +5922,9 @@ try { window.__skBusy = function(){
     var L=(LOGS||[]).filter(function(l){return l.shiftId===s.id;}).sort(function(a,b){return (a.atMs||0)-(b.atMs||0);});
     var h=head('🧾 Ca '+DAY(s.openAtMs),1)
       +'<div class="ca-sub">👤 <b>'+esc(s.staffName||'')+'</b> · '+TM(s.openAtMs)+' → '+TM(s.closeAtMs)
-        +'<br>Chốt bởi: '+esc(s.closedBy||'—')+(s.closeNote?' · '+esc(s.closeNote):'')+'</div>'
+        +'<br>Chốt bởi: '+esc(s.closedBy||'—')+(s.closeNote?' · '+esc(s.closeNote):'')
+        +(s.recalcAtMs?'<br>🔄 Đã tính lại bởi '+esc(s.recalcBy||'')+' · '+TM(s.recalcAtMs)
+           +' (trước đó: phải có '+money(R(s.expectedBefore))+', chênh '+money(R(s.diffBefore))+')':'')+'</div>'
       +(d===0?'<div class="ca-diff ok">✅ KHỚP CHÍNH XÁC</div>'
         :(d<0?'<div class="ca-diff lo">🔴 THIẾU '+money(-d)+'<em>Két ít hơn số phải có</em></div>'
              :'<div class="ca-diff hi">🟠 THỪA '+money(d)+'<em>Két nhiều hơn số phải có</em></div>'))
@@ -5930,6 +5953,7 @@ try { window.__skBusy = function(){
       });
       h+='</div>';
     }
+    if(ISOWNER())h+='<button class="sk-btn wide" data-act="ca-recalc" data-id="'+s.id+'" style="margin-bottom:8px">🔄 Tính lại ca (khi đơn bán offline về trễ)</button>';
     if(ISOWNER())h+='<button class="sk-btn red wide" data-act="ca-delshift" data-id="'+s.id+'">🗑 Xóa ca này khỏi lịch sử</button>';
     return h;
   }
@@ -5958,10 +5982,12 @@ try { window.__skBusy = function(){
     if(a==='ca-cancel'){cancelShift();return;}
     if(a==='ca-editfloat'){editFloat();return;}
     if(a==='ca-delshift'){delShift(id);return;}
+    if(a==='ca-recalc'){recalcShift(id);return;}
   }
 
   function doOpen(){
     if(BUSY)return;
+    if(!CANSHIFT()){say('🔒 Bạn không có quyền mở ca — chủ shop sẽ mở');return;}
     if(OPEN()){say('Đang có ca mở');VIEW='main';render();return;}
     var nm=txt('#ca-who')||ME().name, f=val('#ca-float'), nt=txt('#ca-note'), b=BR(), m=ME(), t=Date.now();
     BUSY=true;
@@ -5985,6 +6011,7 @@ try { window.__skBusy = function(){
 
   async function goClose(){
     var sh=OPEN();if(!sh)return;
+    if(!CANSHIFT()){say('🔒 Bạn không có quyền chốt ca — hãy giao tiền cho chủ');return;}
     WIN=null;VIEW='close';render();
     var w=await fetchWin(sh);
     if(!OPEN()||OPEN().id!==sh.id)return;
@@ -5995,7 +6022,9 @@ try { window.__skBusy = function(){
   }
 
   function doClose(){
-    if(BUSY)return;var sh=OPEN();if(!sh||!WIN||WIN.shiftId!==sh.id){say('Chưa tải xong số liệu');return;}
+    if(BUSY)return;
+    if(!CANSHIFT()){say('🔒 Bạn không có quyền chốt ca');return;}
+    var sh=OPEN();if(!sh||!WIN||WIN.shiftId!==sh.id){say('Chưa tải xong số liệu');return;}
     var e=q('#ca-counted');
     if(!e||String(e.value||'').replace(/[^\d]/g,'')===''){say('Nhập số tiền mặt đếm được');return;}
     var at=Date.now();
@@ -6067,6 +6096,34 @@ try { window.__skBusy = function(){
     if(!window.confirm('XÓA ca đã chốt ngày '+DAY(s.openAtMs)+' của '+(s.staffName||'')+'?\n\nBằng chứng chốt ca sẽ mất vĩnh viễn. Không thể hoàn tác!'))return;
     try{deleteDoc(brDoc(s.branch||BR(),'shifts',id)).catch(function(e){say('Lỗi xóa: '+ec(e));});say('Đã xóa ca');}catch(e){say('Lỗi xóa: '+ec(e));}
     VIEW='hist';setTimeout(render,150);
+  }
+
+  /* ---------- TÍNH LẠI ca ĐÃ CHỐT — dùng khi máy nhân viên mất mạng, đơn về trễ sau lúc chốt ----------
+     Chỉ CHỦ dùng được. Số tiền ĐẾM ĐƯỢC giữ nguyên (là lời khai gốc), chỉ tính lại "tiền phải có". */
+  async function recalcShift(id){
+    if(!ISOWNER()){say('🔒 Chỉ Chủ mới tính lại được ca');return;}
+    var s=SH(id);if(!s||s.status!=='closed'){say('Chỉ tính lại được ca ĐÃ CHỐT');return;}
+    if(BUSY)return;BUSY=true;say('⏳ Đang tải lại đơn hàng của ca…');
+    var w=null;try{w=await fetchWin(s);}catch(_){w=null;}
+    if(!w){BUSY=false;say('Lỗi tải dữ liệu');return;}
+    if(!w.ok){BUSY=false;say('⚠️ Mất mạng — chưa tính lại được, thử lại khi có mạng');return;}
+    var c=calc(s,w.orders,w.rets,w.logs);
+    var counted=R(s.counted), diff=counted-c.expected, o1=R(s.expected), o2=R(s.diff);
+    if(R(c.expected)===o1&&R(diff)===o2){BUSY=false;say('✅ Không có đơn về trễ — số liệu ca đã đúng');return;}
+    if(!window.confirm('TÍNH LẠI ca ngày '+DAY(s.openAtMs)+'?\n\n'
+      +'Tiền phải có: '+money(o1)+'  →  '+money(c.expected)+'\n'
+      +'Chênh lệch:  '+money(o2)+'  →  '+money(diff)+'\n\n'
+      +'Số tiền ĐẾM ĐƯỢC ('+money(counted)+') giữ nguyên, không đổi.')){BUSY=false;return;}
+    var upd={expected:R(c.expected),diff:R(diff),
+      sumCash:R(c.cash),sumQr:R(c.qr),sumDebt:R(c.debt),nOrders:R(c.n),sumDiscount:R(c.disc),
+      sumDebtPay:R(c.pay),sumDebtPayCk:R(c.payCk),sumExpense:R(c.exp),sumPayin:R(c.pin),
+      sumPayout:R(c.pout),sumRefundCash:R(c.refundCash),offlineCalc:false,
+      recalcBy:ME().name,recalcAtMs:Date.now()};
+    if(s.recalcAtMs==null){upd.expectedBefore=o1;upd.diffBefore=o2;}
+    try{updateDoc(brDoc(s.branch||BR(),'shifts',id),upd).catch(function(e){say('Lỗi tính lại: '+ec(e));});
+      say('✅ Đã tính lại ca — chênh lệch mới: '+(diff===0?'KHỚP':money(diff)));try{markDirty();}catch(_){}
+    }catch(e){say('Lỗi tính lại: '+ec(e));}
+    BUSY=false;setTimeout(render,200);
   }
 
   /* ═══════ MÓC NỐI ═══════ */
