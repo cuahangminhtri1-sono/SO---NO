@@ -2753,6 +2753,7 @@ window.saveTx=async()=>{
   }else{
     const nowMs=Date.now();
     const txData={type:currentTxType,amount,note,memo,date,createdAt:serverTimestamp(),createdAtMs:nowMs};
+    try{if(typeof skStaff!=='undefined'&&skStaff){txData.staffId=skStaff.id||'';txData.staffName=skStaff.name||'';}}catch(_){} /* [QUỸ CA] ghi rõ AI THU tiền */
     if(pendingAtt)txData.att=pendingAtt;
     if(txData.att){try{if(JSON.stringify(txData).length>900*1024){delete txData.att;attWarn=true;}}catch(e){delete txData.att;attWarn=true;}}
     const nref=doc(collection(db,'users',UID,'customers',currentCustomerId,'transactions'));
@@ -5490,6 +5491,690 @@ try { window.__skBusy = function(){
     var st=D.createElement('style'); st.id='snr-css'; st.textContent=css; D.head.appendChild(st);
   }
 
+})();
+
+/* ═══════════ QUỸ CA · CHỐT CA · BÁO CÁO THEO NHÂN VIÊN — v1.0 ═══════════
+   KHỐI TỰ CHỨA — KHÔNG sửa logic cũ, chỉ THÊM:
+   • Mở ca kèm "Quỹ đầu ca" (tiền thối chủ giao trước cho nhân viên)
+   • Ghi chi vặt · Nộp tiền về chủ · Bỏ thêm tiền vào quỹ
+   • Chốt ca: Tiền mặt PHẢI CÓ − Tiền mặt ĐẾM ĐƯỢC = THỪA / THIẾU
+   • Khách trả nợ: tự chép sang Sổ quỹ, ghi rõ AI THU
+   • Báo cáo "Doanh thu theo nhân viên" chèn cuối tab Báo cáo
+   Dữ liệu:  users/{uid}[/branches/{b}]/shifts   ·   .../cashlog
+   Muốn TẮT module: đổi CA_ON = false ở dòng ngay dưới.                       */
+(function(){
+  var CA_ON = true;                     /* false = tắt hẳn module này */
+  if(!CA_ON) return;
+
+  var VIEW='main', SHIFTS=[], LOGS=[], UNS=null, UNL=null, SUBBR=null,
+      DETID=null, BUSY=false, WIN=null, BOUND=false, LOGVIEW=null;
+
+  /* ---------- tiện ích ---------- */
+  function q(s){return document.querySelector(s);}
+  function esc(s){try{return escHtml(s);}catch(_){return String(s==null?'':s);}}
+  function R(n){var v=Math.round(Number(n)||0);return isFinite(v)?v:0;}
+  function money(n){try{return fmt(R(n));}catch(_){return R(n)+'đ';}}
+  function ec(e){return (e&&(e.code||e.message))||String(e||'');}
+  function say(m){try{toast(m);}catch(_){}}
+  function BR(){try{return skBranch||'main';}catch(_){return 'main';}}
+  function BRN(){try{return skBranchName(BR())||'';}catch(_){return '';}}
+  function ME(){var s=null;try{s=skStaff;}catch(_){s=null;}
+    return s?{id:s.id||'',name:s.name||'Nhân viên'}:{id:'',name:'Chủ'};}
+  function CAN(){try{return skRoleCan('report');}catch(_){return true;}}
+  function ISOWNER(){try{return (skRole||'owner')==='owner';}catch(_){return true;}}
+  function P2(n){return String(n).padStart(2,'0');}
+  function TM(ms){try{var d=new Date(Number(ms)||0);
+    return P2(d.getHours())+':'+P2(d.getMinutes())+' '+P2(d.getDate())+'/'+P2(d.getMonth()+1);}catch(_){return '—';}}
+  function DAY(ms){try{var d=new Date(Number(ms)||0);
+    return P2(d.getDate())+'/'+P2(d.getMonth()+1)+'/'+d.getFullYear();}catch(_){return '—';}}
+  function OPEN(){for(var i=0;i<SHIFTS.length;i++)if(SHIFTS[i].status==='open')return SHIFTS[i];return null;}
+  function SH(id){for(var i=0;i<SHIFTS.length;i++)if(SHIFTS[i].id===id)return SHIFTS[i];return null;}
+  function val(sel){var e=(typeof sel==='string')?q(sel):sel;if(!e)return 0;
+    var v=parseInt(String(e.value||'').replace(/[^\d]/g,''),10);return isNaN(v)?0:v;}
+  function txt(sel){var e=q(sel);return e?String(e.value||'').trim():'';}
+  function ordMs(o){try{return skOrderDate(o).getTime();}catch(_){return 0;}}
+  function anyMs(v){try{var d=(v&&v.toDate)?v.toDate():(v instanceof Date?v:null);return d?d.getTime():0;}catch(_){return 0;}}
+
+  /* ---------- lắng nghe dữ liệu theo chi nhánh ---------- */
+  function sub(){
+    var b=BR();
+    try{ if(!UID) return; }catch(_){ return; }
+    if(b===SUBBR&&UNS)return;
+    SUBBR=b;SHIFTS=[];LOGS=[];
+    try{if(UNS){UNS();UNS=null;}}catch(_){}
+    try{if(UNL){UNL();UNL=null;}}catch(_){}
+    try{UNS=onSnapshot(query(brCol(b,'shifts'),orderBy('openAtMs','desc'),limit(80)),function(s){
+      SHIFTS=s.docs.map(function(d){return Object.assign({id:d.id},d.data());});paintBtn();repaint();
+    },function(){});}catch(_){}
+    try{UNL=onSnapshot(query(brCol(b,'cashlog'),orderBy('atMs','desc'),limit(400)),function(s){
+      LOGS=s.docs.map(function(d){return Object.assign({id:d.id},d.data());});repaint();
+    },function(){});}catch(_){}
+  }
+
+  /* ---------- tính tiền của một ca ---------- */
+  function calc(sh,orders,rets,logs){
+    var f=Number(sh.openAtMs)||0, t=sh.closeAtMs?Number(sh.closeAtMs):Date.now();
+    var cash=0,qr=0,debt=0,n=0,disc=0;
+    (orders||[]).forEach(function(o){
+      var ms=ordMs(o); if(ms<f||ms>t)return;
+      var g=R(o.total); n++; disc+=R(o.discount);
+      if(o.method==='cash')cash+=g; else if(o.method==='qr')qr+=g; else if(o.method==='debt')debt+=g;
+    });
+    var refundCash=0;
+    (rets||[]).forEach(function(r){
+      var ms=anyMs(r&&r.at); if(ms<f||ms>t)return;
+      if(r.method==='cash')refundCash+=R(r.refund);
+    });
+    var pay=0,payCk=0,exp=0,pin=0,pout=0,nPay=0,nExp=0;
+    (logs||LOGS||[]).forEach(function(l){
+      if(l.shiftId!==sh.id)return;
+      var a=R(l.amount);
+      if(l.type==='debtpay'){ if(l.cash===false)payCk+=a; else pay+=a; nPay++; }
+      else if(l.type==='expense'){exp+=a;nExp++;}
+      else if(l.type==='payin')pin+=a;
+      else if(l.type==='payout')pout+=a;
+    });
+    var open=R(sh.openFloat);
+    return {open:open,cash:cash,qr:qr,debt:debt,n:n,disc:disc,pay:pay,payCk:payCk,nPay:nPay,
+      exp:exp,nExp:nExp,pin:pin,pout:pout,refundCash:refundCash,rev:cash+qr+debt,
+      expected:open+cash+pay+pin-exp-pout-refundCash};
+  }
+
+  /* ---------- nạp đơn hàng / phiếu trả / sổ quỹ trong khung giờ của ca ---------- */
+  async function fetchWin(sh){
+    var b=sh.branch||BR(), ok=true, os=[], rs=[], lg=[];
+    var f=new Date(Number(sh.openAtMs)||0), t=new Date(sh.closeAtMs?Number(sh.closeAtMs):Date.now());
+    try{var s1=await getDocs(query(brCol(b,'orders'),where('createdAt','>=',f),where('createdAt','<=',t),orderBy('createdAt','asc')));
+      os=s1.docs.map(function(d){return Object.assign({id:d.id},d.data());});}catch(e){ok=false;}
+    try{var s2=await getDocs(query(brCol(b,'returns'),where('at','>=',f),orderBy('at','asc')));
+      rs=s2.docs.map(function(d){return Object.assign({id:d.id},d.data());});}catch(e){ok=false;}
+    try{var s3=await getDocs(query(brCol(b,'cashlog'),where('shiftId','==',sh.id)));
+      lg=s3.docs.map(function(d){return Object.assign({id:d.id},d.data());});}catch(e){lg=null;}
+    var oid={};os.forEach(function(x){oid[x.id]=x;});
+    try{(skOrders||[]).forEach(function(x){if(!oid[x.id])oid[x.id]=x;});}catch(_){}
+    var rid={};rs.forEach(function(x){rid[x.id]=x;});
+    try{(skReturns||[]).forEach(function(x){if(!rid[x.id])rid[x.id]=x;});}catch(_){}
+    var lid={};(lg||[]).forEach(function(x){lid[x.id]=x;});
+    (LOGS||[]).forEach(function(x){if(x.shiftId===sh.id&&!lid[x.id])lid[x.id]=x;});
+    return {orders:Object.keys(oid).map(function(k){return oid[k];}),
+            rets:Object.keys(rid).map(function(k){return rid[k];}),
+            logs:Object.keys(lid).map(function(k){return lid[k];}), ok:ok};
+  }
+
+  /* ---------- ghi sổ quỹ ---------- */
+  function addLog(type,amount,note,extra){
+    var sh=OPEN(); if(!sh){say('⚠️ Chưa mở ca — hãy mở ca trước');return false;}
+    var m=ME(), b=BR(), t=Date.now();
+    var d=Object.assign({type:type,amount:R(amount),note:note||'',who:m.name,whoId:m.id,
+      shiftId:sh.id,branch:b,cash:true,atMs:t,at:serverTimestamp()},extra||{});
+    try{addDoc(brCol(b,'cashlog'),d).catch(function(e){say('Lỗi ghi sổ quỹ: '+ec(e));});}
+    catch(e){say('Lỗi ghi sổ quỹ: '+ec(e));return false;}
+    try{markDirty();}catch(_){}
+    return true;
+  }
+
+  /* ═══════ GIAO DIỆN ═══════ */
+  function css(){
+    if(document.getElementById('sk-ca-css'))return;
+    var s=document.createElement('style');s.id='sk-ca-css';
+    s.textContent=
+     '#pos-screen #sk-ca .sk-card{max-width:560px}'
+    +'#pos-screen .ca-h{display:flex;align-items:center;gap:8px;margin:0 0 4px}'
+    +'#pos-screen .ca-h h3{margin:0;font-size:17px;flex:1}'
+    +'#pos-screen .ca-sub{font-size:12px;color:#6b7872;margin:0 0 12px;line-height:1.5}'
+    +'#pos-screen .ca-note{background:#f2f8f5;border:1px solid #dbeee6;border-radius:12px;padding:11px 13px;font-size:12.5px;color:#3c5a50;line-height:1.6;margin-bottom:12px}'
+    +'#pos-screen .ca-warn{background:#fff7ed;border:1px solid #fcd8a5;color:#7c4a03}'
+    +'#pos-screen .ca-bad{background:#fdecea;border:1px solid #f5c6c0;color:#a32b1c}'
+    +'#pos-screen .ca-box{border:1px solid #e3e8e5;border-radius:14px;padding:4px 13px;margin-bottom:12px;background:#fff}'
+    +'#pos-screen .ca-bt{font-size:11px;font-weight:800;letter-spacing:.4px;color:#8a9993;text-transform:uppercase;padding:11px 0 5px}'
+    +'#pos-screen .ca-r{display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding:8px 0;border-top:1px dashed #eef2f0;font-size:13.5px}'
+    +'#pos-screen .ca-r:first-child,#pos-screen .ca-bt+.ca-r{border-top:none}'
+    +'#pos-screen .ca-r span{color:#5f7a70}'
+    +'#pos-screen .ca-r b{font-weight:700;color:#15211d;white-space:nowrap}'
+    +'#pos-screen .ca-r small{color:#9aa8a2;font-weight:600;font-size:11px}'
+    +'#pos-screen .ca-r.out b{color:#c0392b}'
+    +'#pos-screen .ca-r.tot{border-top:2px solid #0d7a5f;margin-top:4px;padding:12px 0}'
+    +'#pos-screen .ca-r.tot span{color:#0a5f4a;font-weight:800;font-size:13px}'
+    +'#pos-screen .ca-r.tot b{color:#0a5f4a;font-size:19px}'
+    +'#pos-screen .ca-chips{display:flex;flex-wrap:wrap;gap:6px;margin:-4px 0 12px}'
+    +'#pos-screen .ca-chips button{border:1px solid #cfe3da;background:#f2f8f5;color:#0a5f4a;border-radius:999px;padding:6px 11px;font-size:12px;font-weight:700}'
+    +'#pos-screen .ca-acts{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px;margin-bottom:11px}'
+    +'#pos-screen .ca-acts .sk-btn{padding:11px 4px;font-size:12.2px;text-align:center;justify-content:center}'
+    +'#pos-screen .ca-diff{border-radius:14px;padding:14px;text-align:center;font-weight:800;margin-bottom:12px;font-size:15px;line-height:1.5}'
+    +'#pos-screen .ca-diff.ok{background:#e8f5ee;color:#0a5f4a;border:1px solid #b9e0cd}'
+    +'#pos-screen .ca-diff.lo{background:#fdecea;color:#a32b1c;border:1px solid #f5c6c0}'
+    +'#pos-screen .ca-diff.hi{background:#fff7ed;color:#7c4a03;border:1px solid #fcd8a5}'
+    +'#pos-screen .ca-diff em{display:block;font-size:11.5px;font-weight:600;opacity:.85;font-style:normal;margin-top:3px}'
+    +'#pos-screen .ca-row{display:flex;gap:10px;align-items:center;padding:10px 0;border-top:1px dashed #eef2f0}'
+    +'#pos-screen .ca-row:first-child{border-top:none}'
+    +'#pos-screen .ca-tag{font-size:10.5px;font-weight:800;border-radius:7px;padding:3px 7px;white-space:nowrap;flex:none}'
+    +'#pos-screen .ca-tag.i{background:#e8f5ee;color:#0d7a5f}#pos-screen .ca-tag.o{background:#fdecea;color:#c0392b}'
+    +'#pos-screen .ca-tag.k{background:#eef2ff;color:#3a49b8}'
+    +'#pos-screen .ca-rm{min-width:0;flex:1}'
+    +'#pos-screen .ca-rn{font-size:13px;font-weight:700;color:#22302b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}'
+    +'#pos-screen .ca-rs{font-size:11px;color:#9aa8a2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}'
+    +'#pos-screen .ca-rv{text-align:right;flex:none;font-weight:700;font-size:13px}'
+    +'#pos-screen .ca-x{border:none;background:#fbeae8;color:#c0392b;border-radius:8px;padding:5px 8px;font-size:12px;font-weight:700;flex:none}'
+    +'#pos-screen .ca-ck{border:1px solid #cfe3da;background:#fff;color:#0a5f4a;border-radius:8px;padding:5px 8px;font-size:11px;font-weight:700;flex:none}'
+    +'#pos-screen .ca-item{display:flex;gap:10px;align-items:center;padding:11px 12px;border:1px solid #e3e8e5;border-radius:12px;margin-bottom:8px;background:#fff;width:100%;text-align:left}'
+    +'#pos-screen .ca-item.on{border-color:#0d7a5f;background:#f2f8f5}'
+    +'#pos-screen .ca-empty{text-align:center;color:#9aa8a2;font-size:13px;padding:22px 10px;line-height:1.6}'
+    +'#pos-screen .ca-pill{font-size:11px;font-weight:800;border-radius:999px;padding:3px 9px;white-space:nowrap}'
+    +'#pos-screen .ca-pill.ok{background:#e8f5ee;color:#0a5f4a}#pos-screen .ca-pill.lo{background:#fdecea;color:#a32b1c}'
+    +'#pos-screen .ca-pill.hi{background:#fff7ed;color:#7c4a03}#pos-screen .ca-pill.op{background:#eef2ff;color:#3a49b8}'
+    +'#pos-screen #sk-ca-btn.on{background:#0d7a5f;border-color:#0d7a5f;color:#fff}'
+    /* thẻ báo cáo theo nhân viên */
+    +'#pos-screen .ca-card{background:#fff;border:1px solid #e8ece9;border-radius:16px;padding:14px 15px;margin-bottom:12px}'
+    +'#pos-screen .ca-ct{font-size:13.5px;font-weight:800;color:#15211d;display:flex;align-items:center;gap:8px;margin-bottom:10px}'
+    +'#pos-screen .ca-ct i{width:4px;height:16px;border-radius:3px;background:#0d7a5f;display:inline-block}'
+    +'#pos-screen .ca-ct i.b{background:#3a49b8}#pos-screen .ca-ct i.g{background:#b9791a}'
+    +'#pos-screen .ca-ct small{font-weight:600;color:#9aa8a2;font-size:11px}'
+    +'#pos-screen .ca-srow{padding:10px 0;border-top:1px dashed #eef2f0}'
+    +'#pos-screen .ca-srow:first-of-type{border-top:none}'
+    +'#pos-screen .ca-sh{display:flex;justify-content:space-between;align-items:baseline;gap:10px}'
+    +'#pos-screen .ca-sn{font-size:13.5px;font-weight:700;color:#22302b;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}'
+    +'#pos-screen .ca-sv{font-size:14px;font-weight:800;color:#0a5f4a;white-space:nowrap}'
+    +'#pos-screen .ca-sd{font-size:11.5px;color:#7d8c86;margin-top:3px;display:flex;flex-wrap:wrap;gap:4px 10px}'
+    +'#pos-screen .ca-bar{height:6px;border-radius:4px;background:#eef2f0;overflow:hidden;margin-top:6px}'
+    +'#pos-screen .ca-bar i{display:block;height:100%;background:linear-gradient(90deg,#0d7a5f,#3fb98c);border-radius:4px}';
+    document.head.appendChild(s);
+  }
+
+  function ui(){
+    css();
+    var bar=document.querySelector('#sk-v-sell .sk-actbar');
+    if(bar&&!document.getElementById('sk-ca-btn')){
+      var b=document.createElement('button');
+      b.id='sk-ca-btn';b.type='button';b.setAttribute('data-act','ca-open');
+      b.textContent='💰 Quỹ / Chốt ca';bar.appendChild(b);
+    }
+    var ps=document.getElementById('pos-screen');
+    if(ps&&!document.getElementById('sk-ca')){
+      var d=document.createElement('div');
+      d.id='sk-ca';d.className='sk-modal';
+      d.innerHTML='<div class="sk-card"><div id="sk-ca-body"></div></div>';
+      ps.appendChild(d);
+    }
+    if(!BOUND){
+      BOUND=true;
+      document.addEventListener('click',onClick);
+      document.addEventListener('input',function(e){
+        var t=e.target;
+        if(t&&t.classList&&t.classList.contains('ca-money')){
+          var raw=String(t.value||'').replace(/[^\d]/g,'');
+          t.value=raw?Number(raw).toLocaleString('vi-VN'):'';
+          if(t.id==='ca-counted')liveDiff();
+        }
+      });
+    }
+    paintBtn();
+  }
+
+  function paintBtn(){
+    var b=document.getElementById('sk-ca-btn');if(!b)return;
+    var s=OPEN();
+    if(s){b.classList.add('on');b.textContent='💰 Ca đang mở · '+esc(s.staffName||'');}
+    else{b.classList.remove('on');b.textContent='💰 Quỹ / Chốt ca';}
+  }
+  function isOn(){var m=document.getElementById('sk-ca');return !!(m&&m.classList.contains('on'));}
+  function repaint(){if(isOn()&&(VIEW==='main'||VIEW==='hist'||VIEW==='logs'))render();paintBtn();}
+
+  /* ---------- các màn hình ---------- */
+  function render(){
+    ui();var box=document.getElementById('sk-ca-body');if(!box)return;
+    var h='';
+    if(VIEW==='open')h=vOpen();
+    else if(VIEW==='close')h=vClose();
+    else if(VIEW==='hist')h=vHist();
+    else if(VIEW==='detail')h=vDetail();
+    else if(VIEW==='logs')h=vLogs();
+    else if(VIEW==='cash')h=vCash();
+    else h=OPEN()?vRun():vIdle();
+    box.innerHTML=h;
+    if(VIEW==='close')setTimeout(function(){var e=q('#ca-counted');if(e)e.focus();},80);
+  }
+  function head(t,back){
+    return '<div class="ca-h">'+(back?'<button class="sk-btn ghost" data-act="ca-back" style="padding:7px 11px">‹</button>':'')
+      +'<h3>'+t+'</h3><button class="sk-btn ghost" data-act="ca-x" style="padding:7px 11px">✕</button></div>';
+  }
+  function chips(id){
+    return '<div class="ca-chips">'
+      +[10000,20000,50000,100000,200000,500000,1000000].map(function(v){
+        return '<button type="button" data-act="ca-chip" data-t="'+id+'" data-v="'+v+'">+'+(v>=1000000?(v/1000000)+' triệu':(v/1000)+'k')+'</button>';}).join('')
+      +'<button type="button" data-act="ca-chip" data-t="'+id+'" data-v="0">Xóa</button></div>';
+  }
+
+  /* — chưa mở ca — */
+  function vIdle(){
+    var last=null;for(var i=0;i<SHIFTS.length;i++){if(SHIFTS[i].status==='closed'){last=SHIFTS[i];break;}}
+    var sug=last?R(last.openFloat):0;
+    return head('💰 Quỹ ca — '+esc(BRN()))
+      +'<div class="ca-sub">Chưa có ca nào đang mở tại chi nhánh này.</div>'
+      +'<div class="ca-note">🧾 <b>Đầu buổi:</b> chủ giao cho nhân viên bao nhiêu <b>tiền thối</b> thì nhập đúng số đó vào ô dưới rồi bấm <b>Mở ca</b>. Cuối buổi bấm <b>Chốt ca</b>, app sẽ tự tính số tiền mặt phải nộp lại.</div>'
+      +'<label class="sk-fld">Người trực ca<input id="ca-who" class="sk-inp" value="'+esc(ME().name)+'"></label>'
+      +'<label class="sk-fld">Quỹ đầu ca — tiền thối chủ giao (₫)<input id="ca-float" class="ca-money sk-inp" inputmode="numeric" placeholder="0" value="'+(sug?sug.toLocaleString('vi-VN'):'')+'"></label>'
+      +chips('ca-float')
+      +'<label class="sk-fld">Ghi chú (tuỳ chọn)<input id="ca-note" class="sk-inp" placeholder="ca sáng, ca chiều…"></label>'
+      +'<button class="sk-btn green wide" data-act="ca-do-open">▶️ Mở ca</button>'
+      +(CAN()?'<button class="sk-btn wide" data-act="ca-hist" style="margin-top:8px">🕘 Lịch sử chốt ca</button>':'');
+  }
+
+  /* — đang mở ca — */
+  function vRun(){
+    var sh=OPEN();if(!sh)return vIdle();
+    var c=calc(sh,skOrdersSafe(),skReturnsSafe(),null);
+    var h=head('💰 Ca đang mở — '+esc(BRN()))
+     +'<div class="ca-sub">👤 <b>'+esc(sh.staffName||'')+'</b> · mở lúc <b>'+TM(sh.openAtMs)+'</b>'
+       +(sh.note?' · '+esc(sh.note):'')+'</div>'
+     +'<div class="ca-box">'
+       +'<div class="ca-bt">Tiền vào két</div>'
+       +row('Quỹ đầu ca (tiền thối)',c.open)
+       +row('Bán hàng thu tiền mặt',c.cash,c.n+' đơn')
+       +row('Khách trả nợ (tiền mặt)',c.pay,c.nPay?(c.nPay+' lượt'):'')
+       +row('Bỏ thêm tiền vào quỹ',c.pin)
+       +'<div class="ca-bt">Tiền ra khỏi két</div>'
+       +row('Chi vặt',-c.exp,c.nExp?(c.nExp+' khoản'):'',1)
+       +row('Đã nộp về chủ',-c.pout,'',1)
+       +row('Hoàn tiền khách trả hàng',-c.refundCash,'',1)
+       +'<div class="ca-r tot"><span>💵 TIỀN MẶT PHẢI CÓ</span><b>'+money(c.expected)+'</b></div>'
+     +'</div>'
+     +'<div class="ca-box">'
+       +'<div class="ca-bt">Không phải tiền mặt (không nằm trong két)</div>'
+       +row('Chuyển khoản / VietQR',c.qr)
+       +row('Bán ghi nợ',c.debt)
+       +(c.payCk?row('Khách trả nợ bằng CK',c.payCk):'')
+       +'<div class="ca-r"><span>Tổng doanh thu ca</span><b>'+money(c.rev)+'</b></div>'
+     +'</div>'
+     +'<div class="ca-acts">'
+       +'<button class="sk-btn" data-act="ca-cash" data-t="expense">➖ Chi vặt</button>'
+       +'<button class="sk-btn" data-act="ca-cash" data-t="payout">📤 Nộp chủ</button>'
+       +'<button class="sk-btn" data-act="ca-cash" data-t="payin">➕ Thêm quỹ</button>'
+     +'</div>'
+     +'<button class="sk-btn wide" data-act="ca-logs" style="margin-bottom:8px">📜 Chi tiết các khoản thu / chi trong ca</button>'
+     +'<button class="sk-btn green wide" data-act="ca-close">🔒 CHỐT CA</button>';
+    if(CAN())h+='<div class="ca-acts" style="margin-top:9px">'
+       +'<button class="sk-btn" data-act="ca-editfloat">✏️ Sửa quỹ đầu</button>'
+       +'<button class="sk-btn" data-act="ca-hist">🕘 Lịch sử</button>'
+       +'<button class="sk-btn red" data-act="ca-cancel">🗑 Hủy ca</button>'
+     +'</div>';
+    h+='<div class="ca-note" style="margin-top:12px">🔄 Số liệu lấy trực tiếp từ đơn hàng của chi nhánh này. Lúc bấm <b>Chốt ca</b> app sẽ tải lại đầy đủ để tính chính xác tuyệt đối.</div>';
+    return h;
+  }
+  function row(label,v,sub,out){
+    return '<div class="ca-r'+(out?' out':'')+'"><span>'+label+(sub?' <small>· '+sub+'</small>':'')+'</span><b>'
+      +(v<0?'−'+money(-v):money(v))+'</b></div>';
+  }
+  function skOrdersSafe(){try{return skOrders||[];}catch(_){return [];}}
+  function skReturnsSafe(){try{return skReturns||[];}catch(_){return [];}}
+
+  /* — nhập thu / chi — */
+  function vCash(){
+    var t=LOGVIEW||'expense';
+    var T={expense:['➖ Ghi chi vặt','Tiền mặt lấy ra khỏi két để chi (mua đá, gửi xe, ăn sáng…). Sẽ TRỪ vào số tiền phải nộp.'],
+           payout:['📤 Nộp tiền về chủ','Số tiền mặt đã đưa/chuyển cho chủ giữa ca. Sẽ TRỪ vào số tiền còn phải nộp cuối ca.'],
+           payin :['➕ Bỏ thêm tiền vào quỹ','Chủ đưa thêm tiền lẻ giữa ca. Sẽ CỘNG vào số tiền phải có trong két.']}[t];
+    return head(T[0],1)
+      +'<div class="ca-note">'+T[1]+'</div>'
+      +'<label class="sk-fld">Số tiền (₫)<input id="ca-amt" class="ca-money sk-inp" inputmode="numeric" placeholder="0"></label>'
+      +chips('ca-amt')
+      +'<label class="sk-fld">Lý do / ghi chú<input id="ca-cnote" class="sk-inp" placeholder="'+(t==='expense'?'mua đá, gửi xe…':(t==='payout'?'đưa chủ, chuyển khoản…':'chủ đưa thêm tiền lẻ'))+'"></label>'
+      +'<button class="sk-btn green wide" data-act="ca-do-cash" data-t="'+t+'">✔ Lưu vào sổ quỹ</button>';
+  }
+
+  /* — chốt ca — */
+  function vClose(){
+    var sh=OPEN();if(!sh)return vIdle();
+    if(!WIN)return head('🔒 Chốt ca',1)+'<div class="ca-empty">⏳ Đang tải lại toàn bộ đơn hàng của ca…</div>';
+    var c=WIN.c;
+    return head('🔒 Chốt ca — '+esc(sh.staffName||''),1)
+      +'<div class="ca-sub">Từ '+TM(sh.openAtMs)+' đến '+TM(WIN.at)+' · '+c.n+' đơn</div>'
+      +(WIN.ok?'':'<div class="ca-note ca-warn">⚠️ Đang mất mạng — số liệu tính từ dữ liệu đã lưu trong máy, có thể thiếu đơn của máy khác.</div>')
+      +'<div class="ca-box">'
+        +row('Quỹ đầu ca',c.open)+row('Bán tiền mặt',c.cash,c.n+' đơn')+row('Khách trả nợ (tiền mặt)',c.pay)
+        +row('Thêm quỹ',c.pin)+row('Chi vặt',-c.exp,'',1)+row('Nộp về chủ',-c.pout,'',1)+row('Hoàn tiền trả hàng',-c.refundCash,'',1)
+        +'<div class="ca-r tot"><span>💵 TIỀN MẶT PHẢI CÓ</span><b>'+money(c.expected)+'</b></div>'
+      +'</div>'
+      +'<div class="ca-note">🧮 Đếm hết tiền mặt trong két (kể cả tiền lẻ) rồi nhập vào ô dưới.</div>'
+      +'<label class="sk-fld">Tiền mặt đếm được thực tế (₫)<input id="ca-counted" class="ca-money sk-inp" inputmode="numeric" placeholder="0"></label>'
+      +'<div id="ca-diffbox"></div>'
+      +'<label class="sk-fld">Ghi chú chốt ca<input id="ca-cnote2" class="sk-inp" placeholder="lý do thừa/thiếu (nếu có)"></label>'
+      +'<button class="sk-btn green wide" data-act="ca-do-close">✔ XÁC NHẬN CHỐT CA</button>';
+  }
+  function liveDiff(){
+    var b=q('#ca-diffbox');if(!b||!WIN)return;
+    var e=q('#ca-counted');
+    if(!e||String(e.value||'').replace(/[^\d]/g,'')===''){b.innerHTML='';return;}
+    var d=val('#ca-counted')-WIN.c.expected;
+    b.innerHTML=d===0?'<div class="ca-diff ok">✅ KHỚP CHÍNH XÁC<em>Tiền trong két đúng bằng số phải có</em></div>'
+      :(d<0?'<div class="ca-diff lo">🔴 THIẾU '+money(-d)+'<em>Két ít hơn số phải có — cần kiểm tra lại</em></div>'
+           :'<div class="ca-diff hi">🟠 THỪA '+money(d)+'<em>Két nhiều hơn số phải có — có thể quên ghi đơn</em></div>');
+  }
+
+  /* — sổ quỹ chi tiết của ca đang mở — */
+  function vLogs(){
+    var sh=OPEN();if(!sh)return vIdle();
+    var L=(LOGS||[]).filter(function(l){return l.shiftId===sh.id;})
+                    .sort(function(a,b){return (b.atMs||0)-(a.atMs||0);});
+    var h=head('📜 Thu / chi trong ca',1)+'<div class="ca-sub">'+L.length+' khoản · ca của '+esc(sh.staffName||'')+'</div>';
+    if(!L.length)return h+'<div class="ca-empty">Chưa có khoản thu / chi nào.<br>Khách trả nợ ghi ở Sổ Nợ sẽ tự hiện tại đây.</div>';
+    h+='<div class="ca-box" style="padding:6px 13px">';
+    L.forEach(function(l){
+      var T={debtpay:['Thu nợ','i'],payin:['Thêm quỹ','i'],expense:['Chi vặt','o'],payout:['Nộp chủ','o']}[l.type]||['Khác','k'];
+      var neg=(l.type==='expense'||l.type==='payout');
+      var nonCash=(l.type==='debtpay'&&l.cash===false);
+      h+='<div class="ca-row"><span class="ca-tag '+(nonCash?'k':T[1])+'">'+T[0]+'</span>'
+        +'<div class="ca-rm"><div class="ca-rn">'+esc(l.note||(l.custName||'—'))+(nonCash?' <small style="color:#3a49b8">(CK)</small>':'')+'</div>'
+        +'<div class="ca-rs">'+esc(l.who||'')+' · '+TM(l.atMs)+'</div></div>'
+        +'<div class="ca-rv" style="color:'+(nonCash?'#3a49b8':(neg?'#c0392b':'#0a5f4a'))+'">'+(neg?'−':'+')+money(l.amount)+'</div>'
+        +(l.type==='debtpay'?'<button class="ca-ck" data-act="ca-toggle" data-id="'+l.id+'">'+(nonCash?'→ Tiền mặt':'→ CK')+'</button>':'')
+        +(CAN()&&l.type!=='debtpay'?'<button class="ca-x" data-act="ca-dellog" data-id="'+l.id+'">Xóa</button>':'')
+        +'</div>';
+    });
+    return h+'</div><div class="ca-note">💡 Khách trả nợ bằng <b>chuyển khoản</b> thì bấm <b>→ CK</b> để không tính vào tiền mặt trong két.</div>';
+  }
+
+  /* — lịch sử ca — */
+  function vHist(){
+    if(!CAN())return head('🕘 Lịch sử chốt ca',1)+'<div class="ca-empty">🔒 Bạn không có quyền xem lịch sử ca.</div>';
+    var h=head('🕘 Lịch sử chốt ca — '+esc(BRN()),1);
+    if(!SHIFTS.length)return h+'<div class="ca-empty">Chưa có ca nào.</div>';
+    SHIFTS.forEach(function(s){
+      var op=(s.status==='open');
+      var d=op?null:R(s.diff);
+      var pill=op?'<span class="ca-pill op">Đang mở</span>'
+        :(d===0?'<span class="ca-pill ok">Khớp</span>'
+          :(d<0?'<span class="ca-pill lo">Thiếu '+money(-d)+'</span>':'<span class="ca-pill hi">Thừa '+money(d)+'</span>'));
+      h+='<button class="ca-item'+(op?' on':'')+'" data-act="ca-detail" data-id="'+s.id+'">'
+        +'<div class="ca-rm"><div class="ca-rn">'+esc(s.staffName||'—')+'</div>'
+        +'<div class="ca-rs">'+DAY(s.openAtMs)+' · '+TM(s.openAtMs)+(op?' → nay':' → '+TM(s.closeAtMs))+'</div></div>'
+        +pill+'</button>';
+    });
+    return h;
+  }
+
+  /* — chi tiết một ca đã chốt — */
+  function vDetail(){
+    var s=SH(DETID);if(!s)return vHist();
+    if(s.status==='open'){VIEW='main';return vRun();}
+    var d=R(s.diff);
+    var L=(LOGS||[]).filter(function(l){return l.shiftId===s.id;}).sort(function(a,b){return (a.atMs||0)-(b.atMs||0);});
+    var h=head('🧾 Ca '+DAY(s.openAtMs),1)
+      +'<div class="ca-sub">👤 <b>'+esc(s.staffName||'')+'</b> · '+TM(s.openAtMs)+' → '+TM(s.closeAtMs)
+        +'<br>Chốt bởi: '+esc(s.closedBy||'—')+(s.closeNote?' · '+esc(s.closeNote):'')+'</div>'
+      +(d===0?'<div class="ca-diff ok">✅ KHỚP CHÍNH XÁC</div>'
+        :(d<0?'<div class="ca-diff lo">🔴 THIẾU '+money(-d)+'<em>Két ít hơn số phải có</em></div>'
+             :'<div class="ca-diff hi">🟠 THỪA '+money(d)+'<em>Két nhiều hơn số phải có</em></div>'))
+      +'<div class="ca-box">'
+        +row('Quỹ đầu ca',R(s.openFloat))+row('Bán tiền mặt',R(s.sumCash),R(s.nOrders)+' đơn')
+        +row('Khách trả nợ (tiền mặt)',R(s.sumDebtPay))+row('Thêm quỹ',R(s.sumPayin))
+        +row('Chi vặt',-R(s.sumExpense),'',1)+row('Nộp về chủ',-R(s.sumPayout),'',1)
+        +row('Hoàn tiền trả hàng',-R(s.sumRefundCash),'',1)
+        +'<div class="ca-r tot"><span>Tiền mặt phải có</span><b>'+money(s.expected)+'</b></div>'
+        +'<div class="ca-r"><span>Tiền mặt đếm được</span><b>'+money(s.counted)+'</b></div>'
+      +'</div>'
+      +'<div class="ca-box">'
+        +'<div class="ca-bt">Không phải tiền mặt</div>'
+        +row('Chuyển khoản / VietQR',R(s.sumQr))+row('Bán ghi nợ',R(s.sumDebt))
+        +'<div class="ca-r"><span>Tổng doanh thu ca</span><b>'+money(R(s.sumCash)+R(s.sumQr)+R(s.sumDebt))+'</b></div>'
+      +'</div>';
+    if(L.length){
+      h+='<div class="ca-box" style="padding:6px 13px"><div class="ca-bt">Thu / chi trong ca</div>';
+      L.forEach(function(l){
+        var T={debtpay:'Thu nợ',payin:'Thêm quỹ',expense:'Chi vặt',payout:'Nộp chủ'}[l.type]||'Khác';
+        var neg=(l.type==='expense'||l.type==='payout');
+        h+='<div class="ca-row"><span class="ca-tag '+(neg?'o':'i')+'">'+T+'</span>'
+          +'<div class="ca-rm"><div class="ca-rn">'+esc(l.note||l.custName||'—')+'</div>'
+          +'<div class="ca-rs">'+esc(l.who||'')+' · '+TM(l.atMs)+'</div></div>'
+          +'<div class="ca-rv">'+(neg?'−':'+')+money(l.amount)+'</div></div>';
+      });
+      h+='</div>';
+    }
+    if(ISOWNER())h+='<button class="sk-btn red wide" data-act="ca-delshift" data-id="'+s.id+'">🗑 Xóa ca này khỏi lịch sử</button>';
+    return h;
+  }
+
+  /* ═══════ HÀNH ĐỘNG ═══════ */
+  function onClick(e){
+    var el=e.target.closest?e.target.closest('[data-act]'):null;if(!el)return;
+    var a=el.dataset.act||'';if(a.indexOf('ca-')!==0)return;
+    var id=el.dataset.id||'';
+    if(a==='ca-open'){ui();sub();VIEW='main';render();try{skModalOpen('#sk-ca');}catch(_){}return;}
+    if(a==='ca-x'){try{skCloseModal('#sk-ca');}catch(_){}VIEW='main';return;}
+    if(a==='ca-back'){VIEW=(VIEW==='detail')?'hist':'main';WIN=null;render();return;}
+    if(a==='ca-chip'){var t=q('#'+el.dataset.t);if(t){var add=parseInt(el.dataset.v,10)||0;
+      var cur=parseInt(String(t.value||'').replace(/[^\d]/g,''),10)||0;var nv=add?cur+add:0;
+      t.value=nv?nv.toLocaleString('vi-VN'):'';if(t.id==='ca-counted')liveDiff();}return;}
+    if(a==='ca-do-open'){doOpen();return;}
+    if(a==='ca-cash'){LOGVIEW=el.dataset.t||'expense';VIEW='cash';render();return;}
+    if(a==='ca-do-cash'){doCash(el.dataset.t||'expense');return;}
+    if(a==='ca-logs'){VIEW='logs';render();return;}
+    if(a==='ca-hist'){VIEW='hist';render();return;}
+    if(a==='ca-detail'){DETID=id;var s=SH(id);VIEW=(s&&s.status==='open')?'main':'detail';render();return;}
+    if(a==='ca-close'){goClose();return;}
+    if(a==='ca-do-close'){doClose();return;}
+    if(a==='ca-toggle'){toggleCash(id);return;}
+    if(a==='ca-dellog'){delLog(id);return;}
+    if(a==='ca-cancel'){cancelShift();return;}
+    if(a==='ca-editfloat'){editFloat();return;}
+    if(a==='ca-delshift'){delShift(id);return;}
+  }
+
+  function doOpen(){
+    if(BUSY)return;
+    if(OPEN()){say('Đang có ca mở');VIEW='main';render();return;}
+    var nm=txt('#ca-who')||ME().name, f=val('#ca-float'), nt=txt('#ca-note'), b=BR(), m=ME(), t=Date.now();
+    BUSY=true;
+    try{
+      addDoc(brCol(b,'shifts'),{staffId:m.id,staffName:nm,openBy:m.name,branch:b,branchName:BRN(),
+        openFloat:R(f),status:'open',note:nt,openAtMs:t,openAt:serverTimestamp(),createdAt:serverTimestamp()})
+        .catch(function(e){say('Lỗi mở ca: '+ec(e));});
+      say('✅ Đã mở ca · quỹ đầu ca '+money(f));try{markDirty();}catch(_){}
+    }catch(e){say('Lỗi mở ca: '+ec(e));}
+    BUSY=false;VIEW='main';setTimeout(render,120);
+  }
+
+  function doCash(t){
+    if(BUSY)return;var a=val('#ca-amt');
+    if(a<=0){say('Nhập số tiền');return;}
+    BUSY=true;
+    var ok=addLog(t,a,txt('#ca-cnote')||({expense:'Chi vặt',payout:'Nộp về chủ',payin:'Thêm quỹ'}[t]||''));
+    BUSY=false;
+    if(ok){say('✅ Đã ghi sổ quỹ '+money(a));VIEW='main';setTimeout(render,120);}
+  }
+
+  async function goClose(){
+    var sh=OPEN();if(!sh)return;
+    WIN=null;VIEW='close';render();
+    var w=await fetchWin(sh);
+    if(!OPEN()||OPEN().id!==sh.id)return;
+    var at=Date.now();
+    var c=calc(Object.assign({},sh,{closeAtMs:at}),w.orders,w.rets,w.logs);
+    WIN={c:c,at:at,ok:w.ok,orders:w.orders,rets:w.rets,logs:w.logs,shiftId:sh.id};
+    if(VIEW==='close')render();
+  }
+
+  function doClose(){
+    if(BUSY)return;var sh=OPEN();if(!sh||!WIN||WIN.shiftId!==sh.id){say('Chưa tải xong số liệu');return;}
+    var e=q('#ca-counted');
+    if(!e||String(e.value||'').replace(/[^\d]/g,'')===''){say('Nhập số tiền mặt đếm được');return;}
+    var at=Date.now();
+    var c=calc(Object.assign({},sh,{closeAtMs:at}),WIN.orders,WIN.rets,WIN.logs);
+    var counted=val('#ca-counted'), diff=counted-c.expected, note=txt('#ca-cnote2'), m=ME();
+    if(diff!==0){
+      if(!window.confirm((diff<0?'⚠️ THIẾU '+money(-diff):'⚠️ THỪA '+money(diff))
+        +'\n\nTiền phải có: '+money(c.expected)+'\nĐếm được:    '+money(counted)
+        +'\n\nVẫn chốt ca?'))return;
+    }
+    BUSY=true;
+    try{
+      updateDoc(brDoc(sh.branch||BR(),'shifts',sh.id),{
+        status:'closed',closeAtMs:at,closeAt:serverTimestamp(),closedBy:m.name,closedById:m.id,
+        counted:R(counted),expected:R(c.expected),diff:R(diff),closeNote:note,
+        sumCash:R(c.cash),sumQr:R(c.qr),sumDebt:R(c.debt),nOrders:R(c.n),sumDiscount:R(c.disc),
+        sumDebtPay:R(c.pay),sumDebtPayCk:R(c.payCk),sumExpense:R(c.exp),sumPayin:R(c.pin),
+        sumPayout:R(c.pout),sumRefundCash:R(c.refundCash),offlineCalc:!WIN.ok
+      }).catch(function(er){say('Lỗi chốt ca: '+ec(er));});
+      say(diff===0?'✅ Đã chốt ca — khớp chính xác':(diff<0?'🔴 Đã chốt ca — THIẾU '+money(-diff):'🟠 Đã chốt ca — THỪA '+money(diff)));
+      try{markDirty();}catch(_){}
+    }catch(er){say('Lỗi chốt ca: '+ec(er));}
+    BUSY=false;WIN=null;VIEW='main';setTimeout(render,150);
+  }
+
+  function toggleCash(id){
+    var l=null;(LOGS||[]).forEach(function(x){if(x.id===id)l=x;});if(!l)return;
+    var toCk=(l.cash!==false), m=ME();
+    if(!window.confirm(toCk?'Đánh dấu khoản thu nợ '+money(l.amount)+' là CHUYỂN KHOẢN (không nằm trong két)?'
+                           :'Đưa khoản '+money(l.amount)+' trở lại thành TIỀN MẶT?'))return;
+    try{updateDoc(brDoc(l.branch||BR(),'cashlog',id),{cash:!toCk,markBy:m.name,markAtMs:Date.now()})
+      .catch(function(e){say('Lỗi: '+ec(e));});}catch(e){say('Lỗi: '+ec(e));}
+  }
+
+  function delLog(id){
+    if(!CAN()){say('🔒 Không có quyền');return;}
+    var l=null;(LOGS||[]).forEach(function(x){if(x.id===id)l=x;});if(!l)return;
+    if(!window.confirm('Xóa khoản '+money(l.amount)+' («'+(l.note||'')+'») khỏi sổ quỹ?'))return;
+    try{deleteDoc(brDoc(l.branch||BR(),'cashlog',id)).catch(function(e){say('Lỗi xóa: '+ec(e));});}catch(e){say('Lỗi xóa: '+ec(e));}
+  }
+
+  function editFloat(){
+    if(!CAN()){say('🔒 Không có quyền');return;}
+    var sh=OPEN();if(!sh)return;
+    var v=window.prompt('Sửa QUỸ ĐẦU CA (₫) — nhập số:',String(R(sh.openFloat)));
+    if(v==null)return;
+    var n=parseInt(String(v).replace(/[^\d]/g,''),10);if(isNaN(n)){say('Số không hợp lệ');return;}
+    try{updateDoc(brDoc(sh.branch||BR(),'shifts',sh.id),{openFloat:n,floatEditBy:ME().name,floatEditAtMs:Date.now()})
+      .catch(function(e){say('Lỗi: '+ec(e));});say('✅ Đã sửa quỹ đầu ca');}catch(e){say('Lỗi: '+ec(e));}
+  }
+
+  function cancelShift(){
+    if(!CAN()){say('🔒 Không có quyền');return;}
+    var sh=OPEN();if(!sh)return;
+    var n=(LOGS||[]).filter(function(l){return l.shiftId===sh.id;}).length;
+    if(!window.confirm('HỦY ca đang mở?\n\n• Ca sẽ bị xóa, KHÔNG lưu vào lịch sử.'
+      +(n?'\n• '+n+' khoản thu/chi của ca cũng bị xóa.':'')+'\n• Đơn hàng đã bán KHÔNG bị ảnh hưởng.\n\nKhông thể hoàn tác!'))return;
+    try{
+      (LOGS||[]).forEach(function(l){if(l.shiftId===sh.id){try{deleteDoc(brDoc(l.branch||BR(),'cashlog',l.id)).catch(function(){});}catch(_){}}});
+      deleteDoc(brDoc(sh.branch||BR(),'shifts',sh.id)).catch(function(e){say('Lỗi hủy ca: '+ec(e));});
+      say('Đã hủy ca');
+    }catch(e){say('Lỗi hủy ca: '+ec(e));}
+    VIEW='main';setTimeout(render,150);
+  }
+
+  function delShift(id){
+    if(!ISOWNER()){say('🔒 Chỉ Chủ mới xóa được ca đã chốt');return;}
+    var s=SH(id);if(!s)return;
+    if(!window.confirm('XÓA ca đã chốt ngày '+DAY(s.openAtMs)+' của '+(s.staffName||'')+'?\n\nBằng chứng chốt ca sẽ mất vĩnh viễn. Không thể hoàn tác!'))return;
+    try{deleteDoc(brDoc(s.branch||BR(),'shifts',id)).catch(function(e){say('Lỗi xóa: '+ec(e));});say('Đã xóa ca');}catch(e){say('Lỗi xóa: '+ec(e));}
+    VIEW='hist';setTimeout(render,150);
+  }
+
+  /* ═══════ MÓC NỐI ═══════ */
+
+  /* 1) Đổi tab / đổi chi nhánh / đăng nhập PIN → dựng nút + nghe đúng chi nhánh */
+  try{ if(typeof skGo==='function'){ var _go=skGo;
+    skGo=function(){ var r; try{r=_go.apply(this,arguments);}catch(e){throw e;}
+      try{ui();sub();}catch(_){} return r; }; } }catch(_){}
+
+  /* 2) Chèn thẻ "Doanh thu theo nhân viên" vào cuối tab Báo cáo */
+  try{ if(typeof skDrawReport==='function'){ var _dr=skDrawReport;
+    skDrawReport=function(box,offline){ var r; try{r=_dr.apply(this,arguments);}catch(e){throw e;}
+      try{staffCard(box);}catch(_){} return r; }; } }catch(_){}
+
+  /* 3) Khách TRẢ NỢ ở Sổ Nợ → tự chép sang sổ quỹ ca, ghi rõ AI THU */
+  try{
+    var _sv=window.saveTx;
+    if(typeof _sv==='function'){
+      window.saveTx=function(){
+        var wasEdit=null,type=null,before=null,cname='';
+        try{wasEdit=editingTxId;type=currentTxType;before=(_curTxs&&_curTxs[0]&&_curTxs[0].id)||null;}catch(_){}
+        try{var cc=customers.find(function(x){return x.id===currentCustomerId;});cname=(cc&&cc.name)||'';}catch(_){}
+        var r=_sv.apply(this,arguments);
+        try{
+          if(!wasEdit&&type==='tra'&&OPEN()){
+            var nt=(_curTxs&&_curTxs[0])||null;
+            if(nt&&nt.id&&nt.id!==before&&R(nt.amount)>0)
+              addLog('debtpay',nt.amount,'Thu nợ: '+(cname||'khách'),{custName:cname,custId:currentCustomerId,txId:nt.id});
+          }
+        }catch(_){}
+        return r;
+      };
+    }
+  }catch(_){}
+
+  /* ---------- thẻ báo cáo theo nhân viên ---------- */
+  function staffCard(box){
+    if(!box||!box.appendChild)return;
+    var list=[];try{list=(skRpOrders||[]).filter(function(o){return skInPeriod(skOrderDate(o),skPeriod);});}catch(_){return;}
+    var ret={};try{(skRpReturns||[]).forEach(function(r){var i=r&&r.orderId;if(i)ret[i]=(ret[i]||0)+R(r.refund);});}catch(_){}
+    var m={},tot=0;
+    list.forEach(function(o){
+      var nm=(o.staffName&&String(o.staffName).trim())||'⚠️ Không ghi tên (chưa bật PIN)';
+      var g=R(o.total), rf=Math.min(Math.max(0,ret[o.id]||0),g), net=g-rf;
+      var e=m[nm]||(m[nm]={n:0,rev:0,cash:0,qr:0,debt:0,disc:0});
+      e.n++;e.rev+=net;e.disc+=R(o.discount);
+      if(o.method==='cash')e.cash+=net;else if(o.method==='qr')e.qr+=net;else if(o.method==='debt')e.debt+=net;
+      tot+=net;
+    });
+    var arr=Object.keys(m).map(function(k){return Object.assign({name:k},m[k]);}).sort(function(a,b){return b.rev-a.rev;});
+    var h='';
+    if(arr.length){
+      var mx=Math.max(1,arr[0].rev);
+      h+='<div class="ca-card"><div class="ca-ct"><i></i>Doanh thu theo nhân viên <small>· chi nhánh '+esc(BRN())+'</small></div>';
+      arr.forEach(function(s){
+        h+='<div class="ca-srow"><div class="ca-sh"><div class="ca-sn">'+esc(s.name)+'</div><div class="ca-sv">'+money(s.rev)+'</div></div>'
+          +'<div class="ca-sd"><span>'+s.n+' đơn</span><span>Tiền mặt '+money(s.cash)+'</span><span>CK '+money(s.qr)+'</span><span>Nợ '+money(s.debt)+'</span>'
+          +(s.disc?'<span>Giảm giá '+money(s.disc)+'</span>':'')+'</div>'
+          +'<div class="ca-bar"><i style="width:'+Math.round(s.rev/mx*100)+'%"></i></div></div>';
+      });
+      h+='</div>';
+    }
+    /* thu nợ theo nhân viên */
+    var pm={},ptot=0;
+    try{(LOGS||[]).forEach(function(l){
+      if(l.type!=='debtpay')return;
+      if(!skInPeriod(new Date(Number(l.atMs)||0),skPeriod))return;
+      var k=l.who||'—';var e=pm[k]||(pm[k]={a:0,n:0,ck:0});
+      if(l.cash===false)e.ck+=R(l.amount);else e.a+=R(l.amount);
+      e.n++;ptot+=R(l.amount);
+    });}catch(_){}
+    var pa=Object.keys(pm).map(function(k){return Object.assign({name:k},pm[k]);}).sort(function(a,b){return (b.a+b.ck)-(a.a+a.ck);});
+    if(pa.length){
+      h+='<div class="ca-card"><div class="ca-ct"><i class="g"></i>Ai thu tiền khách trả nợ <small>· tổng '+money(ptot)+'</small></div>';
+      pa.forEach(function(s){
+        h+='<div class="ca-srow"><div class="ca-sh"><div class="ca-sn">'+esc(s.name)+'</div><div class="ca-sv">'+money(s.a+s.ck)+'</div></div>'
+          +'<div class="ca-sd"><span>'+s.n+' lượt</span><span>Tiền mặt '+money(s.a)+'</span>'+(s.ck?'<span>CK '+money(s.ck)+'</span>':'')+'</div></div>';
+      });
+      h+='</div>';
+    }
+    /* chốt ca trong kỳ */
+    if(CAN()){
+      var sm={},nOpen=0;
+      (SHIFTS||[]).forEach(function(s){
+        if(s.status!=='closed')  {if(s.status==='open')nOpen++;return;}
+        if(!skInPeriod(new Date(Number(s.closeAtMs)||0),skPeriod))return;
+        var k=s.staffName||'—';var e=sm[k]||(sm[k]={n:0,d:0,lo:0,hi:0,sale:0});
+        e.n++;e.d+=R(s.diff);if(R(s.diff)<0)e.lo++;if(R(s.diff)>0)e.hi++;e.sale+=R(s.sumCash);
+      });
+      var sa=Object.keys(sm).map(function(k){return Object.assign({name:k},sm[k]);}).sort(function(a,b){return a.d-b.d;});
+      if(sa.length||nOpen){
+        h+='<div class="ca-card"><div class="ca-ct"><i class="b"></i>Chốt ca — thừa / thiếu tiền mặt</div>';
+        sa.forEach(function(s){
+          var col=s.d<0?'#c0392b':(s.d>0?'#b9791a':'#0a5f4a');
+          h+='<div class="ca-srow"><div class="ca-sh"><div class="ca-sn">'+esc(s.name)+'</div>'
+            +'<div class="ca-sv" style="color:'+col+'">'+(s.d===0?'Khớp':(s.d<0?'Thiếu '+money(-s.d):'Thừa '+money(s.d)))+'</div></div>'
+            +'<div class="ca-sd"><span>'+s.n+' ca</span>'+(s.lo?'<span style="color:#c0392b">'+s.lo+' ca thiếu</span>':'')
+            +(s.hi?'<span style="color:#b9791a">'+s.hi+' ca thừa</span>':'')+'<span>Tiền mặt bán '+money(s.sale)+'</span></div></div>';
+        });
+        if(nOpen)h+='<div class="ca-sd" style="margin-top:8px"><span style="color:#3a49b8">🔓 Đang có '+nOpen+' ca chưa chốt</span></div>';
+        h+='</div>';
+      }
+    }
+    if(!h)return;
+    var w=document.createElement('div');w.innerHTML=h;box.appendChild(w);
+  }
+
+  /* khởi động nhẹ khi trang đã sẵn sàng */
+  try{setTimeout(function(){try{ui();}catch(_){}} ,900);}catch(_){}
 })();
 </script>
 <style>
