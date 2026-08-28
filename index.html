@@ -730,7 +730,7 @@ import { getFirestore, initializeFirestore, persistentLocalCache, persistentMult
   getDocs, query, where, orderBy, onSnapshot, serverTimestamp, setDoc, getDoc, runTransaction, limit, writeBatch, increment, collectionGroup }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-const APP_BUILD = "2026-08-23-chinhanh"; // ⬆️ ĐỔI MỖI LẦN DEPLOY (đặt TRÙNG tên cache trong sw.js) — hiện ở ⚙️ Cài đặt để biết máy đã chạy bản mới chưa
+const APP_BUILD = "2026-08-28-offline"; // ⬆️ ĐỔI MỖI LẦN DEPLOY (đặt TRÙNG tên cache trong sw.js) — hiện ở ⚙️ Cài đặt để biết máy đã chạy bản mới chưa
 const firebaseConfig = {
   apiKey: "AIzaSyA_kjQ-CdASRkf50Glz3kQajlkD5qGWC4k",
   authDomain: "so-no-cc57a.firebaseapp.com",
@@ -747,7 +747,7 @@ const db = (function(){
   var idbOk=false; try{ idbOk=(typeof indexedDB!=='undefined'&&indexedDB!==null); }catch(e){ idbOk=false; }
   if(idbOk){
     try{ return initializeFirestore(fbApp,{ localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager(), cacheSizeBytes: CACHE_SIZE_UNLIMITED }) }); }
-    catch(e){ /* không bật được cache → dùng chế độ thường */ }
+    catch(e){ try{window.__SN_CACHE_ERR=String((e&&(e.code||e.message))||e);}catch(_){} /* không bật được cache → dùng chế độ thường */ }
   }
   return getFirestore(fbApp);
 })();
@@ -1472,7 +1472,7 @@ if(!viewToken){
       await loadBilling();
       let acc=await checkAccount(user.uid);
       // Khách mới (chưa có hồ sơ) -> tự động mở dùng thử miễn phí
-      if(!acc.ok && acc.reason==='pending' && !isAdmin()){
+      if(!acc.ok && acc.reason==='pending' && !isAdmin() && navigator.onLine!==false){   /* offline: bỏ qua, lệnh ghi sẽ treo vĩnh viễn */
         const started=await tryStartTrial(user.uid);
         if(started)acc=await checkAccount(user.uid);
       }
@@ -2503,8 +2503,9 @@ async function loadTx(custId){
   const snap=await getDocs(query(collection(db,'users',UID,'customers',custId,'transactions'),orderBy('date','desc')));
   const _txSynced=!snap.metadata.fromCache&&!snap.metadata.hasPendingWrites;
   _curTxsFor=custId;
-  if(snap.empty){_curTxs=[];el.innerHTML='<div class="empty">Chưa có giao dịch</div>';healDebt(custId,_txSynced);return;}
-  _curTxs=snap.docs.map(d=>({id:d.id,...d.data()}));
+  let _ch9=null; try{ if(window.__SNOFF) _ch9=await window.__SNOFF.txGet(custId,snap); }catch(_){}   /* KHO CỨU HỘ: giữ / lấy lại giao dịch khi mất mạng */
+  if(snap.empty&&!_ch9){_curTxs=[];el.innerHTML='<div class="empty">Chưa có giao dịch</div>';healDebt(custId,_txSynced);return;}
+  _curTxs=_ch9||snap.docs.map(d=>({id:d.id,...d.data()}));
   _curTxs.sort((a,b)=>{const da=txDayMs(a.date),dbb=txDayMs(b.date);if(da!==dbb)return dbb-da;return txEntryMs(b)-txEntryMs(a);});
   healDebt(custId,_txSynced);
   const cust=customers.find(x=>x.id===custId);
@@ -4422,7 +4423,7 @@ async function skDiag(){
 
     if(info&&info.ok){_openReal();return;}
     /* Tự mở dùng thử Bán hàng miễn phí 15 ngày — CHỈ 1 LẦN (Rules chặn tạo lại) */
-    if(!daTungCoPos){
+    if(!daTungCoPos && navigator.onLine!==false){   /* offline: KHÔNG mở dùng thử (lệnh ghi sẽ treo vĩnh viễn) */
       try{
         var until=new Date(Date.now()+POS_TRIAL_DAYS*86400000);
         await setDoc(licRef(UID,MA_POS),{trial:true,trialUsed:true,active:true,paidUntil:until,startedAt:serverTimestamp()});
@@ -6176,6 +6177,287 @@ try { window.__skBusy = function(){
   /* khởi động nhẹ khi trang đã sẵn sàng */
   try{setTimeout(function(){try{ui();}catch(_){}} ,900);}catch(_){}
 })();
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   KHO CỨU HỘ OFFLINE v1  —  CHỈ THÊM MỚI · KHÔNG SỬA LOGIC CŨ
+   ---------------------------------------------------------------------------
+   Vì sao cần: app đang chỉ có DUY NHẤT 1 bản dữ liệu trong máy = bộ nhớ đệm
+   của Firestore. Khi bộ đệm đó trống / bị trình duyệt xoá / không bật được
+   (ẩn danh, hết dung lượng, WebView) thì màn hình trắng trơn tuy MÁY CHỦ VẪN
+   CÒN ĐỦ DỮ LIỆU. Khối này giữ thêm 1 bản sao RIÊNG trong IndexedDB để lúc
+   mất mạng vẫn có khách / kho / NCC mà bán và ghi nợ.
+
+   NGUYÊN TẮC AN TOÀN (không thể làm hỏng dữ liệu):
+   • Bản sao này CHỈ ĐỌC ĐỂ HIỂN THỊ — TUYỆT ĐỐI không tự ghi ngược lên máy chủ.
+   • Chỉ ghi đè bản sao khi có dữ liệu thật; KHÔNG bao giờ ghi đè bằng mảng rỗng.
+   • Chỉ khôi phục khi biến đang RỖNG. Có dữ liệu thật là nhường ngay.
+   • CHẶN ghi/xoá công nợ khi chưa tải được lịch sử giao dịch (chống tính sai nợ).
+   ═══════════════════════════════════════════════════════════════════════════ */
+(function(){
+'use strict';
+if(window.__SNOFF) return;
+
+var GRACE_DAYS = 7;      /* Mất mạng: cho MỞ APP tối đa N ngày kể từ lần kiểm tra giấy phép gần nhất. Đổi 0 = tắt. */
+var CHU_KY     = 4000;   /* mỗi 4 giây: soát & lưu bản cứu hộ */
+var DBN='sono_cuuho_v1', ST='kv';
+
+/* ---------- IndexedDB tối giản (tự chứa) ---------- */
+var _p=null;
+function idb(){
+  if(_p) return _p;
+  _p=new Promise(function(res,rej){
+    try{
+      var r=indexedDB.open(DBN,1);
+      r.onupgradeneeded=function(){ try{ r.result.createObjectStore(ST); }catch(e){} };
+      r.onsuccess=function(){ res(r.result); };
+      r.onerror  =function(){ rej(r.error||new Error('idb')); };
+    }catch(e){ rej(e); }
+  });
+  return _p;
+}
+function kvPut(k,v){ return idb().then(function(d){ return new Promise(function(res,rej){
+  try{
+    var t=d.transaction(ST,'readwrite'); t.objectStore(ST).put(v,k);
+    t.oncomplete=function(){ res(1); };
+    t.onerror   =function(){ rej(t.error||new Error('put')); };
+    t.onabort   =function(){ rej(t.error||new Error('abort')); };
+  }catch(e){ rej(e); }
+});}); }
+function kvGet(k){ return idb().then(function(d){ return new Promise(function(res,rej){
+  try{
+    var t=d.transaction(ST,'readonly'), q=t.objectStore(ST).get(k);
+    q.onsuccess=function(){ res(q.result); };
+    q.onerror  =function(){ rej(q.error||new Error('get')); };
+  }catch(e){ rej(e); }
+});}); }
+
+/* ---------- Đổi Timestamp của Firestore -> Date (để lưu được và hiển thị đúng ngày) ---------- */
+function plain(v){
+  if(v==null) return v;
+  if(typeof v!=='object') return v;
+  if(v instanceof Date) return v;
+  if(typeof v.toDate==='function'){ try{ return v.toDate(); }catch(e){ return null; } }
+  if(Array.isArray(v)){ var a=[]; for(var i=0;i<v.length;i++) a.push(plain(v[i])); return a; }
+  var o={};
+  for(var k in v){
+    if(!Object.prototype.hasOwnProperty.call(v,k)) continue;
+    var x=plain(v[k]);
+    if(typeof x==='function'||x===undefined) continue;
+    o[k]=x;
+  }
+  return o;
+}
+
+var M={}, SIG={}, _xin={}, _daBao=false;
+var OFF={ mem:M, san:false, unsafeFor:null };
+window.__SNOFF=OFF;
+
+function luu(k,v){
+  try{
+    if(!v) return;
+    if(Array.isArray(v) && v.length===0) return;      /* không bao giờ ghi đè bằng rỗng */
+    var pv=plain(v), s=JSON.stringify(pv);
+    if(SIG[k]===s) return;
+    SIG[k]=s; M[k]=pv;
+    kvPut(k,pv).catch(function(){});
+  }catch(e){}
+}
+function nap(k){                                        /* nạp 1 khoá từ đĩa (1 lần) */
+  if(_xin[k]) return; _xin[k]=1;
+  kvGet(k).then(function(v){ if(v!==undefined&&v!==null){ M[k]=v; } }).catch(function(){});
+}
+function baoMot(msg){ if(_daBao) return; _daBao=true; try{ toast(msg); }catch(e){} }
+
+/* ---------- GOM: lưu bản sao ---------- */
+function gom(){
+  try{
+    if(typeof customers!=='undefined' && customers && customers.length) luu('customers',customers);
+    var b=(typeof skBranch!=='undefined'&&skBranch)?skBranch:'main';
+    if(typeof skProducts!=='undefined' && skProducts && skProducts.length) luu('sp:'+b,skProducts);
+    if(typeof skSuppliers!=='undefined' && skSuppliers && skSuppliers.length) luu('ncc',skSuppliers);
+    if(typeof skBranches!=='undefined' && skBranches && skBranches.length) luu('cn',skBranches);
+    if(typeof skShopBank!=='undefined' && skShopBank && skShopBank.account)
+      luu('shop',{bank:skShopBank,name:(typeof skShopName!=='undefined'?skShopName:'')});
+    /* Ghi nhớ giấy phép còn hiệu lực (chỉ khi ĐANG CÓ MẠNG) để lần sau mất mạng vẫn mở được app */
+    if(window._accInfo && navigator.onLine!==false){
+      try{
+        var u=window._accInfo.until? (+new Date(window._accInfo.until)) : 0;
+        localStorage.setItem('sono_gp_v1', JSON.stringify({t:Date.now(),u:(isNaN(u)?0:u)}));
+      }catch(e){}
+    }
+    /* Ghi nhớ đã từng mở được POS (để mất mạng mở thẳng, không bị treo ở bước đọc giấy phép) */
+    try{
+      var ps=document.getElementById('pos-screen');
+      if(ps && ps.classList.contains('on') && navigator.onLine!==false)
+        localStorage.setItem('sono_pos_ok', String(Date.now()));
+    }catch(e){}
+  }catch(e){}
+}
+
+/* ---------- VỀ: khôi phục lên màn hình khi biến đang RỖNG ---------- */
+function dem(){
+  try{
+    var a=customers.reduce(function(s,c){return s+Math.max(0,(c.debt||0));},0);
+    var b=customers.reduce(function(s,c){return s+Math.max(0,-(c.debt||0));},0);
+    var g=function(id,v){ var e=document.getElementById(id); if(e) e.textContent=v; };
+    g('s-total',customers.length); g('s-debt',fmt(a)); g('s-owe',fmt(b));
+  }catch(e){}
+}
+function ve(){
+  try{
+    var bk='sp:'+((typeof skBranch!=='undefined'&&skBranch)?skBranch:'main');
+    nap('customers'); nap('ncc'); nap('cn'); nap('shop'); nap(bk);
+
+    if(typeof customers!=='undefined' && customers.length===0 && Array.isArray(M.customers) && M.customers.length){
+      customers=M.customers.slice();
+      dem(); try{ window.renderList(); }catch(e){}
+      baoMot('📴 Đang dùng BẢN LƯU TRONG MÁY — dữ liệu sẽ tự cập nhật khi có mạng.');
+    }
+    if(typeof skProducts!=='undefined' && skProducts.length===0 && Array.isArray(M[bk]) && M[bk].length){
+      skProducts=M[bk].slice();
+      try{skRenderGrid();}catch(e){} try{skRenderKho();}catch(e){} try{skRenderNpPick();}catch(e){}
+    }
+    if(typeof skSuppliers!=='undefined' && skSuppliers.length===0 && Array.isArray(M.ncc) && M.ncc.length){
+      skSuppliers=M.ncc.slice(); try{skRenderSuppliers();}catch(e){}
+    }
+    if(typeof skBranches!=='undefined' && skBranches.length===0 && Array.isArray(M.cn) && M.cn.length){
+      skBranches=M.cn.slice(); try{skRenderBranchSel();}catch(e){} try{skRenderBranches();}catch(e){}
+    }
+    if(M.shop && typeof skShopBank!=='undefined' && !skShopBank){
+      skShopBank=M.shop.bank||null;
+      if(typeof skShopName!=='undefined' && !skShopName) skShopName=M.shop.name||'';
+    }
+  }catch(e){}
+}
+
+/* ---------- GIAO DỊCH của 1 khách: lưu khi có, trả lại khi mất mạng ---------- */
+OFF.txGet=function(custId,snap){
+  try{
+    if(snap && !snap.empty){
+      var arr=snap.docs.map(function(d){
+        var o=Object.assign({id:d.id},d.data());
+        if(o.att) delete o.att;                       /* bỏ ảnh đính kèm cho nhẹ máy */
+        return plain(o);
+      });
+      luu('gd:'+custId,arr);
+      OFF.unsafeFor=null;
+      return Promise.resolve(null);                   /* dùng dữ liệu thật, không thay thế */
+    }
+    if(snap && snap.metadata && snap.metadata.fromCache===false){
+      /* MÁY CHỦ xác nhận khách này thật sự chưa có giao dịch */
+      OFF.unsafeFor=null;
+      try{ SIG['gd:'+custId]=null; M['gd:'+custId]=[]; kvPut('gd:'+custId,[]).catch(function(){}); }catch(e){}
+      return Promise.resolve(null);
+    }
+    /* Rỗng vì đọc từ bộ đệm (mất mạng / bộ đệm trống) -> lấy bản cứu hộ */
+    return kvGet('gd:'+custId).then(function(v){
+      if(Array.isArray(v) && v.length){ M['gd:'+custId]=v; OFF.unsafeFor=null; return v.slice(); }
+      OFF.unsafeFor=khongNo(custId)?null:custId;
+      return null;
+    }).catch(function(){
+      OFF.unsafeFor=khongNo(custId)?null:custId;
+      return null;
+    });
+  }catch(e){ return Promise.resolve(null); }
+};
+function khongNo(custId){
+  try{
+    var c=(typeof customers!=='undefined')?customers.find(function(x){return x.id===custId;}):null;
+    return !c || (Number(c.debt)||0)===0;              /* nợ = 0 thì tính từ rỗng vẫn đúng */
+  }catch(e){ return false; }
+}
+
+/* ---------- CHẶN ghi/xoá công nợ khi chưa tải được lịch sử (chống tính SAI số nợ) ---------- */
+function chan(){
+  try{
+    if(OFF.unsafeFor && typeof currentCustomerId!=='undefined' && OFF.unsafeFor===currentCustomerId){
+      alert('⚠️ CHƯA tải được lịch sử giao dịch của khách này.\n\n'
+          + 'Máy đang ngoại tuyến và trong máy chưa có bản lưu của khách này. '
+          + 'Nếu ghi lúc này thì SỐ NỢ SẼ BỊ TÍNH SAI.\n\n'
+          + 'Hãy bật mạng, mở lại khách này một lần rồi thao tác.');
+      return true;
+    }
+  }catch(e){}
+  return false;
+}
+['saveTx','delTx'].forEach(function(n){
+  var f=window[n];
+  if(typeof f!=='function') return;
+  window[n]=function(){ if(chan()) return; return f.apply(this,arguments); };
+});
+
+/* ---------- Mất mạng vẫn mở được BÁN HÀNG (bỏ qua bước đọc giấy phép trên mạng) ---------- */
+(function(){
+  var _pos=window.openPOS;
+  if(typeof _pos!=='function') return;
+  window.openPOS=function(){
+    try{
+      var okAt=Number(localStorage.getItem('sono_pos_ok')||0);
+      if(navigator.onLine===false && okAt && (Date.now()-okAt) < GRACE_DAYS*86400000){
+        skq('#pos-screen').classList.add('on');
+        document.body.style.overflow='hidden';
+        try{ skInit4(); }catch(e){ try{ skInit(); skGo('sell'); }catch(e2){} }
+        setTimeout(ve,80); setTimeout(ve,600);
+        return;
+      }
+    }catch(e){}
+    return _pos.apply(this,arguments);
+  };
+})();
+
+/* ---------- Mất mạng vẫn MỞ ĐƯỢC APP (không kẹt ở màn hình khoá / màn hình trắng) ---------- */
+var _t0=Date.now();
+function hien(id){
+  var e=document.getElementById(id);
+  if(!e) return false;
+  try{ return getComputedStyle(e).display!=='none'; }catch(x){ return e.style.display!=='none'; }
+}
+function moKhoa(){
+  try{
+    if(GRACE_DAYS<=0) return;
+    if(navigator.onLine!==false) return;                 /* CÓ MẠNG: giữ nguyên logic gốc, không can thiệp */
+    if(hien('app')) return;                              /* đã vào được app rồi */
+    if(typeof UID==='undefined' || !UID) return;         /* máy chưa có phiên đăng nhập -> để nguyên màn hình đăng nhập */
+    if(!hien('locked-view') && (Date.now()-_t0) < 12000) return;   /* đang khởi động, chờ thêm */
+    var g=null; try{ g=JSON.parse(localStorage.getItem('sono_gp_v1')||'null'); }catch(e){}
+    if(!g||!g.t) return;                                 /* chưa từng kiểm tra giấy phép thành công */
+    if(Date.now()-g.t > GRACE_DAYS*86400000) return;      /* quá hạn ân hạn ngoại tuyến */
+    if(g.u && g.u < Date.now()) return;                   /* giấy phép đã hết hạn thật */
+    var lv=document.getElementById('locked-view');  if(lv) lv.style.display='none';
+    var au=document.getElementById('auth-screen');  if(au) au.style.display='none';
+    var ap=document.getElementById('app');          if(ap) ap.style.display='block';
+    try{ if(!unsub) loadCustomers(); }catch(e){}
+    try{ skBranchSubs(); }catch(e){}
+    ve();
+    baoMot('📴 Không có mạng — đang mở bằng bản lưu trong máy.');
+  }catch(e){}
+}
+
+/* ---------- Cảnh báo khi máy KHÔNG bật được bộ nhớ đệm Firestore ---------- */
+try{
+  if(window.__SN_CACHE_ERR){
+    setTimeout(function(){ try{ toast('⚠️ Máy này chưa bật được bộ nhớ ngoại tuyến — hãy tắt chế độ ẩn danh / cài app vào Màn hình chính.'); }catch(e){} }, 4000);
+  }
+}catch(e){}
+
+/* ---------- Nhịp chạy ---------- */
+try{
+  Promise.all(['customers','ncc','cn','shop','sp:main'].map(function(k){
+    _xin[k]=1;
+    return kvGet(k).then(function(v){ if(v!==undefined&&v!==null) M[k]=v; }).catch(function(){});
+  })).then(function(){ OFF.san=true; ve(); moKhoa(); }).catch(function(){ OFF.san=true; });
+}catch(e){}
+
+var _nhip=0;
+setInterval(function(){ _nhip++; ve(); moKhoa(); if(_nhip%3===0) gom(); }, CHU_KY);  /* ve/moKhoa rất nhẹ; gom (nặng hơn) ~12 giây/lần */
+setTimeout(function(){ ve(); moKhoa(); }, 1200);
+setTimeout(function(){ gom(); ve(); moKhoa(); }, 3000);
+document.addEventListener('visibilitychange', function(){ if(!document.hidden){ gom(); ve(); } });
+window.addEventListener('pagehide', gom);
+window.addEventListener('offline', function(){ setTimeout(ve,200); });
+window.addEventListener('online',  function(){ setTimeout(gom,3000); });
+})();
+/* ═══════════════ HẾT: KHO CỨU HỘ OFFLINE v1 ═══════════════ */
 </script>
 <style>
 #pos-screen{position:fixed;inset:0;z-index:2000;background:#eef1ef;display:none;flex-direction:column;color:#15211d;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
