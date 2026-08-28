@@ -1445,6 +1445,29 @@ async function checkAccount(uid){
 }
 
 function escHtml(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+/* Sinh token NGẪU NHIÊN AN TOÀN cho link chia sẻ nợ / link hoá đơn.
+   Math.random() của trình duyệt KHÔNG phải bộ sinh mật mã: từ vài token cùng một phiên
+   có thể suy ngược trạng thái và ĐOÁN token kế tiếp ⇒ lộ công nợ + chữ ký khách
+   (Rules cho phép "allow get: if true" nên ai cầm token là đọc được).
+   Dùng crypto.getRandomValues, loại byte >=252 để không lệch xác suất (252 = 36*7).
+   Có đường lui về Math.random nếu trình duyệt quá cũ — vẫn chạy, không bao giờ vỡ. */
+function skRandTok(n){
+  n=n||22;
+  var B='abcdefghijklmnopqrstuvwxyz0123456789', out='';
+  try{
+    var c=(typeof window!=='undefined')&&(window.crypto||window.msCrypto);
+    if(!c||!c.getRandomValues)throw 0;
+    var vong=0;
+    while(out.length<n&&vong<20){
+      vong++;
+      var a=new Uint8Array(n*2); c.getRandomValues(a);
+      for(var i=0;i<a.length&&out.length<n;i++){ if(a[i]<252) out+=B.charAt(a[i]%36); }
+    }
+    if(out.length>=n)return out;
+  }catch(_){}
+  var r=''; for(var j=0;j<n;j++)r+=B.charAt(Math.floor(Math.random()*36));
+  return r;
+}
 function _admOne(d,hau){
   if(d.active===false)return{t:'🔒 Đã khoá'+hau,c:'#c0392b'};
   if(d.paidUntil){const u=d.paidUntil.toDate?d.paidUntil.toDate():new Date(d.paidUntil);
@@ -1831,7 +1854,7 @@ window.markReminded=async(id)=>{
 window.remindCustomer=async(id)=>{
   const c=customers.find(x=>x.id===id); if(!c)return;
   let token=c.shareToken;
-  if(!token){token=Math.random().toString(36).substring(2,10)+Date.now().toString(36);
+  if(!token){token=skRandTok(22);
     try{updateDoc(doc(db,'users',UID,'customers',id),{shareToken:token}).catch(function(e){toast('⚠️ CHƯA lưu được mã link vào khách: '+((e&&(e.code||e.message))||e));});}catch(e){}c.shareToken=token;}
   syncShare(token,c.id,c.name,c.phone,c.debt||0).catch(()=>{});
   const url=window.location.href.split('?')[0]+'?view='+token;
@@ -2814,7 +2837,7 @@ window.generateShareLink=async()=>{
   const c=customers.find(x=>x.id===currentCustomerId);
   let token=c.shareToken;
   if(!token){
-    token=Math.random().toString(36).substring(2,10)+Date.now().toString(36);
+    token=skRandTok(22);
     updateDoc(doc(db,'users',UID,'customers',currentCustomerId),{shareToken:token}).catch(function(e){toast('⚠️ CHƯA lưu được mã link vào khách: '+((e&&(e.code||e.message))||e));});
     c.shareToken=token;
   }
@@ -3289,7 +3312,7 @@ async function skFinalize(method,extra){
   const customer=extra.customer||null;let custRef=null,isNew=false;
   if(method==='debt'&&customer){if(customer.id)custRef=doc(db,'users',UID,'customers',customer.id);else{custRef=doc(collection(db,'users',UID,'customers'));isNew=true;}}
   const orderRef=doc(bcol('orders'));
-  const hdToken=Math.random().toString(36).substring(2,10)+Date.now().toString(36); // mã link hóa đơn online (bền theo đơn)
+  const hdToken=skRandTok(22); // mã link hóa đơn online (bền theo đơn)
   const batch=writeBatch(db);
   batch.set(orderRef,{items:items,subtotal:sub,discount:disc,total:total,method:method,staffName:(typeof skStaff!=='undefined'&&skStaff?skStaff.name:null),paid:extra.paid||null,change:(extra.change!=null?extra.change:null),note:skOrderNote||'',customerId:(customer&&customer.id)||(isNew?custRef.id:null),customerName:(customer&&customer.name)||null,hdToken:hdToken,createdAt:serverTimestamp(),createdAtMs:Date.now()});
   pids.forEach(id=>{batch.update(bdoc('products',id),{stock:increment(-need[id])});batch.set(doc(bcol('stock_moves')),{productId:id,productName:(skProducts.find(x=>x.id===id)||{}).name||'',delta:-need[id],reason:'sale',orderId:orderRef.id,at:serverTimestamp()});}); // bán -> trừ tồn (increment âm) offline-safe
@@ -3313,7 +3336,7 @@ async function skShareInvoice(){
   const o=window._skLastReceipt;
   if(!o){toast('Chưa có hóa đơn');return;}
   let token=o.hdToken;
-  if(!token){token=Math.random().toString(36).substring(2,10)+Date.now().toString(36);o.hdToken=token;if(o.id){try{updateDoc(bdoc('orders',o.id),{hdToken:token});}catch(e){}}}
+  if(!token){token=skRandTok(22);o.hdToken=token;if(o.id){try{updateDoc(bdoc('orders',o.id),{hdToken:token});}catch(e){}}}
   const shop={name:(skShopName||''),bankBin:(skShopBank&&skShopBank.bin)||'',bankName:(skShopBank&&skShopBank.bankName)||'',account:(skShopBank&&skShopBank.account)||'',accName:(skShopBank&&skShopBank.accName)||''};
   const src=(o.items||[]).map(i=>({name:i.name,unit:i.unit||'',qty:Number(i.qty)||0,price:Number(i.price)||0,lineTotal:(Number(i.price)||0)*(Number(i.qty)||0)}));
   const CAP=200; const itemsTotal=src.length; let items=src, truncated=false;
@@ -5851,6 +5874,7 @@ try { window.__skBusy = function(){
     return head('🔒 Chốt ca — '+esc(sh.staffName||''),1)
       +'<div class="ca-sub">Từ '+TM(sh.openAtMs)+' đến '+TM(WIN.at)+' · '+c.n+' đơn</div>'
       +(WIN.ok?'':'<div class="ca-note ca-warn">⚠️ Đang mất mạng — số liệu tính từ dữ liệu đã lưu trong máy, có thể thiếu đơn của máy khác.</div>')
+      +lechGio(WIN.orders)
       +'<div class="ca-box">'
         +row('Quỹ đầu ca',c.open)+row('Bán tiền mặt',c.cash,c.n+' đơn')+row('Khách trả nợ (tiền mặt)',c.pay)
         +row('Thêm quỹ',c.pin)+row('Chi vặt',-c.exp,'',1)+row('Nộp về chủ',-c.pout,'',1)+row('Hoàn tiền trả hàng',-c.refundCash,'',1)
@@ -5870,6 +5894,45 @@ try { window.__skBusy = function(){
     b.innerHTML=d===0?'<div class="ca-diff ok">✅ KHỚP CHÍNH XÁC<em>Tiền trong két đúng bằng số phải có</em></div>'
       :(d<0?'<div class="ca-diff lo">🔴 THIẾU '+money(-d)+'<em>Két ít hơn số phải có — cần kiểm tra lại</em></div>'
            :'<div class="ca-diff hi">🟠 THỪA '+money(d)+'<em>Két nhiều hơn số phải có — có thể quên ghi đơn</em></div>');
+  }
+
+  /* ── DÒ ĐỒNG HỒ MÁY BỊ CHỈNH ─────────────────────────────────────────────
+     Ca lọc đơn theo createdAtMs (giờ MÁY lúc bán) để cứu đơn bán offline.
+     Mặt trái: chỉnh lùi giờ điện thoại có thể đẩy đơn ra ngoài khung ca ⇒ giấu tiền.
+     createdAt là giờ SERVER, máy không giả được ⇒ đem 2 mốc ra so là lộ.
+
+     PHẢI TÁCH 2 CHIỀU, tuyệt đối không dùng Math.abs:
+       • createdAtMs VƯỢT createdAt  → bán xong mới đồng bộ, nên giờ bán KHÔNG THỂ
+         đi trước giờ server ⇒ đồng hồ máy đã bị chỉnh ⇒ CỜ ĐỎ.
+       • createdAt trễ hơn createdAtMs → máy offline lâu rồi mới sync ⇒ BÌNH THƯỜNG,
+         chỉ ghi chú khi trễ khác thường. Nếu báo đỏ ở đây thì shop mạng yếu sẽ bị
+         báo động giả mỗi ca, quen tay bỏ qua, tới lúc gian lận thật cũng bỏ qua nốt.
+
+     KHÔNG lọc theo khung ca: đơn bị chỉnh lùi ra NGOÀI ca chính là thứ cần bắt.
+     Chỉ HIỂN THỊ, không đổi một con số nào. Bọc try/catch để không bao giờ vỡ màn hình. */
+  function khoangTG(ms){
+    var p=Math.round(Math.abs(Number(ms)||0)/60000);
+    if(p<60)return p+' phút';
+    if(p<1440)return Math.floor(p/60)+'h'+(p%60?(' '+(p%60)+'p'):'');
+    return Math.floor(p/1440)+' ngày';
+  }
+  function lechGio(orders){
+    try{
+      var nDo=0,maxDo=0,nTre=0,maxTre=0;
+      (orders||[]).forEach(function(o){
+        var ms=Number(o&&o.createdAtMs)||0; if(!(ms>0))return;
+        var sv=anyMs(o&&o.createdAt);      if(!(sv>0))return;  // chưa sync xong → bỏ qua
+        if(ms>sv+300000){ nDo++; if(ms-sv>maxDo)maxDo=ms-sv; return; }   // dung sai 5 phút
+        var d=sv-ms; if(d>12*3600000){ nTre++; if(d>maxTre)maxTre=d; }
+      });
+      var h='';
+      if(nDo)h+='<div class="ca-note ca-warn">⏰ <b>'+nDo+' đơn</b> ghi giờ bán <b>đi trước</b> giờ máy chủ tới <b>'
+        +khoangTG(maxDo)+'</b>.<br>Bán xong mới đồng bộ nên điều này <b>không thể xảy ra tự nhiên</b> — nhiều khả năng '
+        +'đồng hồ máy bán đã bị chỉnh. Nên kiểm tra máy đó trước khi chốt.</div>';
+      if(nTre)h+='<div class="ca-note">🐢 '+nTre+' đơn đồng bộ trễ hơn <b>'+khoangTG(maxTre)+'</b> so với lúc bán. '
+        +'Bình thường nếu máy đó mất mạng lâu.</div>';
+      return h;
+    }catch(_){return '';}
   }
 
   /* — sổ quỹ chi tiết của ca đang mở — */
