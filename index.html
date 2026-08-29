@@ -767,6 +767,43 @@ const MA_APP = 'sono';        // mã app NÀY. TrọSafe dùng 'tro' · Cafe dù
 const MA_POS = 'sono_pos';    // gói Bán hàng (POS) = add-on riêng của Sổ Nợ
 const MA_CN  = 'sono_cn';     // gói CHI NHÁNH (thêm) = add-on tính tiền theo tháng như POS
 const licRef = (uid, app) => doc(db, 'accounts', uid, 'lic', app);
+
+/* ── TÀI KHOẢN NÀY ĐÃ TỪNG TRẢ TIỀN CHƯA? ────────────────────────────────────
+   Dùng để CHẶN NHẬP DỮ LIỆU vào tài khoản đang dùng thử.
+
+   Vì sao chặn ở ĐÍCH chứ không ở FILE: có 3 đường mang dữ liệu vào —
+   phục hồi toàn bộ (JSON), nhập Sổ Nợ (JSON), và nhập Excel.
+   Hai đường JSON thì nhúng được uid vào file để đối chiếu, nhưng
+   EXCEL LÀ FILE THƯỜNG, KHÔNG NHÚNG ĐƯỢC GÌ — ai sửa cũng được.
+   Nên khoá theo file thì Excel luôn lọt. Còn đích đến của mọi đường lách
+   đều là một tài khoản dùng thử mới ⇒ chặn ở đích thì cả 3 cửa đóng cùng lúc.
+
+   "Đã trả tiền" = có ít nhất 1 giấy phép với trial != true, hoặc vinhVien == true.
+   (Admin cấp giấy phép luôn đặt trial:false — xem app Admin dòng 1264/1281/1706.)
+
+   Lỗi mạng thì trả về false (chặn) — vì nếu cho qua khi offline thì chỉ cần
+   tắt mạng là lách được, mà lệnh ghi vẫn xếp hàng rồi đồng bộ sau. */
+async function daTraTien(){
+  try{ if(isAdmin())return true; }catch(_){}
+  if(!UID)return false;
+  for(const app of MY_APPS){
+    try{
+      const s=await getDoc(licRef(UID,app));
+      if(!s.exists())continue;
+      const d=s.data()||{};
+      if(d.vinhVien===true)return true;
+      if(d.trial!==true)return true;      /* admin cấp -> trial:false */
+    }catch(_){ /* thử app kế tiếp */ }
+  }
+  return false;
+}
+/* Câu chặn dùng chung cho cả 2 cửa nhập */
+function loiChanNhap(){
+  return 'Tài khoản đang DÙNG THỬ nên chưa nhập được dữ liệu.\n\n'
+    +'Đây là cách chặn việc xoay vòng tài khoản để dùng thử vô hạn.\n\n'
+    +'• Đã mua rồi mà vẫn báo lỗi này: kiểm tra mạng rồi thử lại.\n'
+    +'• Muốn mang dữ liệu cũ sang: gọi 0977 823 979.';
+}
 let LICMAP = {};              // admin: { uid: { sono:{...}, sono_pos:{...} } }
 
 /* ═══════════ [VÁ v2.1] BỘ CÔNG CỤ GIA HẠN THỐNG NHẤT ═══════════
@@ -2066,7 +2103,10 @@ window.exportExcel=async()=>{
 
 // Đọc toàn bộ dữ liệu Firestore thành 1 object để sao lưu đầy đủ
 async function buildFullBackup(){
-  const out={app:'so-no',version:1,exportedAt:new Date().toISOString(),settings:null,customers:[]};
+  const _me=(function(){try{return auth.currentUser||null;}catch(_){return null;}})();
+  const out={app:'so-no',version:2,exportedAt:new Date().toISOString(),
+    ownerUid:(_me&&_me.uid)||UID||'', ownerEmail:(_me&&_me.email)||'',
+    settings:null,customers:[]};
   try{const ss=await getDoc(doc(db,'users',UID,'meta','shopSettings'));if(ss.exists())out.settings=ss.data();}catch(e){}
   const csnap=await getDocs(query(collection(db,'users',UID,'customers'),orderBy('name')));
   for(const cd of csnap.docs){
@@ -2196,6 +2236,9 @@ window.impFileChosen=async(input)=>{
   const f=input.files&&input.files[0];const sum=document.getElementById('imp-summary');
   if(!f)return;
   try{
+    /* Chặn ở ĐÍCH: tài khoản dùng thử không nhận dữ liệu từ ngoài vào.
+       Đặt TRƯỚC khi đọc file để khỏi tốn công phân tích file rồi mới chối. */
+    if(!(await daTraTien())) throw new Error(loiChanNhap());
     let content;
     if(f.name.toLowerCase().endsWith('.json'))content=await f.text();
     else content=new Uint8Array(await f.arrayBuffer());
@@ -4802,7 +4845,18 @@ async function _safetyBackupBeforeWipe(){
   }catch(e){ return false; }
 }
 async function buildFullBackupV2(){
-  const out={app:'sono-full',version:1,exportedAt:new Date().toISOString(),settings:null,
+  /* ── KHOÁ FILE SAO LƯU THEO TÀI KHOẢN ────────────────────────────────────────
+     Nhúng uid + email của chủ vào file. Lúc phục hồi, app đối chiếu:
+       • cùng uid  -> cho phục hồi ngay (đổi máy, cài lại, khôi phục sự cố)
+       • khác uid  -> CHẶN, phải xin chủ phần mềm cấp phép chuyển
+     Vì sao cần: không có nó thì ai cũng "xuất dữ liệu -> tạo email mới -> có 15
+     ngày miễn phí -> phục hồi", xoay vòng mãi mà không phải trả tiền.
+     LƯU Ý: đổi MÁY thì KHÔNG cần file này — dữ liệu nằm trên Firestore theo uid,
+     đăng nhập cùng email là tự đồng bộ về. File chỉ dùng khi đổi TÀI KHOẢN. */
+  const _me=(function(){try{return auth.currentUser||null;}catch(_){return null;}})();
+  const out={app:'sono-full',version:2,exportedAt:new Date().toISOString(),
+    ownerUid:(_me&&_me.uid)||UID||'', ownerEmail:(_me&&_me.email)||'',
+    settings:null,
     customers:[],pos:{branches:[],suppliers:[],supplierPayments:[],staff:[],byBranch:{}}};
   try{const ss=await getDoc(doc(db,'users',UID,'meta','shopSettings'));if(ss.exists())out.settings=ss.data();}catch(e){}
   // Sổ Nợ: khách + giao dịch (giống buildFullBackup)
@@ -4860,6 +4914,43 @@ window.fullFileChosen=async(input)=>{
     if(!/\.json$/i.test(file.name))throw new Error('Chỉ nhận file .json (sao lưu toàn bộ).');
     const obj=JSON.parse(await file.text());
     if(!obj||obj.app!=='sono-full'||!Array.isArray(obj.customers))throw new Error('File không phải sao lưu TOÀN BỘ (sono-full). Nếu là file Sổ Nợ thường, hãy dùng "Nhập / Phục hồi".');
+
+    /* Chặn ở ĐÍCH: tài khoản dùng thử không nhận dữ liệu từ ngoài vào.
+       Đây là chốt chặn CHÍNH; phần đối chiếu uid bên dưới là lớp thứ hai. */
+    if(!(await daTraTien())) throw new Error(loiChanNhap());
+
+    /* ── ĐỐI CHIẾU CHỦ SỞ HỮU FILE ──────────────────────────────────────────
+       Chặn đường "xuất dữ liệu -> tạo email mới -> lấy 15 ngày miễn phí -> phục hồi",
+       xoay vòng mãi mà không trả tiền.
+       • Cùng uid  -> cho ngay (đổi máy, cài lại, khôi phục sự cố)
+       • Khác uid  -> chỉ cho khi CHỦ PHẦN MỀM đã cấp phép chuyển ở /chuyen_dl/{uid}
+                      (doc này chỉ email admin ghi được -> không giả nổi)
+       • File CŨ chưa có ownerUid -> vẫn cho, để khách đang giữ file cũ không bị kẹt.
+         Khi nào phần lớn khách đã có file mới thì vào Firestore đặt
+         billing/info  ->  chanFileCu = true  là siết lại, KHÔNG cần sửa code.
+         (BILLING nạp từ doc billing/info; chỉ email admin ghi được doc này.) */
+    const _fUid=String(obj.ownerUid||'').trim();
+    if(_fUid && _fUid!==UID){
+      let _ok=false;
+      try{
+        const cp=await getDoc(doc(db,'chuyen_dl',UID));
+        _ok = cp.exists() && String((cp.data()||{}).tuUid||'')===_fUid;
+      }catch(_){ _ok=false; }
+      if(!_ok) throw new Error(
+        'File này thuộc tài khoản KHÁC'+(obj.ownerEmail?' ('+obj.ownerEmail+')':'')+'.\n\n'
+        +'Bạn đang đăng nhập bằng: '+((auth.currentUser&&auth.currentUser.email)||'—')+'\n\n'
+        +'• Nếu chỉ ĐỔI MÁY: không cần file này. Đăng nhập đúng email cũ là dữ liệu tự về.\n'
+        +'• Nếu muốn CHUYỂN sang tài khoản mới: gọi 0977 823 979 để được cấp phép chuyển.');
+    }
+    if(!_fUid){
+      let _chan=false;
+      try{ _chan = !!(BILLING && BILLING.chanFileCu===true); }catch(_){ _chan=false; }
+      if(_chan) throw new Error(
+        'File sao lưu này thuộc phiên bản cũ, không ghi tài khoản chủ nên không xác minh được.\n\n'
+        +'Hãy đăng nhập tài khoản cũ, xuất lại bản sao lưu mới, rồi phục hồi.\n'
+        +'Cần hỗ trợ: gọi 0977 823 979.');
+    }
+
     _fullParsed=obj;const r=_fullCounts(obj);
     sum.innerHTML=`📦 <b>${file.name}</b><br>• Khách: <b>${r.nC}</b> · Giao dịch: <b>${r.nT}</b><br>• Sản phẩm: <b>${r.nP}</b> · Đơn: <b>${r.nO}</b><br>• Chi nhánh: <b>${r.nB}</b> · NCC: <b>${r.nS}</b>`;
     sum.style.display='block';document.getElementById('full-run').disabled=false;
