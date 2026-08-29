@@ -730,7 +730,7 @@ import { getFirestore, initializeFirestore, persistentLocalCache, persistentMult
   getDocs, query, where, orderBy, onSnapshot, serverTimestamp, setDoc, getDoc, runTransaction, limit, writeBatch, increment, collectionGroup }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-const APP_BUILD = "2026-08-29-errlog"; // ⬆️ ĐỔI MỖI LẦN DEPLOY (đặt TRÙNG tên cache trong sw.js) — hiện ở ⚙️ Cài đặt để biết máy đã chạy bản mới chưa
+const APP_BUILD = "2026-08-29-R1"; // ⬆️ ĐỔI MỖI LẦN DEPLOY (đặt TRÙNG tên cache trong sw.js) — hiện ở ⚙️ Cài đặt để biết máy đã chạy bản mới chưa
 const firebaseConfig = {
   apiKey: "AIzaSyA_kjQ-CdASRkf50Glz3kQajlkD5qGWC4k",
   authDomain: "so-no-cc57a.firebaseapp.com",
@@ -1358,6 +1358,40 @@ async function submitHdSignature(token,d){
 // ── STATE ──
 let UID=null,customers=[],currentCustomerId=null,currentTxType=null,currentTab='all',unsub=null,pendingAtt=null,_curTxs=[],editingTxId=null,_autoChecked=false;
 let _curTxsFor=null; // khách mà _curTxs đang giữ — để chia sẻ chỉ lấy ghi chú của ĐÚNG khách đang mở
+
+/* ── TÁCH DANH TÍNH (tài khoản nhân viên riêng) ──────────────────────────────
+   UID      = "DỮ LIỆU CỦA SHOP NÀO". Giữ nguyên ý nghĩa cũ ⇒ 123 chỗ dùng UID
+              trong toàn bộ file KHÔNG phải sửa một dòng nào.
+   AUTH_UID = "AI ĐANG ĐĂNG NHẬP". Chủ thì trùng UID; máy nhân viên thì khác.
+   LA_NV    = true khi đang đăng nhập bằng tài khoản nhân viên.
+
+   Máy nhân viên tra kho /nv_map/{authUid} để biết mình thuộc shop nào.
+   Shop CŨ chưa có nv_map ⇒ tra không thấy ⇒ chạy y hệt như trước (chế độ chủ).
+   Đây là ĐƯỜNG LÙI: bản mới cài lên shop cũ vẫn chạy bình thường, không cần di trú. */
+let AUTH_UID=null, LA_NV=false;
+async function layShopUid(authUid){
+  const K='sono_shopuid_'+authUid;
+  let cache=null; try{cache=localStorage.getItem(K)||null;}catch(_){}
+  try{
+    const m=await getDoc(doc(db,'nv_map',authUid));
+    if(m.exists()){
+      const su=String((m.data()||{}).shopUid||'').trim();
+      if(su && su!==authUid){ try{localStorage.setItem(K,su);}catch(_){}
+        return {uid:su, nv:true}; }
+    }
+    /* Không thấy doc. NHƯNG nếu kết quả này lấy từ CACHE (đang mất mạng) thì
+       KHÔNG được tin — máy nhân viên chưa từng tải nv_map sẽ bị coi nhầm là chủ
+       và mở ra một shop RỖNG. Chỉ tin kết quả rỗng khi nó đến từ SERVER. */
+    if(m.metadata && m.metadata.fromCache && cache) return {uid:cache, nv:true};
+    if(m.metadata && m.metadata.fromCache && !cache) return {uid:authUid, nv:false};
+    try{localStorage.removeItem(K);}catch(_){}   /* server xác nhận: đúng là chủ */
+    return {uid:authUid, nv:false};
+  }catch(_){
+    /* Mất mạng hẳn: ưu tiên trí nhớ lần đăng nhập trước. */
+    if(cache) return {uid:cache, nv:true};
+    return {uid:authUid, nv:false};
+  }
+}
 const ATT_CAP=600*1024; // giới hạn ~600KB/tệp (an toàn dưới mức 1MB của Firestore)
 
 // ── AUTH ──
@@ -1491,13 +1525,16 @@ if(!viewToken){
   onAuthStateChanged(auth,async user=>{
     const lock=document.getElementById('locked-view');
     if(user){
-      UID=user.uid;
+      AUTH_UID=user.uid;
+      const _ru=await layShopUid(user.uid);
+      UID=_ru.uid; LA_NV=_ru.nv;            /* nhân viên: UID = shop của chủ */
+      try{document.body.classList.toggle('la-nv',!!LA_NV);}catch(_){}
       await loadBilling();
-      let acc=await checkAccount(user.uid);
+      let acc=await checkAccount(UID);       /* giấy phép thuộc SHOP, không thuộc người đăng nhập */
       // Khách mới (chưa có hồ sơ) -> tự động mở dùng thử miễn phí
-      if(!acc.ok && acc.reason==='pending' && !isAdmin() && navigator.onLine!==false){   /* offline: bỏ qua, lệnh ghi sẽ treo vĩnh viễn */
-        const started=await tryStartTrial(user.uid);
-        if(started)acc=await checkAccount(user.uid);
+      if(!LA_NV && !acc.ok && acc.reason==='pending' && !isAdmin() && navigator.onLine!==false){   /* offline: bỏ qua, lệnh ghi sẽ treo vĩnh viễn */
+        const started=await tryStartTrial(UID);
+        if(started)acc=await checkAccount(UID);
       }
       if(!acc.ok){
         document.getElementById('auth-screen').style.display='none';
@@ -1520,7 +1557,8 @@ if(!viewToken){
       /* Nạp sẵn kho ngay khi mở app (giống Sổ nợ) để có cache offline: mất mạng vẫn có sản phẩm để bán */
       try{skBranchSubs();}catch(e){}
     }else{
-      UID=null;
+      UID=null; AUTH_UID=null; LA_NV=false;
+      try{document.body.classList.remove('la-nv');}catch(_){}
       if(lock)lock.style.display='none';
       {const _hf=document.getElementById('hotlineFab');if(_hf)_hf.style.display='none';}
       document.getElementById('auth-screen').style.display='flex';
@@ -2765,9 +2803,37 @@ window.saveTx=async()=>{
   const batch=writeBatch(db);
   let attWarn=false;
   if(editingTxId){
+    /* ── SỬA GIAO DỊCH NỢ: cửa sổ 15 phút + nhật ký ────────────────────────────
+       Sửa nhầm số tiền vừa ghi là chuyện thường ⇒ trong 15 phút đầu cho sửa im lặng.
+       Quá 15 phút mà còn sửa thì phải XÁC NHẬN và bị GHI LẠI: ai sửa, từ số nào
+       sang số nào, lúc nào. Chủ xem ở 📋 Nhật ký thao tác.
+       Vì sao không chặn hẳn: ghi nợ và sửa nợ dùng chung lệnh update trên kho
+       customers — chặn update là nhân viên hết ghi nợ được, app đứng.
+       Nên chọn cách để lại dấu vết thay vì khoá cứng. */
+    var _cu=(_curTxs||[]).find(function(t){return t.id===editingTxId;})||{};
+    var _cuTien=Number(_cu.amount)||0, _cuLoai=_cu.type||'';
+    var _taoLuc=Number(_cu.createdAtMs)||0;
+    var _tuoi=_taoLuc>0?(Date.now()-_taoLuc):Infinity;   /* không rõ tuổi ⇒ coi như CŨ */
+    var _doiTien=(Math.round(_cuTien)!==Math.round(amount));
+    var _doiLoai=(_cuLoai&&_cuLoai!==currentTxType);
+    var _quaHan=(_tuoi>15*60*1000);
+    if(_quaHan&&(_doiTien||_doiLoai)){
+      var _hoi='SỬA giao dịch đã ghi hơn 15 phút trước.\n\n';
+      if(_doiTien)_hoi+='Số tiền:  '+fmt(_cuTien)+'   →   '+fmt(amount)+'\n';
+      if(_doiLoai)_hoi+='Loại:     '+(_cuLoai==='mua'?'Mua':'Trả')+'   →   '+(currentTxType==='mua'?'Mua':'Trả')+'\n';
+      _hoi+='\nThao tác này sẽ được GHI VÀO NHẬT KÝ (ai sửa, số cũ → số mới).\n\nTiếp tục?';
+      if(!confirm(_hoi))return;
+    }
     const upd={type:currentTxType,amount,note,memo,date,att:(pendingAtt||null)};
     if(upd.att){try{if(JSON.stringify(upd).length>900*1024){upd.att=null;attWarn=true;}}catch(e){upd.att=null;attWarn=true;}}
     batch.update(doc(db,'users',UID,'customers',currentCustomerId,'transactions',editingTxId),upd);
+    if(_quaHan&&(_doiTien||_doiLoai)){
+      try{ghiNhatKy(skBranch,'sua_giao_dich_no',{
+        txId:editingTxId, customerId:currentCustomerId, customerName:(c&&c.name)||'',
+        truocTien:Math.round(_cuTien), sauTien:Math.round(amount), lechTien:Math.round(amount-_cuTien),
+        truocLoai:_cuLoai, sauLoai:currentTxType,
+        ghiChu:note||'', tuoiPhut:Math.round(_tuoi/60000)});}catch(_){}
+    }
     // nếu giao dịch này đang là ảnh bằng chứng mà nay không còn ảnh → gỡ bằng chứng
     if(c&&c.proofTxId===editingTxId){
       const stillImg=upd.att&&(upd.att.t||'').startsWith('image/');
@@ -4004,11 +4070,20 @@ function bdoc(n,id){return brDoc(skBranch,n,id);}
 function ghiNhatKy(b,act,ct){
   try{
     var m=(typeof skStaff!=='undefined'&&skStaff)?skStaff:null;
+    /* Ghi CẢ HAI tầng danh tính:
+         byName/role = tầng PIN (ai bấm chọn ở cổng "Ai đang bán hàng?")
+         tkEmail/laNV = tầng Firebase (MÁY nào — chủ hay nhân viên)
+       Vì tầng PIN chỉ là nhãn: ai cũng bấm chọn được, kể cả chọn "Chủ".
+       Nếu chỉ ghi tầng PIN thì nhân viên chọn "Chủ" rồi sửa công nợ sẽ bị ghi
+       thành "Chủ" — đổ tội cho chủ shop. Tầng Firebase thì không giả được. */
+    var _mail=''; try{_mail=(auth.currentUser&&auth.currentUser.email)||'';}catch(_){}
     addDoc(brCol(b||skBranch,'pos_audit'),Object.assign({
       act:String(act||''),
       byId:m?(m.id||''):'',
       byName:m?(m.name||'—'):'Chủ',
       role:(typeof skRole!=='undefined'?skRole:'owner'),
+      tkEmail:_mail,
+      laNV:(typeof LA_NV!=='undefined'?!!LA_NV:false),
       atMs:Date.now(),
       at:serverTimestamp()
     },ct||{})).catch(function(){});
@@ -4211,13 +4286,38 @@ async function skDoTransfer(){skTransfer.target=skq('#sk-tr-target').value;skTra
 /* ---- NHÂN VIÊN: CỔNG PIN + PHÂN QUYỀN ---- */
 function skApplyRole(){const el=skq('#pos-screen');if(!el)return;el.classList.remove('role-owner','role-manager','role-cashier');el.classList.add('role-'+(skRole||'owner'));const ind=skq('#sk-staffbtn');if(ind){ind.style.display=(skStaffList&&skStaffList.length)?'':'none';ind.textContent='👤 '+(skStaff?skStaff.name:'Đổi người');}skApplyPerm();}
 function skStaffGate(){skRenderGateList();skq('#sk-gate-pin').style.display='none';skq('#sk-gate-list').style.display='';skq('#sk-gate').classList.add('on');}
-function skRenderGateList(){skq('#sk-gate-list').innerHTML='<div class="sk-gate-h">Ai đang bán hàng?</div>'+skStaffList.map(s=>'<button class="sk-gate-staff" data-act="gate-pick" data-id="'+s.id+'"><b>'+escHtml(s.name)+'</b><span>'+skRoleLabel(s.role)+'</span></button>').join('')+'<button class="sk-gate-forgot" data-act="pin-forgot">🔑 Quên PIN? — Chủ mở khóa</button>';}
-function skGatePick(id){_skGateStaff=skStaffList.find(s=>s.id===id);if(!_skGateStaff)return;_skPin='';skq('#sk-gate-who').textContent=_skGateStaff.name;skq('#sk-gate-list').style.display='none';skq('#sk-gate-pin').style.display='';skRenderPin();}
+function skRenderGateList(){
+  /* MÁY NHÂN VIÊN (đăng nhập bằng tài khoản NV riêng): ẩn các lối vào quyền CHỦ.
+     Chọn "Chủ" ở đây KHÔNG cấp thêm quyền gì (Firestore Rules mới là chốt chặn thật),
+     nhưng để đó thì nhân viên tưởng mình có toàn quyền rồi bấm lung tung và gặp lỗi
+     permission-denied khó hiểu — vừa rối, vừa chỉ cho họ biết bức tường nằm ở đâu.
+     Nút "Quên PIN — Chủ mở khóa" cũng ẩn vì nó mở thẳng vào quyền Chủ. */
+  var _nv=false; try{_nv=!!LA_NV;}catch(_){}
+  var ds=(skStaffList||[]).filter(function(s){return _nv?((s.role||'')!=='owner'):true;});
+  var h='<div class="sk-gate-h">Ai đang bán hàng?</div>';
+  if(!ds.length){
+    h+='<div style="padding:14px 12px;color:#6b7872;font-size:13px;line-height:1.5;text-align:center">'+(_nv
+      ?'Chủ shop chưa tạo nhân viên nào cho máy này.<br>Hãy báo chủ vào 👤 Nhân viên để thêm.'
+      :'Chưa có nhân viên nào.')+'</div>';
+  }else{
+    h+=ds.map(function(s){return '<button class="sk-gate-staff" data-act="gate-pick" data-id="'+s.id+'"><b>'+escHtml(s.name)+'</b><span>'+skRoleLabel(s.role)+'</span></button>';}).join('');
+  }
+  if(!_nv)h+='<button class="sk-gate-forgot" data-act="pin-forgot">🔑 Quên PIN? — Chủ mở khóa</button>';
+  skq('#sk-gate-list').innerHTML=h;
+}
+function skGatePick(id){
+  _skGateStaff=skStaffList.find(s=>s.id===id);if(!_skGateStaff)return;
+  /* Chặn ở HÀM, không chỉ ẩn nút: máy nhân viên không được chọn vai Chủ. */
+  try{if(LA_NV&&(_skGateStaff.role||'')==='owner'){_skGateStaff=null;toast('🔒 Máy nhân viên không dùng được vai Chủ');return;}}catch(_){}
+  _skPin='';skq('#sk-gate-who').textContent=_skGateStaff.name;skq('#sk-gate-list').style.display='none';skq('#sk-gate-pin').style.display='';skRenderPin();}
 function skPinKey(k){if(k==='del')_skPin=_skPin.slice(0,-1);else if(k==='back'){skq('#sk-gate-pin').style.display='none';skq('#sk-gate-list').style.display='';return;}else if(k==='ok'){skVerifyPin();return;}else if(_skPin.length<6)_skPin+=k;skRenderPin();const pin=String((_skGateStaff&&_skGateStaff.pin)||'');if(pin&&_skPin.length===pin.length)setTimeout(skVerifyPin,120);}
 function skRenderPin(){let d='';for(let i=0;i<6;i++)d+='<span class="'+(i<_skPin.length?'on':'')+'"></span>';skq('#sk-gate-dots').innerHTML=d;}
 function skVerifyPin(){if(!_skGateStaff)return;if(String(_skPin)===String(_skGateStaff.pin||'')){skStaff=_skGateStaff;skRole=_skGateStaff.role||'cashier';if(skStaff&&skStaff.branch){skBranch=skStaff.branch;if(typeof skBranchSubs==='function')skBranchSubs();if(typeof skRenderBranchSel==='function')skRenderBranchSel();}skq('#sk-gate').classList.remove('on');skApplyRole();skGo('sell');toast('Xin chào '+skStaff.name);}else{_skPin='';skRenderPin();toast('Sai mã PIN');}}
 function skRegate(){if(skStaffList&&skStaffList.length)skStaffGate();}
-function skPinForgotShow(){skq('#sk-gate-list').style.display='none';skq('#sk-gate-pin').style.display='none';skq('#sk-gate-forgot').style.display='';skq('#sk-gate-pwd').value='';const m=skq('#sk-gate-fmsg');m.style.color='#c0392b';m.textContent='';setTimeout(function(){try{skq('#sk-gate-pwd').focus();}catch(e){}},80);}
+function skPinForgotShow(){
+  /* Lối này mở THẲNG vào quyền Chủ ⇒ máy nhân viên không được dùng. */
+  try{if(LA_NV){toast('🔒 Máy nhân viên không dùng được lối này — hãy báo chủ shop');return;}}catch(_){}
+  skq('#sk-gate-list').style.display='none';skq('#sk-gate-pin').style.display='none';skq('#sk-gate-forgot').style.display='';skq('#sk-gate-pwd').value='';const m=skq('#sk-gate-fmsg');m.style.color='#c0392b';m.textContent='';setTimeout(function(){try{skq('#sk-gate-pwd').focus();}catch(e){}},80);}
 function skPinForgotBack(){skq('#sk-gate-forgot').style.display='none';skq('#sk-gate-pin').style.display='none';skq('#sk-gate-list').style.display='';}
 async function skPinForgotOk(){
   const pwd=skq('#sk-gate-pwd').value||'';const m=skq('#sk-gate-fmsg');
@@ -4243,7 +4343,82 @@ async function skTogglePin(){
 }
 
 /* ---- NHÂN VIÊN: QUẢN LÝ ---- */
-function skOpenStaffMgmt(){skRenderPinToggle();skRenderStaffMgmt();skModalOpen('#sk-staff');}
+function skOpenStaffMgmt(){skRenderPinToggle();skRenderStaffMgmt();skModalOpen('#sk-staff');try{nvAccLoad();}catch(_){}}
+/* ── TÀI KHOẢN ĐĂNG NHẬP CHO MÁY NHÂN VIÊN (Cách B: mỗi shop 1 tài khoản NV) ──
+   createUserWithEmailAndPassword sẽ ĐĂNG NHẬP luôn người vừa tạo và đá Chủ ra.
+   Nên phải tạo trên MỘT INSTANCE FIREBASE PHỤ, xong thì đăng xuất instance đó.
+   Instance chính của Chủ không hề bị đụng tới.
+
+   Sau khi tạo, ghi 2 doc:
+     /nv_map/{nvUid}                 = { shopUid }  -> máy NV biết mình thuộc shop nào
+     /users/{shopUid}/pos_nv/{nvUid} = { email }    -> Rules dựa vào đây để cấp quyền NV
+   Kho "pos_nv" bắt đầu bằng "pos_" nên appCua() trong Rules xếp vào nhóm sono_pos. */
+let _nvAccCache=null;
+async function nvAccLoad(){
+  const el=skq('#sk-nvacc-info'); if(!el)return;
+  if(LA_NV){el.innerHTML='<b style="color:#a3620a">Máy này đang đăng nhập bằng tài khoản nhân viên.</b>';return;}
+  el.textContent='Đang kiểm tra…';
+  try{
+    const s=await getDocs(collection(db,'users',UID,'pos_nv'));
+    _nvAccCache=s.docs.map(d=>Object.assign({id:d.id},d.data()));
+    if(!_nvAccCache.length){el.innerHTML='Chưa tạo. Máy nhân viên đang dùng chung tài khoản của Chủ — <b style="color:#c0392b">chưa được bảo vệ ở máy chủ</b>.';return;}
+    el.innerHTML=_nvAccCache.map(x=>'<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:3px 0">'
+      +'<span>✅ <b>'+escHtml(x.email||x.id)+'</b></span>'
+      +'<button class="sk-btn ghost" data-act="nvacc-del" data-id="'+escHtml(x.id)+'" style="padding:4px 9px;font-size:12px">Gỡ</button></div>').join('');
+  }catch(e){el.innerHTML='<span style="color:#c0392b">Không đọc được: '+escHtml((e&&e.code)||'lỗi')+'</span>';}
+}
+async function nvAccCreate(){
+  if(LA_NV){toast('Chỉ Chủ mới tạo được');return;}
+  const email=(skq('#sk-nv-email').value||'').trim();
+  const pass=(skq('#sk-nv-pass').value||'');
+  const msg=skq('#sk-nv-msg');
+  const set=(t,c)=>{if(msg){msg.textContent=t;msg.style.color=c||'#6b7872';}};
+  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){set('Email không hợp lệ','#c0392b');return;}
+  if(pass.length<6){set('Mật khẩu phải từ 6 ký tự','#c0392b');return;}
+  if(email.toLowerCase()===((auth.currentUser&&auth.currentUser.email)||'').toLowerCase()){
+    set('Không được trùng email của Chủ','#c0392b');return;}
+  set('Đang tạo…');
+  let app2=null,nvUid='';
+  try{
+    app2=initializeApp(firebaseConfig,'nvcreate-'+Date.now());
+    const auth2=getAuth(app2);
+    const cred=await createUserWithEmailAndPassword(auth2,email,pass);
+    nvUid=cred.user.uid;
+    try{await signOut(auth2);}catch(_){}
+  }catch(e){
+    const c=(e&&e.code)||'';
+    set(c==='auth/email-already-in-use'?'Email này đã được dùng. Hãy chọn email khác.'
+      :(c==='auth/weak-password'?'Mật khẩu quá yếu.'
+      :(c==='auth/invalid-email'?'Email không hợp lệ.':'Lỗi tạo tài khoản: '+c)),'#c0392b');
+    return;
+  }
+  /* Tài khoản đã tạo xong. Giờ ghi 2 doc liên kết — nếu bước này hỏng phải báo rõ,
+     vì tài khoản đã tồn tại mà chưa liên kết thì đăng nhập vào sẽ ra shop rỗng. */
+  try{
+    await setDoc(doc(db,'nv_map',nvUid),{shopUid:UID,email:email,createdAt:serverTimestamp()});
+    await setDoc(doc(db,'users',UID,'pos_nv',nvUid),{email:email,active:true,createdAt:serverTimestamp()});
+  }catch(e){
+    set('Đã tạo tài khoản nhưng CHƯA liên kết được với shop ('+((e&&e.code)||'lỗi')+'). '
+       +'Hãy kiểm tra mạng rồi bấm Tạo lại với ĐÚNG email và mật khẩu vừa nhập.','#c0392b');
+    return;
+  }
+  set('✅ Đã tạo xong. Dùng email và mật khẩu này để đăng nhập trên máy nhân viên.','#0a5f4a');
+  try{ghiNhatKy(skBranch,'tao_tk_nhanvien',{email:email,nvUid:nvUid});}catch(_){}
+  await nvAccLoad();
+}
+async function nvAccDel(nvUid){
+  if(LA_NV){toast('Chỉ Chủ mới gỡ được');return;}
+  if(!nvUid)return;
+  if(!confirm('GỠ tài khoản nhân viên này?\n\nCác máy đang đăng nhập bằng nó sẽ MẤT quyền truy cập shop.\n\nLưu ý: thao tác này chỉ gỡ liên kết. Muốn xóa hẳn tài khoản thì vào Firebase Console › Authentication.'))return;
+  try{
+    await deleteDoc(doc(db,'users',UID,'pos_nv',nvUid));
+    await deleteDoc(doc(db,'nv_map',nvUid));
+    try{ghiNhatKy(skBranch,'go_tk_nhanvien',{nvUid:nvUid});}catch(_){}
+    toast('Đã gỡ tài khoản nhân viên');
+  }catch(e){toast('Lỗi gỡ: '+((e&&e.code)||''));}
+  await nvAccLoad();
+}
+
 function skRenderStaffMgmt(){const box=skq('#sk-staff-list');if(!box)return;if(!skStaffList.length){box.innerHTML='<div class="sk-empty">Chưa có nhân viên. Thêm 1 người “Chủ” cho mình trước.</div>';return;}box.innerHTML=skStaffList.map(s=>'<div class="sk-row"><div class="sk-row-main" data-act="staff-edit" data-id="'+s.id+'"><div class="sk-row-name">'+escHtml(s.name)+'</div><div class="sk-row-sub">'+skRoleLabel(s.role)+' · PIN '+(s.pin?'••••':'(chưa đặt)')+'</div></div></div>').join('');}
 function skOpenStaffForm(id){skStEditId=id||null;const s=id?skStaffList.find(x=>x.id===id):{};skq('#sk-stf-title').textContent=id?'Sửa nhân viên':'Thêm nhân viên';skq('#sk-stf-name').value=s.name||'';skq('#sk-stf-pin').value=s.pin||'';skq('#sk-stf-role').value=s.role||'cashier';var _bopts='<option value="">Tất cả chi nhánh</option>'+(skBranches||[]).map(function(b){return '<option value="'+b.id+'">'+escHtml(b.name)+'</option>';}).join('');var _bsel=skq('#sk-stf-branch');if(_bsel){_bsel.innerHTML=_bopts;_bsel.value=s.branch||'';}skq('#sk-stf-del').style.display=id?'':'none';skModalOpen('#sk-staff-form');}
 async function skSaveStaff(){const name=skq('#sk-stf-name').value.trim();const pin=(skq('#sk-stf-pin').value||'').replace(/[^\d]/g,'');const role=skq('#sk-stf-role').value||'cashier';const branch=(skq('#sk-stf-branch')?skq('#sk-stf-branch').value:'')||'';if(!name){toast('Nhập tên nhân viên');return;}if(pin.length<4){toast('PIN tối thiểu 4 số');return;}try{if(skStEditId)updateDoc(doc(db,'users',UID,'staff',skStEditId),{name:name,pin:pin,role:role,branch:branch}).catch(function(e){skErr(e,'Lưu nhân viên');});else addDoc(collection(db,'users',UID,'staff'),{name:name,pin:pin,role:role,branch:branch,createdAt:serverTimestamp()}).catch(function(e){skErr(e,'Lưu nhân viên');});skCloseModal('#sk-staff-form');toast('✅ Đã lưu nhân viên');markDirty();}catch(e){skErr(e,'Lưu nhân viên');}}
@@ -4353,7 +4528,11 @@ function skBind4(){
       case 'transfer-open':skOpenTransfer();break; case 'tr-pick':skTrPick(id);break; case 'transfer-do':skDoTransfer();break;
       case 'regate':skRegate();break; case 'gate-pick':skGatePick(id);break; case 'pin-key':skPinKey(el.dataset.k);break;
       case 'pin-forgot':skPinForgotShow();break; case 'pf-ok':skPinForgotOk();break; case 'pf-back':skPinForgotBack();break; case 'pin-toggle':skTogglePin();break;
-      case 'staff-mgmt':skOpenStaffMgmt();break; case 'staff-new':skOpenStaffForm(null);break; case 'staff-edit':skOpenStaffForm(id);break; case 'staff-save':skSaveStaff();break; case 'staff-del':skDelStaff();break;
+      case 'staff-mgmt':skOpenStaffMgmt();break; case 'staff-new':skOpenStaffForm(null);break; case 'staff-edit':skOpenStaffForm(id);break;
+      case 'nvacc-open':skq('#sk-nv-email').value='';skq('#sk-nv-pass').value='';skq('#sk-nv-msg').textContent='';skModalOpen('#sk-nvacc');break;
+      case 'nvacc-save':nvAccCreate();break;
+      case 'nvacc-del':nvAccDel(id);break;
+      case 'staff-save':skSaveStaff();break; case 'staff-del':skDelStaff();break;
       case 'perm-open':skOpenPerm();break; case 'perm-save':skSavePerm();break;
       case 'labels':skOpenLabels(id);break; case 'labels-print':skLabelMenu();break;
       case 'diag-run':case 'diag-rerun':skDiag();break;
@@ -4393,7 +4572,7 @@ const SK_ACT_CAP={
   'ret-open':'refund','ret-do':'refund','od-return':'refund','od-del':'refund',
   'transfer-open':'transfer','transfer-do':'transfer',
   'branch-new':'branch','branch-edit':'branch','branch-save':'branch','branch-del':'branch',
-  'staff-mgmt':'staff','staff-new':'staff','staff-edit':'staff','staff-save':'staff','staff-del':'staff','pin-toggle':'staff','perm-open':'staff','perm-save':'staff',
+  'staff-mgmt':'staff','staff-new':'staff','staff-edit':'staff','staff-save':'staff','staff-del':'staff','nvacc-open':'staff','nvacc-save':'staff','nvacc-del':'staff','pin-toggle':'staff','perm-open':'staff','perm-save':'staff',
   'diag-run':'report','diag-rerun':'report'
 };
 const SK_TAB_CAP={kho:'invview',nhap:'purchase',report:'report'};
@@ -4439,7 +4618,9 @@ async function skDiag(){
   await run('Đọc giấy phép app (lic/'+MA_APP+')',async()=>{await getDoc(licRef(UID,MA_APP));});
   await run('Đọc khách nợ (customers)',async()=>{await getDocs(query(collection(db,'users',UID,'customers'),limit(1)));});
   const allOk=rows.every(r=>r.ok);
-  body.innerHTML='<div class="sk-diag-sum '+(allOk?'ok':'bad')+'">'+(allOk?'✅ Tất cả đường dẫn hoạt động tốt.':'⚠️ Có đường dẫn bị chặn — xem dòng ✗ đỏ bên dưới.')+'</div>'+rows.map(r=>'<div class="sk-diag-row"><span class="sk-diag-ic '+(r.ok?'ok':'bad')+'">'+(r.ok?'✓':'✗')+'</span><div><div class="sk-diag-l">'+escHtml(r.label)+'</div><div class="sk-diag-d">'+escHtml(r.detail)+'</div></div></div>').join('')+(allOk?'':'<div class="sk-diag-fix">Cách sửa: Firebase Console → Firestore → Rules → đảm bảo có dòng <code>match /users/{uid}/{document=**}</code> cho phép chủ shop đọc/ghi (phủ cả đường dẫn chi nhánh). Xem file hướng dẫn Rules đã gửi.</div>');
+  body.innerHTML='<div class="sk-diag-sum '+(allOk?'ok':'bad')+'">'+(allOk?'✅ Tất cả đường dẫn hoạt động tốt.':'⚠️ Có đường dẫn bị chặn — xem dòng ✗ đỏ bên dưới.')+'</div>'+rows.map(r=>'<div class="sk-diag-row"><span class="sk-diag-ic '+(r.ok?'ok':'bad')+'">'+(r.ok?'✓':'✗')+'</span><div><div class="sk-diag-l">'+escHtml(r.label)+'</div><div class="sk-diag-d">'+escHtml(r.detail)+'</div></div></div>').join('')+(allOk?'':(LA_NV
+  ?'<div class="sk-diag-fix">Máy này đang đăng nhập bằng <b>tài khoản nhân viên</b>. Một số đường dẫn bị chặn là <b>ĐÚNG THIẾT KẾ</b> — nhân viên không được sửa cấu hình chi nhánh, không được xoá dữ liệu. Chỉ báo chủ shop nếu <b>bán hàng hoặc ghi nợ</b> bị lỗi.</div>'
+  :'<div class="sk-diag-fix">Cách sửa: Firebase Console → Firestore → Rules → đảm bảo có dòng <code>match /users/{uid}/{document=**}</code> cho phép chủ shop đọc/ghi (phủ cả đường dẫn chi nhánh). Xem file hướng dẫn Rules đã gửi.</div>'));
 }
 
 /* ===== POS LOCK (gói nâng cấp) ===== */
@@ -6204,7 +6385,9 @@ try { window.__skBusy = function(){
     var TEN={
       xoa_don:['Xoá đơn hàng','o'], huy_ca:['Huỷ ca đang mở','o'],
       xoa_ca_chot:['Xoá ca đã chốt','o'], xoa_khoan_quy:['Xoá khoản quỹ','o'],
-      sua_quy_dau:['Sửa quỹ đầu ca','k'], doi_tienmat_ck:['Đổi tiền mặt/CK','k']
+      sua_quy_dau:['Sửa quỹ đầu ca','k'], doi_tienmat_ck:['Đổi tiền mặt/CK','k'],
+      sua_giao_dich_no:['SỬA công nợ khách','o'],
+      tao_tk_nhanvien:['Tạo tài khoản NV','k'], go_tk_nhanvien:['Gỡ tài khoản NV','o']
     };
     h+='<div class="ca-note">200 thao tác gần nhất. Nhật ký ghi thêm, không ghi đè.</div>';
     h+='<div class="ca-box" style="padding:6px 13px">';
@@ -6216,9 +6399,16 @@ try { window.__skBusy = function(){
       else if(a.act==='xoa_khoan_quy')mo=money(a.amount)+(a.note?' · '+esc(a.note):'')+(a.nguoiGhi?' · người ghi '+esc(a.nguoiGhi):'');
       else if(a.act==='sua_quy_dau')mo=money(a.truoc)+' → '+money(a.sau)+' ('+(Number(a.lech)>0?'+':'')+money(a.lech)+')';
       else if(a.act==='doi_tienmat_ck')mo=money(a.amount)+' → '+(a.thanh==='chuyen_khoan'?'chuyển khoản':'tiền mặt')+(a.custName?' · '+esc(a.custName):'');
+      else if(a.act==='sua_giao_dich_no')mo='Khách '+esc(a.customerName||'—')+' · '+money(a.truocTien)+' → '+money(a.sauTien)
+        +' ('+(Number(a.lechTien)>0?'+':'')+money(a.lechTien)+')'
+        +(a.truocLoai!==a.sauLoai?' · đổi '+(a.truocLoai==='mua'?'Mua':'Trả')+'→'+(a.sauLoai==='mua'?'Mua':'Trả'):'')
+        +(a.tuoiPhut?' · giao dịch đã ghi '+khoangTG(Number(a.tuoiPhut)*60000)+' trước':'');
+      else if(a.act==='tao_tk_nhanvien'||a.act==='go_tk_nhanvien')mo=esc(a.email||a.nvUid||'—');
       h+='<div class="ca-row"><span class="ca-tag '+T[1]+'">'+T[0]+'</span>'
         +'<div class="ca-rm"><div class="ca-rn">'+(mo||'—')+'</div>'
-        +'<div class="ca-rs">'+esc(a.byName||'—')+(a.role?' ('+esc(a.role)+')':'')+' · '+DAY(a.atMs)+' '+TM(a.atMs)+'</div></div></div>';
+        +'<div class="ca-rs">'+esc(a.byName||'—')+(a.role?' ('+esc(a.role)+')':'')
+        +(a.tkEmail?' · '+(a.laNV?'📱 máy NV':'💼 máy Chủ')+' '+esc(a.tkEmail):'')
+        +' · '+DAY(a.atMs)+' '+TM(a.atMs)+'</div></div></div>';
     });
     h+='</div>';
     return h;
@@ -7302,6 +7492,30 @@ window.addEventListener('online',  function(){ setTimeout(gom,3000); });
 #pos-screen .sk-tabs{display:flex}
 #pos-screen .sk-tab{flex:1}
 #pos-screen.no-invview .sk-tab[data-v="kho"],#pos-screen.no-purchase .sk-tab[data-v="nhap"],#pos-screen.no-report .sk-tab[data-v="report"]{display:none}
+/* MÁY NHÂN VIÊN (đăng nhập bằng tài khoản NV): ẩn các chức năng mà Firestore Rules
+   sẽ từ chối, để nhân viên không bấm vào rồi nhận lỗi permission-denied khó hiểu.
+   Đây chỉ là lớp GIAO DIỆN cho dễ dùng — chốt chặn thật nằm ở Rules phía máy chủ. */
+/* MÁY NHÂN VIÊN: giấu các mục Firestore Rules sẽ từ chối, để nhân viên không bấm
+   vào rồi nhận lỗi tiếng Anh "Missing or insufficient permissions".
+     • Số tài khoản  → nằm trong kho meta, nhân viên chỉ được ĐỌC
+     • Đổi mật khẩu  → đổi mật khẩu tài khoản CHUNG của máy nhân viên, chủ mới được đổi
+     • Giới thiệu    → chương trình giới thiệu thuộc về chủ tài khoản
+   Dùng CSS chứ KHÔNG dùng if trong JS: menu này nằm ở khối mã khác, không
+   thấy được biến LA_NV; hơn nữa menu được dựng TRƯỚC khi đăng nhập xong.
+   Lớp .la-nv gắn vào <body> lúc đăng nhập nên CSS tự áp dụng đúng thời điểm.
+   Đây chỉ là lớp giao diện; chốt chặn thật vẫn nằm ở Firestore Rules. */
+body.la-nv .snbh-menu [data-snbh="account"],
+body.la-nv .snbh-menu [data-snbh="pass"],
+body.la-nv .snbh-menu [data-snbh="invite"],
+body.la-nv .snbh-menu [data-snbh="admin"]{display:none!important}
+body.la-nv #pos-screen [data-act="staff-mgmt"],
+body.la-nv #pos-screen [data-act="perm-open"],
+body.la-nv #pos-screen [data-act="nvacc-open"],
+body.la-nv #pos-screen [data-act="branch-new"],
+body.la-nv #pos-screen [data-act="od-del"],
+body.la-nv #pos-screen [data-act="ca-delshift"],
+body.la-nv #pos-screen [data-act="ca-dellog"],
+body.la-nv #pos-screen [data-act="ca-cancel"]{display:none!important}
 #pos-screen.no-discount [data-act="cart-discount"],#pos-screen.no-transfer [data-act="transfer-open"],#pos-screen.no-branch [data-act="branch-new"],#pos-screen.no-branch [data-act="branch-edit"],#pos-screen.no-staff [data-act="staff-mgmt"],#pos-screen.no-report [data-act="diag-run"]{display:none!important}
 #pos-screen.no-staff.no-report .sk-actbar.sk-owner{display:none!important}
 #pos-screen .sk-perm-tbl{border:1px solid #e3e8e5;border-radius:12px;overflow:hidden;margin-bottom:8px}
@@ -7356,7 +7570,8 @@ window.addEventListener('online',  function(){ setTimeout(gom,3000); });
 <div id="sk-transfer" class="sk-modal"><div class="sk-card"><h3>Chuyển kho sang chi nhánh khác</h3><select id="sk-tr-target" class="sk-inp" style="margin-bottom:10px"></select><div id="sk-tr-chosen" class="sk-tr-chosen">Chưa chọn sản phẩm</div><div class="sk-searchrow" style="position:static"><input id="sk-tr-search" class="sk-search" placeholder="Tìm sản phẩm để chuyển…"></div><div id="sk-tr-pick" class="sk-np-pick"></div><label class="sk-fld">Số lượng chuyển<input id="sk-tr-qty" class="sk-inp" inputmode="numeric"></label><div class="sk-card-acts"><button class="sk-btn ghost" data-act="modal-close" data-target="#sk-transfer">Hủy</button><span style="flex:1"></span><button class="sk-btn green" data-act="transfer-do">Chuyển</button></div></div></div>
 
 <!-- NHÂN VIÊN -->
-<div id="sk-staff" class="sk-modal"><div class="sk-card"><h3>Nhân viên &amp; phân quyền</h3><div class="sk-note2">Phân quyền ở đây khóa theo máy &amp; mã PIN (dùng cho máy bán hàng chung, có ghi nhận ai bán). Không phải bảo mật cấp máy chủ.</div><div style="background:#f3f7f5;border-radius:10px;padding:10px 12px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;gap:10px"><div style="font-size:13.5px"><b>Yêu cầu PIN khi mở Bán hàng</b><div style="color:#6b7872;font-size:12px">Tắt nếu bạn bán một mình — vào thẳng quyền Chủ, khỏi chọn người &amp; nhập PIN.</div></div><button class="sk-btn green" id="sk-pin-toggle" data-act="pin-toggle">🔒 ĐANG BẬT</button></div><div class="sk-note2" style="color:#0a5f4a">💡 Quên PIN? Bấm vào tên nhân viên bên dưới để xem/đổi PIN. Nếu kẹt ở cổng PIN, dùng nút "🔑 Quên PIN? — Chủ mở khóa".</div><div style="margin-bottom:10px"><button class="sk-btn outline wide" data-act="perm-open">⚙️ Tùy chỉnh quyền chi tiết (Quản lý / Thu ngân)</button></div><div style="margin-bottom:10px"><button class="sk-btn green wide" data-act="staff-new">➕ Thêm nhân viên</button></div><div id="sk-staff-list" style="max-height:50vh;overflow-y:auto"></div><div class="sk-card-acts"><span style="flex:1"></span><button class="sk-btn ghost" data-act="modal-close" data-target="#sk-staff">Đóng</button></div></div></div>
+<div id="sk-staff" class="sk-modal"><div class="sk-card"><h3>Nhân viên &amp; phân quyền</h3><div class="sk-note2">Phân quyền ở đây khóa theo máy &amp; mã PIN (dùng cho máy bán hàng chung, có ghi nhận ai bán). Không phải bảo mật cấp máy chủ.</div><div style="background:#f3f7f5;border-radius:10px;padding:10px 12px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;gap:10px"><div style="font-size:13.5px"><b>Yêu cầu PIN khi mở Bán hàng</b><div style="color:#6b7872;font-size:12px">Tắt nếu bạn bán một mình — vào thẳng quyền Chủ, khỏi chọn người &amp; nhập PIN.</div></div><button class="sk-btn green" id="sk-pin-toggle" data-act="pin-toggle">🔒 ĐANG BẬT</button></div><div class="sk-note2" style="color:#0a5f4a">💡 Quên PIN? Bấm vào tên nhân viên bên dưới để xem/đổi PIN. Nếu kẹt ở cổng PIN, dùng nút "🔑 Quên PIN? — Chủ mở khóa".</div><div style="margin-bottom:10px"><button class="sk-btn outline wide" data-act="perm-open">⚙️ Tùy chỉnh quyền chi tiết (Quản lý / Thu ngân)</button></div><div id="sk-nvacc-box" style="background:#fff8ec;border:1px solid #f0d9ae;border-radius:10px;padding:11px 12px;margin-bottom:10px"><div style="font-size:13.5px;font-weight:700;margin-bottom:3px">🔐 Tài khoản đăng nhập cho máy nhân viên</div><div style="color:#6b7872;font-size:12px;line-height:1.5;margin-bottom:8px">Tạo <b>một</b> tài khoản riêng để đăng nhập trên các máy nhân viên. Khi đó máy nhân viên <b>không đọc được PIN của Chủ</b>, <b>không tự cấp quyền cho mình</b> và <b>không xóa được</b> đơn hàng, ca đã chốt hay nhật ký — chặn ở máy chủ Firebase, không chỉ ở giao diện.<br>Máy của Chủ vẫn đăng nhập như bình thường.</div><div id="sk-nvacc-info" style="font-size:12.5px;margin-bottom:8px;color:#6b7872">Đang kiểm tra…</div><button class="sk-btn green wide" data-act="nvacc-open">➕ Tạo tài khoản nhân viên</button></div><div style="margin-bottom:10px"><button class="sk-btn green wide" data-act="staff-new">➕ Thêm nhân viên</button></div><div id="sk-staff-list" style="max-height:50vh;overflow-y:auto"></div><div class="sk-card-acts"><span style="flex:1"></span><button class="sk-btn ghost" data-act="modal-close" data-target="#sk-staff">Đóng</button></div></div></div>
+<div id="sk-nvacc" class="sk-modal"><div class="sk-card sk-card-sm"><h3>🔐 Tài khoản nhân viên</h3><div class="sk-note2">Tạo một tài khoản để đăng nhập trên <b>tất cả</b> máy nhân viên. Dùng email có thật của bạn cũng được (ví dụ <i>shopcuaban+nv@gmail.com</i>) — chỉ cần bạn nhớ mật khẩu để đưa cho nhân viên.</div><label class="sk-fld">Email tài khoản nhân viên<input id="sk-nv-email" class="sk-inp" type="email" inputmode="email" autocomplete="off" placeholder="vd: shopcuaban+nv@gmail.com"></label><label class="sk-fld">Mật khẩu (tối thiểu 6 ký tự)<input id="sk-nv-pass" class="sk-inp" type="text" autocomplete="off" placeholder="đặt mật khẩu dễ nhớ để đưa nhân viên"></label><div class="sk-note2" style="color:#a3620a">⚠️ Ghi lại email và mật khẩu này. Bạn sẽ dùng nó để đăng nhập trên máy nhân viên.</div><div id="sk-nv-msg" style="font-size:12.5px;margin-top:6px"></div><div class="sk-card-acts"><span style="flex:1"></span><button class="sk-btn ghost" data-act="modal-close" data-target="#sk-nvacc">Đóng</button><button class="sk-btn green" data-act="nvacc-save">Tạo tài khoản</button></div></div></div>
 <div id="sk-staff-form" class="sk-modal"><div class="sk-card sk-card-sm"><h3 id="sk-stf-title">Thêm nhân viên</h3><label class="sk-fld">Tên nhân viên<input id="sk-stf-name" class="sk-inp"></label><label class="sk-fld">Mã PIN (4–6 số)<input id="sk-stf-pin" class="sk-inp" inputmode="numeric" maxlength="6"></label><label class="sk-fld">Vai trò<select id="sk-stf-role" class="sk-inp"><option value="cashier">Thu ngân — chỉ bán hàng</option><option value="manager">Quản lý — bán + kho + báo cáo</option><option value="owner">Chủ — toàn quyền</option></select></label><label class="sk-fld">Chi nhánh được phân<select id="sk-stf-branch" class="sk-inp"><option value="">Tất cả chi nhánh</option></select></label><div class="sk-card-acts"><button class="sk-btn red" id="sk-stf-del" data-act="staff-del" style="display:none">Xóa</button><span style="flex:1"></span><button class="sk-btn ghost" data-act="modal-close" data-target="#sk-staff-form">Hủy</button><button class="sk-btn green" data-act="staff-save">Lưu</button></div></div></div>
 <div id="sk-perm" class="sk-modal"><div class="sk-card"><h3>⚙️ Phân quyền chi tiết</h3><div class="sk-perm-tip">Tick = được phép. <b>Chủ</b> luôn có toàn quyền (không cần chỉnh). Bỏ tick để chặn — nhân viên bấm vào sẽ báo "không có quyền". Lưu xong áp dụng ngay trên mọi máy.</div><div class="sk-perm-tbl"><div class="sk-perm-hd"><span>Quyền thao tác</span><span>Quản lý</span><span>Thu ngân</span></div><div id="sk-perm-body"></div></div><div class="sk-card-acts"><button class="sk-btn ghost" data-act="modal-close" data-target="#sk-perm">Hủy</button><span style="flex:1"></span><button class="sk-btn green" data-act="perm-save">💾 Lưu phân quyền</button></div></div></div>
 
