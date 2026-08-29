@@ -1444,7 +1444,7 @@ async function checkAccount(uid){
   }catch(e){console.error('checkAccount',e);return{ok:false,reason:'error'};}
 }
 
-function escHtml(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function escHtml(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
 /* Sinh token NGẪU NHIÊN AN TOÀN cho link chia sẻ nợ / link hoá đơn.
    Math.random() của trình duyệt KHÔNG phải bộ sinh mật mã: từ vài token cùng một phiên
    có thể suy ngược trạng thái và ĐOÁN token kế tiếp ⇒ lộ công nợ + chữ ký khách
@@ -3202,6 +3202,9 @@ async function skDeleteOrder(){
   rets.forEach(r=>{if(r.id)batch.delete(bdoc('returns',r.id));});
   if(o.method==='debt'&&o.customerId&&muaRef){batch.update(doc(db,'users',UID,'customers',o.customerId),{debt:increment(-muaAmount)});batch.delete(muaRef);}
   batch.delete(bdoc('orders',id));
+  ghiNhatKy(skBranch,'xoa_don',{orderId:id,soDon:so,total:Math.round(Number(o.total)||0),method:o.method||'',
+    customerId:o.customerId||'',customerName:o.customerName||'',soMatHang:(o.items||[]).length,
+    soPhieuTra:rets.length,banLuc:Number(o.createdAtMs)||0});
   batch.commit().catch(e=>skErr(e,'Xóa đơn'));
   if(o.hdToken){try{deleteDoc(doc(db,'shares',o.hdToken)).catch(()=>{});}catch(e){}}
   if(o.method==='debt'&&o.customerId&&navigator.onLine&&cust&&cust.shareToken){(async()=>{try{const nd=await recomputeDebtOnline(o.customerId);await updateDoc(doc(db,'users',UID,'customers',o.customerId),{debt:nd});await syncShare(cust.shareToken,cust.id,cust.name,cust.phone,nd);}catch(e){}})();}
@@ -3983,6 +3986,34 @@ function brCol(b,n){return b==='main'?collection(db,'users',UID,n):collection(db
 function brDoc(b,n,id){return b==='main'?doc(db,'users',UID,n,id):doc(db,'users',UID,'branches',b,n,id);}
 function bcol(n){return brCol(skBranch,n);}
 function bdoc(n,id){return brDoc(skBranch,n,id);}
+
+/* ── NHẬT KÝ THAO TÁC ─────────────────────────────────────────────────────────
+   Ghi lại các thao tác PHÁ HỦY (xoá đơn, huỷ ca, xoá ca, xoá khoản quỹ, sửa quỹ đầu,
+   đổi thu nợ tiền mặt <-> chuyển khoản) để còn dấu vết đối chiếu.
+
+   Kho tên "pos_audit": bắt đầu bằng "pos_" nên Firestore Rules xếp vào nhóm
+   'sono_pos' qua appCua() -> KHÔNG cần sửa rules, dùng được ngay.
+
+   Ghi nhật ký là việc PHỤ: bọc kín try/catch + .catch() rỗng để nếu có trục trặc
+   thì thao tác chính vẫn chạy bình thường, không bao giờ chặn người dùng.
+
+   HẠN CHẾ phải biết: máy nào xoá được đơn thì cũng xoá được dòng nhật ký này,
+   vì mọi máy đang dùng chung một tài khoản Firebase. Nó bắt được sơ suất và
+   người làm ẩu; chưa chặn được người cố tình biết mở Console.
+   Muốn chặn hẳn phải tách tài khoản riêng cho từng nhân viên. */
+function ghiNhatKy(b,act,ct){
+  try{
+    var m=(typeof skStaff!=='undefined'&&skStaff)?skStaff:null;
+    addDoc(brCol(b||skBranch,'pos_audit'),Object.assign({
+      act:String(act||''),
+      byId:m?(m.id||''):'',
+      byName:m?(m.name||'—'):'Chủ',
+      role:(typeof skRole!=='undefined'?skRole:'owner'),
+      atMs:Date.now(),
+      at:serverTimestamp()
+    },ct||{})).catch(function(){});
+  }catch(_){}
+}
 function skBranchName(id){const b=skBranches.find(x=>x.id===id);return b?b.name:id;}
 function skRoleLabel(r){return r==='owner'?'Chủ (toàn quyền)':r==='manager'?'Quản lý':'Thu ngân';}
 
@@ -4972,7 +5003,7 @@ try { window.__skBusy = function(){
   var D = document;
 
   /* ---------- Helper tự chứa (không phụ thuộc hàm ngoài) ---------- */
-  function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+  function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
   function vnd(n){return Math.round(Number(n)||0).toLocaleString('vi-VN')+'đ';}
   function num(n){return Math.round(Number(n)||0).toLocaleString('vi-VN');}
   function kk(n){var v=Math.round(Number(n)||0);return v>=10000?(Math.round(v/100)/10).toLocaleString('vi-VN')+'k':num(v);}
@@ -5771,6 +5802,7 @@ try { window.__skBusy = function(){
     else if(VIEW==='detail')h=vDetail();
     else if(VIEW==='logs')h=vLogs();
     else if(VIEW==='cash')h=vCash();
+    else if(VIEW==='audit')h=vAudit();
     else h=OPEN()?vRun():vIdle();
     box.innerHTML=h;
     if(VIEW==='close')setTimeout(function(){var e=q('#ca-counted');if(e)e.focus();},80);
@@ -5962,6 +5994,7 @@ try { window.__skBusy = function(){
   function vHist(){
     if(!CAN())return head('🕘 Lịch sử chốt ca',1)+'<div class="ca-empty">🔒 Bạn không có quyền xem lịch sử ca.</div>';
     var h=head('🕘 Lịch sử chốt ca — '+esc(BRN()),1);
+    h+='<button class="sk-btn wide" data-act="ca-audit" style="margin-bottom:10px">📋 Nhật ký thao tác (xoá / sửa)</button>';
     if(!SHIFTS.length)return h+'<div class="ca-empty">Chưa có ca nào.</div>';
     SHIFTS.forEach(function(s){
       var op=(s.status==='open');
@@ -6028,7 +6061,7 @@ try { window.__skBusy = function(){
     var id=el.dataset.id||'';
     if(a==='ca-open'){ui();sub();VIEW='main';render();try{skModalOpen('#sk-ca');}catch(_){}return;}
     if(a==='ca-x'){try{skCloseModal('#sk-ca');}catch(_){}VIEW='main';return;}
-    if(a==='ca-back'){VIEW=(VIEW==='detail')?'hist':'main';WIN=null;render();return;}
+    if(a==='ca-back'){VIEW=(VIEW==='detail'||VIEW==='audit')?'hist':'main';WIN=null;render();return;}
     if(a==='ca-chip'){var t=q('#'+el.dataset.t);if(t){var add=parseInt(el.dataset.v,10)||0;
       var cur=parseInt(String(t.value||'').replace(/[^\d]/g,''),10)||0;var nv=add?cur+add:0;
       t.value=nv?nv.toLocaleString('vi-VN'):'';if(t.id==='ca-counted')liveDiff();}return;}
@@ -6046,6 +6079,7 @@ try { window.__skBusy = function(){
     if(a==='ca-editfloat'){editFloat();return;}
     if(a==='ca-delshift'){delShift(id);return;}
     if(a==='ca-recalc'){recalcShift(id);return;}
+    if(a==='ca-audit'){goAudit();return;}
   }
 
   function doOpen(){
@@ -6118,7 +6152,10 @@ try { window.__skBusy = function(){
     var toCk=(l.cash!==false), m=ME();
     if(!window.confirm(toCk?'Đánh dấu khoản thu nợ '+money(l.amount)+' là CHUYỂN KHOẢN (không nằm trong két)?'
                            :'Đưa khoản '+money(l.amount)+' trở lại thành TIỀN MẶT?'))return;
-    try{updateDoc(brDoc(l.branch||BR(),'cashlog',id),{cash:!toCk,markBy:m.name,markAtMs:Date.now()})
+    try{
+      ghiNhatKy(l.branch||BR(),'doi_tienmat_ck',{logId:id,shiftId:l.shiftId||'',
+        amount:R(l.amount),custName:l.custName||'',thanh:(toCk?'chuyen_khoan':'tien_mat')});
+      updateDoc(brDoc(l.branch||BR(),'cashlog',id),{cash:!toCk,markBy:m.name,markAtMs:Date.now()})
       .catch(function(e){say('Lỗi: '+ec(e));});}catch(e){say('Lỗi: '+ec(e));}
   }
 
@@ -6126,7 +6163,10 @@ try { window.__skBusy = function(){
     if(!CAN()){say('🔒 Không có quyền');return;}
     var l=null;(LOGS||[]).forEach(function(x){if(x.id===id)l=x;});if(!l)return;
     if(!window.confirm('Xóa khoản '+money(l.amount)+' («'+(l.note||'')+'») khỏi sổ quỹ?'))return;
-    try{deleteDoc(brDoc(l.branch||BR(),'cashlog',id)).catch(function(e){say('Lỗi xóa: '+ec(e));});}catch(e){say('Lỗi xóa: '+ec(e));}
+    try{
+      ghiNhatKy(l.branch||BR(),'xoa_khoan_quy',{logId:id,shiftId:l.shiftId||'',loai:l.type||'',
+        amount:R(l.amount),note:l.note||'',custName:l.custName||'',nguoiGhi:l.who||''});
+      deleteDoc(brDoc(l.branch||BR(),'cashlog',id)).catch(function(e){say('Lỗi xóa: '+ec(e));});}catch(e){say('Lỗi xóa: '+ec(e));}
   }
 
   function editFloat(){
@@ -6135,8 +6175,53 @@ try { window.__skBusy = function(){
     var v=window.prompt('Sửa QUỸ ĐẦU CA (₫) — nhập số:',String(R(sh.openFloat)));
     if(v==null)return;
     var n=parseInt(String(v).replace(/[^\d]/g,''),10);if(isNaN(n)){say('Số không hợp lệ');return;}
-    try{updateDoc(brDoc(sh.branch||BR(),'shifts',sh.id),{openFloat:n,floatEditBy:ME().name,floatEditAtMs:Date.now()})
+    try{
+      ghiNhatKy(sh.branch||BR(),'sua_quy_dau',{shiftId:sh.id,staffName:sh.staffName||'',
+        truoc:R(sh.openFloat),sau:n,lech:n-R(sh.openFloat)});
+      updateDoc(brDoc(sh.branch||BR(),'shifts',sh.id),{openFloat:n,floatEditBy:ME().name,floatEditAtMs:Date.now()})
       .catch(function(e){say('Lỗi: '+ec(e));});say('✅ Đã sửa quỹ đầu ca');}catch(e){say('Lỗi: '+ec(e));}
+  }
+
+  /* ---------- NHẬT KÝ THAO TÁC — xem lại ai đã xoá / sửa cái gì ---------- */
+  var AUD=null;   // null = đang tải · false = lỗi · [] = rỗng
+  async function goAudit(){
+    if(!CAN()){say('🔒 Bạn không có quyền xem nhật ký');return;}
+    AUD=null;VIEW='audit';render();
+    var rows=false;
+    try{
+      var s=await getDocs(query(brCol(BR(),'pos_audit'),orderBy('atMs','desc'),limit(200)));
+      rows=s.docs.map(function(d){return Object.assign({id:d.id},d.data());});
+    }catch(_){rows=false;}
+    AUD=rows;
+    if(VIEW==='audit')render();
+  }
+  function vAudit(){
+    if(!CAN())return head('📋 Nhật ký thao tác',1)+'<div class="ca-empty">🔒 Bạn không có quyền xem.</div>';
+    var h=head('📋 Nhật ký thao tác — '+esc(BRN()),1);
+    if(AUD===null)return h+'<div class="ca-empty">⏳ Đang tải nhật ký…</div>';
+    if(AUD===false)return h+'<div class="ca-empty">⚠️ Chưa tải được — kiểm tra lại mạng rồi thử lần nữa.</div>';
+    if(!AUD.length)return h+'<div class="ca-empty">Chưa có thao tác nào được ghi.<br><small>Nhật ký chỉ bắt đầu tính từ lúc cập nhật bản này.</small></div>';
+    var TEN={
+      xoa_don:['Xoá đơn hàng','o'], huy_ca:['Huỷ ca đang mở','o'],
+      xoa_ca_chot:['Xoá ca đã chốt','o'], xoa_khoan_quy:['Xoá khoản quỹ','o'],
+      sua_quy_dau:['Sửa quỹ đầu ca','k'], doi_tienmat_ck:['Đổi tiền mặt/CK','k']
+    };
+    h+='<div class="ca-note">200 thao tác gần nhất. Nhật ký ghi thêm, không ghi đè.</div>';
+    h+='<div class="ca-box" style="padding:6px 13px">';
+    AUD.forEach(function(a){
+      var T=TEN[a.act]||[a.act||'—','k'], mo='';
+      if(a.act==='xoa_don')mo=esc(a.soDon||'')+' · '+money(a.total)+(a.customerName?' · '+esc(a.customerName):'');
+      else if(a.act==='huy_ca')mo='Ca của '+esc(a.staffName||'—')+' · quỹ đầu '+money(a.openFloat)+(a.soKhoanQuy?' · xoá '+a.soKhoanQuy+' khoản':'');
+      else if(a.act==='xoa_ca_chot')mo='Ca '+esc(a.staffName||'—')+' · đếm '+money(a.counted)+' · chênh '+money(a.diff);
+      else if(a.act==='xoa_khoan_quy')mo=money(a.amount)+(a.note?' · '+esc(a.note):'')+(a.nguoiGhi?' · người ghi '+esc(a.nguoiGhi):'');
+      else if(a.act==='sua_quy_dau')mo=money(a.truoc)+' → '+money(a.sau)+' ('+(Number(a.lech)>0?'+':'')+money(a.lech)+')';
+      else if(a.act==='doi_tienmat_ck')mo=money(a.amount)+' → '+(a.thanh==='chuyen_khoan'?'chuyển khoản':'tiền mặt')+(a.custName?' · '+esc(a.custName):'');
+      h+='<div class="ca-row"><span class="ca-tag '+T[1]+'">'+T[0]+'</span>'
+        +'<div class="ca-rm"><div class="ca-rn">'+(mo||'—')+'</div>'
+        +'<div class="ca-rs">'+esc(a.byName||'—')+(a.role?' ('+esc(a.role)+')':'')+' · '+DAY(a.atMs)+' '+TM(a.atMs)+'</div></div></div>';
+    });
+    h+='</div>';
+    return h;
   }
 
   function cancelShift(){
@@ -6146,6 +6231,8 @@ try { window.__skBusy = function(){
     if(!window.confirm('HỦY ca đang mở?\n\n• Ca sẽ bị xóa, KHÔNG lưu vào lịch sử.'
       +(n?'\n• '+n+' khoản thu/chi của ca cũng bị xóa.':'')+'\n• Đơn hàng đã bán KHÔNG bị ảnh hưởng.\n\nKhông thể hoàn tác!'))return;
     try{
+      ghiNhatKy(sh.branch||BR(),'huy_ca',{shiftId:sh.id,staffName:sh.staffName||'',
+        openFloat:R(sh.openFloat),openAtMs:Number(sh.openAtMs)||0,soKhoanQuy:n});
       (LOGS||[]).forEach(function(l){if(l.shiftId===sh.id){try{deleteDoc(brDoc(l.branch||BR(),'cashlog',l.id)).catch(function(){});}catch(_){}}});
       deleteDoc(brDoc(sh.branch||BR(),'shifts',sh.id)).catch(function(e){say('Lỗi hủy ca: '+ec(e));});
       say('Đã hủy ca');
@@ -6157,7 +6244,12 @@ try { window.__skBusy = function(){
     if(!ISOWNER()){say('🔒 Chỉ Chủ mới xóa được ca đã chốt');return;}
     var s=SH(id);if(!s)return;
     if(!window.confirm('XÓA ca đã chốt ngày '+DAY(s.openAtMs)+' của '+(s.staffName||'')+'?\n\nBằng chứng chốt ca sẽ mất vĩnh viễn. Không thể hoàn tác!'))return;
-    try{deleteDoc(brDoc(s.branch||BR(),'shifts',id)).catch(function(e){say('Lỗi xóa: '+ec(e));});say('Đã xóa ca');}catch(e){say('Lỗi xóa: '+ec(e));}
+    try{
+      ghiNhatKy(s.branch||BR(),'xoa_ca_chot',{shiftId:id,staffName:s.staffName||'',
+        openAtMs:Number(s.openAtMs)||0,closeAtMs:Number(s.closeAtMs)||0,
+        openFloat:R(s.openFloat),counted:R(s.counted),expected:R(s.expected),diff:R(s.diff),
+        closedBy:s.closedBy||''});
+      deleteDoc(brDoc(s.branch||BR(),'shifts',id)).catch(function(e){say('Lỗi xóa: '+ec(e));});say('Đã xóa ca');}catch(e){say('Lỗi xóa: '+ec(e));}
     VIEW='hist';setTimeout(render,150);
   }
 
