@@ -3413,6 +3413,7 @@ function skCustPick(id,name){skCloseModal('#sk-cust');skFinalize('debt',{custome
 function skCustConfirm(){const name=skq('#sk-cust-name').value.trim();if(!name){toast('Nhập tên khách');return;}skCloseModal('#sk-cust');skFinalize('debt',{customer:{id:null,name:name}});}
 
 async function skFinalize(method,extra){
+  try{ if(window.caChoPhepBan && window.caChoPhepBan()===false) return; }catch(_){} /* [CA] chỉ NGƯỜI TRỰC CA mới được bán */
   extra=extra||{};
   const items=skCart.map(c=>({id:c.id,name:c.name,unit:c.unit,ratio:c.ratio,qty:c.qty,baseQty:c.baseQty,price:c.price,cost:c.cost}));
   if(!items.length)return;
@@ -5844,6 +5845,8 @@ try { window.__skBusy = function(){
 
   var VIEW='main', SHIFTS=[], LOGS=[], UNS=null, UNL=null, SUBBR=null,
       DETID=null, BUSY=false, WIN=null, BOUND=false, LOGVIEW=null;
+  /* [KHO CA] trạng thái màn Đối chiếu kho */
+  var KHOV=null, KHOMAP={}, CNT={}, KHOQ='', KHOF='all', KHOLIM=400, KHOFOCUS=false, KHOT=null;
 
   /* ---------- tiện ích ---------- */
   function q(s){return document.querySelector(s);}
@@ -5958,6 +5961,139 @@ try { window.__skBusy = function(){
     return true;
   }
 
+  /* ═══════════════════════════════════════════════════════════════════════
+     [MỚI] A) NGƯỜI TRỰC CA — chọn trong DANH SÁCH NHÂN VIÊN, không gõ tay.
+                Chỉ người được chọn mới bán được trong ca đó.
+            B) ẢNH KHO ĐẦU CA / CUỐI CA — bằng chứng để soát "bán khống".
+
+     Ảnh kho lưu ngay trong collection 'shifts' nhưng doc KHÔNG có trường
+     openAtMs ⇒ query orderBy('openAtMs') của app KHÔNG bao giờ tải phải
+     ⇒ danh sách ca vẫn nhẹ như cũ, và KHÔNG phải sửa Firestore Rules.
+     ═══════════════════════════════════════════════════════════════════════ */
+
+  var CA_BUOC_MO_CA = false;   /* true = CHƯA MỞ CA thì cấm bán luôn (mặc định tắt) */
+
+  function NUM(n){try{return skN(n);}catch(_){return String(Number(n)||0);}}
+  function KD(x){try{return skKD(x);}catch(_){return String(x||'').toLowerCase();}}
+  function ROLEVN(r){try{return skRoleLabel(r);}catch(_){return '';}}
+
+  /* danh sách nhân viên dùng được ở chi nhánh hiện tại */
+  function NVDS(){
+    var b=BR(), out=[];
+    try{(skStaffList||[]).forEach(function(x){
+      if(!x||!x.id)return;
+      var sb=x.branch||'';
+      if(sb&&sb!==b)return;
+      out.push({id:x.id,name:x.name||'(chưa đặt tên)',role:x.role||'cashier'});
+    });}catch(_){}
+    return out;
+  }
+  /* có khoá quyền bán theo người trực ca không?
+     — chưa lập danh sách nhân viên, hoặc đã TẮT hỏi PIN ⇒ không khoá (giữ nguyên nếp cũ) */
+  function COKHOA(){
+    try{ if(!(skStaffList&&skStaffList.length)) return false; }catch(_){ return false; }
+    try{ if(skRequirePin===false) return false; }catch(_){}
+    return true;
+  }
+
+  /* ---------- Ô CHỌN NGƯỜI TRỰC CA ---------- */
+  function pickNV(){
+    var ds=NVDS(), me=ME();
+    if(!ds.length)
+      return '<div class="ca-note ca-warn">⚠️ <b>Chưa có danh sách nhân viên.</b> Vào <b>👤 Nhân viên</b> thêm người trước, '
+        +'rồi mở ca mới chọn được <b>người trực ca</b> — có vậy thất thoát mới quy được trách nhiệm.</div>'
+        +'<label class="sk-fld">Người trực ca<input id="ca-who" class="sk-inp" value="'+esc(me.name)+'"></label>';
+    if(!ISOWNER()&&me.id){
+      var mine=null;ds.forEach(function(x){if(x.id===me.id)mine=x;});
+      if(mine)
+        return '<label class="sk-fld">Người trực ca'
+          +'<select id="ca-who" class="sk-inp"><option value="'+esc(mine.id)+'">'+esc(mine.name)+'</option></select></label>'
+          +'<div class="ca-note">🔒 Bạn chỉ được mở ca cho <b>chính mình</b>. Mở ca cho người khác phải là <b>Chủ</b>.</div>';
+    }
+    var h='<label class="sk-fld">Người trực ca <b style="color:#c0392b">*</b>'
+      +'<select id="ca-who" class="sk-inp"><option value="">— Bấm để chọn —</option>';
+    ds.forEach(function(x){
+      h+='<option value="'+esc(x.id)+'"'+((me.id&&x.id===me.id)?' selected':'')+'>'+esc(x.name)+' · '+esc(ROLEVN(x.role))+'</option>';
+    });
+    return h+'</select></label>'
+      +'<div class="ca-note">👤 <b>Chỉ người được chọn</b> mới bán được trong ca này. Người khác bấm thanh toán sẽ bị chặn.</div>';
+  }
+  function canhBaoNguoiBan(sh){
+    if(!sh||!COKHOA()||!sh.staffId)return '';
+    var m=ME();
+    if(m.id&&m.id===sh.staffId)return '';
+    return '<div class="ca-note ca-bad">🔒 Bạn <b>không phải</b> người trực ca này ('+esc(sh.staffName||'')+') nên <b>không bán được</b>.'
+      +(ISOWNER()?' Quyền Chủ vẫn bán được nhưng app sẽ hỏi lại, và đơn KHÔNG tính cho '+esc(sh.staffName||'')+'.'
+                 :' Hãy báo chủ chốt ca rồi mở ca mới.')+'</div>';
+  }
+
+  /* ---------- ẢNH KHO ---------- */
+  var KHO_MAX=650000;               /* chặn trần cho 1 document Firestore (1MB) */
+  function khoId(sid,loai){return 'kho_'+sid+'_'+loai;}
+  function khoSnap(){
+    var a=[];
+    try{(skProducts||[]).forEach(function(p){
+      if(!p||!p.id)return;
+      a.push({i:String(p.id),n:String(p.name||''),s:Number(p.stock)||0,
+              u:String(p.baseUnit||''),c:Number(p.cost)||0});
+    });}catch(_){}
+    return a;
+  }
+  function khoTong(a){
+    var n=0,qy=0,v=0;
+    (a||[]).forEach(function(x){n++;var st=Number(x.s)||0;qy+=st;v+=st*(Number(x.c)||0);});
+    return {n:n,q:Math.round(qy*1e6)/1e6,v:Math.round(v)};
+  }
+  function khoNen(a){
+    var d=(a||[]).slice(), b=0;
+    function sz(){try{return JSON.stringify(d).length;}catch(_){return 0;}}
+    if(sz()>KHO_MAX){b=1;d=d.map(function(x){return {i:x.i,n:x.n,s:x.s,c:x.c};});}
+    if(sz()>KHO_MAX){b=2;d=d.map(function(x){return {i:x.i,s:x.s,c:x.c};});}
+    if(sz()>KHO_MAX){b=3;d=d.filter(function(x){return (Number(x.s)||0)!==0;});}
+    if(sz()>KHO_MAX){b=4;d=d.slice(0,12000);}
+    return {d:d,b:b};
+  }
+  function luuKho(b,sid,loai,arr,atMs){
+    try{
+      var k=khoNen(arr), t=khoTong(arr);
+      setDoc(brDoc(b,'shifts',khoId(sid,loai)),{
+        kieu:'khosnap',loai:loai,shiftId:sid,branch:b,status:'snap',
+        n:t.n,qty:t.q,von:t.v,rutGon:k.b,items:k.d,
+        byName:ME().name,atMs:Number(atMs)||Date.now()
+      }).catch(function(){});
+    }catch(_){}
+  }
+  async function docKho(b,sid,loai){
+    try{var s2=await getDoc(brDoc(b,'shifts',khoId(sid,loai)));return s2.exists()?s2.data():null;}
+    catch(_){return null;}
+  }
+  function xoaKho(b,sid){
+    ['mo','chot','dem'].forEach(function(l){
+      try{deleteDoc(brDoc(b,'shifts',khoId(sid,l))).catch(function(){});}catch(_){}
+    });
+  }
+
+  /* ---------- KHOÁ QUYỀN BÁN: chỉ người trực ca mới được bán ----------
+     Lỗi bất ngờ ⇒ TRẢ VỀ true (không chặn) — tuyệt đối không để shop chết máy. */
+  window.caChoPhepBan=function(){
+    try{
+      if(!COKHOA())return true;
+      var sh=OPEN();
+      if(!sh){
+        if(CA_BUOC_MO_CA){say('🔒 Chưa mở ca — hãy mở ca trước khi bán');return false;}
+        return true;
+      }
+      if(!sh.staffId)return true;                       /* ca mở bằng bản cũ — không khoá */
+      var m=ME();
+      if(m.id&&m.id===sh.staffId)return true;
+      if(ISOWNER())
+        return window.confirm('⚠️ Ca này do "'+(sh.staffName||'')+'" trực.\n\n'
+          +'Bạn đang dùng quyền CHỦ. Đơn này sẽ KHÔNG tính cho '+(sh.staffName||'')+'.\n\nVẫn bán?');
+      say('🔒 Ca đang do "'+(sh.staffName||'')+'" trực — bạn không có quyền bán');
+      return false;
+    }catch(_){return true;}
+  };
+
   /* ═══════ GIAO DIỆN ═══════ */
   function css(){
     if(document.getElementById('sk-ca-css'))return;
@@ -6021,7 +6157,23 @@ try { window.__skBusy = function(){
     +'#pos-screen .ca-sv{font-size:14px;font-weight:800;color:#0a5f4a;white-space:nowrap}'
     +'#pos-screen .ca-sd{font-size:11.5px;color:#7d8c86;margin-top:3px;display:flex;flex-wrap:wrap;gap:4px 10px}'
     +'#pos-screen .ca-bar{height:6px;border-radius:4px;background:#eef2f0;overflow:hidden;margin-top:6px}'
-    +'#pos-screen .ca-bar i{display:block;height:100%;background:linear-gradient(90deg,#0d7a5f,#3fb98c);border-radius:4px}';
+    +'#pos-screen .ca-bar i{display:block;height:100%;background:linear-gradient(90deg,#0d7a5f,#3fb98c);border-radius:4px}'
+    /* [KHO CA] bảng đối chiếu kho */
+    +'#pos-screen .ca-chips button.on{background:#0d7a5f;color:#fff;border-color:#0d7a5f}'
+    +'#pos-screen .kho-r{border-top:1px dashed #eef2f0;padding:9px 0}'
+    +'#pos-screen .kho-r:first-child{border-top:none}'
+    +'#pos-screen .kho-n{font-size:13px;font-weight:700;color:#22302b;margin-bottom:5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}'
+    +'#pos-screen .kho-n small{color:#9aa8a2;font-weight:600}'
+    +'#pos-screen .kho-g{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px;align-items:center}'
+    +'#pos-screen .kho-b{text-align:center;background:#f7faf9;border-radius:9px;padding:5px 2px}'
+    +'#pos-screen .kho-b span{display:block;font-size:9.5px;color:#9aa8a2;font-weight:800;letter-spacing:.2px}'
+    +'#pos-screen .kho-b b{font-size:12.5px;color:#15211d}'
+    +'#pos-screen .kho-i{width:100%;border:1.5px solid #cfe3da;border-radius:9px;padding:7px 2px;font-size:13px;text-align:center;font-weight:700;background:#fff;color:#15211d}'
+    +'#pos-screen .kho-i:focus{outline:2px solid #0d7a5f;border-color:transparent}'
+    +'#pos-screen .kho-d{text-align:center;font-size:12px;font-weight:800;border-radius:9px;padding:6px 2px;background:#f4f6f5;color:#9aa8a2}'
+    +'#pos-screen .kho-d.ok{background:#e8f5ee;color:#0a5f4a}'
+    +'#pos-screen .kho-d.lo{background:#fdecea;color:#c0392b}'
+    +'#pos-screen .kho-d.hi{background:#fff7ed;color:#b9791a}';
     document.head.appendChild(s);
   }
 
@@ -6049,6 +6201,17 @@ try { window.__skBusy = function(){
           var raw=String(t.value||'').replace(/[^\d]/g,'');
           t.value=raw?Number(raw).toLocaleString('vi-VN'):'';
           if(t.id==='ca-counted')liveDiff();
+          return;
+        }
+        if(t&&t.id==='kho-q'){KHOQ=String(t.value||'');KHOFOCUS=true;locKho();return;}
+        if(t&&t.classList&&t.classList.contains('ca-cnt')){
+          var pid=t.getAttribute('data-i')||'';
+          var r2=String(t.value||'').replace(/[^\d.]/g,'');
+          var p1=r2.indexOf('.');
+          if(p1>=0)r2=r2.slice(0,p1+1)+r2.slice(p1+1).replace(/\./g,'');
+          if(t.value!==r2)t.value=r2;
+          CNT[pid]=(r2===''||r2==='.')?'':(parseFloat(r2)||0);
+          capNhatLech(pid);tomTatKho();
         }
       });
     }
@@ -6075,9 +6238,15 @@ try { window.__skBusy = function(){
     else if(VIEW==='logs')h=vLogs();
     else if(VIEW==='cash')h=vCash();
     else if(VIEW==='audit')h=vAudit();
+    else if(VIEW==='kho')h=vKho();
     else h=OPEN()?vRun():vIdle();
     box.innerHTML=h;
     if(VIEW==='close')setTimeout(function(){var e=q('#ca-counted');if(e)e.focus();},80);
+    if(VIEW==='kho'){
+      try{tomTatKho();}catch(_){}
+      if(KHOFOCUS){KHOFOCUS=false;var _fq=q('#kho-q');
+        if(_fq){try{_fq.focus();_fq.setSelectionRange(_fq.value.length,_fq.value.length);}catch(_){}}}
+    }
   }
   function head(t,back){
     return '<div class="ca-h">'+(back?'<button class="sk-btn ghost" data-act="ca-back" style="padding:7px 11px">‹</button>':'')
@@ -6098,10 +6267,11 @@ try { window.__skBusy = function(){
       +'<div class="ca-sub">Chưa có ca nào đang mở tại chi nhánh này.</div>'
       +(CANSHIFT()
         ?('<div class="ca-note">🧾 <b>Đầu buổi:</b> chủ giao cho nhân viên bao nhiêu <b>tiền thối</b> thì nhập đúng số đó vào ô dưới rồi bấm <b>Mở ca</b>. Cuối buổi bấm <b>Chốt ca</b>, app sẽ tự tính số tiền mặt phải nộp lại.</div>'
-          +'<label class="sk-fld">Người trực ca<input id="ca-who" class="sk-inp" value="'+esc(ME().name)+'"></label>'
+          +pickNV()
           +'<label class="sk-fld">Quỹ đầu ca — tiền thối chủ giao (₫)<input id="ca-float" class="ca-money sk-inp" inputmode="numeric" placeholder="0" value="'+(sug?sug.toLocaleString('vi-VN'):'')+'"></label>'
           +chips('ca-float')
           +'<label class="sk-fld">Ghi chú (tuỳ chọn)<input id="ca-note" class="sk-inp" placeholder="ca sáng, ca chiều…"></label>'
+          +khoDong()
           +'<button class="sk-btn green wide" data-act="ca-do-open">▶️ Mở ca</button>')
         :'<div class="ca-note">🔒 Bạn không có quyền mở ca. <b>Chủ shop</b> sẽ mở ca khi giao tiền thối. Hãy báo chủ mở ca <b>trước khi bán đơn đầu tiên</b>.</div>')
       +(CAN()?'<button class="sk-btn wide" data-act="ca-hist" style="margin-top:8px">🕘 Lịch sử chốt ca</button>':'');
@@ -6112,8 +6282,11 @@ try { window.__skBusy = function(){
     var sh=OPEN();if(!sh)return vIdle();
     var c=calc(sh,skOrdersSafe(),skReturnsSafe(),null);
     var h=head('💰 Ca đang mở — '+esc(BRN()))
-     +'<div class="ca-sub">👤 <b>'+esc(sh.staffName||'')+'</b> · mở lúc <b>'+TM(sh.openAtMs)+'</b>'
+     +'<div class="ca-sub">👤 Người trực ca: <b>'+esc(sh.staffName||'')+'</b> · mở lúc <b>'+TM(sh.openAtMs)+'</b>'
        +(sh.note?' · '+esc(sh.note):'')+'</div>'
+     +canhBaoNguoiBan(sh)
+     +(sh.khoMo?'<div class="ca-note">📦 Ảnh kho đầu ca đã chụp: <b>'+NUM(sh.khoMoN)+'</b> mặt hàng · <b>'+NUM(sh.khoMoQty)+'</b> đơn vị · vốn <b>'+money(sh.khoMoVon)+'</b>.</div>'
+        :'<div class="ca-note ca-warn">⚠️ Ca này mở bằng bản cũ nên <b>chưa có ảnh kho đầu ca</b>. Ca sau app sẽ tự chụp.</div>')
      +'<div class="ca-box">'
        +'<div class="ca-bt">Tiền vào két</div>'
        +row('Quỹ đầu ca (tiền thối)',c.open)
@@ -6138,6 +6311,7 @@ try { window.__skBusy = function(){
        +'<button class="sk-btn" data-act="ca-cash" data-t="payout">📤 Nộp chủ</button>'
        +'<button class="sk-btn" data-act="ca-cash" data-t="payin">➕ Thêm quỹ</button>'
      +'</div>'
+     +(CAN()?'<button class="sk-btn wide" data-act="ca-kho" data-id="'+sh.id+'" style="margin-bottom:8px">📦 Đối chiếu kho — soát hàng bán khống</button>':'')
      +'<button class="sk-btn wide" data-act="ca-logs" style="margin-bottom:8px">📜 Chi tiết các khoản thu / chi trong ca</button>'
      +(CANSHIFT()?'<button class="sk-btn green wide" data-act="ca-close">🔒 CHỐT CA</button>'
        :'<div class="ca-note">🔒 Bạn không có quyền chốt ca. Cuối buổi <b>giao tiền mặt cho chủ</b>, chủ sẽ đếm và bấm chốt ca.</div>');
@@ -6321,9 +6495,197 @@ try { window.__skBusy = function(){
       });
       h+='</div>';
     }
+    if(CAN())h+='<button class="sk-btn green wide" data-act="ca-kho" data-id="'+s.id+'" style="margin-bottom:8px">📦 Đối chiếu kho — soát hàng bán khống</button>';
     if(ISOWNER())h+='<button class="sk-btn wide" data-act="ca-recalc" data-id="'+s.id+'" style="margin-bottom:8px">🔄 Tính lại ca (khi đơn bán offline về trễ)</button>';
     if(ISOWNER())h+='<button class="sk-btn red wide" data-act="ca-delshift" data-id="'+s.id+'">🗑 Xóa ca này khỏi lịch sử</button>';
     return h;
+  }
+
+  /* ═══════ MÀN ĐỐI CHIẾU KHO ═══════ */
+  function khoDong(){
+    var t=khoTong(khoSnap());
+    return '<div class="ca-note">📦 Bấm <b>Mở ca</b> là app <b>chụp ngay ảnh kho</b> làm bằng chứng: <b>'+NUM(t.n)+'</b> mặt hàng · '
+      +'<b>'+NUM(t.q)+'</b> đơn vị · vốn <b>'+money(t.v)+'</b>.<br>Cuối ca, chủ shop mở <b>📦 Đối chiếu kho</b> đếm lại để soát hàng bán khống.</div>';
+  }
+  function fbtn(f,t){return '<button type="button" data-act="ca-khof" data-f="'+f+'"'+(KHOF===f?' class="on"':'')+'>'+t+'</button>';}
+
+  async function goKho(id){
+    if(!CAN()){say('🔒 Bạn không có quyền xem đối chiếu kho');return;}
+    var sh=SH(id); if(!sh){say('Không thấy ca');return;}
+    DETID=id;CNT={};KHOMAP={};KHOQ='';KHOF='all';KHOLIM=400;
+    KHOV={sid:id,tai:true};VIEW='kho';render();
+    var b=sh.branch||BR();
+    var a=await docKho(b,id,'mo');
+    var c=(sh.status==='closed')?await docKho(b,id,'chot'):null;
+    var d=await docKho(b,id,'dem');
+    if(VIEW!=='kho'||!KHOV||KHOV.sid!==id)return;
+    KHOV={sid:id,tai:false,mo:a,chot:c,dem:d};
+    render();
+  }
+
+  /* gộp ảnh kho đầu ca + cuối ca (hoặc tồn hiện tại nếu ca chưa chốt) */
+  function khoRows(live){
+    var mo=(KHOV&&KHOV.mo&&KHOV.mo.items)||[];
+    var ct=(KHOV&&KHOV.chot&&KHOV.chot.items)||null;
+    var map={},ord=[];
+    function el(k){if(!map[k]){map[k]={i:k,n:'',u:'',c:0,a:null,b:null};ord.push(k);}return map[k];}
+    mo.forEach(function(x){var r=el(String(x.i));r.a=Number(x.s)||0;
+      if(x.n&&!r.n)r.n=String(x.n); if(x.u&&!r.u)r.u=String(x.u); if(x.c&&!r.c)r.c=Number(x.c)||0;});
+    if(ct)ct.forEach(function(x){var r=el(String(x.i));r.b=Number(x.s)||0;
+      if(x.n&&!r.n)r.n=String(x.n); if(x.u&&!r.u)r.u=String(x.u); if(x.c&&!r.c)r.c=Number(x.c)||0;});
+    if(live){try{(skProducts||[]).forEach(function(p){if(!p||!p.id)return;el(String(p.id)).b=Number(p.stock)||0;});}catch(_){}}
+    try{(skProducts||[]).forEach(function(p){if(!p||!p.id)return;var r=map[String(p.id)];if(!r)return;
+      if(!r.n)r.n=String(p.name||''); if(!r.u)r.u=String(p.baseUnit||''); if(!r.c)r.c=Number(p.cost)||0;});}catch(_){}
+    return ord.map(function(k){return map[k];});
+  }
+
+  function vKho(){
+    if(!CAN())return head('📦 Đối chiếu kho',1)+'<div class="ca-empty">🔒 Bạn không có quyền xem.</div>';
+    var sh=SH(DETID);
+    if(!sh)return head('📦 Đối chiếu kho',1)+'<div class="ca-empty">Không thấy ca.</div>';
+    var h=head('📦 Đối chiếu kho',1)
+      +'<div class="ca-sub">👤 <b>'+esc(sh.staffName||'—')+'</b> · '+TM(sh.openAtMs)
+      +(sh.status==='closed'?' → '+TM(sh.closeAtMs):' → nay <b>(ca đang mở)</b>')+'</div>';
+    if(!KHOV||KHOV.sid!==DETID||KHOV.tai)return h+'<div class="ca-empty">⏳ Đang tải ảnh kho…</div>';
+    if(!KHOV.mo)
+      return h+'<div class="ca-note ca-warn">⚠️ Ca này <b>không có ảnh kho đầu ca</b>.<br>'
+        +'Hoặc ca được mở bằng bản cũ (trước khi cập nhật), hoặc máy đang mất mạng nên chưa tải được ảnh kho. '
+        +'Từ ca sau, app tự chụp ảnh kho ngay lúc mở ca.</div>';
+
+    var live=!KHOV.chot;
+    var rows=khoRows(live);
+    KHOMAP={};rows.forEach(function(r){KHOMAP[r.i]=r;});
+
+    var t1={n:R(KHOV.mo.n),q:Number(KHOV.mo.qty)||0,v:R(KHOV.mo.von)};
+    var t2=KHOV.chot?{n:R(KHOV.chot.n),q:Number(KHOV.chot.qty)||0,v:R(KHOV.chot.von)}:khoTong(khoSnap());
+
+    h+='<div class="ca-box">'
+      +'<div class="ca-bt">Ảnh kho</div>'
+      +'<div class="ca-r"><span>Đầu ca <small>· '+TM(KHOV.mo.atMs)+'</small></span><b>'+NUM(t1.n)+' mặt hàng · '+NUM(t1.q)+' đv</b></div>'
+      +'<div class="ca-r"><span>'+(live?'Tồn hiện tại theo app':'Cuối ca <small>· '+TM(KHOV.chot.atMs)+'</small>')+'</span><b>'+NUM(t2.n)+' mặt hàng · '+NUM(t2.q)+' đv</b></div>'
+      +'<div class="ca-r"><span>Vốn tồn</span><b>'+money(t1.v)+' → '+money(t2.v)+'</b></div>'
+      +'</div>';
+
+    if(R(KHOV.mo.rutGon))h+='<div class="ca-note">ℹ️ Kho rất lớn nên ảnh kho được lưu rút gọn — vẫn đủ mã hàng và số tồn để đối chiếu.</div>';
+
+    if(KHOV.dem)h+='<div class="ca-note'+(R(KHOV.dem.soThieu)?' ca-bad':'')+'">🧾 <b>Đã kiểm</b> lúc '+TM(KHOV.dem.atMs)
+      +' bởi <b>'+esc(KHOV.dem.byName||'—')+'</b> · đếm '+NUM(KHOV.dem.soDem)+' mặt hàng · <b>thiếu '+NUM(KHOV.dem.soThieu)+'</b> · thừa '+NUM(KHOV.dem.soThua)
+      +(R(KHOV.dem.giaTriThieu)?' · giá trị thiếu <b>'+money(KHOV.dem.giaTriThieu)+'</b>':'')+'</div>';
+
+    h+='<div class="ca-note">🧮 Đếm tay số hàng còn lại rồi nhập vào ô <b>ĐẾM</b>. App so với cột <b>'+(live?'HIỆN TẠI':'CUỐI CA')+'</b> (số theo app):'
+      +'<br>• <b style="color:#c0392b">Thiếu</b> = hàng ra khỏi kho mà KHÔNG ghi đơn — nghi bán khống.'
+      +'<br>• <b style="color:#b9791a">Thừa</b> = nhập hàng chưa ghi vào app, hoặc đếm nhầm.</div>';
+
+    h+='<input id="kho-q" class="sk-inp" inputmode="search" placeholder="🔎 Gõ tên hàng để tìm nhanh…" value="'+esc(KHOQ)+'" style="margin-bottom:9px">'
+      +'<div class="ca-chips" style="margin:0 0 10px">'+fbtn('all','Tất cả')+fbtn('move','Có biến động')+fbtn('zero','Không biến động')+'</div>';
+
+    var kq=KD(KHOQ), ds=[];
+    rows.forEach(function(r){
+      var bv=(r.b==null?0:r.b), av=(r.a==null?0:r.a), dv=bv-av;
+      if(KHOF==='move'&&!(dv!==0||r.a==null))return;
+      if(KHOF==='zero'&&!(dv===0&&r.a!=null))return;
+      if(kq&&KD(r.n).indexOf(kq)<0)return;
+      ds.push(r);
+    });
+
+    if(!ds.length)return h+'<div class="ca-empty">Không có mặt hàng nào khớp.</div>'
+      +'<div id="kho-sum" class="ca-diff ok"></div>';
+
+    var show=ds.slice(0,KHOLIM);
+    h+='<div class="ca-box" style="padding:6px 13px">';
+    show.forEach(function(r){
+      var cv=CNT[r.i], dtxt='—', dcls='';
+      if(cv!==''&&cv!=null&&!isNaN(cv)){
+        var dd=Math.round((cv-(r.b==null?0:r.b))*1e6)/1e6;
+        dcls=(dd===0?' ok':(dd<0?' lo':' hi'));
+        dtxt=(dd===0?'✔':(dd<0?'−'+NUM(-dd):'+'+NUM(dd)));
+      }
+      h+='<div class="kho-r">'
+        +'<div class="kho-n">'+esc(r.n||('#'+r.i))+(r.u?' <small>· '+esc(r.u)+'</small>':'')+'</div>'
+        +'<div class="kho-g">'
+          +'<div class="kho-b"><span>ĐẦU CA</span><b>'+(r.a==null?'—':NUM(r.a))+'</b></div>'
+          +'<div class="kho-b"><span>'+(live?'HIỆN TẠI':'CUỐI CA')+'</span><b>'+(r.b==null?'—':NUM(r.b))+'</b></div>'
+          +'<input class="ca-cnt kho-i" data-i="'+esc(r.i)+'" inputmode="decimal" placeholder="đếm" value="'+((cv===''||cv==null)?'':esc(String(cv)))+'">'
+          +'<div class="kho-d'+dcls+'" data-i="'+esc(r.i)+'">'+dtxt+'</div>'
+        +'</div></div>';
+    });
+    h+='</div>';
+    if(ds.length>show.length)
+      h+='<button class="sk-btn wide" data-act="ca-khomore" style="margin-bottom:9px">⬇️ Xem thêm — đang hiện '+NUM(show.length)+'/'+NUM(ds.length)+' mặt hàng</button>';
+
+    h+='<div id="kho-sum" class="ca-diff ok" style="margin-top:4px"></div>';
+    h+=(ISOWNER()?'<button class="sk-btn green wide" data-act="ca-savedem">💾 Lưu kết quả kiểm kho</button>'
+                 :'<div class="ca-note">🔒 Chỉ <b>Chủ</b> mới lưu được kết quả kiểm kho.</div>');
+    return h;
+  }
+
+  /* cập nhật ô LỆCH của 1 mặt hàng — không vẽ lại màn hình để không mất bàn phím */
+  function capNhatLech(pid){
+    try{
+      var box=document.getElementById('sk-ca-body');if(!box)return;
+      var ns=box.querySelectorAll('.kho-d'),e=null;
+      for(var i=0;i<ns.length;i++){if(ns[i].getAttribute('data-i')===pid){e=ns[i];break;}}
+      if(!e)return;
+      var r=KHOMAP[pid];if(!r)return;
+      var v=CNT[pid];
+      if(v===''||v==null||isNaN(v)){e.className='kho-d';e.textContent='—';return;}
+      var d=Math.round((v-(r.b==null?0:r.b))*1e6)/1e6;
+      e.className='kho-d '+(d===0?'ok':(d<0?'lo':'hi'));
+      e.textContent=(d===0?'✔':(d<0?'−'+NUM(-d):'+'+NUM(d)));
+    }catch(_){}
+  }
+  function tinhDem(){
+    var nD=0,nT=0,nTh=0,vT=0,out=[];
+    Object.keys(CNT).forEach(function(k){
+      var v=CNT[k];if(v===''||v==null||isNaN(v))return;
+      var r=KHOMAP[k];if(!r)return;
+      nD++;
+      var app=(r.b==null?0:r.b), d=Math.round((v-app)*1e6)/1e6;
+      if(d<0){nT++;vT+=(-d)*(Number(r.c)||0);}else if(d>0)nTh++;
+      if(d!==0&&out.length<3000)
+        out.push({i:k,n:String(r.n||'').slice(0,50),a:(r.a==null?null:r.a),b:app,dem:v,lech:d,c:Number(r.c)||0});
+    });
+    return {nD:nD,nT:nT,nTh:nTh,vT:Math.round(vT),out:out};
+  }
+  function tomTatKho(){
+    var e=document.getElementById('kho-sum');if(!e)return;
+    var k=tinhDem();
+    if(!k.nD){e.className='ca-diff ok';
+      e.innerHTML='Chưa đếm mặt hàng nào<em>Nhập số đếm được vào ô “đếm” ở từng mặt hàng</em>';return;}
+    e.className='ca-diff '+(k.nT?'lo':(k.nTh?'hi':'ok'));
+    e.innerHTML=(k.nT?'🔴 THIẾU '+NUM(k.nT)+' mặt hàng':(k.nTh?'🟠 THỪA '+NUM(k.nTh)+' mặt hàng':'✅ KHỚP HẾT'))
+      +'<em>Đã đếm '+NUM(k.nD)+' mặt hàng'
+      +(k.vT?' · giá trị nghi thất thoát '+money(k.vT):'')
+      +(k.nT&&k.nTh?' · còn '+NUM(k.nTh)+' mặt hàng thừa':'')+'</em>';
+  }
+  function locKho(){
+    if(KHOT)clearTimeout(KHOT);
+    KHOT=setTimeout(function(){KHOT=null;if(VIEW==='kho')render();},240);
+  }
+  function luuDem(){
+    if(!ISOWNER()){say('🔒 Chỉ Chủ mới lưu được kết quả kiểm kho');return;}
+    var sh=SH(DETID);
+    if(!sh||!KHOV||KHOV.sid!==DETID||KHOV.tai){say('Chưa tải xong ảnh kho');return;}
+    var k=tinhDem();
+    if(!k.nD){say('Chưa nhập số đếm nào');return;}
+    if(!window.confirm('Lưu kết quả kiểm kho ca của '+(sh.staffName||'')+'?\n\n'
+      +'Đã đếm: '+NUM(k.nD)+' mặt hàng\n'
+      +'Thiếu:  '+NUM(k.nT)+' mặt hàng'+(k.vT?'  ('+money(k.vT)+')':'')+'\n'
+      +'Thừa:   '+NUM(k.nTh)+' mặt hàng'))return;
+    var b=sh.branch||BR(), t=Date.now(), m=ME();
+    try{
+      setDoc(brDoc(b,'shifts',khoId(DETID,'dem')),{
+        kieu:'khodem',shiftId:DETID,branch:b,status:'snap',
+        staffName:sh.staffName||'',byName:m.name,byId:m.id,atMs:t,
+        soDem:k.nD,soThieu:k.nT,soThua:k.nTh,giaTriThieu:k.vT,lech:k.out
+      }).catch(function(e){say('Lỗi lưu kiểm kho: '+ec(e));});
+      ghiNhatKy(b,'kiem_kho_ca',{shiftId:DETID,staffName:sh.staffName||'',
+        soDem:k.nD,soThieu:k.nT,soThua:k.nTh,giaTriThieu:k.vT});
+      KHOV.dem={byName:m.name,atMs:t,soDem:k.nD,soThieu:k.nT,soThua:k.nTh,giaTriThieu:k.vT,lech:k.out};
+      say(k.nT?('🔴 Đã lưu — THIẾU '+NUM(k.nT)+' mặt hàng'):'✅ Đã lưu kết quả kiểm kho');
+      try{markDirty();}catch(_){}
+      render();
+    }catch(e){say('Lỗi lưu kiểm kho: '+ec(e));}
   }
 
   /* ═══════ HÀNH ĐỘNG ═══════ */
@@ -6333,7 +6695,10 @@ try { window.__skBusy = function(){
     var id=el.dataset.id||'';
     if(a==='ca-open'){ui();sub();VIEW='main';render();try{skModalOpen('#sk-ca');}catch(_){}return;}
     if(a==='ca-x'){try{skCloseModal('#sk-ca');}catch(_){}VIEW='main';return;}
-    if(a==='ca-back'){VIEW=(VIEW==='detail'||VIEW==='audit')?'hist':'main';WIN=null;render();return;}
+    if(a==='ca-back'){var _bk='main';
+      if(VIEW==='detail'||VIEW==='audit')_bk='hist';
+      else if(VIEW==='kho'){var _s=SH(DETID);_bk=(_s&&_s.status==='closed')?'detail':'main';}
+      VIEW=_bk;WIN=null;render();return;}
     if(a==='ca-chip'){var t=q('#'+el.dataset.t);if(t){var add=parseInt(el.dataset.v,10)||0;
       var cur=parseInt(String(t.value||'').replace(/[^\d]/g,''),10)||0;var nv=add?cur+add:0;
       t.value=nv?nv.toLocaleString('vi-VN'):'';if(t.id==='ca-counted')liveDiff();}return;}
@@ -6352,19 +6717,39 @@ try { window.__skBusy = function(){
     if(a==='ca-delshift'){delShift(id);return;}
     if(a==='ca-recalc'){recalcShift(id);return;}
     if(a==='ca-audit'){goAudit();return;}
+    if(a==='ca-kho'){goKho(id||DETID);return;}
+    if(a==='ca-khof'){KHOF=el.dataset.f||'all';KHOLIM=400;render();return;}
+    if(a==='ca-khomore'){KHOLIM+=400;render();return;}
+    if(a==='ca-savedem'){luuDem();return;}
   }
 
   function doOpen(){
     if(BUSY)return;
     if(!CANSHIFT()){say('🔒 Bạn không có quyền mở ca — chủ shop sẽ mở');return;}
     if(OPEN()){say('Đang có ca mở');VIEW='main';render();return;}
-    var nm=txt('#ca-who')||ME().name, f=val('#ca-float'), nt=txt('#ca-note'), b=BR(), m=ME(), t=Date.now();
+    var m=ME(), ds=NVDS(), nvId='', nm='';
+    if(ds.length){                                   /* đã có DS nhân viên → BẮT BUỘC chọn trong danh sách */
+      nvId=txt('#ca-who');
+      if(!nvId){say('⚠️ Hãy CHỌN người trực ca trong danh sách');return;}
+      var found=null;ds.forEach(function(x){if(x.id===nvId)found=x;});
+      if(!found){say('Người trực ca không hợp lệ — chọn lại');return;}
+      if(!ISOWNER()&&m.id&&nvId!==m.id){say('🔒 Bạn chỉ được mở ca cho chính mình');return;}
+      nm=found.name;
+    }else{                                           /* chưa có DS nhân viên → giữ nguyên nếp cũ */
+      nm=txt('#ca-who')||m.name; nvId='';
+    }
+    var f=val('#ca-float'), nt=txt('#ca-note'), b=BR(), t=Date.now();
+    var _km=khoSnap(), _tm=khoTong(_km);
     BUSY=true;
     try{
-      addDoc(brCol(b,'shifts'),{staffId:m.id,staffName:nm,openBy:m.name,branch:b,branchName:BRN(),
-        openFloat:R(f),status:'open',note:nt,openAtMs:t,openAt:serverTimestamp(),createdAt:serverTimestamp()})
+      var _ref=doc(brCol(b,'shifts'));               /* tự sinh mã ca để gắn ảnh kho ngay */
+      setDoc(_ref,{staffId:nvId,staffName:nm,openBy:m.name,openById:m.id,branch:b,branchName:BRN(),
+        openFloat:R(f),status:'open',note:nt,openAtMs:t,openAt:serverTimestamp(),createdAt:serverTimestamp(),
+        khoMo:1,khoMoN:_tm.n,khoMoQty:_tm.q,khoMoVon:_tm.v})
         .catch(function(e){say('Lỗi mở ca: '+ec(e));});
-      say('✅ Đã mở ca · quỹ đầu ca '+money(f));try{markDirty();}catch(_){}
+      luuKho(b,_ref.id,'mo',_km,t);                  /* ẢNH KHO ĐẦU CA */
+      say('✅ Đã mở ca · '+nm+' · quỹ đầu '+money(f)+' · đã chụp kho '+NUM(_tm.n)+' mặt hàng');
+      try{markDirty();}catch(_){}
     }catch(e){say('Lỗi mở ca: '+ec(e));}
     BUSY=false;VIEW='main';setTimeout(render,120);
   }
@@ -6405,14 +6790,17 @@ try { window.__skBusy = function(){
         +'\n\nVẫn chốt ca?'))return;
     }
     BUSY=true;
+    var _kc=khoSnap(), _tc=khoTong(_kc);
     try{
       updateDoc(brDoc(sh.branch||BR(),'shifts',sh.id),{
         status:'closed',closeAtMs:at,closeAt:serverTimestamp(),closedBy:m.name,closedById:m.id,
         counted:R(counted),expected:R(c.expected),diff:R(diff),closeNote:note,
         sumCash:R(c.cash),sumQr:R(c.qr),sumDebt:R(c.debt),nOrders:R(c.n),sumDiscount:R(c.disc),
         sumDebtPay:R(c.pay),sumDebtPayCk:R(c.payCk),sumExpense:R(c.exp),sumPayin:R(c.pin),
-        sumPayout:R(c.pout),sumRefundCash:R(c.refundCash),offlineCalc:!WIN.ok
+        sumPayout:R(c.pout),sumRefundCash:R(c.refundCash),offlineCalc:!WIN.ok,
+        khoChot:1,khoChotN:_tc.n,khoChotQty:_tc.q,khoChotVon:_tc.v
       }).catch(function(er){say('Lỗi chốt ca: '+ec(er));});
+      luuKho(sh.branch||BR(),sh.id,'chot',_kc,at);   /* ẢNH KHO CUỐI CA */
       say(diff===0?'✅ Đã chốt ca — khớp chính xác':(diff<0?'🔴 Đã chốt ca — THIẾU '+money(-diff):'🟠 Đã chốt ca — THỪA '+money(diff)));
       try{markDirty();}catch(_){}
     }catch(er){say('Lỗi chốt ca: '+ec(er));}
@@ -6478,7 +6866,8 @@ try { window.__skBusy = function(){
       xoa_ca_chot:['Xoá ca đã chốt','o'], xoa_khoan_quy:['Xoá khoản quỹ','o'],
       sua_quy_dau:['Sửa quỹ đầu ca','k'], doi_tienmat_ck:['Đổi tiền mặt/CK','k'],
       sua_giao_dich_no:['SỬA công nợ khách','o'],
-      tao_tk_nhanvien:['Tạo tài khoản NV','k'], go_tk_nhanvien:['Gỡ tài khoản NV','o']
+      tao_tk_nhanvien:['Tạo tài khoản NV','k'], go_tk_nhanvien:['Gỡ tài khoản NV','o'],
+      kiem_kho_ca:['Kiểm kho cuối ca','k']
     };
     h+='<div class="ca-note">200 thao tác gần nhất. Nhật ký ghi thêm, không ghi đè.</div>';
     h+='<div class="ca-box" style="padding:6px 13px">';
@@ -6495,6 +6884,8 @@ try { window.__skBusy = function(){
         +(a.truocLoai!==a.sauLoai?' · đổi '+(a.truocLoai==='mua'?'Mua':'Trả')+'→'+(a.sauLoai==='mua'?'Mua':'Trả'):'')
         +(a.tuoiPhut?' · giao dịch đã ghi '+khoangTG(Number(a.tuoiPhut)*60000)+' trước':'');
       else if(a.act==='tao_tk_nhanvien'||a.act==='go_tk_nhanvien')mo=esc(a.email||a.nvUid||'—');
+      else if(a.act==='kiem_kho_ca')mo='Ca '+esc(a.staffName||'—')+' · đếm '+R(a.soDem)+' mặt hàng · thiếu '+R(a.soThieu)
+        +(R(a.giaTriThieu)?' ('+money(a.giaTriThieu)+')':'')+' · thừa '+R(a.soThua);
       h+='<div class="ca-row"><span class="ca-tag '+T[1]+'">'+T[0]+'</span>'
         +'<div class="ca-rm"><div class="ca-rn">'+(mo||'—')+'</div>'
         +'<div class="ca-rs">'+esc(a.byName||'—')+(a.role?' ('+esc(a.role)+')':'')
@@ -6515,6 +6906,7 @@ try { window.__skBusy = function(){
       ghiNhatKy(sh.branch||BR(),'huy_ca',{shiftId:sh.id,staffName:sh.staffName||'',
         openFloat:R(sh.openFloat),openAtMs:Number(sh.openAtMs)||0,soKhoanQuy:n});
       (LOGS||[]).forEach(function(l){if(l.shiftId===sh.id){try{deleteDoc(brDoc(l.branch||BR(),'cashlog',l.id)).catch(function(){});}catch(_){}}});
+      xoaKho(sh.branch||BR(),sh.id);
       deleteDoc(brDoc(sh.branch||BR(),'shifts',sh.id)).catch(function(e){say('Lỗi hủy ca: '+ec(e));});
       say('Đã hủy ca');
     }catch(e){say('Lỗi hủy ca: '+ec(e));}
@@ -6530,6 +6922,7 @@ try { window.__skBusy = function(){
         openAtMs:Number(s.openAtMs)||0,closeAtMs:Number(s.closeAtMs)||0,
         openFloat:R(s.openFloat),counted:R(s.counted),expected:R(s.expected),diff:R(s.diff),
         closedBy:s.closedBy||''});
+      xoaKho(s.branch||BR(),id);
       deleteDoc(brDoc(s.branch||BR(),'shifts',id)).catch(function(e){say('Lỗi xóa: '+ec(e));});say('Đã xóa ca');}catch(e){say('Lỗi xóa: '+ec(e));}
     VIEW='hist';setTimeout(render,150);
   }
