@@ -6045,12 +6045,20 @@ try { window.__skBusy = function(){
     return h+'</select></label>'
       +'<div class="ca-note">👤 <b>Chỉ người được chọn</b> mới bán được trong ca này. Người khác bấm thanh toán sẽ bị chặn.</div>';
   }
-  function canhBaoNguoiBan(sh){
-    if(!sh||!COKHOA()||!sh.staffId)return '';
+  /* ĐÚNG NGƯỜI TRỰC CA?  — dùng chung cho cảnh báo màn hình và khoá thanh toán */
+  function LADUNGNGUOI(sh){
+    if(!sh)return true;
+    if(!sh.staffId&&!sh.staffName)return true;          /* ca không ghi ai trực → không khoá được */
     var m=ME();
-    if(m.id&&m.id===sh.staffId)return '';
+    if(sh.staffId)return !!(m.id&&m.id===sh.staffId);
+    return KD(m.name)===KD(sh.staffName||'');            /* ca cũ chưa có mã NV → khớp theo TÊN */
+  }
+  function canhBaoNguoiBan(sh){
+    if(!sh||!COKHOA())return '';
+    if(!sh.staffId&&!sh.staffName)return '';
+    if(LADUNGNGUOI(sh))return '';
     return '<div class="ca-note ca-bad">🔒 Bạn <b>không phải</b> người trực ca này ('+esc(sh.staffName||'')+') nên <b>không bán được</b>.'
-      +(ISOWNER()?' Quyền Chủ vẫn bán được nhưng app sẽ hỏi lại, và đơn KHÔNG tính cho '+esc(sh.staffName||'')+'.'
+      +(ISOWNER()?' Kể cả quyền <b>Chủ</b> cũng KHÔNG bán được — bấm <b>👤 Đổi người</b> vào đúng tên, hoặc <b>CHỐT CA</b> rồi mở ca mới.'
                  :' Hãy báo chủ chốt ca rồi mở ca mới.')+'</div>';
   }
 
@@ -6110,13 +6118,10 @@ try { window.__skBusy = function(){
         if(CA_BUOC_MO_CA){say('🔒 Chưa mở ca — hãy mở ca trước khi bán');return false;}
         return true;
       }
-      if(!sh.staffId)return true;                       /* ca mở bằng bản cũ — không khoá */
-      var m=ME();
-      if(m.id&&m.id===sh.staffId)return true;
-      if(ISOWNER())
-        return window.confirm('⚠️ Ca này do "'+(sh.staffName||'')+'" trực.\n\n'
-          +'Bạn đang dùng quyền CHỦ. Đơn này sẽ KHÔNG tính cho '+(sh.staffName||'')+'.\n\nVẫn bán?');
-      say('🔒 Ca đang do "'+(sh.staffName||'')+'" trực — bạn không có quyền bán');
+      if(LADUNGNGUOI(sh))return true;
+      var ten=sh.staffName||'người trực ca';
+      say('🔒 Ca này do "'+ten+'" trực — CHỈ MÌNH "'+ten+'" được bán. '
+        +'Bấm 👤 Đổi người để vào đúng tên, hoặc CHỐT CA rồi mở ca mới.');
       return false;
     }catch(_){return true;}
   };
