@@ -730,7 +730,7 @@ import { getFirestore, initializeFirestore, persistentLocalCache, persistentMult
   getDocs, query, where, orderBy, onSnapshot, serverTimestamp, setDoc, getDoc, runTransaction, limit, writeBatch, increment, collectionGroup }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-const APP_BUILD = "2026-08-29-R1"; // ⬆️ ĐỔI MỖI LẦN DEPLOY (đặt TRÙNG tên cache trong sw.js) — hiện ở ⚙️ Cài đặt để biết máy đã chạy bản mới chưa
+const APP_BUILD = "2026-09-02-R1"; // ⬆️ ĐỔI MỖI LẦN DEPLOY (đặt TRÙNG tên cache trong sw.js) — hiện ở ⚙️ Cài đặt để biết máy đã chạy bản mới chưa
 const firebaseConfig = {
   apiKey: "AIzaSyA_kjQ-CdASRkf50Glz3kQajlkD5qGWC4k",
   authDomain: "so-no-cc57a.firebaseapp.com",
@@ -4153,7 +4153,12 @@ async function skEnsureBranch(){try{const s=await getDocs(collection(db,'users',
 async function skLoadStaffOnce(){try{const s=await getDocs(collection(db,'users',UID,'staff'));skStaffList=s.docs.map(d=>Object.assign({id:d.id},d.data()));}catch(e){skStaffList=[];}
   try{const ss=await getDoc(doc(db,'users',UID,'meta','shopSettings'));skRequirePin=ss.exists()?(ss.data().requirePin!==false):true;}catch(e){skRequirePin=true;}
   try{const ps=await getDoc(doc(db,'users',UID,'meta','permissions'));skPermMerge(ps.exists()?ps.data():{});}catch(e){skPermMerge({});}}
-function skAfterReady(){skLoadCn();skRenderBranchSel();skBranchSubs();if(skStaffList&&skStaffList.length&&skRequirePin!==false){skStaffGate();}else{skRole='owner';skStaff=null;skApplyRole();skGo('sell');}}
+function skAfterReady(){skLoadCn();skRenderBranchSel();skBranchSubs();if(skStaffList&&skStaffList.length&&skRequirePin!==false){skStaffGate();}else{
+  /* [AN TOÀN TIỀN] MÁY NHÂN VIÊN (đăng nhập bằng tài khoản NV riêng) TUYỆT ĐỐI không được
+     rơi vào quyền CHỦ. Trước đây shop chưa lập danh sách PIN, hoặc đã tắt hỏi PIN, thì
+     nhánh này gán thẳng skRole='owner' ⇒ nhân viên mở ca / chốt ca / hủy ca thoải mái. */
+  var _nvm=false;try{_nvm=!!LA_NV;}catch(_){}
+  skRole=_nvm?'cashier':'owner';skStaff=null;skApplyRole();skGo('sell');}}
 function skBranchSubs(){
   if(skUnsubBP){try{skUnsubBP();}catch(e){}skUnsubBP=null;}if(skUnsubBO){try{skUnsubBO();}catch(e){}skUnsubBO=null;}if(skUnsubBR){try{skUnsubBR();}catch(e){}skUnsubBR=null;}
   skProducts=[];skOrders=[];skReturns=[];
@@ -5864,9 +5869,27 @@ try { window.__skBusy = function(){
   function ME(){var s=null;try{s=skStaff;}catch(_){s=null;}
     return s?{id:s.id||'',name:s.name||'Nhân viên'}:{id:'',name:'Chủ'};}
   function CAN(){try{return skRoleCan('report');}catch(_){return true;}}
-  function ISOWNER(){try{return (skRole||'owner')==='owner';}catch(_){return true;}}
-  /* quyền MỞ CA / CHỐT CA — chủ shop bật/tắt trong 👤 Nhân viên → ⚙️ Phân quyền. Mặc định BẬT. */
-  function CANSHIFT(){try{return skRoleCan('shift');}catch(_){return true;}}
+  /* MÁY NHÂN VIÊN — nhận biết ở tầng tài khoản Firebase, không giả được bằng cách bấm chọn tên ở cổng PIN */
+  function MAYNV(){try{return !!LA_NV;}catch(_){return false;}}
+  function ISOWNER(){
+    if(MAYNV())return false;                      /* máy NV KHÔNG BAO GIỜ là Chủ */
+    try{return (skRole||'owner')==='owner';}catch(_){return true;}
+  }
+  /* quyền MỞ CA / CHỐT CA — mặc định CHỈ CHỦ. Chủ shop muốn giao thì tick trong 👤 Nhân viên → ⚙️ Phân quyền. */
+  function CANSHIFT(){
+    try{
+      if(MAYNV()&&(skRole||'owner')==='owner')return false;   /* chặn cứng lối 'owner' trên máy NV */
+      return skRoleCan('shift');
+    }catch(_){return true;}
+  }
+  /* dòng chẩn đoán: cho chủ shop nhìn thấy NGAY app đang coi máy này là ai */
+  function aiDangDung(){
+    var vt='';try{vt=skRoleLabel(skRole||'owner');}catch(_){vt=String(skRole||'');}
+    return '<div class="ca-note" style="font-size:11.5px;line-height:1.5">🪪 Máy này đang đăng nhập: <b>'
+      +(MAYNV()?'TÀI KHOẢN NHÂN VIÊN':'TÀI KHOẢN CHỦ')+'</b> · vai đang dùng: <b>'+esc(vt)+'</b>'
+      +'<br>Quyền mở / chốt ca: <b style="color:'+(CANSHIFT()?'#0a5f4a':'#c0392b')+'">'+(CANSHIFT()?'CÓ':'KHÔNG')+'</b>'
+      +' · quyền Chủ: <b style="color:'+(ISOWNER()?'#0a5f4a':'#c0392b')+'">'+(ISOWNER()?'CÓ':'KHÔNG')+'</b></div>';
+  }
   function P2(n){return String(n).padStart(2,'0');}
   function TM(ms){try{var d=new Date(Number(ms)||0);
     return P2(d.getHours())+':'+P2(d.getMinutes())+' '+P2(d.getDate())+'/'+P2(d.getMonth()+1);}catch(_){return '—';}}
@@ -6278,6 +6301,7 @@ try { window.__skBusy = function(){
           +khoDong()
           +'<button class="sk-btn green wide" data-act="ca-do-open">▶️ Mở ca</button>')
         :'<div class="ca-note">🔒 Bạn không có quyền mở ca. <b>Chủ shop</b> sẽ mở ca khi giao tiền thối. Hãy báo chủ mở ca <b>trước khi bán đơn đầu tiên</b>.</div>')
+      +aiDangDung()
       +(CAN()?'<button class="sk-btn wide" data-act="ca-hist" style="margin-top:8px">🕘 Lịch sử chốt ca</button>':'');
   }
 
@@ -6318,7 +6342,8 @@ try { window.__skBusy = function(){
      +(CAN()?'<button class="sk-btn wide" data-act="ca-kho" data-id="'+sh.id+'" style="margin-bottom:8px">📦 Đối chiếu kho — soát hàng bán khống</button>':'')
      +'<button class="sk-btn wide" data-act="ca-logs" style="margin-bottom:8px">📜 Chi tiết các khoản thu / chi trong ca</button>'
      +(CANSHIFT()?'<button class="sk-btn green wide" data-act="ca-close">🔒 CHỐT CA</button>'
-       :'<div class="ca-note">🔒 Bạn không có quyền chốt ca. Cuối buổi <b>giao tiền mặt cho chủ</b>, chủ sẽ đếm và bấm chốt ca.</div>');
+       :'<div class="ca-note">🔒 Bạn không có quyền chốt ca. Cuối buổi <b>giao tiền mặt cho chủ</b>, chủ sẽ đếm và bấm chốt ca.</div>')
+     +(CANSHIFT()?'':aiDangDung());
     if(CAN())h+=(ISOWNER()
        ?'<div class="ca-acts" style="margin-top:9px">'
          +'<button class="sk-btn" data-act="ca-editfloat">✏️ Sửa quỹ đầu</button>'
