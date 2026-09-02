@@ -4598,15 +4598,19 @@ const SK_CAPS=[
   ['transfer','Chuyển kho giữa chi nhánh'],
   ['branch','Quản lý chi nhánh (thêm/sửa/xóa)'],
   ['staff','Quản lý nhân viên & phân quyền'],
-  ['shift','Mở ca / Chốt ca (Quỹ ca) — bỏ tick để CHỦ tự mở & chốt']
+  ['shift','Mở ca / Chốt ca (Quỹ ca) — ⚠️ NÊN ĐỂ TRỐNG: chỉ CHỦ mở & chốt']
 ];
 const SK_CAP_LABEL=SK_CAPS.reduce(function(o,x){o[x[0]]=x[1];return o;},{});
 const SK_PERM_DEFAULT={
-  manager:{invview:true,invedit:true,purchase:true,report:true,discount:true,refund:true,transfer:true,branch:false,staff:false,shift:true},
-  cashier:{invview:false,invedit:false,purchase:false,report:false,discount:false,refund:false,transfer:false,branch:false,staff:false,shift:true}
+  manager:{invview:true,invedit:true,purchase:true,report:true,discount:true,refund:true,transfer:true,branch:false,staff:false,shift:false},
+  cashier:{invview:false,invedit:false,purchase:false,report:false,discount:false,refund:false,transfer:false,branch:false,staff:false,shift:false}
 };
 let SK_PERM={manager:Object.assign({},SK_PERM_DEFAULT.manager),cashier:Object.assign({},SK_PERM_DEFAULT.cashier)};
-function skPermMerge(v){v=v||{};['manager','cashier'].forEach(function(r){SK_PERM[r]=Object.assign({},SK_PERM_DEFAULT[r],v[r]||{});});}
+function skPermMerge(v){v=v||{};['manager','cashier'].forEach(function(r){SK_PERM[r]=Object.assign({},SK_PERM_DEFAULT[r],v[r]||{});});
+  /* [AN TOÀN TIỀN] MỞ CA / CHỐT CA mặc định CHỈ CHỦ SHOP.
+     Bản cũ lỡ BẬT sẵn cho nhân viên và đã lưu lên Firestore (cấu hình chưa có v:2)
+     ⇒ ép TẮT lại. Chủ shop muốn giao quyền thì tự vào ⚙️ Phân quyền tick rồi bấm Lưu. */
+  if(Number(v.v)!==2){SK_PERM.manager.shift=false;SK_PERM.cashier.shift=false;}}
 function skRoleCan(cap){var r=skRole||'owner';if(r==='owner')return true;var m=SK_PERM[r];return !!(m&&m[cap]===true);}
 const SK_ACT_CAP={
   'prod-new':'invedit','prod-edit':'invedit','prod-save':'invedit','prod-del':'invedit',
@@ -4632,7 +4636,7 @@ document.addEventListener('click',function(e){
   try{toast('🔒 '+(skStaff?skStaff.name:'Bạn')+' không có quyền: '+(SK_CAP_LABEL[cap]||cap));}catch(_){}
 },true);
 function skOpenPerm(){var b=skq('#sk-perm-body');if(!b)return;b.innerHTML=SK_CAPS.map(function(x){var k=x[0];return '<label class="sk-perm-row"><span class="sk-perm-l">'+x[1]+'</span><span><input type="checkbox" class="sk-perm-ck" data-role="manager" data-cap="'+k+'"'+(SK_PERM.manager[k]?' checked':'')+'></span><span><input type="checkbox" class="sk-perm-ck" data-role="cashier" data-cap="'+k+'"'+(SK_PERM.cashier[k]?' checked':'')+'></span></label>';}).join('');skModalOpen('#sk-perm');}
-async function skSavePerm(){var out={manager:{},cashier:{}};skqa('#sk-perm .sk-perm-ck').forEach(function(c){out[c.dataset.role][c.dataset.cap]=c.checked;});skPermMerge(out);skApplyRole();skCloseModal('#sk-perm');toast('✅ Đã lưu phân quyền');try{await setDoc(doc(db,'users',UID,'meta','permissions'),out,{merge:true});}catch(e){skErr(e,'Lưu phân quyền');}}
+async function skSavePerm(){var out={manager:{},cashier:{},v:2};skqa('#sk-perm .sk-perm-ck').forEach(function(c){out[c.dataset.role][c.dataset.cap]=c.checked;});skPermMerge(out);skApplyRole();skCloseModal('#sk-perm');toast('✅ Đã lưu phân quyền');try{await setDoc(doc(db,'users',UID,'meta','permissions'),out,{merge:true});}catch(e){skErr(e,'Lưu phân quyền');}}
 
 /* ===== v4: BÁO LỖI QUYỀN RÕ RÀNG + KIỂM TRA KẾT NỐI ===== */
 function skErr(e,ctx){
@@ -6315,11 +6319,13 @@ try { window.__skBusy = function(){
      +'<button class="sk-btn wide" data-act="ca-logs" style="margin-bottom:8px">📜 Chi tiết các khoản thu / chi trong ca</button>'
      +(CANSHIFT()?'<button class="sk-btn green wide" data-act="ca-close">🔒 CHỐT CA</button>'
        :'<div class="ca-note">🔒 Bạn không có quyền chốt ca. Cuối buổi <b>giao tiền mặt cho chủ</b>, chủ sẽ đếm và bấm chốt ca.</div>');
-    if(CAN())h+='<div class="ca-acts" style="margin-top:9px">'
-       +'<button class="sk-btn" data-act="ca-editfloat">✏️ Sửa quỹ đầu</button>'
-       +'<button class="sk-btn" data-act="ca-hist">🕘 Lịch sử</button>'
-       +'<button class="sk-btn red" data-act="ca-cancel">🗑 Hủy ca</button>'
-     +'</div>';
+    if(CAN())h+=(ISOWNER()
+       ?'<div class="ca-acts" style="margin-top:9px">'
+         +'<button class="sk-btn" data-act="ca-editfloat">✏️ Sửa quỹ đầu</button>'
+         +'<button class="sk-btn" data-act="ca-hist">🕘 Lịch sử</button>'
+         +'<button class="sk-btn red" data-act="ca-cancel">🗑 Hủy ca</button>'
+        +'</div>'
+       :'<button class="sk-btn wide" data-act="ca-hist" style="margin-top:9px">🕘 Lịch sử</button>');
     h+='<div class="ca-note" style="margin-top:12px">🔄 Số liệu lấy trực tiếp từ đơn hàng của chi nhánh này. Lúc bấm <b>Chốt ca</b> app sẽ tải lại đầy đủ để tính chính xác tuyệt đối.</div>';
     return h;
   }
@@ -6830,7 +6836,7 @@ try { window.__skBusy = function(){
   }
 
   function editFloat(){
-    if(!CAN()){say('🔒 Không có quyền');return;}
+    if(!ISOWNER()){say('🔒 Chỉ CHỦ shop mới sửa được quỹ đầu ca');return;}
     var sh=OPEN();if(!sh)return;
     var v=window.prompt('Sửa QUỸ ĐẦU CA (₫) — nhập số:',String(R(sh.openFloat)));
     if(v==null)return;
@@ -6897,7 +6903,7 @@ try { window.__skBusy = function(){
   }
 
   function cancelShift(){
-    if(!CAN()){say('🔒 Không có quyền');return;}
+    if(!ISOWNER()){say('🔒 Chỉ CHỦ shop mới hủy được ca');return;}
     var sh=OPEN();if(!sh)return;
     var n=(LOGS||[]).filter(function(l){return l.shiftId===sh.id;}).length;
     if(!window.confirm('HỦY ca đang mở?\n\n• Ca sẽ bị xóa, KHÔNG lưu vào lịch sử.'
