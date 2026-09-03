@@ -2143,6 +2143,10 @@ function loadCustomers(){
   unsub=onSnapshot(query(collection(db,'users',UID,'customers'),orderBy('name')),snap=>{
     _custErrN=0;
     customers=snap.docs.map(d=>({id:d.id,...d.data()}));
+    /* MÁY CHỦ xác nhận (không phải đọc từ bộ đệm) -> đồng bộ NGAY vào kho cứu hộ offline,
+       KỂ CẢ khi danh sách đã RỖNG. Trước đây kho cứu hộ không bao giờ ghi đè bằng rỗng nên
+       xoá khách xong nó lại tự dựng khách cũ trở lại màn hình -> xoá hoài không mất. */
+    try{ if(!snap.metadata.fromCache && window.__SNOFF && window.__SNOFF.datKhach) window.__SNOFF.datKhach(customers); }catch(e){}
     const oweMe=customers.reduce((s,c)=>s+Math.max(0,(c.debt||0)),0);   // tổng KHÁCH NỢ MÌNH
     const iOwe=customers.reduce((s,c)=>s+Math.max(0,-(c.debt||0)),0);   // tổng MÌNH NỢ KHÁCH
     const _setTxt=(id,v)=>{const el=document.getElementById(id);if(el)el.textContent=v;};
@@ -7380,6 +7384,7 @@ function plain(v){
 }
 
 var M={}, SIG={}, _xin={}, _daBao=false;
+var _svCus=false;   /* MÁY CHỦ đã xác nhận danh sách khách trong phiên này -> KHÔNG dựng lại bản cũ nữa */
 var OFF={ mem:M, san:false, unsafeFor:null };
 window.__SNOFF=OFF;
 
@@ -7407,6 +7412,27 @@ function luu(k,v){
     kvPut(kk,pv).catch(function(){});
   }catch(e){}
 }
+/* MÁY CHỦ xác nhận danh sách khách -> ghi Y NGUYÊN vào bản cứu hộ, KỂ CẢ MẢNG RỖNG.
+   (luu() cố tình không ghi rỗng để khỏi mất dữ liệu lúc mất mạng; riêng danh sách khách,
+    khi máy chủ đã xác nhận thì rỗng là rỗng THẬT -> buộc phải ghi, nếu không ve() sẽ
+    dựng khách đã xoá trở lại và khách "xoá hoài không mất".) */
+OFF.datKhach=function(arr){
+  try{
+    if(!Array.isArray(arr)) return;
+    _svCus=true;                       /* từ đây trong phiên: cấm dựng lại bản cũ */
+    var kk=K('customers'); if(!kk) return;
+    _xin[kk]=1;                        /* chặn nap() đọc bản cũ trên đĩa ghi đè lại */
+    /* Chỉ ghi lại khi TẬP KHÁCH đổi (thêm/bớt/đổi tên). Đổi số nợ đã có gom() lo mỗi 12 giây
+       -> khỏi phải JSON.stringify cả danh sách ở MỌI lần bắn snapshot (shop đông khách sẽ nặng). */
+    var cu=M[kk], y=Array.isArray(cu)&&cu.length===arr.length;
+    if(y){ for(var i=0;i<arr.length;i++){ if(!cu[i]||cu[i].id!==arr[i].id){ y=false; break; } } }
+    if(y) return;
+    var pv=plain(arr), s=JSON.stringify(pv);
+    if(SIG[kk]===s) return;
+    SIG[kk]=s; M[kk]=pv;
+    kvPut(kk,pv).catch(function(){});
+  }catch(e){}
+};
 function nap(k){                                        /* nạp 1 khoá từ đĩa (1 lần) */
   var kk=K(k); if(!kk) return;
   if(_xin[kk]) return; _xin[kk]=1;
@@ -7431,7 +7457,7 @@ function soatTaiKhoan(){
   if(u===_uidTruoc) return;
   _uidTruoc=u;
   xoaSach(M); xoaSach(SIG); xoaSach(_xin);
-  _daBao=false; OFF.unsafeFor=null; OFF.san=false;
+  _daBao=false; OFF.unsafeFor=null; OFF.san=false; _svCus=false;
   if(u && _uidCuoi && u!==_uidCuoi) donDep();   /* đổi SANG TÀI KHOẢN KHÁC: xoá sạch dữ liệu cũ trên màn hình */
   if(u) _uidCuoi=u;
   if(!u) return;
@@ -7489,7 +7515,7 @@ function ve(){
 
     var _cus=lay('customers'), _sp=lay(bk), _ncc=lay('ncc'), _cn=lay('cn'), _shop=lay('shop');
 
-    if(typeof customers!=='undefined' && customers.length===0 && Array.isArray(_cus) && _cus.length){
+    if(typeof customers!=='undefined' && !_svCus && customers.length===0 && Array.isArray(_cus) && _cus.length){
       customers=_cus.slice();
       dem(); try{ window.renderList(); }catch(e){}
       baoMot('📴 Đang dùng BẢN LƯU TRONG MÁY — dữ liệu sẽ tự cập nhật khi có mạng.');
