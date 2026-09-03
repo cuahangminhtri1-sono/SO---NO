@@ -733,7 +733,7 @@ import { getFirestore, initializeFirestore, persistentLocalCache, persistentMult
 import { getStorage, ref as _sref, uploadBytes, getDownloadURL, deleteObject, listAll }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
 
-const APP_BUILD = "2026-09-03-R4"; // ⬆️ ĐỔI MỖI LẦN DEPLOY (đặt TRÙNG tên cache trong sw.js) — hiện ở ⚙️ Cài đặt để biết máy đã chạy bản mới chưa
+const APP_BUILD = "2026-09-03-R5"; // ⬆️ ĐỔI MỖI LẦN DEPLOY (đặt TRÙNG tên cache trong sw.js) — hiện ở ⚙️ Cài đặt để biết máy đã chạy bản mới chưa
 const firebaseConfig = {
   apiKey: "AIzaSyA_kjQ-CdASRkf50Glz3kQajlkD5qGWC4k",
   authDomain: "so-no-cc57a.firebaseapp.com",
@@ -3162,48 +3162,44 @@ window.deleteCustomer=async()=>{
   }
   if(!confirm('Công nợ đã về 0 ✅\nXoá hẳn khách "'+(c.name||'')+'" khỏi sổ?'))return;
   const _cid=currentCustomerId, _uid=UID, _tok=(c&&c.shareToken)||null;
-  /* ══ BẢN CHẨN ĐOÁN: ghi lại từng bước, hiện 1 bảng duy nhất để biết kẹt ở đâu ══ */
-  let _B='B1. Bắt đầu\n     mã khách = '+String(_cid||'(TRỐNG!)')+'\n     mã shop  = '+String(_uid||'(TRỐNG!)').slice(0,10)+'...\n';
+  toast('🧹 Đang xoá khách & dọn sạch dữ liệu liên quan...');
+  /* Firestore KHÔNG tự xoá subcollection, Storage KHÔNG tự xoá file ⇒ phải quét tay.
+     KHÔNG dùng await cho từng lệnh xoá: deleteDoc chỉ báo xong khi MÁY CHỦ xác nhận —
+     mất mạng là đứng chờ mãi, dòng xoá doc khách bên dưới không bao giờ chạy tới.
+     Gom vào writeBatch (chia nhóm 400 thao tác) rồi chạy nền: offline thì bộ nhớ đệm
+     xoá ngay tại máy và tự đồng bộ khi có mạng lại. */
+  let _txDocs=[];
   try{
-    let _txDocs=[];
     const _tx=await getDocs(collection(db,'users',_uid,'customers',_cid,'transactions'));
     _txDocs=_tx.docs||[];
-    _B+='B2. Đọc giao dịch XONG\n     có '+_txDocs.length+' giao dịch\n     lấy từ bộ nhớ đệm: '+((_tx.metadata&&_tx.metadata.fromCache)?'CÓ (chưa nối máy chủ)':'không (đã nối máy chủ)')+'\n';
-    for(let i=0;i<_txDocs.length;i+=400){
-      const _b=writeBatch(db);
-      _txDocs.slice(i,i+400).forEach(function(d){ _b.delete(d.ref); });
-      _b.commit().catch(function(e){ toast('⚠️ Lỗi xoá giao dịch: '+((e&&(e.code||e.message))||e)); });
-    }
-    _B+='B3. Đã gửi lệnh xoá giao dịch\n';
-    const batch=writeBatch(db);
-    batch.delete(doc(db,'users',_uid,'customers',_cid));
-    _B+='B4. Đã tạo lệnh xoá doc khách\n';
-    batch.commit().then(async()=>{
-      /* ĐỌC NGƯỢC TỪ MÁY CHỦ: Firestore xoá doc KHÔNG tồn tại cũng báo thành công,
-         nên phải đọc lại mới biết thật sự còn gì trong kho. */
-      let _kq='';
-      try{
-        const _chk=await getDocs(collection(db,'users',_uid,'customers'));
-        let _t='';
-        _chk.docs.forEach(function(d){ _t+='• '+d.id+'\n   tên: '+(((d.data()||{}).name)||'(không tên)')+'\n'; });
-        const _con=_chk.docs.some(function(d){return d.id===_cid;});
-        _kq='Kho khách trên máy chủ còn '+_chk.size+' khách:\n'+(_t||'(trống)')
-           +'\nMã vừa xoá: '+_cid
-           +'\n➜ '+(_con?'VẪN CÒN ❗ (xoá không ăn)':'ĐÃ MẤT ✅ (xoá thành công)')
-           +'\nĐọc từ bộ nhớ đệm: '+((_chk.metadata&&_chk.metadata.fromCache)?'CÓ':'không');
-      }catch(e){ _kq='Không đọc lại được: '+((e&&(e.code||e.message))||e); }
-      alert('🔎 KIỂM TRA LẠI TỪ MÁY CHỦ\n\n'+_kq);
-      try{await stgWipe('u/'+_uid+'/att/'+_cid);}catch(e){}
-      try{if(_tok)await purgeShare(_tok,_uid);}catch(e){}
-    }).catch(err=>{
-      alert('⚠️ MÁY CHỦ TỪ CHỐI XOÁ KHÁCH\n\nMã lỗi: '+((err&&err.code)||'(không có mã)')+'\n'+((err&&err.message)||err)+'\n\nChụp màn hình này gửi lại.');
-    });
-    _B+='B5. Đã gửi lệnh xoá khách — đang chờ máy chủ trả lời';
-    alert('🔍 CHẨN ĐOÁN XOÁ KHÁCH\n\n'+_B);
   }catch(e){
-    alert('🔍 CHẨN ĐOÁN XOÁ KHÁCH\n\n'+_B+'\n❌ DỪNG LẠI Ở ĐÂY\nMã lỗi: '+((e&&e.code)||'(không có mã)')+'\n'+((e&&e.message)||e)+'\n\nChụp màn hình này gửi lại.');
+    alert('⚠️ Không đọc được giao dịch của khách nên DỪNG LẠI, chưa xoá gì cả.\n\nMã lỗi: '+((e&&e.code)||'')+'\n'+((e&&e.message)||e));
     return;
   }
+  for(let i=0;i<_txDocs.length;i+=400){
+    const _b=writeBatch(db);
+    _txDocs.slice(i,i+400).forEach(function(d){ _b.delete(d.ref); });
+    _b.commit().catch(function(e){ toast('⚠️ Lỗi xoá giao dịch: '+((e&&(e.code||e.message))||e)); });
+  }
+  const batch=writeBatch(db);
+  batch.delete(doc(db,'users',_uid,'customers',_cid));
+  batch.commit().then(async()=>{
+    /* Gỡ khỏi danh sách ngay tại máy — không chờ bộ lắng nghe, tránh trường hợp
+       dữ liệu đã sạch trên máy chủ mà màn hình vẫn còn hiện tên khách. */
+    try{
+      customers=customers.filter(function(x){return x.id!==_cid;});
+      const _o=customers.reduce(function(t,x){return t+Math.max(0,(x.debt||0));},0);
+      const _i=customers.reduce(function(t,x){return t+Math.max(0,-(x.debt||0));},0);
+      const _st=function(id,v){var el=document.getElementById(id);if(el)el.textContent=v;};
+      _st('s-total',customers.length);_st('s-debt',fmt(_o));_st('s-owe',fmt(_i));
+      renderList();
+    }catch(e){}
+    try{await stgWipe('u/'+_uid+'/att/'+_cid);}catch(e){}      /* xoá toàn bộ file ảnh của khách */
+    try{if(_tok)await purgeShare(_tok,_uid);}catch(e){}        /* xoá chuky + file chữ ký + doc shares */
+    toast('✅ Đã xoá sạch khách, giao dịch, ảnh & link chia sẻ');
+  }).catch(err=>{
+    alert('⚠️ MÁY CHỦ TỪ CHỐI XOÁ KHÁCH\n\nMã lỗi: '+((err&&err.code)||'')+'\n'+((err&&err.message)||err));
+  });
   markDirty();
   closeModal('modal-detail');
 };
