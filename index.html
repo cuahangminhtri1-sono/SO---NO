@@ -451,6 +451,7 @@
       <button class="btn-import" id="import-btn" onclick="closeModal('modal-tools');openImport()">📤 Nhập / Phục hồi dữ liệu</button>
       <button class="btn-backup" id="full-backup-btn" onclick="backupFullJSON()" style="background:#0a5f4a">🛟 Sao lưu CỨU HỘ (Sổ Nợ + Bán hàng)</button>
       <button class="btn-import" id="full-restore-btn" onclick="closeModal('modal-tools');openFullPanel()" style="border-color:#0a5f4a;color:#0a5f4a">♻️ Phục hồi CỨU HỘ (toàn bộ)</button>
+      <button class="btn-import" id="clean-stg-btn" onclick="closeModal('modal-tools');donKhoAnh()" style="border-color:#8a6d3b;color:#8a6d3b">🧹 Dọn kho ảnh (xoá file mồ côi)</button>
       <div style="display:flex;gap:8px">
         <button class="btn-remind" onclick="closeModal('modal-tools');openRemSettings()">🔔 Nhắc nợ tự động</button>
         <button class="btn-renew" onclick="closeModal('modal-tools');openRenew()">💳 Gia hạn tài khoản</button>
@@ -729,8 +730,10 @@ import { getAuth, initializeAuth, indexedDBLocalPersistence, browserLocalPersist
 import { getFirestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager, CACHE_SIZE_UNLIMITED, collection, doc, addDoc, updateDoc, deleteDoc,
   getDocs, query, where, orderBy, onSnapshot, serverTimestamp, setDoc, getDoc, runTransaction, limit, writeBatch, increment, collectionGroup }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getStorage, ref as _sref, uploadBytes, getDownloadURL, deleteObject, listAll }
+  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
 
-const APP_BUILD = "2026-09-02-R1"; // ⬆️ ĐỔI MỖI LẦN DEPLOY (đặt TRÙNG tên cache trong sw.js) — hiện ở ⚙️ Cài đặt để biết máy đã chạy bản mới chưa
+const APP_BUILD = "2026-09-03-R1"; // ⬆️ ĐỔI MỖI LẦN DEPLOY (đặt TRÙNG tên cache trong sw.js) — hiện ở ⚙️ Cài đặt để biết máy đã chạy bản mới chưa
 const firebaseConfig = {
   apiKey: "AIzaSyA_kjQ-CdASRkf50Glz3kQajlkD5qGWC4k",
   authDomain: "so-no-cc57a.firebaseapp.com",
@@ -751,6 +754,112 @@ const db = (function(){
   }
   return getFirestore(fbApp);
 })();
+
+/* ═══════════════ KHO ẢNH (Firebase Storage) — KIẾN TRÚC MỞ RỘNG ═══════════════
+   Nguyên tắc: Firestore CHỈ giữ dữ liệu nghiệp vụ + ĐƯỜNG DẪN ảnh.
+   File ảnh (bằng chứng, chữ ký) nằm ở Storage.
+     • 1 document giao dịch ~300 byte thay vì ~600KB  → đọc nhanh, rẻ, không đụng trần 1MB
+     • Không bao giờ phình document, mở rộng thoải mái trên 1 triệu shop
+   Cây thư mục (bám theo UID nên xoá sạch theo shop / theo khách rất dễ):
+     u/{uid}/att/{customerId}/{rand}.jpg   ảnh–tệp đính kèm giao dịch
+     u/{uid}/sign/{token}/{rand}.png       chữ ký khách (sổ nợ + hoá đơn)               */
+const stg = getStorage(fbApp);
+function _rid(n){
+  n=n||18; var B='abcdefghijklmnopqrstuvwxyz0123456789', out='';
+  try{
+    var c=(typeof window!=='undefined')&&(window.crypto||window.msCrypto), vong=0;
+    if(!c||!c.getRandomValues)throw 0;
+    while(out.length<n&&vong<20){
+      var buf=new Uint8Array(n*2); c.getRandomValues(buf); vong++;
+      for(var i=0;i<buf.length&&out.length<n;i++){ if(buf[i]<252) out+=B.charAt(buf[i]%36); }
+    }
+  }catch(e){}
+  while(out.length<n) out+=B.charAt(Math.floor(Math.random()*36));
+  return out;
+}
+/* Tải 1 Blob lên Storage → trả {p:đường dẫn, u:link xem, s:số byte} */
+async function stgPut(path,blob,type,meta){
+  const r=_sref(stg,path);
+  await uploadBytes(r,blob,{contentType:type||blob.type||'application/octet-stream',cacheControl:'public,max-age=31536000',customMetadata:meta||{}});
+  return {p:path,u:await getDownloadURL(r),s:blob.size};
+}
+/* Xoá 1 file theo ĐƯỜNG DẪN hoặc theo LINK https — nuốt lỗi (file đã mất thì thôi) */
+async function stgDel(pathOrUrl){
+  if(!pathOrUrl) return;
+  const s=String(pathOrUrl);
+  if(s.slice(0,5)==='data:') return;               // dữ liệu cũ nhúng base64: không có file để xoá
+  try{ await deleteObject(_sref(stg,s)); }catch(e){}
+}
+/* Xoá SẠCH cả thư mục (kể cả thư mục con) — chống dữ liệu mồ côi khi xoá khách/đơn */
+async function stgWipe(prefix){
+  if(!prefix) return;
+  try{
+    const res=await listAll(_sref(stg,prefix));
+    for(const it of (res.items||[])){ try{ await deleteObject(it); }catch(e){} }
+    for(const pf of (res.prefixes||[])){ try{ await stgWipe(pf.fullPath); }catch(e){} }
+  }catch(e){}
+}
+/* Lấy đường dẫn/link ảnh của 1 tệp đính kèm — hỗ trợ CẢ dữ liệu cũ (att.d base64) */
+function attSrc(a){ return (a&&(a.u||a.d))||''; }
+function attHas(a){ return !!(a&&(a.u||a.d)); }
+
+/* ── DỌN SẠCH LINK CHIA SẺ: subcollection chuky + file chữ ký + doc shares ──
+   Firestore KHÔNG tự xoá subcollection khi xoá document cha ⇒ phải quét tay,
+   nếu không chữ ký sẽ nằm lại vĩnh viễn (mồ côi) và tính tiền lưu trữ mãi mãi. */
+async function purgeShare(token,uidOwner){
+  if(!token) return;
+  try{
+    const qs=await getDocs(collection(db,'shares',token,'chuky'));
+    for(const d of qs.docs){
+      try{ await stgDel(((d.data()||{}).img)||''); }catch(e){}
+      try{ await deleteDoc(d.ref); }catch(e){}
+    }
+  }catch(e){}
+  try{ await stgWipe('u/'+(uidOwner||UID)+'/sign/'+token); }catch(e){}
+  try{ await deleteDoc(doc(db,'shares',token)); }catch(e){}
+}
+
+/* ── 🧹 DỌN KHO ẢNH — quét & xoá mọi file / link chia sẻ không còn ai dùng.
+   Lưới an toàn cuối cùng: lỡ có lần xoá nào rớt mạng giữa chừng thì chạy công cụ
+   này là kho sạch trở lại, dung lượng không bao giờ phình theo thời gian. */
+window.donKhoAnh=async function(){
+  if(!UID){alert('Chưa đăng nhập.');return;}
+  if(navigator.onLine===false){alert('Cần có mạng để dọn kho ảnh.');return;}
+  if(!confirm('🧹 DỌN KHO ẢNH\n\nQuét toàn bộ kho ảnh và xoá những file / link chia sẻ KHÔNG còn giao dịch nào dùng tới.\nDữ liệu đang dùng KHÔNG bị ảnh hưởng.\n\nTiếp tục?'))return;
+  const t0=Date.now(); let xFile=0,xThuMuc=0,xLink=0;
+  try{
+    try{toast('🧹 Đang đọc sổ...');}catch(_){}
+    const okCust=new Set(),okPath=new Set(),okTok=new Set();
+    const cs=await getDocs(collection(db,'users',UID,'customers'));
+    for(const cd of cs.docs){
+      okCust.add(cd.id);
+      const cv=cd.data()||{}; if(cv.shareToken)okTok.add(String(cv.shareToken));
+      const ts=await getDocs(collection(db,'users',UID,'customers',cd.id,'transactions'));
+      ts.docs.forEach(td=>{const a=(td.data()||{}).att; if(a&&a.p)okPath.add(String(a.p));});
+    }
+    let brs=['main'];
+    try{const b=await getDocs(collection(db,'users',UID,'branches'));const ids=b.docs.map(d=>d.id);if(ids.length)brs=ids;}catch(e){}
+    for(const bId of brs){try{const os=await getDocs(_posPath(bId,'orders'));os.docs.forEach(d=>{const h=(d.data()||{}).hdToken;if(h)okTok.add(String(h));});}catch(e){}}
+    try{toast('🧹 Đang quét kho ảnh...');}catch(_){}
+    try{
+      const root=await listAll(_sref(stg,'u/'+UID+'/att'));
+      for(const pf of (root.prefixes||[])){
+        if(!okCust.has(pf.name)){await stgWipe(pf.fullPath);xThuMuc++;continue;}
+        const inn=await listAll(pf);
+        for(const it of (inn.items||[])){ if(!okPath.has(it.fullPath)){try{await deleteObject(it);xFile++;}catch(e){}} }
+      }
+    }catch(e){}
+    try{
+      const rs=await listAll(_sref(stg,'u/'+UID+'/sign'));
+      for(const pf of (rs.prefixes||[])){ if(!okTok.has(pf.name)){await stgWipe(pf.fullPath);xThuMuc++;} }
+    }catch(e){}
+    try{
+      const sh=await getDocs(query(collection(db,'shares'),where('ownerUid','==',UID)));
+      for(const d of sh.docs){ if(!okTok.has(d.id)){await purgeShare(d.id,UID);xLink++;} }
+    }catch(e){}
+    alert('✅ Dọn xong sau '+Math.round((Date.now()-t0)/1000)+'s\n\n• Xoá '+xFile+' file lẻ\n• Xoá '+xThuMuc+' thư mục không còn chủ\n• Xoá '+xLink+' link chia sẻ cũ\n\nKho ảnh đã sạch — không còn dữ liệu mồ côi.');
+  }catch(e){ alert('⚠️ Dọn kho ảnh chưa xong: '+((e&&(e.code||e.message))||e)); }
+};
 
 // ===== CẤU HÌNH DÙNG THỬ & NHẬN TIỀN GIA HẠN =====
 const TRIAL_DAYS = 15;          // số ngày dùng thử miễn phí cho khách mới
@@ -1093,7 +1202,8 @@ if(viewToken){
           <div><div class="tx-type ${t.type}">${t.type==='mua'?'🛒 Mua hàng':'💰 Trả tiền'}</div>${t.note?`<div class="tx-note">${escHtml(t.note)}</div>`:''}${t.memo?`<div class="tx-note">📝 ${escHtml(t.memo)}</div>`:''}</div>
           <div style="text-align:right"><div style="font-weight:700;color:${t.type==='mua'?'#c0392b':'#1a6b3c'}">${t.type==='mua'?'+':'-'}${fmt(t.amount)}</div><div class="tx-date">${t.date}</div></div>
         </div>`).join(''):'<div class="empty">Chưa có giao dịch</div>';
-      const proofHtml=(d.proof&&d.proof.d)?`<div class="pub-card pub-proof"><div style="font-weight:700;margin-bottom:10px">📄 Ảnh hoá đơn / bằng chứng</div><img src="${d.proof.d}" alt="bằng chứng"></div>`:'';
+      const _pSrc=(d.proof&&(d.proof.u||d.proof.d))||'';   /* u = link Storage (mới) · d = base64 (dữ liệu cũ) */
+      const proofHtml=_pSrc?`<div class="pub-card pub-proof"><div style="font-weight:700;margin-bottom:10px">📄 Ảnh hoá đơn / bằng chứng</div><img src="${_pSrc}" alt="bằng chứng" loading="lazy"></div>`:'';
       document.getElementById('public-content').innerHTML=`
         <div class="pub-card" style="text-align:center">
           <div style="font-size:1.3em;font-weight:700;margin-bottom:6px">👤 ${escHtml(d.name)}</div>
@@ -1117,7 +1227,7 @@ if(viewToken){
 // Chữ ký lưu ở subcollection shares/{token}/chuky — TÁCH KHỎI doc nợ chính,
 // nên khi chủ shop cập nhật nợ (syncShare dùng setDoc ghi đè) chữ ký KHÔNG bị mất.
 // Ghi qua 1 app Firebase phụ tên 'pub' + đăng nhập ẩn danh để KHÔNG đụng phiên đăng nhập của chủ shop.
-let _pubDb=null,_pubAuthP=null;
+let _pubDb=null,_pubStg=null,_pubAuthP=null;
 async function ensurePub(){
   if(_pubAuthP) return _pubAuthP;
   _pubAuthP=(async()=>{
@@ -1126,11 +1236,22 @@ async function ensurePub(){
     catch(e){ throw new Error('Không khởi tạo được phiên ký'); }
     const pubAuth=getAuth(pubApp);
     _pubDb=getFirestore(pubApp);
+    try{ _pubStg=getStorage(pubApp); }catch(e){ _pubStg=null; }
     if(!pubAuth.currentUser){ await signInAnonymously(pubAuth); }
     return _pubDb;
   })();
   return _pubAuthP;
 }
+/* Đưa chữ ký (PNG) lên Storage bằng phiên ẩn danh, trả LINK để lưu vào field img.
+   Giữ NGUYÊN bộ field của chuky ⇒ không phải sửa Firestore Rules của chuky. */
+async function pubPutSign(token,ownerUid,blob){
+  if(!_pubStg) throw new Error('Chưa sẵn sàng kho ảnh');
+  const path='u/'+(ownerUid||'x')+'/sign/'+token+'/'+_rid(16)+'.png';
+  const r=_sref(_pubStg,path);
+  await uploadBytes(r,blob,{contentType:'image/png',cacheControl:'public,max-age=31536000',customMetadata:{shopUid:String(ownerUid||''),token:String(token||'')}});
+  return await getDownloadURL(r);
+}
+function _canvasBlob(cv,type,q){ return new Promise((res,rej)=>{ try{ cv.toBlob(b=>b?res(b):rej(new Error('Không tạo được ảnh')),type||'image/png',q); }catch(e){ rej(e); } }); }
 
 // biến vẽ
 let _sctx=null,_scanvas=null,_sdrawing=false,_shasInk=false,_slast=null;
@@ -1220,12 +1341,14 @@ async function submitSignature(token,d){
   if(btn){btn.disabled=true;btn.textContent='⏳ Đang lưu...';}
   if(msg)msg.textContent='';
   try{
-    const img=_scanvas.toDataURL('image/png');
-    if(img.length>900*1024) throw new Error('Chữ ký quá lớn, hãy ký gọn lại');
     const now=new Date();
     const hienThi=now.getHours()+':'+String(now.getMinutes()).padStart(2,'0')+' ngày '+now.toLocaleDateString('vi-VN');
-    const rec={ten:name,img,noTaiThoiDiemKy:d.debt||0,soGiaoDich:(d.transactions||[]).length,ua:((navigator.userAgent||'').slice(0,300)),hienThi,taoLuc:serverTimestamp()};
     const pdb=await ensurePub();
+    /* Ảnh chữ ký đi thẳng vào Storage — Firestore CHỈ giữ link (field img giữ nguyên tên) */
+    const blob=await _canvasBlob(_scanvas,'image/png');
+    if(blob.size>300*1024) throw new Error('Chữ ký quá lớn, hãy ký gọn lại');
+    const img=await pubPutSign(token,d.ownerUid||'',blob);
+    const rec={ten:name,img,noTaiThoiDiemKy:d.debt||0,soGiaoDich:(d.transactions||[]).length,ua:((navigator.userAgent||'').slice(0,300)),hienThi,taoLuc:serverTimestamp()};
     await addDoc(collection(pdb,'shares',token,'chuky'),rec);
     // Cập nhật giao diện: thêm ngay chữ ký vừa ký + đổi form thành lời cảm ơn
     const lab=document.getElementById('sign-list-lab'); if(lab) lab.style.display='';
@@ -1374,13 +1497,15 @@ async function submitHdSignature(token,d){
   if(btn){btn.disabled=true;btn.textContent='⏳ Đang lưu...';}
   if(msg)msg.textContent='';
   try{
-    const img=_scanvas.toDataURL('image/png');
-    if(img.length>900*1024) throw new Error('Chữ ký quá lớn, hãy ký gọn lại');
     const now=new Date();
     const hienThi=now.getHours()+':'+String(now.getMinutes()).padStart(2,'0')+' ngày '+now.toLocaleDateString('vi-VN');
+    const pdb=await ensurePub();
+    /* Ảnh chữ ký đi thẳng vào Storage — Firestore CHỈ giữ link (field img giữ nguyên tên) */
+    const blob=await _canvasBlob(_scanvas,'image/png');
+    if(blob.size>300*1024) throw new Error('Chữ ký quá lớn, hãy ký gọn lại');
+    const img=await pubPutSign(token,d.ownerUid||'',blob);
     // Giữ ĐÚNG bộ field như chữ ký sổ nợ để tương thích tuyệt đối với rule của chuky (không thêm field lạ)
     const rec={ten:name,img,noTaiThoiDiemKy:Number(d.total)||0,soGiaoDich:(d.items||[]).length,ua:((navigator.userAgent||'').slice(0,300)),hienThi,taoLuc:serverTimestamp()};
-    const pdb=await ensurePub();
     await addDoc(collection(pdb,'shares',token,'chuky'),rec);
     const lab=document.getElementById('sign-list-lab'); if(lab) lab.style.display='';
     const list=document.getElementById('sign-list'); if(list) list.insertAdjacentHTML('afterbegin',_hdSignItemHtml(rec));
@@ -1429,7 +1554,7 @@ async function layShopUid(authUid){
     return {uid:authUid, nv:false};
   }
 }
-const ATT_CAP=600*1024; // giới hạn ~600KB/tệp (an toàn dưới mức 1MB của Firestore)
+const ATT_CAP=900*1024; // giới hạn ~900KB/tệp — đo BYTE THẬT của file trong kho ảnh (Firestore chỉ giữ đường dẫn nên không còn dính trần 1MB)
 
 // ── AUTH ──
 window.doLogin=async()=>{
@@ -2112,7 +2237,7 @@ async function buildFullBackup(){
   for(const cd of csnap.docs){
     const c=cd.data();
     const tsnap=await getDocs(query(collection(db,'users',UID,'customers',cd.id,'transactions'),orderBy('date','asc')));
-    const txs=tsnap.docs.map(td=>{const t=td.data();const dt=(t.date&&t.date.toDate)?t.date.toDate():new Date(t.date);const o={type:t.type,amount:Number(t.amount)||0,note:t.note||'',memo:t.memo||'',date:isNaN(dt)?new Date().toISOString():dt.toISOString()};if(t.att&&t.att.d)o.att=t.att;return o;});
+    const txs=tsnap.docs.map(td=>{const t=td.data();const dt=(t.date&&t.date.toDate)?t.date.toDate():new Date(t.date);const o={type:t.type,amount:Number(t.amount)||0,note:t.note||'',memo:t.memo||'',date:isNaN(dt)?new Date().toISOString():dt.toISOString()};if(attHas(t.att))o.att=t.att;return o;});
     out.customers.push({id:cd.id,name:c.name||'',phone:c.phone||'',address:c.address||'',debt:Number(c.debt)||0,shareToken:c.shareToken||null,transactions:txs});
   }
   return out;
@@ -2199,7 +2324,7 @@ function parseBackupFile(name,content){
     return {settings:obj.settings||null,customers:obj.customers.map(c=>({
       name:String(c.name||'').trim(),phone:String(c.phone||'').trim(),address:String(c.address||'').trim(),
       debt:parseVnd(c.debt),shareToken:c.shareToken||null,
-      transactions:(c.transactions||[]).map(t=>{const o={type:normType(t.type),amount:parseVnd(t.amount),note:String(t.note||'').trim(),memo:String(t.memo||'').trim(),date:parseViDate(t.date)};if(t.att&&t.att.d)o.att={n:String(t.att.n||'tep').slice(0,80),t:String(t.att.t||''),d:String(t.att.d)};return o;})
+      transactions:(c.transactions||[]).map(t=>{const o={type:normType(t.type),amount:parseVnd(t.amount),note:String(t.note||'').trim(),memo:String(t.memo||'').trim(),date:parseViDate(t.date)};if(attHas(t.att))o.att=t.att;return o;})
     })).filter(c=>c.name)};
   }
   const XLSX=window.XLSX;
@@ -2275,7 +2400,8 @@ window.runImport=async()=>{
       for(const cd of oldc.docs){
         const tx=await getDocs(collection(db,'users',UID,'customers',cd.id,'transactions'));
         for(const td of tx.docs)await deleteDoc(doc(db,'users',UID,'customers',cd.id,'transactions',td.id));
-        const cc=cd.data();if(cc.shareToken){try{await deleteDoc(doc(db,'shares',cc.shareToken));}catch(e){}}
+        try{await stgWipe('u/'+UID+'/att/'+cd.id);}catch(e){}
+        const cc=cd.data();if(cc.shareToken){try{await purgeShare(cc.shareToken,UID);}catch(e){}}
         await deleteDoc(doc(db,'users',UID,'customers',cd.id));
       }
       impLog('   Đã xoá xong.');
@@ -2300,7 +2426,7 @@ window.runImport=async()=>{
         const k=`${ymd(t.date)}|${t.type}|${t.amount}|${(t.note||'').trim()}`;
         if(exKeys.has(k)){skipT++;continue;}
         const td2={type:t.type,amount:t.amount,note:t.note,memo:t.memo||'',date:t.date,createdAt:serverTimestamp()};
-        if(t.att&&t.att.d)td2.att=t.att;
+        if(attHas(t.att))td2.att=t.att;
         await addDoc(collection(db,'users',UID,'customers',custId,'transactions'),td2);
         exKeys.add(k);addedT++;
       }
@@ -2621,7 +2747,7 @@ async function loadTx(custId){
     const sub=[];
     if(t.note)sub.push(`<div class="tx-note">${escHtml(t.note)}</div>`);
     if(t.memo)sub.push(`<div class="tx-note">📝 ${escHtml(t.memo)}</div>`);
-    if(t.att&&t.att.d){
+    if(attHas(t.att)){
       const isImg=(t.att.t||'').startsWith('image/');
       sub.push(`<button type="button" class="tx-att" onclick="event.stopPropagation();viewAtt(${i})">📎 ${isImg?'Xem ảnh':'Xem tệp'}</button>`);
       if(isImg){
@@ -2643,13 +2769,17 @@ window.delTx=async(txId)=>{
   const c=customers.find(x=>x.id===currentCustomerId);
   const custRef=doc(db,'users',UID,'customers',currentCustomerId);
   const batch=writeBatch(db);
+  /* Xoá giao dịch thì file ảnh của nó cũng phải biến mất khỏi kho ảnh */
+  const _dp=((_curTxs||[]).find(t=>t.id===txId)||{});
+  const _delP=(_dp.att&&_dp.att.p)||null;
   batch.delete(doc(db,'users',UID,'customers',currentCustomerId,'transactions',txId));
   // nếu giao dịch vừa xoá đang là ảnh bằng chứng cho khách → gỡ
   if(c&&c.proofTxId===txId){batch.update(custRef,{proofTxId:null});c.proofTxId=null;}
   _curTxs=(_curTxs||[]).filter(t=>t.id!==txId);
   const newDebt=calcDebtLocal(_curTxs);
   batch.update(custRef,{debt:newDebt});
-  batch.commit().catch(err=>{toast('⚠️ Lỗi xoá giao dịch: '+(err&&err.message?err.message:err));});
+  batch.commit().then(()=>{if(_delP)stgDel(_delP).catch(()=>{});})
+    .catch(err=>{toast('⚠️ Lỗi xoá giao dịch: '+(err&&err.message?err.message:err));});
   applyDebtLocal(currentCustomerId,newDebt);
   if(c&&c.shareToken){syncShare(c.shareToken,c.id,c.name,c.phone,newDebt).catch(()=>{});}
   loadTx(currentCustomerId);
@@ -2671,52 +2801,72 @@ function loadImage(src){return new Promise((res,rej)=>{const im=new Image();im.o
 async function compressImageFile(file,cap){
   const url=await readFileAsDataURL(file);
   const img=await loadImage(url);
-  let dim=1280,q=0.7,out=url;
+  let dim=1600,q=0.78,out=null;
   for(let i=0;i<7;i++){
     const scale=Math.min(1,dim/Math.max(img.width,img.height));
     const w=Math.max(1,Math.round(img.width*scale)),h=Math.max(1,Math.round(img.height*scale));
     const cv=document.createElement('canvas');cv.width=w;cv.height=h;
-    cv.getContext('2d').drawImage(img,0,0,w,h);
-    out=cv.toDataURL('image/jpeg',q);
-    if(out.length<=cap)return out;
-    if(q>0.42)q-=0.15;else{dim=Math.round(dim*0.8);q=0.6;}
+    const cx=cv.getContext('2d');cx.fillStyle='#ffffff';cx.fillRect(0,0,w,h);cx.drawImage(img,0,0,w,h);
+    out=await _canvasBlob(cv,'image/jpeg',q);
+    if(out&&out.size<=cap)return out;
+    if(q>0.42)q-=0.14;else{dim=Math.round(dim*0.8);q=0.62;}
   }
   return out;
 }
 function safeName(n){return String(n||'tep').replace(/["'<>\\/\n\r]/g,'').slice(0,80);}
+/* Nén → TẢI LÊN STORAGE ngay → trả về đường dẫn.
+   Firestore chỉ nhận {n,t,p,u,s}: tên, kiểu, đường dẫn, link xem, số byte. */
 async function prepareAttachment(file,cap){
+  if(navigator.onLine===false) throw new Error('Đính kèm ảnh cần có mạng (ảnh lưu ở kho ảnh riêng, không nhét vào sổ). Ghi nợ/bán hàng offline vẫn bình thường — có mạng rồi đính kèm lại nhé.');
+  if(!UID||!currentCustomerId) throw new Error('Chưa mở đúng khách hàng, hãy đóng rồi mở lại.');
+  let blob,type,name;
   if(file.type&&file.type.startsWith('image/')){
-    const d=await compressImageFile(file,cap);
-    if(d.length>cap)throw new Error('Ảnh quá lớn, không nén đủ nhỏ. Hãy chụp/chọn ảnh nhỏ hơn.');
-    return {n:safeName((file.name||'anh').replace(/\.[^.]+$/,''))+'.jpg',t:'image/jpeg',d};
+    blob=await compressImageFile(file,cap);
+    if(!blob||blob.size>cap)throw new Error('Ảnh quá lớn, không nén đủ nhỏ. Hãy chụp/chọn ảnh nhỏ hơn.');
+    type='image/jpeg';name=safeName((file.name||'anh').replace(/\.[^.]+$/,''))+'.jpg';
+  }else{
+    if(file.size>cap)throw new Error('Tệp quá lớn (tối đa ~'+Math.round(cap/1024)+'KB). Hãy chụp ảnh thay vì gửi tệp lớn.');
+    blob=file;type=file.type||'application/octet-stream';name=safeName(file.name);
   }
-  const d=await readFileAsDataURL(file);
-  if(d.length>cap)throw new Error('Tệp quá lớn (tối đa ~'+Math.round(cap/1024)+'KB). Hãy chụp ảnh thay vì gửi tệp lớn.');
-  return {n:safeName(file.name),t:file.type||'application/octet-stream',d};
+  const ext=(type==='image/jpeg')?'jpg':((type==='application/pdf')?'pdf':'bin');
+  const path='u/'+UID+'/att/'+currentCustomerId+'/'+_rid(18)+'.'+ext;
+  const up=await stgPut(path,blob,type,{shopUid:String(UID||''),cust:String(currentCustomerId||'')});
+  return {n:name,t:type,p:up.p,u:up.u,s:up.s};
 }
+/* _attUp = file ĐÃ tải lên kho ảnh nhưng CHƯA lưu vào sổ. Người dùng huỷ/đổi ảnh
+   là phải xoá ngay, không để file mồ côi nằm lại tính tiền lưu trữ.
+   _attOld = ảnh cũ của giao dịch đang sửa, dùng để dọn khi thay/gỡ ảnh. */
+let _attUp=null,_attOld=null;
+async function _dropPendingUpload(){const p=_attUp;_attUp=null;if(p)await stgDel(p);}
 window.onTxFileChange=async(input)=>{
   const f=input.files&&input.files[0];const info=document.getElementById('tx-file-info');
   if(!f){return;}
-  info.textContent='⏳ Đang xử lý tệp...';
-  try{pendingAtt=await prepareAttachment(f,ATT_CAP);showTxFileInfo(pendingAtt);}
-  catch(err){pendingAtt=null;input.value='';info.textContent='';alert('⚠️ '+(err&&err.message?err.message:err));}
+  info.textContent='⏳ Đang tải tệp lên kho ảnh...';
+  try{
+    const a=await prepareAttachment(f,ATT_CAP);
+    await _dropPendingUpload();                 /* đổi ảnh: bỏ file vừa tải lần trước */
+    pendingAtt=a;_attUp=a.p||null;showTxFileInfo(pendingAtt);
+  }
+  catch(err){input.value='';showTxFileInfo(pendingAtt);alert('⚠️ '+(err&&err.message?err.message:err));}
 };
 function showTxFileInfo(att){
   const el=document.getElementById('tx-file-info');el.textContent='';
   if(!att)return;
-  const span=document.createElement('span');span.textContent='📎 '+att.n+' ('+Math.round(att.d.length/1024)+'KB)';
+  const kb=Math.round((((att.s!=null)?att.s:((att.d||'').length))||0)/1024);
+  const span=document.createElement('span');span.textContent='📎 '+att.n+(kb?(' ('+kb+'KB)'):'');
   const rm=document.createElement('button');rm.type='button';rm.className='tx-file-rm';rm.textContent='✕ Bỏ tệp';rm.onclick=()=>window.clearTxFile();
   el.appendChild(span);el.appendChild(rm);
 }
-window.clearTxFile=()=>{pendingAtt=null;const i=document.getElementById('tx-file');if(i)i.value='';document.getElementById('tx-file-info').textContent='';};
-window.viewAtt=(i)=>{const t=_curTxs[i];if(t&&t.att&&t.att.d)showAtt(t.att);};
+window.clearTxFile=()=>{pendingAtt=null;_dropPendingUpload().catch(()=>{});const i=document.getElementById('tx-file');if(i)i.value='';document.getElementById('tx-file-info').textContent='';};
+window.viewAtt=(i)=>{const t=_curTxs[i];if(t&&attHas(t.att))showAtt(t.att);};
 function showAtt(att){
   document.getElementById('att-name').textContent=att.n||'Tệp đính kèm';
   const body=document.getElementById('att-body');body.textContent='';
-  if((att.t||'').startsWith('image/')){const im=document.createElement('img');im.src=att.d;im.alt='';body.appendChild(im);}
+  const src=attSrc(att);
+  if((att.t||'').startsWith('image/')){const im=document.createElement('img');im.src=src;im.alt='';body.appendChild(im);}
   else{
-    if((att.t||'')==='application/pdf'){const fr=document.createElement('iframe');fr.src=att.d;fr.style.cssText='width:100%;height:66vh;border:0;background:#fff;border-radius:8px';body.appendChild(fr);}
-    const a=document.createElement('a');a.href=att.d;a.download=att.n||'tep';a.className='att-dl';a.textContent='⬇ Tải xuống'+(att.n?(': '+att.n):'');body.appendChild(a);
+    if((att.t||'')==='application/pdf'){const fr=document.createElement('iframe');fr.src=src;fr.style.cssText='width:100%;height:66vh;border:0;background:#fff;border-radius:8px';body.appendChild(fr);}
+    const a=document.createElement('a');a.href=src;a.download=att.n||'tep';a.className='att-dl';a.textContent='⬇ Tải xuống'+(att.n?(': '+att.n):'');body.appendChild(a);
   }
   document.getElementById('att-overlay').classList.add('active');
 }
@@ -2725,7 +2875,7 @@ window.closeAtt=()=>document.getElementById('att-overlay').classList.remove('act
 // ── Ảnh bằng chứng cho khách (chỉ 1 ảnh/khách) ──
 window.setProof=async(txId)=>{
   const t=_curTxs.find(x=>x.id===txId);
-  if(!t||!t.att||!t.att.d||!(t.att.t||'').startsWith('image/')){alert('Chỉ có thể chọn ẢNH để cho khách xem làm bằng chứng.');return;}
+  if(!t||!attHas(t.att)||!(t.att.t||'').startsWith('image/')){alert('Chỉ có thể chọn ẢNH để cho khách xem làm bằng chứng.');return;}
   updateDoc(doc(db,'users',UID,'customers',currentCustomerId),{proofTxId:txId}).catch(()=>{});
   const c=customers.find(x=>x.id===currentCustomerId);if(c)c.proofTxId=txId;
   if(c&&c.shareToken)syncShare(c.shareToken,c.id,c.name,c.phone,c.debt||0).catch(()=>{});
@@ -2754,7 +2904,7 @@ window.openTx=type=>{
   document.getElementById('tx-amount').value='';
   document.getElementById('tx-note').value='';
   document.getElementById('tx-memo').value='';
-  clearTxFile();
+  clearTxFile();_attOld=null;
   document.getElementById('tx-date').value=_localYMD(new Date());
   document.getElementById('modal-tx').classList.add('active');
 };
@@ -2768,7 +2918,9 @@ window.openEditTx=(txId)=>{
   document.getElementById('tx-memo').value=t.memo||'';
   const dt=(t.date&&t.date.toDate)?t.date.toDate():new Date(t.date);
   document.getElementById('tx-date').value=isNaN(dt)?'':_localYMD(dt);
-  pendingAtt=(t.att&&t.att.d)?t.att:null;
+  _dropPendingUpload().catch(()=>{});
+  pendingAtt=attHas(t.att)?t.att:null;
+  _attOld=(pendingAtt&&pendingAtt.p)?pendingAtt.p:null;   /* ảnh cũ trong kho — dọn nếu bị thay/gỡ */
   showTxFileInfo(pendingAtt);
   document.getElementById('modal-tx').classList.add('active');
 };
@@ -2844,7 +2996,7 @@ window.saveTx=async()=>{
   const c=customers.find(x=>x.id===currentCustomerId);
   const custRef=doc(db,'users',UID,'customers',currentCustomerId);
   const batch=writeBatch(db);
-  let attWarn=false;
+  let attWarn=false,_savedAttP=null;
   if(editingTxId){
     /* ── SỬA GIAO DỊCH NỢ: cửa sổ 15 phút + nhật ký ────────────────────────────
        Sửa nhầm số tiền vừa ghi là chuyện thường ⇒ trong 15 phút đầu cho sửa im lặng.
@@ -2869,6 +3021,7 @@ window.saveTx=async()=>{
     }
     const upd={type:currentTxType,amount,note,memo,date,att:(pendingAtt||null)};
     if(upd.att){try{if(JSON.stringify(upd).length>900*1024){upd.att=null;attWarn=true;}}catch(e){upd.att=null;attWarn=true;}}
+    _savedAttP=(upd.att&&upd.att.p)||null;
     batch.update(doc(db,'users',UID,'customers',currentCustomerId,'transactions',editingTxId),upd);
     if(_quaHan&&(_doiTien||_doiLoai)){
       try{ghiNhatKy(skBranch,'sua_giao_dich_no',{
@@ -2889,16 +3042,21 @@ window.saveTx=async()=>{
     try{if(typeof skStaff!=='undefined'&&skStaff){txData.staffId=skStaff.id||'';txData.staffName=skStaff.name||'';}}catch(_){} /* [QUỸ CA] ghi rõ AI THU tiền */
     if(pendingAtt)txData.att=pendingAtt;
     if(txData.att){try{if(JSON.stringify(txData).length>900*1024){delete txData.att;attWarn=true;}}catch(e){delete txData.att;attWarn=true;}}
+    _savedAttP=(txData.att&&txData.att.p)||null;
     const nref=doc(collection(db,'users',UID,'customers',currentCustomerId,'transactions'));
     batch.set(nref,txData);
     _curTxs=[{id:nref.id,type:currentTxType,amount,note,memo,date,createdAtMs:nowMs}].concat(_curTxs||[]);
   }
   const newDebt=calcDebtLocal(_curTxs);
   batch.update(custRef,{debt:newDebt});
-  batch.commit().catch(err=>{toast('⚠️ Lỗi lưu giao dịch: '+(err&&err.message?err.message:err));});
+  const _oldP=(_attOld&&_attOld!==_savedAttP)?_attOld:null;   /* ảnh cũ bị thay/gỡ */
+  batch.commit().then(()=>{if(_oldP)stgDel(_oldP).catch(()=>{});})
+    .catch(err=>{toast('⚠️ Lỗi lưu giao dịch: '+(err&&err.message?err.message:err));});
   applyDebtLocal(currentCustomerId,newDebt);
   if(c&&c.shareToken){syncShare(c.shareToken,c.id,c.name,c.phone,newDebt).catch(()=>{});}
   if(attWarn)alert('⚠️ Đã lưu giao dịch nhưng KHÔNG kèm được tệp (tệp lỗi/quá lớn). Bạn có thể đính kèm lại bằng ảnh nhỏ hơn.');
+  /* Đã ghi vào sổ ⇒ file không còn "treo" */
+  _attUp=null;_attOld=null;
   pendingAtt=null;editingTxId=null;
   closeModal('modal-tx');
   loadTx(currentCustomerId);
@@ -2914,7 +3072,11 @@ async function syncShare(token,custId,name,phone,debt){
     try{
       const cdoc=await getDoc(doc(db,'users',UID,'customers',custId));
       const proofTxId=cdoc.exists()?cdoc.data().proofTxId:null;
-      if(proofTxId){const pd=snap.docs.find(d=>d.id===proofTxId);const att=pd&&pd.data().att;if(att&&att.d&&(att.t||'').startsWith('image/'))proof={t:att.t,d:att.d};}
+      if(proofTxId){const pd=snap.docs.find(d=>d.id===proofTxId);const att=pd&&pd.data().att;
+        if(att&&(att.t||'').startsWith('image/')){
+          if(att.u)proof={t:att.t,u:att.u};            /* MỚI: chỉ 1 dòng link (~200 byte) */
+          else if(att.d)proof={t:att.t,d:att.d};       /* CŨ: dữ liệu base64 đã có sẵn */
+        }}
     }catch(e){}
     const now=new Date();
     const updatedAt=`${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')} ngày ${now.toLocaleDateString('vi-VN')}`;
@@ -2999,20 +3161,28 @@ window.deleteCustomer=async()=>{
     return;
   }
   if(!confirm('Công nợ đã về 0 ✅\nXoá hẳn khách "'+(c.name||'')+'" khỏi sổ?'))return;
-  const _cid=currentCustomerId;
-  /* Xoá luôn toàn bộ giao dịch con để không còn dữ liệu mồ côi (Firestore không tự xoá subcollection khi xoá khách) */
-  try{const _tx=await getDocs(collection(db,'users',UID,'customers',_cid,'transactions'));for(const _td of _tx.docs)await deleteDoc(doc(db,'users',UID,'customers',_cid,'transactions',_td.id));}catch(e){}
+  const _cid=currentCustomerId, _uid=UID, _tok=(c&&c.shareToken)||null;
+  toast('🧹 Đang xoá khách & dọn sạch dữ liệu liên quan...');
+  /* Firestore KHÔNG tự xoá subcollection, Storage KHÔNG tự xoá file ⇒ phải quét tay:
+     giao dịch → file ảnh đính kèm → link chia sẻ + chữ ký (doc & file) → cuối cùng là doc khách. */
+  try{
+    const _tx=await getDocs(collection(db,'users',_uid,'customers',_cid,'transactions'));
+    for(const _td of _tx.docs)await deleteDoc(doc(db,'users',_uid,'customers',_cid,'transactions',_td.id));
+  }catch(e){}
   const batch=writeBatch(db);
-  if(c?.shareToken){batch.delete(doc(db,'shares',c.shareToken));}
-  batch.delete(doc(db,'users',UID,'customers',_cid));
-  batch.commit().catch(err=>{toast('⚠️ Lỗi xoá khách: '+(err&&err.message?err.message:err));});
+  batch.delete(doc(db,'users',_uid,'customers',_cid));
+  batch.commit().then(async()=>{
+    try{await stgWipe('u/'+_uid+'/att/'+_cid);}catch(e){}      /* xoá toàn bộ file ảnh của khách */
+    try{if(_tok)await purgeShare(_tok,_uid);}catch(e){}        /* xoá chuky + file chữ ký + doc shares */
+    toast('✅ Đã xoá sạch khách, giao dịch, ảnh & link chia sẻ');
+  }).catch(err=>{toast('⚠️ Lỗi xoá khách: '+(err&&err.message?err.message:err));});
   markDirty();
   closeModal('modal-detail');
 };
-window.closeModal=id=>document.getElementById(id).classList.remove('active');
+window.closeModal=id=>{if(id==='modal-tx'){_dropPendingUpload().catch(()=>{});}document.getElementById(id).classList.remove('active');};
 window.openTools=()=>document.getElementById('modal-tools').classList.add('active');
 document.querySelectorAll('.modal-overlay').forEach(el=>{
-  el.addEventListener('click',e=>{if(e.target===el)el.classList.remove('active');});
+  el.addEventListener('click',e=>{if(e.target!==el)return;if(el.id==='modal-tx'){_dropPendingUpload().catch(()=>{});}el.classList.remove('active');});
 });
 
 /* ===== POS+KHO v4 ===== */
@@ -3314,8 +3484,8 @@ async function skDeleteOrder(){
   ghiNhatKy(skBranch,'xoa_don',{orderId:id,soDon:so,total:Math.round(Number(o.total)||0),method:o.method||'',
     customerId:o.customerId||'',customerName:o.customerName||'',soMatHang:(o.items||[]).length,
     soPhieuTra:rets.length,banLuc:Number(o.createdAtMs)||0});
-  batch.commit().catch(e=>skErr(e,'Xóa đơn'));
-  if(o.hdToken){try{deleteDoc(doc(db,'shares',o.hdToken)).catch(()=>{});}catch(e){}}
+  batch.commit().then(function(){ if(o.hdToken)purgeShare(o.hdToken,UID).catch(function(){}); })
+    .catch(e=>skErr(e,'Xóa đơn'));   /* xoá cả chuky + file chữ ký, không để mồ côi */
   if(o.method==='debt'&&o.customerId&&navigator.onLine&&cust&&cust.shareToken){(async()=>{try{const nd=await recomputeDebtOnline(o.customerId);await updateDoc(doc(db,'users',UID,'customers',o.customerId),{debt:nd});await syncShare(cust.shareToken,cust.id,cust.name,cust.phone,nd);}catch(e){}})();}
   skCloseModal('#sk-od');toast('🗑 Đã xóa đơn '+so+' · hàng đã trả về kho');markDirty();skOdId=null;
 }
@@ -4873,7 +5043,7 @@ async function buildFullBackupV2(){
   const csnap=await getDocs(query(collection(db,'users',UID,'customers'),orderBy('name')));
   for(const cd of csnap.docs){const c=cd.data();
     const tsnap=await getDocs(query(collection(db,'users',UID,'customers',cd.id,'transactions'),orderBy('date','asc')));
-    const txs=tsnap.docs.map(td=>{const t=td.data();const dt=(t.date&&t.date.toDate)?t.date.toDate():new Date(t.date);const o={type:t.type,amount:Number(t.amount)||0,note:t.note||'',memo:t.memo||'',date:isNaN(dt)?new Date().toISOString():dt.toISOString()};if(t.att&&t.att.d)o.att=t.att;return o;});
+    const txs=tsnap.docs.map(td=>{const t=td.data();const dt=(t.date&&t.date.toDate)?t.date.toDate():new Date(t.date);const o={type:t.type,amount:Number(t.amount)||0,note:t.note||'',memo:t.memo||'',date:isNaN(dt)?new Date().toISOString():dt.toISOString()};if(attHas(t.att))o.att=t.att;return o;});
     out.customers.push({id:cd.id,name:c.name||'',phone:c.phone||'',address:c.address||'',debt:Number(c.debt)||0,shareToken:c.shareToken||null,transactions:txs});
   }
   // Bán hàng: chi nhánh
@@ -4969,6 +5139,8 @@ window.fullFileChosen=async(input)=>{
 window.onFullModeChange=()=>{const mode=document.querySelector('input[name="full-mode"]:checked').value;document.getElementById('full-danger').style.display=(mode==='replace')?'block':'none';};
 function fullLog(m){const el=document.getElementById('full-log');if(!el)return;el.style.display='block';el.textContent+=m+'\n';el.scrollTop=el.scrollHeight;}
 async function _wipeCol(ref){const s=await getDocs(ref);for(const d of s.docs)await deleteDoc(d.ref);}
+/* Đơn hàng có link hoá đơn + chữ ký nhận hàng ⇒ xoá đơn phải dọn kèm, không để mồ côi */
+async function _wipeOrders(ref){const s=await getDocs(ref);for(const d of s.docs){const t=((d.data()||{}).hdToken)||'';if(t){try{await purgeShare(t,UID);}catch(e){}}try{await deleteDoc(d.ref);}catch(e){}}}
 
 window.runFullRestore=async()=>{
   if(!_fullParsed)return;
@@ -4985,11 +5157,14 @@ window.runFullRestore=async()=>{
   try{
     /* ---------- PHẦN 1: SỔ NỢ (dùng lại logic Nhập/Phục hồi) ---------- */
     fullLog('▶ Phục hồi SỔ NỢ...');
-    const custs=_fullParsed.customers.map(c=>({name:String(c.name||'').trim(),phone:String(c.phone||'').trim(),address:String(c.address||'').trim(),debt:parseVnd(c.debt),shareToken:c.shareToken||null,transactions:(c.transactions||[]).map(t=>{const o={type:normType(t.type),amount:parseVnd(t.amount),note:String(t.note||'').trim(),memo:String(t.memo||'').trim(),date:parseViDate(t.date)};if(t.att&&t.att.d)o.att=t.att;return o;})})).filter(c=>c.name);
+    const custs=_fullParsed.customers.map(c=>({name:String(c.name||'').trim(),phone:String(c.phone||'').trim(),address:String(c.address||'').trim(),debt:parseVnd(c.debt),shareToken:c.shareToken||null,transactions:(c.transactions||[]).map(t=>{const o={type:normType(t.type),amount:parseVnd(t.amount),note:String(t.note||'').trim(),memo:String(t.memo||'').trim(),date:parseViDate(t.date)};if(attHas(t.att))o.att=t.att;return o;})})).filter(c=>c.name);
     if(mode==='replace'){
       fullLog('  🗑 Xoá khách & giao dịch cũ...');
       const oldc=await getDocs(collection(db,'users',UID,'customers'));
-      for(const cd of oldc.docs){const tx=await getDocs(collection(db,'users',UID,'customers',cd.id,'transactions'));for(const td of tx.docs)await deleteDoc(doc(db,'users',UID,'customers',cd.id,'transactions',td.id));await deleteDoc(doc(db,'users',UID,'customers',cd.id));}
+      for(const cd of oldc.docs){const tx=await getDocs(collection(db,'users',UID,'customers',cd.id,'transactions'));for(const td of tx.docs)await deleteDoc(doc(db,'users',UID,'customers',cd.id,'transactions',td.id));
+        try{await stgWipe('u/'+UID+'/att/'+cd.id);}catch(e){}
+        const _cc=cd.data();if(_cc.shareToken){try{await purgeShare(_cc.shareToken,UID);}catch(e){}}
+        await deleteDoc(doc(db,'users',UID,'customers',cd.id));}
     }
     const existing=new Map();
     if(mode!=='replace'){const cur=await getDocs(collection(db,'users',UID,'customers'));cur.docs.forEach(cd=>{const c=cd.data();existing.set(String(c.name||'').toLowerCase(),{id:cd.id});});}
@@ -4998,7 +5173,7 @@ window.runFullRestore=async()=>{
       const key=inc.name.toLowerCase();let custId;const exKeys=new Set();
       if(existing.has(key)){custId=existing.get(key).id;updatedC++;const ex=await getDocs(collection(db,'users',UID,'customers',custId,'transactions'));ex.docs.forEach(td=>{const t=td.data();exKeys.add(`${ymd(t.date)}|${t.type}|${Number(t.amount)||0}|${(t.note||'').trim()}`);});}
       else{const ref=await addDoc(collection(db,'users',UID,'customers'),{name:inc.name,phone:inc.phone,address:inc.address,debt:inc.debt,createdAt:serverTimestamp()});custId=ref.id;addedC++;existing.set(key,{id:custId});}
-      for(const t of inc.transactions){const k=`${ymd(t.date)}|${t.type}|${t.amount}|${(t.note||'').trim()}`;if(exKeys.has(k)){skipT++;continue;}const td2={type:t.type,amount:t.amount,note:t.note,memo:t.memo||'',date:t.date,createdAt:serverTimestamp()};if(t.att&&t.att.d)td2.att=t.att;await addDoc(collection(db,'users',UID,'customers',custId,'transactions'),td2);exKeys.add(k);addedT++;}
+      for(const t of inc.transactions){const k=`${ymd(t.date)}|${t.type}|${t.amount}|${(t.note||'').trim()}`;if(exKeys.has(k)){skipT++;continue;}const td2={type:t.type,amount:t.amount,note:t.note,memo:t.memo||'',date:t.date,createdAt:serverTimestamp()};if(attHas(t.att))td2.att=t.att;await addDoc(collection(db,'users',UID,'customers',custId,'transactions'),td2);exKeys.add(k);addedT++;}
       const cd2={name:inc.name,phone:inc.phone,address:inc.address,debt:inc.debt};if(inc.shareToken)cd2.shareToken=inc.shareToken;await setDoc(doc(db,'users',UID,'customers',custId),cd2,{merge:true});
     }
     fullLog(`  ✓ Khách mới ${addedC} · cập nhật ${updatedC} · GD thêm ${addedT} · bỏ trùng ${skipT}`);
@@ -5011,7 +5186,7 @@ window.runFullRestore=async()=>{
       let brs=[];try{const b=await getDocs(collection(db,'users',UID,'branches'));brs=b.docs.map(d=>d.id);}catch(e){}
       if(!brs.includes('main'))brs.push('main');
       const cols=['products','orders','stock_moves','purchases','returns'];
-      for(const bId of brs){for(const n of cols){try{await _wipeCol(_posPath(bId,n));}catch(e){}}}
+      for(const bId of brs){for(const n of cols){try{if(n==='orders')await _wipeOrders(_posPath(bId,n));else await _wipeCol(_posPath(bId,n));}catch(e){}}}
       for(const gn of ['suppliers','supplier_payments','staff']){try{await _wipeCol(collection(db,'users',UID,gn));}catch(e){}}
     }
     // chi nhánh
@@ -8094,7 +8269,8 @@ window.addEventListener('online',  function(){ setTimeout(function(){ soatTaiKho
 body.la-nv .snbh-menu [data-snbh="account"],
 body.la-nv .snbh-menu [data-snbh="pass"],
 body.la-nv .snbh-menu [data-snbh="invite"],
-body.la-nv .snbh-menu [data-snbh="admin"]{display:none!important}
+body.la-nv .snbh-menu [data-snbh="admin"],
+body.la-nv #clean-stg-btn{display:none!important}
 body.la-nv #pos-screen [data-act="staff-mgmt"],
 body.la-nv #pos-screen [data-act="perm-open"],
 body.la-nv #pos-screen [data-act="nvacc-open"],
