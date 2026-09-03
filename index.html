@@ -733,7 +733,7 @@ import { getFirestore, initializeFirestore, persistentLocalCache, persistentMult
 import { getStorage, ref as _sref, uploadBytes, getDownloadURL, deleteObject, listAll }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
 
-const APP_BUILD = "2026-09-03-R3"; // ⬆️ ĐỔI MỖI LẦN DEPLOY (đặt TRÙNG tên cache trong sw.js) — hiện ở ⚙️ Cài đặt để biết máy đã chạy bản mới chưa
+const APP_BUILD = "2026-09-03-R4"; // ⬆️ ĐỔI MỖI LẦN DEPLOY (đặt TRÙNG tên cache trong sw.js) — hiện ở ⚙️ Cài đặt để biết máy đã chạy bản mới chưa
 const firebaseConfig = {
   apiKey: "AIzaSyA_kjQ-CdASRkf50Glz3kQajlkD5qGWC4k",
   authDomain: "so-no-cc57a.firebaseapp.com",
@@ -3179,7 +3179,20 @@ window.deleteCustomer=async()=>{
     batch.delete(doc(db,'users',_uid,'customers',_cid));
     _B+='B4. Đã tạo lệnh xoá doc khách\n';
     batch.commit().then(async()=>{
-      alert('✅ MÁY CHỦ ĐÃ XOÁ XONG KHÁCH.\nNếu khách vẫn còn trên màn hình thì lỗi nằm ở phần hiển thị.');
+      /* ĐỌC NGƯỢC TỪ MÁY CHỦ: Firestore xoá doc KHÔNG tồn tại cũng báo thành công,
+         nên phải đọc lại mới biết thật sự còn gì trong kho. */
+      let _kq='';
+      try{
+        const _chk=await getDocs(collection(db,'users',_uid,'customers'));
+        let _t='';
+        _chk.docs.forEach(function(d){ _t+='• '+d.id+'\n   tên: '+(((d.data()||{}).name)||'(không tên)')+'\n'; });
+        const _con=_chk.docs.some(function(d){return d.id===_cid;});
+        _kq='Kho khách trên máy chủ còn '+_chk.size+' khách:\n'+(_t||'(trống)')
+           +'\nMã vừa xoá: '+_cid
+           +'\n➜ '+(_con?'VẪN CÒN ❗ (xoá không ăn)':'ĐÃ MẤT ✅ (xoá thành công)')
+           +'\nĐọc từ bộ nhớ đệm: '+((_chk.metadata&&_chk.metadata.fromCache)?'CÓ':'không');
+      }catch(e){ _kq='Không đọc lại được: '+((e&&(e.code||e.message))||e); }
+      alert('🔎 KIỂM TRA LẠI TỪ MÁY CHỦ\n\n'+_kq);
       try{await stgWipe('u/'+_uid+'/att/'+_cid);}catch(e){}
       try{if(_tok)await purgeShare(_tok,_uid);}catch(e){}
     }).catch(err=>{
