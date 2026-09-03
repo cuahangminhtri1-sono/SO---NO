@@ -7174,25 +7174,72 @@ var M={}, SIG={}, _xin={}, _daBao=false;
 var OFF={ mem:M, san:false, unsafeFor:null };
 window.__SNOFF=OFF;
 
+/* ═══ KHOÁ RIÊNG THEO TỪNG TÀI KHOẢN — chống lẫn dữ liệu giữa các tài khoản ═══
+   Trước đây bản cứu hộ dùng chung khoá 'customers','ncc','cn','shop','sp:*','gd:*'
+   nên máy nào đã đăng nhập tài khoản A thì đăng nhập tài khoản B vẫn thấy dữ liệu A.
+   Nay MỌI khoá đều mang tiền tố UID của shop  ->  mỗi tài khoản một kho riêng. */
+function uidNow(){
+  try{ return (typeof UID!=='undefined' && UID) ? String(UID) : null; }catch(e){ return null; }
+}
+function K(base){ var u=uidNow(); return u ? (u+'|'+base) : null; }   /* chưa đăng nhập -> không có khoá */
+function gpKey(){ return 'sono_gp_v1_'+(uidNow()||''); }              /* nhớ giấy phép: RIÊNG từng tài khoản */
+function posKey(){ return 'sono_pos_ok_'+(uidNow()||''); }            /* nhớ đã mở được POS: RIÊNG từng tài khoản */
+function lay(base){ var kk=K(base); return kk ? M[kk] : undefined; }
+function xoaSach(o){ try{ for(var k in o){ if(Object.prototype.hasOwnProperty.call(o,k)) delete o[k]; } }catch(e){} }
+
 function luu(k,v){
   try{
+    var kk=K(k); if(!kk) return;                      /* chưa đăng nhập: không lưu gì cả */
     if(!v) return;
     if(Array.isArray(v) && v.length===0) return;      /* không bao giờ ghi đè bằng rỗng */
     var pv=plain(v), s=JSON.stringify(pv);
-    if(SIG[k]===s) return;
-    SIG[k]=s; M[k]=pv;
-    kvPut(k,pv).catch(function(){});
+    if(SIG[kk]===s) return;
+    SIG[kk]=s; M[kk]=pv;
+    kvPut(kk,pv).catch(function(){});
   }catch(e){}
 }
 function nap(k){                                        /* nạp 1 khoá từ đĩa (1 lần) */
-  if(_xin[k]) return; _xin[k]=1;
-  kvGet(k).then(function(v){ if(v!==undefined&&v!==null){ M[k]=v; } }).catch(function(){});
+  var kk=K(k); if(!kk) return;
+  if(_xin[kk]) return; _xin[kk]=1;
+  kvGet(kk).then(function(v){ if(v!==undefined&&v!==null){ M[kk]=v; } }).catch(function(){});
 }
 function baoMot(msg){ if(_daBao) return; _daBao=true; try{ toast(msg); }catch(e){} }
+
+/* ---------- Dọn màn hình khi ĐỔI SANG TÀI KHOẢN KHÁC ---------- */
+function donDep(){
+  try{ if(typeof customers!=='undefined'){ customers=[]; try{dem();}catch(e){} try{window.renderList();}catch(e){} } }catch(e){}
+  try{ if(typeof skProducts!=='undefined'){ skProducts=[]; try{skRenderGrid();}catch(e){} try{skRenderKho();}catch(e){} try{skRenderNpPick();}catch(e){} } }catch(e){}
+  try{ if(typeof skSuppliers!=='undefined'){ skSuppliers=[]; try{skRenderSuppliers();}catch(e){} } }catch(e){}
+  try{ if(typeof skBranches!=='undefined'){ skBranches=[]; try{skRenderBranchSel();}catch(e){} try{skRenderBranches();}catch(e){} } }catch(e){}
+  try{ if(typeof skShopBank!=='undefined') skShopBank=null; }catch(e){}
+  try{ if(typeof skShopName!=='undefined') skShopName=''; }catch(e){}
+}
+
+/* ---------- Theo dõi đổi tài khoản: xoá bộ nhớ tạm, nạp lại kho của tài khoản mới ---------- */
+var _uidTruoc=null, _uidCuoi=null;         /* _uidCuoi: tài khoản khác null gần nhất (A -> đăng xuất -> B) */
+function soatTaiKhoan(){
+  var u=uidNow();
+  if(u===_uidTruoc) return;
+  _uidTruoc=u;
+  xoaSach(M); xoaSach(SIG); xoaSach(_xin);
+  _daBao=false; OFF.unsafeFor=null; OFF.san=false;
+  if(u && _uidCuoi && u!==_uidCuoi) donDep();   /* đổi SANG TÀI KHOẢN KHÁC: xoá sạch dữ liệu cũ trên màn hình */
+  if(u) _uidCuoi=u;
+  if(!u) return;
+  var uu=u;
+  try{
+    Promise.all(['customers','ncc','cn','shop','sp:main'].map(function(b){
+      var kk=uu+'|'+b; _xin[kk]=1;
+      return kvGet(kk).then(function(v){ if(v!==undefined&&v!==null && uidNow()===uu) M[kk]=v; }).catch(function(){});
+    })).then(function(){ if(uidNow()===uu){ OFF.san=true; ve(); moKhoa(); } })
+       .catch(function(){ if(uidNow()===uu) OFF.san=true; });
+  }catch(e){ OFF.san=true; }
+}
 
 /* ---------- GOM: lưu bản sao ---------- */
 function gom(){
   try{
+    if(!uidNow()) return;                              /* chưa đăng nhập: không lưu, không nhớ gì */
     if(typeof customers!=='undefined' && customers && customers.length) luu('customers',customers);
     var b=(typeof skBranch!=='undefined'&&skBranch)?skBranch:'main';
     if(typeof skProducts!=='undefined' && skProducts && skProducts.length) luu('sp:'+b,skProducts);
@@ -7204,14 +7251,14 @@ function gom(){
     if(window._accInfo && navigator.onLine!==false){
       try{
         var u=window._accInfo.until? (+new Date(window._accInfo.until)) : 0;
-        localStorage.setItem('sono_gp_v1', JSON.stringify({t:Date.now(),u:(isNaN(u)?0:u)}));
+        localStorage.setItem(gpKey(), JSON.stringify({t:Date.now(),u:(isNaN(u)?0:u)}));
       }catch(e){}
     }
     /* Ghi nhớ đã từng mở được POS (để mất mạng mở thẳng, không bị treo ở bước đọc giấy phép) */
     try{
       var ps=document.getElementById('pos-screen');
       if(ps && ps.classList.contains('on') && navigator.onLine!==false)
-        localStorage.setItem('sono_pos_ok', String(Date.now()));
+        localStorage.setItem(posKey(), String(Date.now()));
     }catch(e){}
   }catch(e){}
 }
@@ -7227,27 +7274,30 @@ function dem(){
 }
 function ve(){
   try{
+    if(!uidNow()) return;                              /* chưa đăng nhập: TUYỆT ĐỐI không dựng lại gì */
     var bk='sp:'+((typeof skBranch!=='undefined'&&skBranch)?skBranch:'main');
     nap('customers'); nap('ncc'); nap('cn'); nap('shop'); nap(bk);
 
-    if(typeof customers!=='undefined' && customers.length===0 && Array.isArray(M.customers) && M.customers.length){
-      customers=M.customers.slice();
+    var _cus=lay('customers'), _sp=lay(bk), _ncc=lay('ncc'), _cn=lay('cn'), _shop=lay('shop');
+
+    if(typeof customers!=='undefined' && customers.length===0 && Array.isArray(_cus) && _cus.length){
+      customers=_cus.slice();
       dem(); try{ window.renderList(); }catch(e){}
       baoMot('📴 Đang dùng BẢN LƯU TRONG MÁY — dữ liệu sẽ tự cập nhật khi có mạng.');
     }
-    if(typeof skProducts!=='undefined' && skProducts.length===0 && Array.isArray(M[bk]) && M[bk].length){
-      skProducts=M[bk].slice();
+    if(typeof skProducts!=='undefined' && skProducts.length===0 && Array.isArray(_sp) && _sp.length){
+      skProducts=_sp.slice();
       try{skRenderGrid();}catch(e){} try{skRenderKho();}catch(e){} try{skRenderNpPick();}catch(e){}
     }
-    if(typeof skSuppliers!=='undefined' && skSuppliers.length===0 && Array.isArray(M.ncc) && M.ncc.length){
-      skSuppliers=M.ncc.slice(); try{skRenderSuppliers();}catch(e){}
+    if(typeof skSuppliers!=='undefined' && skSuppliers.length===0 && Array.isArray(_ncc) && _ncc.length){
+      skSuppliers=_ncc.slice(); try{skRenderSuppliers();}catch(e){}
     }
-    if(typeof skBranches!=='undefined' && skBranches.length===0 && Array.isArray(M.cn) && M.cn.length){
-      skBranches=M.cn.slice(); try{skRenderBranchSel();}catch(e){} try{skRenderBranches();}catch(e){}
+    if(typeof skBranches!=='undefined' && skBranches.length===0 && Array.isArray(_cn) && _cn.length){
+      skBranches=_cn.slice(); try{skRenderBranchSel();}catch(e){} try{skRenderBranches();}catch(e){}
     }
-    if(M.shop && typeof skShopBank!=='undefined' && !skShopBank){
-      skShopBank=M.shop.bank||null;
-      if(typeof skShopName!=='undefined' && !skShopName) skShopName=M.shop.name||'';
+    if(_shop && typeof skShopBank!=='undefined' && !skShopBank){
+      skShopBank=_shop.bank||null;
+      if(typeof skShopName!=='undefined' && !skShopName) skShopName=_shop.name||'';
     }
   }catch(e){}
 }
@@ -7255,6 +7305,7 @@ function ve(){
 /* ---------- GIAO DỊCH của 1 khách: lưu khi có, trả lại khi mất mạng ---------- */
 OFF.txGet=function(custId,snap){
   try{
+    var kk=K('gd:'+custId);                           /* khoá RIÊNG theo tài khoản đang đăng nhập */
     if(snap && !snap.empty){
       var arr=snap.docs.map(function(d){
         var o=Object.assign({id:d.id},d.data());
@@ -7268,12 +7319,13 @@ OFF.txGet=function(custId,snap){
     if(snap && snap.metadata && snap.metadata.fromCache===false){
       /* MÁY CHỦ xác nhận khách này thật sự chưa có giao dịch */
       OFF.unsafeFor=null;
-      try{ SIG['gd:'+custId]=null; M['gd:'+custId]=[]; kvPut('gd:'+custId,[]).catch(function(){}); }catch(e){}
+      try{ if(kk){ SIG[kk]=null; M[kk]=[]; kvPut(kk,[]).catch(function(){}); } }catch(e){}
       return Promise.resolve(null);
     }
     /* Rỗng vì đọc từ bộ đệm (mất mạng / bộ đệm trống) -> lấy bản cứu hộ */
-    return kvGet('gd:'+custId).then(function(v){
-      if(Array.isArray(v) && v.length){ M['gd:'+custId]=v; OFF.unsafeFor=null; return v.slice(); }
+    if(!kk){ OFF.unsafeFor=khongNo(custId)?null:custId; return Promise.resolve(null); }
+    return kvGet(kk).then(function(v){
+      if(Array.isArray(v) && v.length){ M[kk]=v; OFF.unsafeFor=null; return v.slice(); }
       OFF.unsafeFor=khongNo(custId)?null:custId;
       return null;
     }).catch(function(){
@@ -7314,7 +7366,7 @@ function chan(){
   if(typeof _pos!=='function') return;
   window.openPOS=function(){
     try{
-      var okAt=Number(localStorage.getItem('sono_pos_ok')||0);
+      var okAt=uidNow()? Number(localStorage.getItem(posKey())||0) : 0;
       if(navigator.onLine===false && okAt && (Date.now()-okAt) < GRACE_DAYS*86400000){
         skq('#pos-screen').classList.add('on');
         document.body.style.overflow='hidden';
@@ -7341,7 +7393,7 @@ function moKhoa(){
     if(hien('app')) return;                              /* đã vào được app rồi */
     if(typeof UID==='undefined' || !UID) return;         /* máy chưa có phiên đăng nhập -> để nguyên màn hình đăng nhập */
     if(!hien('locked-view') && (Date.now()-_t0) < 12000) return;   /* đang khởi động, chờ thêm */
-    var g=null; try{ g=JSON.parse(localStorage.getItem('sono_gp_v1')||'null'); }catch(e){}
+    var g=null; try{ g=JSON.parse(localStorage.getItem(gpKey())||'null'); }catch(e){}
     if(!g||!g.t) return;                                 /* chưa từng kiểm tra giấy phép thành công */
     if(Date.now()-g.t > GRACE_DAYS*86400000) return;      /* quá hạn ân hạn ngoại tuyến */
     if(g.u && g.u < Date.now()) return;                   /* giấy phép đã hết hạn thật */
@@ -7362,22 +7414,37 @@ try{
   }
 }catch(e){}
 
-/* ---------- Nhịp chạy ---------- */
-try{
-  Promise.all(['customers','ncc','cn','shop','sp:main'].map(function(k){
-    _xin[k]=1;
-    return kvGet(k).then(function(v){ if(v!==undefined&&v!==null) M[k]=v; }).catch(function(){});
-  })).then(function(){ OFF.san=true; ve(); moKhoa(); }).catch(function(){ OFF.san=true; });
-}catch(e){}
+/* ---------- Dọn KHOÁ DÙNG CHUNG của bản cũ (nguồn gốc gây lẫn dữ liệu) ---------- */
+(function donRac(){
+  try{
+    localStorage.removeItem('sono_gp_v1');
+    localStorage.removeItem('sono_pos_ok');
+  }catch(e){}
+  try{
+    idb().then(function(d){
+      var t=d.transaction(ST,'readwrite'), st=t.objectStore(ST), q=st.getAllKeys();
+      q.onsuccess=function(){
+        var ks=q.result||[];
+        for(var i=0;i<ks.length;i++){
+          var k=String(ks[i]);
+          if(k.indexOf('|')<0){ try{ st.delete(ks[i]); }catch(e){} }   /* khoá không gắn UID = của bản cũ */
+        }
+      };
+    }).catch(function(){});
+  }catch(e){}
+})();
 
+/* ---------- Nhịp chạy ---------- */
+soatTaiKhoan();
 var _nhip=0;
-setInterval(function(){ _nhip++; ve(); moKhoa(); if(_nhip%3===0) gom(); }, CHU_KY);  /* ve/moKhoa rất nhẹ; gom (nặng hơn) ~12 giây/lần */
-setTimeout(function(){ ve(); moKhoa(); }, 1200);
-setTimeout(function(){ gom(); ve(); moKhoa(); }, 3000);
-document.addEventListener('visibilitychange', function(){ if(!document.hidden){ gom(); ve(); } });
+setInterval(function(){ _nhip++; soatTaiKhoan(); ve(); moKhoa(); if(_nhip%3===0) gom(); }, CHU_KY);  /* ve/moKhoa rất nhẹ; gom (nặng hơn) ~12 giây/lần */
+setTimeout(function(){ soatTaiKhoan(); ve(); moKhoa(); },  400);
+setTimeout(function(){ soatTaiKhoan(); ve(); moKhoa(); }, 1200);
+setTimeout(function(){ soatTaiKhoan(); gom(); ve(); moKhoa(); }, 3000);
+document.addEventListener('visibilitychange', function(){ if(!document.hidden){ soatTaiKhoan(); gom(); ve(); } });
 window.addEventListener('pagehide', gom);
-window.addEventListener('offline', function(){ setTimeout(ve,200); });
-window.addEventListener('online',  function(){ setTimeout(gom,3000); });
+window.addEventListener('offline', function(){ setTimeout(function(){ soatTaiKhoan(); ve(); },200); });
+window.addEventListener('online',  function(){ setTimeout(function(){ soatTaiKhoan(); gom(); },3000); });
 })();
 /* ═══════════════ HẾT: KHO CỨU HỘ OFFLINE v1 ═══════════════ */
 </script>
