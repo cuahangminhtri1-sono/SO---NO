@@ -733,7 +733,7 @@ import { getFirestore, initializeFirestore, persistentLocalCache, persistentMult
 import { getStorage, ref as _sref, uploadBytes, getDownloadURL, deleteObject, listAll }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
 
-const APP_BUILD = "2026-09-03-R5"; // ⬆️ ĐỔI MỖI LẦN DEPLOY (đặt TRÙNG tên cache trong sw.js) — hiện ở ⚙️ Cài đặt để biết máy đã chạy bản mới chưa
+const APP_BUILD = "2026-09-03-R6"; // ⬆️ ĐỔI MỖI LẦN DEPLOY (đặt TRÙNG tên cache trong sw.js) — hiện ở ⚙️ Cài đặt để biết máy đã chạy bản mới chưa
 const firebaseConfig = {
   apiKey: "AIzaSyA_kjQ-CdASRkf50Glz3kQajlkD5qGWC4k",
   authDomain: "so-no-cc57a.firebaseapp.com",
@@ -2138,8 +2138,10 @@ window.saveSettings=async()=>{
 };
 
 // ── CUSTOMERS ──
+let _custErrN=0;
 function loadCustomers(){
   unsub=onSnapshot(query(collection(db,'users',UID,'customers'),orderBy('name')),snap=>{
+    _custErrN=0;
     customers=snap.docs.map(d=>({id:d.id,...d.data()}));
     const oweMe=customers.reduce((s,c)=>s+Math.max(0,(c.debt||0)),0);   // tổng KHÁCH NỢ MÌNH
     const iOwe=customers.reduce((s,c)=>s+Math.max(0,-(c.debt||0)),0);   // tổng MÌNH NỢ KHÁCH
@@ -2151,6 +2153,14 @@ function loadCustomers(){
     computeReminders();
     if(!_autoChecked){_autoChecked=true;maybeAutoBackup();}
     if(!_healStarted && !snap.metadata.fromCache){_healStarted=true;autoHealDebtsOnce();}
+  },err=>{
+    /* TRƯỚC ĐÂY KHÔNG CÓ KHỐI NÀY: bộ lắng nghe chết là chết ÂM THẦM — màn hình giữ
+       nguyên danh sách cũ mãi mãi, không báo một chữ nào. Chủ shop tưởng dữ liệu còn,
+       thực tế đang nhìn bản lưu tạm đã lạc hậu. Nay báo rõ và tự nối lại. */
+    unsub=null; _custErrN++;
+    toast('⚠️ Mất kết nối danh sách khách ('+((err&&err.code)||'lỗi')+') — đang nối lại...');
+    if(_custErrN<=5){ setTimeout(function(){ try{ if(!unsub) loadCustomers(); }catch(e){} },5000); }
+    else { alert('⚠️ KHÔNG ĐỌC ĐƯỢC DANH SÁCH KHÁCH\n\nMã lỗi: '+((err&&err.code)||'')+'\n'+((err&&err.message)||err)+'\n\nDanh sách đang hiện có thể là BẢN CŨ. Hãy đăng xuất rồi đăng nhập lại.'); }
   });
 }
 window.setTab=tab=>{
