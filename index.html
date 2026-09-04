@@ -3591,10 +3591,11 @@ async function skSavePurchase(){
   const items=skNp.items.map(i=>({id:i.id,name:i.name,unit:i.unit,ratio:i.ratio,qty:i.qty,baseQty:i.baseQty,cost:i.cost,lineTotal:i.cost*i.qty}));
   let total=0;items.forEach(i=>total+=i.lineTotal);const paid=Math.min(Math.max(skNp.paid||0,0),total);const owe=total-paid;
   const need={};items.forEach(i=>{need[i.id]=(need[i.id]||0)+i.baseQty;});const pids=Object.keys(need);
-  const baseCost={};items.forEach(i=>{baseCost[i.id]=Math.round(i.cost/(i.ratio||1));});
+  const buyVal={};items.forEach(i=>{buyVal[i.id]=(buyVal[i.id]||0)+(Number(i.cost)||0)*(Number(i.qty)||0);});
+  const baseCost={};pids.forEach(id=>{const p=skProducts.find(x=>x.id===id)||{};const inQ=Number(need[id])||0,inV=Number(buyVal[id])||0;const oldQ=Number(p.stock)||0,oldC=Number(p.cost)||0;const tot=oldQ+inQ;const newIn=inQ>0?(inV/inQ):oldC;baseCost[id]=Math.round((oldQ>0&&oldC>0&&tot>0)?((oldQ*oldC+inV)/tot):newIn);}); // BÌNH QUÂN GIA QUYỀN: (tồn cũ × vốn cũ + tiền nhập) / (tồn cũ + lượng nhập); tồn ≤0 hoặc chưa có vốn → lấy giá nhập mới
   const batch=writeBatch(db);
   batch.set(doc(bcol('purchases')),{supplierId:skNp.supplierId||null,supplierName:supName,items:items,total:total,paid:paid,note:skNp.note||'',at:serverTimestamp()});
-  pids.forEach(id=>{batch.update(bdoc('products',id),{stock:increment(need[id]),cost:baseCost[id]});batch.set(doc(bcol('stock_moves')),{productId:id,productName:(skProducts.find(x=>x.id===id)||{}).name||'',delta:+need[id],reason:'purchase',note:supName,at:serverTimestamp()});}); // tồn: increment(+) offline-safe; giá vốn: đặt giá nhập mới nhất
+  pids.forEach(id=>{batch.update(bdoc('products',id),{stock:increment(need[id]),cost:baseCost[id]});batch.set(doc(bcol('stock_moves')),{productId:id,productName:(skProducts.find(x=>x.id===id)||{}).name||'',delta:+need[id],reason:'purchase',note:supName,at:serverTimestamp()});}); // tồn: increment(+) offline-safe; giá vốn: bình quân gia quyền
   if(skNp.supplierId&&owe>0)batch.update(doc(db,'users',UID,'suppliers',skNp.supplierId),{debt:increment(owe)}); // nợ NCC tăng theo phần còn thiếu
   batch.commit().catch(e=>skErr(e,'Lưu phiếu nhập'));
   toast('✅ Đã nhập '+items.length+' mặt hàng'+(owe>0?(' · nợ NCC '+fmt(owe)):''));skNp={supplierId:'',supplierName:'',items:[],note:'',paid:0};const a=skq('#sk-np-paid');if(a)a.value='';const b=skq('#sk-np-note');if(b)b.value='';skRenderNp();skRenderNpPick();markDirty();
