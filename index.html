@@ -733,7 +733,7 @@ import { getFirestore, initializeFirestore, persistentLocalCache, persistentMult
 import { getStorage, ref as _sref, uploadBytes, getDownloadURL, deleteObject, listAll }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
 
-const APP_BUILD = "2026-09-03-R6"; // ⬆️ ĐỔI MỖI LẦN DEPLOY (đặt TRÙNG tên cache trong sw.js) — hiện ở ⚙️ Cài đặt để biết máy đã chạy bản mới chưa
+const APP_BUILD = "2026-09-04-R1"; // ⬆️ ĐỔI MỖI LẦN DEPLOY (đặt TRÙNG tên cache trong sw.js) — hiện ở ⚙️ Cài đặt để biết máy đã chạy bản mới chưa
 const firebaseConfig = {
   apiKey: "AIzaSyA_kjQ-CdASRkf50Glz3kQajlkD5qGWC4k",
   authDomain: "so-no-cc57a.firebaseapp.com",
@@ -7683,6 +7683,1044 @@ window.addEventListener('offline', function(){ setTimeout(function(){ soatTaiKho
 window.addEventListener('online',  function(){ setTimeout(function(){ soatTaiKhoan(); gom(); },3000); });
 })();
 /* ═══════════════ HẾT: KHO CỨU HỘ OFFLINE v1 ═══════════════ */
+
+/* ═══════════════ SKMOD — BỘ KHUNG MODULE NGÀNH v1 ═══════════════
+   Cho phép cắm module ngành (F&B, thời trang, spa, karaoke…) mà KHÔNG sửa lõi.
+   NGUYÊN TẮC VÀNG: khi chưa module nào đăng ký, MỌI hàm chạy y hệt bản gốc (pass-through).
+   Quy ước: mỗi module phải có 1 namespace riêng — dùng chung cho biến JS, class CSS và field Firestore.
+   ═══════════════════════════════════════════════════════════════════ */
+(function(){
+if(window.SKMOD)return;
+var CORE=['sell','kho','nhap','report'];
+var TABS=[],HOOKS={},ACTS={},FLAGS={},MODS={},NSMAP={},MOUNTED=false,ACTBOUND=false;
+
+/* ---------- HOOK ---------- */
+function on(n,f){if(typeof f!=='function')return API;(HOOKS[n]=HOOKS[n]||[]).push(f);return API;}
+function has(n){return !!(HOOKS[n]&&HOOKS[n].length);}
+function any(){for(var i=0;i<arguments.length;i++)if(has(arguments[i]))return true;return false;}
+function fire(n,c){var L=HOOKS[n];if(!L)return c;for(var i=0;i<L.length;i++){try{L[i](c);}catch(e){console.error('[SKMOD] hook '+n,e);}}return c;}
+async function fireA(n,c){var L=HOOKS[n];if(!L)return c;for(var i=0;i<L.length;i++){try{await L[i](c);}catch(e){console.error('[SKMOD] hook '+n,e);}}return c;}
+
+/* ---------- ĐĂNG KÝ MODULE + CHỐNG TRÙNG NAMESPACE ---------- */
+function reg(id,def){
+  def=def||{};
+  if(!id){console.error('[SKMOD] thiếu id module');return false;}
+  if(MODS[id]){console.warn('[SKMOD] module đã nạp rồi: '+id);return false;}
+  var ns=def.ns||id;
+  if(NSMAP[ns]){console.error('[SKMOD] TRÙNG NAMESPACE "'+ns+'" (đã thuộc "'+NSMAP[ns]+'") → BỎ QUA module "'+id+'"');return false;}
+  var need=def.need||[];
+  for(var i=0;i<need.length;i++)if(!MODS[need[i]]){console.error('[SKMOD] module "'+id+'" cần "'+need[i]+'" nhưng chưa nạp → BỎ QUA');return false;}
+  NSMAP[ns]=id;
+  MODS[id]={id:id,ns:ns,name:def.name||id,ver:def.ver||'1.0',flag:def.flag||null,need:need};
+  return true;
+}
+function loaded(id){return !!MODS[id];}
+
+/* ---------- CỜ BẬT/TẮT THEO LOẠI HÌNH SHOP ---------- */
+function flag(k){return FLAGS[k]===true;}
+function setFlags(o){if(o&&typeof o==='object')for(var k in o)FLAGS[k]=(o[k]===true||o[k]===1||o[k]==='1');fire('flags:change',{flags:FLAGS});return FLAGS;}
+async function loadFlags(){
+  try{
+    if(typeof UID==='undefined'||!UID)return FLAGS;
+    var s=await getDoc(doc(db,'users',UID,'meta','shopSettings'));
+    if(s.exists()){var d=s.data()||{};setFlags(d.mods||{});if(d.shopType)FLAGS._type=d.shopType;}
+  }catch(e){console.warn('[SKMOD] chưa đọc được cờ module:',(e&&e.code)||e);}
+  return FLAGS;
+}
+async function saveFlags(o){
+  try{
+    if(typeof UID==='undefined'||!UID)return false;
+    await setDoc(doc(db,'users',UID,'meta','shopSettings'),{mods:o||{}},{merge:true});
+    setFlags(o||{});return true;
+  }catch(e){console.error('[SKMOD] lưu cờ module lỗi',e);return false;}
+}
+
+/* ---------- TAB + VIEW ---------- */
+function tab(d){
+  if(!d||!d.id){console.error('[SKMOD] tab thiếu id');return false;}
+  if(CORE.indexOf(d.id)>=0){console.error('[SKMOD] id tab trùng lõi: '+d.id);return false;}
+  for(var i=0;i<TABS.length;i++)if(TABS[i].id===d.id){console.warn('[SKMOD] tab đã có: '+d.id);return false;}
+  TABS.push(d);if(MOUNTED)mountTab(d);return true;
+}
+function mountTab(t){
+  var body=document.querySelector('#pos-screen .sk-body'),nav=document.querySelector('#pos-screen .sk-tabs');
+  if(!body||!nav)return;
+  if(!document.getElementById('sk-v-'+t.id)){
+    var sec=document.createElement('section');sec.id='sk-v-'+t.id;sec.className='sk-view';
+    if(t.body)sec.innerHTML=t.body;
+    body.appendChild(sec);
+  }
+  if(!nav.querySelector('.sk-tab[data-v="'+t.id+'"]')){
+    var b=document.createElement('button');
+    b.className='sk-tab';b.setAttribute('data-act','go');b.setAttribute('data-v',t.id);
+    b.innerHTML=(t.icon||'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/></svg>')+(t.label||t.id);
+    var ref=t.after?nav.querySelector('.sk-tab[data-v="'+t.after+'"]'):null;
+    if(ref&&ref.nextSibling)nav.insertBefore(b,ref.nextSibling);else nav.appendChild(b);
+  }
+}
+function mountAll(){
+  if(MOUNTED)return;
+  if(!document.querySelector('#pos-screen .sk-body'))return;
+  MOUNTED=true;
+  for(var i=0;i<TABS.length;i++)mountTab(TABS[i]);
+}
+
+/* ---------- CSS + HÀNH ĐỘNG RIÊNG CỦA MODULE ---------- */
+function css(id,txt){
+  if(document.getElementById('skmod-css-'+id))return;
+  var s=document.createElement('style');s.id='skmod-css-'+id;s.textContent=txt;document.head.appendChild(s);
+}
+function act(n,f){
+  if(typeof f!=='function')return API;
+  ACTS[n]=f;
+  if(!ACTBOUND){
+    ACTBOUND=true;
+    document.addEventListener('click',function(e){
+      var el=(e.target&&e.target.closest)?e.target.closest('[data-act]'):null;if(!el)return;
+      var fn=ACTS[el.dataset.act];if(!fn)return;
+      try{fn(el,el.dataset,e);}catch(err){console.error('[SKMOD] act '+el.dataset.act,err);}
+    },false);
+  }
+  return API;
+}
+
+/* ═════ BỌC HÀM LÕI — mỗi hàm đều thoát sớm về bản gốc khi chưa có hook ═════ */
+
+var _go=skGo;
+skGo=function(v){
+  if(!TABS.length&&!has('view:show'))return _go(v);
+  var t=null,i,j;
+  for(i=0;i<TABS.length;i++)if(TABS[i].id===v){t=TABS[i];break;}
+  _go(v);
+  for(j=0;j<TABS.length;j++){var el=document.getElementById('sk-v-'+TABS[j].id);if(el)el.classList.toggle('sk-on',TABS[j].id===v);}
+  if(t){
+    var ti=document.getElementById('sk-view-title');if(ti)ti.textContent=t.title||t.label||v;
+    if(typeof t.render==='function'){try{t.render();}catch(e){console.error('[SKMOD] render view '+v,e);}}
+  }
+  fire('view:show',{view:v,tab:t});
+};
+
+var _fin=skFinalize;
+skFinalize=async function(method,extra){
+  if(!any('pay:before','order:saved'))return _fin(method,extra);
+  var ctx={method:method,extra:extra||{},items:skCart.slice(),totals:skCartTotals(),cancel:false,reason:''};
+  await fireA('pay:before',ctx);
+  if(ctx.cancel){if(ctx.reason)toast(ctx.reason);return;}
+  var n=skCart.length;
+  var r=await _fin(ctx.method,ctx.extra);
+  if(n>0&&skCart.length===0)await fireA('order:saved',{method:ctx.method,items:ctx.items,totals:ctx.totals,extra:ctx.extra});
+  return r;
+};
+
+var _add=skAddToCart;
+skAddToCart=function(id){
+  if(!has('cart:add'))return _add(id);
+  var ctx={id:id,product:skProducts.find(function(x){return x.id===id;})||null,cancel:false,reason:''};
+  fire('cart:add',ctx);
+  if(ctx.cancel){if(ctx.reason)toast(ctx.reason);return;}
+  return _add(ctx.id);
+};
+
+var _grid=skRenderGrid;
+skRenderGrid=function(){
+  if(!any('sell:before','sell:render'))return _grid();
+  var c={skip:false};
+  fire('sell:before',c);
+  if(c.skip)return;
+  var r=_grid();
+  fire('sell:render',{box:document.getElementById('sk-grid')});
+  return r;
+};
+
+var _op=skOpenProd;
+skOpenProd=function(id,barcode){
+  var r=_op(id,barcode);
+  if(has('prod:form'))fire('prod:form',{id:id||null,product:id?(skProducts.find(function(x){return x.id===id;})||null):null,form:document.getElementById('sk-prod')});
+  return r;
+};
+
+var _sp=skSaveProd;
+skSaveProd=async function(){
+  if(!any('prod:save','prod:saved'))return _sp();
+  var ctx={id:(typeof skEditId!=='undefined'?skEditId:null),cancel:false,reason:''};
+  await fireA('prod:save',ctx);
+  if(ctx.cancel){if(ctx.reason)toast(ctx.reason);return;}
+  var r=await _sp();
+  await fireA('prod:saved',{id:ctx.id});
+  return r;
+};
+
+var _adj=skAdjust;
+skAdjust=async function(id,deltaBase,reason,note){
+  if(!has('stock:adjust'))return _adj(id,deltaBase,reason,note);
+  var ctx={id:id,delta:deltaBase,reason:reason,note:note,cancel:false};
+  await fireA('stock:adjust',ctx);
+  if(ctx.cancel)return;
+  return _adj(ctx.id,ctx.delta,ctx.reason,ctx.note);
+};
+
+var _rc=skRenderCart;
+skRenderCart=function(){
+  if(!has('cart:render'))return _rc();
+  fire('cart:render',{cart:skCart});
+  return _rc();
+};
+
+var _ar=skAfterReady;
+skAfterReady=function(){
+  var r=_ar();
+  if(TABS.length||Object.keys(MODS).length||has('boot')){
+    mountAll();
+    loadFlags().then(function(){fire('boot',{flags:FLAGS,mods:MODS});});
+  }
+  return r;
+};
+
+/* ---------- API CÔNG KHAI ---------- */
+var API={
+  v:1,
+  reg:reg,loaded:loaded,tab:tab,on:on,fire:fire,fireA:fireA,act:act,css:css,mount:mountAll,
+  flag:flag,flags:function(){return FLAGS;},setFlags:setFlags,loadFlags:loadFlags,saveFlags:saveFlags,
+  go:function(v){skGo(v);},
+  list:function(){return{mods:Object.keys(MODS),tabs:TABS.map(function(t){return t.id;}),hooks:Object.keys(HOOKS),acts:Object.keys(ACTS),flags:FLAGS};},
+  core:{
+    q:skq,qa:skqa,toast:toast,fmt:fmt,n:skN,esc:escHtml,
+    modal:skModalOpen,closeModal:skCloseModal,dirty:markDirty,err:skErr,
+    products:function(){return skProducts;},
+    orders:function(){return skOrders;},
+    cart:function(){return skCart;},
+    totals:function(){return skCartTotals();},
+    uid:function(){return (typeof UID!=='undefined')?UID:null;},
+    branch:function(){return (typeof skBranch!=='undefined')?skBranch:null;},
+    staff:function(){return (typeof skStaff!=='undefined')?skStaff:null;},
+    col:bcol,doc:bdoc,
+    addLine:function(p,u){skCartAddLine(p,u);},
+    setCart:function(a){var c=skCart;c.length=0;for(var i=0;i<(a||[]).length;i++)c.push(a[i]);skRenderCart();skRenderGrid();},
+    held:function(){return skHeld;},
+    discount:function(v){if(v!=null)skDiscount=v;return skDiscount;},
+    num:function(t,v,cb,o){skNum(t,v,cb,o);},
+    adjust:function(id,d,r,n){return skAdjust(id,d,r,n);},
+    finalize:function(m,e){return skFinalize(m,e);},
+    openCart:function(){skOpenCart();},
+    closeCart:function(){skCloseCart();},
+    renderKho:function(){skRenderKho();},
+    renderGrid:function(){skRenderGrid();},
+    renderCart:function(){skRenderCart();}
+  },
+  fb:{db:db,doc:doc,collection:collection,getDoc:getDoc,getDocs:getDocs,setDoc:setDoc,addDoc:addDoc,
+      updateDoc:updateDoc,deleteDoc:deleteDoc,writeBatch:writeBatch,increment:increment,
+      serverTimestamp:serverTimestamp,query:query,where:where,orderBy:orderBy,limit:limit,onSnapshot:onSnapshot}
+};
+window.SKMOD=API;
+})();
+/* ═══════════════ HẾT: SKMOD v1 ═══════════════ */
+
+/* ═══════════ MODULE NGÀNH: F&B — SƠ ĐỒ BÀN + ĐỊNH LƯỢNG NVL ═══════════
+   Namespace: fnb    |    Cờ bật: mods.fnb    |    Cần SKMOD v1
+   Dữ liệu:  products/{id}.fnbBom = [{id,name,qty}]  (qty NVL cho 1 đơn vị gốc món)
+             pos_tables/{id} = {name,zone,ord,cart,openAt}
+   ═══════════════════════════════════════════════════════════════════════ */
+(function(){
+if(!window.SKMOD)return;
+var M=window.SKMOD,C=M.core,F=M.fb;
+if(!M.reg('fnb',{ns:'fnb',name:'F&B — Bàn & Định lượng',ver:'1.0',flag:'fnb'}))return;
+
+var ON=false,TB=[],CUR=null,UNSUB=null;
+
+/* ---------- TIỆN ÍCH ---------- */
+function tcol(){return C.col('pos_tables');}
+function tdoc(i){return C.doc('pos_tables',i);}
+function prod(id){var L=C.products();for(var i=0;i<L.length;i++)if(L[i].id===id)return L[i];return null;}
+function money(n){return C.fmt(n||0);}
+function mins(a){return Math.max(0,Math.floor((Date.now()-(a||Date.now()))/60000));}
+function hhmm(m){var h=Math.floor(m/60);return h?(h+'g'+(m%60?(' '+(m%60)+'p'):'')):(m+'p');}
+function sumCart(c){var s=0;for(var i=0;i<(c||[]).length;i++)s+=(c[i].price||0)*(c[i].qty||0);return s;}
+
+/* ---------- CSS ---------- */
+M.css('fnb','\
+#pos-screen .fnb-zone{font-weight:800;color:#0a5f4a;margin:14px 0 8px;font-size:13px}\
+#pos-screen .fnb-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:9px}\
+#pos-screen .fnb-t{border:2px solid #dfe6e9;background:#fff;border-radius:14px;padding:11px 8px;text-align:center;cursor:pointer;font-family:inherit}\
+#pos-screen .fnb-t b{display:block;font-size:14px;font-weight:800;color:#243b53}\
+#pos-screen .fnb-t span{display:block;font-size:11px;color:#8a97a3;margin-top:3px}\
+#pos-screen .fnb-t.busy{border-color:#0d7a5f;background:#eafaf4}\
+#pos-screen .fnb-t.busy b{color:#0a5f4a}\
+#pos-screen .fnb-t.busy span{color:#0d7a5f;font-weight:700}\
+#pos-screen .fnb-t.cur{border-color:#e67e22;background:#fff6ec;box-shadow:0 0 0 3px #fdebd6}\
+#pos-screen .fnb-bar{position:sticky;top:0;z-index:5;background:#e67e22;color:#fff;padding:9px 12px;border-radius:11px;\
+ display:flex;align-items:center;gap:9px;font-weight:800;font-size:13px;margin-bottom:10px}\
+#pos-screen .fnb-bar button{margin-left:auto;background:rgba(255,255,255,.25);color:#fff;border:none;\
+ border-radius:8px;padding:6px 11px;font-weight:800;font-size:12px;cursor:pointer;font-family:inherit}\
+#pos-screen .fnb-brow{display:flex;gap:8px;align-items:center;padding:9px 0;border-bottom:1px solid #eef1f3}\
+#pos-screen .fnb-brow input{flex:1;min-width:0;border:1.5px solid #dfe6e9;border-radius:9px;padding:8px 10px;font-size:13px;font-family:inherit}\
+#pos-screen .fnb-brow input.q{flex:none;width:78px;text-align:right}\
+#pos-screen .fnb-del{background:#fdecea;color:#c0392b;border:none;border-radius:8px;padding:7px 10px;font-weight:800;cursor:pointer}');
+
+/* ---------- SƠ ĐỒ BÀN ---------- */
+function render(){
+  var box=document.getElementById('fnb-map');if(!box)return;
+  if(!TB.length){box.innerHTML='<div class="sk-empty">Chưa có bàn nào. Bấm ➕ Thêm bàn.</div>';return;}
+  var zs={},ord=[];
+  TB.forEach(function(t){var z=t.zone||'Khu chính';if(!zs[z]){zs[z]=[];ord.push(z);}zs[z].push(t);});
+  var h='';
+  ord.forEach(function(z){
+    h+='<div class="fnb-zone">'+C.esc(z)+'</div><div class="fnb-grid">';
+    zs[z].sort(function(a,b){return (a.ord||0)-(b.ord||0)||String(a.name).localeCompare(String(b.name),'vi');});
+    zs[z].forEach(function(t){
+      var n=(t.cart||[]).length,busy=n>0||t.openAt;
+      h+='<button class="fnb-t'+(busy?' busy':'')+(CUR===t.id?' cur':'')+'" data-act="fnb-open" data-id="'+t.id+'">'
+        +'<b>'+C.esc(t.name||'')+'</b>'
+        +'<span>'+(busy?(money(sumCart(t.cart))+(t.openAt?(' · '+hhmm(mins(t.openAt))):'')):'Trống')+'</span></button>';
+    });
+    h+='</div>';
+  });
+  box.innerHTML=h;
+}
+function bar(){
+  var v=document.getElementById('sk-v-sell');if(!v)return;
+  var b=document.getElementById('fnb-bar');
+  if(!CUR){if(b)b.remove();return;}
+  var t=TB.filter(function(x){return x.id===CUR;})[0];if(!t){if(b)b.remove();return;}
+  if(!b){b=document.createElement('div');b.id='fnb-bar';b.className='fnb-bar';v.insertBefore(b,v.firstChild);}
+  b.innerHTML='🍽️ Đang phục vụ: '+C.esc(t.name||'')+'<button data-act="fnb-hold">💾 Giữ bàn</button>';
+}
+
+/* ---------- MỞ / GIỮ BÀN ---------- */
+function open_(id){
+  var t=TB.filter(function(x){return x.id===id;})[0];if(!t)return;
+  if(CUR&&CUR!==id){C.toast('Bấm “Giữ bàn” trước khi đổi bàn');return;}
+  CUR=id;
+  C.setCart(JSON.parse(JSON.stringify(t.cart||[])));
+  if(!t.openAt){t.openAt=Date.now();F.updateDoc(tdoc(id),{openAt:t.openAt})['catch'](function(){});}
+  M.go('sell');bar();render();
+}
+async function hold(){
+  if(!CUR)return;
+  var c=C.cart();
+  try{await F.updateDoc(tdoc(CUR),{cart:JSON.parse(JSON.stringify(c)),savedAt:F.serverTimestamp()});}
+  catch(e){C.err(e,'Giữ bàn');return;}
+  C.setCart([]);CUR=null;bar();M.go('fnb');C.toast('✅ Đã giữ bàn');
+}
+async function clearTable(id){
+  try{await F.updateDoc(tdoc(id),{cart:[],openAt:null});}catch(e){}
+}
+
+/* ---------- QUẢN LÝ BÀN ---------- */
+function mgr(){
+  var h='<h3>🍽️ Danh sách bàn</h3><div id="fnb-mgr-list" style="max-height:52vh;overflow-y:auto"></div>'
+   +'<button class="sk-btn green wide" data-act="fnb-add" style="margin-top:10px">➕ Thêm bàn</button>'
+   +'<div class="sk-card-acts"><span style="flex:1"></span><button class="sk-btn green" data-act="fnb-mgr-x">Đóng</button></div>';
+  var el=document.getElementById('fnb-mgr');
+  if(!el){el=document.createElement('div');el.id='fnb-mgr';el.className='sk-modal';el.innerHTML='<div class="sk-card"></div>';document.getElementById('pos-screen').appendChild(el);}
+  el.querySelector('.sk-card').innerHTML=h;
+  mgrList();C.modal('#fnb-mgr');
+}
+function mgrList(){
+  var b=document.getElementById('fnb-mgr-list');if(!b)return;
+  b.innerHTML=TB.length?TB.map(function(t){
+    return '<div class="fnb-brow"><input value="'+C.esc(t.name||'')+'" data-fnb-n="'+t.id+'" placeholder="Tên bàn">'
+      +'<input value="'+C.esc(t.zone||'')+'" data-fnb-z="'+t.id+'" placeholder="Khu" style="max-width:88px">'
+      +'<button class="fnb-del" data-act="fnb-del" data-id="'+t.id+'">✕</button></div>';
+  }).join(''):'<div class="sk-mut" style="padding:10px 0">Chưa có bàn.</div>';
+}
+async function add_(){
+  C.num('Tên bàn mới','',async function(v){
+    var n=String(v||'').trim();if(!n)return;
+    try{await F.addDoc(tcol(),{name:n,zone:'Khu chính',ord:TB.length,cart:[],openAt:null});C.toast('✅ Đã thêm '+n);}
+    catch(e){C.err(e,'Thêm bàn');}
+  },{text:true});
+}
+async function del_(id){
+  var t=TB.filter(function(x){return x.id===id;})[0];
+  if(t&&(t.cart||[]).length){C.toast('Bàn đang có khách — không xoá được');return;}
+  if(!confirm('Xoá bàn "'+((t||{}).name||'')+'"?'))return;
+  try{await F.deleteDoc(tdoc(id));if(CUR===id){CUR=null;bar();}}catch(e){C.err(e,'Xoá bàn');}
+}
+async function saveMgr(){
+  var b=document.getElementById('fnb-mgr-list');if(!b)return;
+  var ns=b.querySelectorAll('[data-fnb-n]'),ok=0;
+  for(var i=0;i<ns.length;i++){
+    var id=ns[i].getAttribute('data-fnb-n'),nm=ns[i].value.trim();
+    var zi=b.querySelector('[data-fnb-z="'+id+'"]'),zn=zi?zi.value.trim():'';
+    var t=TB.filter(function(x){return x.id===id;})[0];
+    if(t&&nm&&(t.name!==nm||(t.zone||'')!==zn)){try{await F.updateDoc(tdoc(id),{name:nm,zone:zn||'Khu chính'});ok++;}catch(e){}}
+  }
+  C.closeModal('#fnb-mgr');if(ok)C.toast('✅ Đã lưu '+ok+' bàn');
+}
+
+/* ---------- ĐỊNH LƯỢNG NVL (BOM) ---------- */
+var BOM=[],BOMPID=null;
+function bomOpen(pid){
+  var p=prod(pid);if(!p){C.toast('Lưu sản phẩm trước rồi mở lại để đặt công thức');return;}
+  BOMPID=pid;BOM=JSON.parse(JSON.stringify(p.fnbBom||[]));
+  var el=document.getElementById('fnb-bom');
+  if(!el){el=document.createElement('div');el.id='fnb-bom';el.className='sk-modal';el.innerHTML='<div class="sk-card"></div>';document.getElementById('pos-screen').appendChild(el);}
+  el.querySelector('.sk-card').innerHTML='<h3>🧾 Công thức: '+C.esc(p.name)+'</h3>'
+    +'<div class="sk-mut" style="margin-bottom:9px;font-size:12px">Số lượng NVL tiêu hao cho <b>1 '+C.esc(p.baseUnit||'phần')+'</b>. Khi bán sẽ tự trừ kho NVL.</div>'
+    +'<div id="fnb-bom-list"></div>'
+    +'<input id="fnb-bom-q" class="sk-inp" placeholder="🔍 Tìm nguyên liệu để thêm…" style="margin-top:10px">'
+    +'<div id="fnb-bom-pick"></div>'
+    +'<div class="sk-card-acts" style="margin-top:12px"><button class="sk-btn ghost" data-act="fnb-bom-x">Hủy</button>'
+    +'<span style="flex:1"></span><button class="sk-btn green" data-act="fnb-bom-save">Lưu công thức</button></div>';
+  bomList();
+  var q=document.getElementById('fnb-bom-q');
+  q.oninput=function(){
+    var s=(this.value||'').toLowerCase().trim(),pb=document.getElementById('fnb-bom-pick');
+    if(!s){pb.innerHTML='';return;}
+    var L=C.products().filter(function(x){return x.id!==BOMPID&&String(x.name||'').toLowerCase().indexOf(s)>=0;}).slice(0,8);
+    pb.innerHTML=L.map(function(x){return '<button class="sk-pick" data-act="fnb-bom-add" data-id="'+x.id+'">'+C.esc(x.name)+'<span class="sk-mut">tồn '+C.n(x.stock||0)+' '+C.esc(x.baseUnit||'')+'</span></button>';}).join('')||'<div class="sk-mut" style="padding:6px 2px">Không thấy.</div>';
+  };
+  C.modal('#fnb-bom');
+}
+function bomList(){
+  var b=document.getElementById('fnb-bom-list');if(!b)return;
+  b.innerHTML=BOM.length?BOM.map(function(x,i){
+    var p=prod(x.id);
+    return '<div class="fnb-brow"><div style="flex:1;min-width:0"><b style="font-size:13px">'+C.esc(x.name||(p&&p.name)||'?')+'</b>'
+      +'<div class="sk-mut" style="font-size:11px">'+(p?('tồn '+C.n(p.stock||0)+' '+C.esc(p.baseUnit||'')):'⚠️ đã xoá')+'</div></div>'
+      +'<input class="q" inputmode="decimal" value="'+(x.qty||0)+'" data-fnb-b="'+i+'">'
+      +'<button class="fnb-del" data-act="fnb-bom-del" data-i="'+i+'">✕</button></div>';
+  }).join(''):'<div class="sk-mut" style="padding:8px 0">Chưa có nguyên liệu.</div>';
+}
+async function bomSave(){
+  var b=document.getElementById('fnb-bom-list');
+  if(b){var qs=b.querySelectorAll('[data-fnb-b]');for(var i=0;i<qs.length;i++){var k=+qs[i].getAttribute('data-fnb-b');BOM[k].qty=parseFloat(qs[i].value)||0;}}
+  BOM=BOM.filter(function(x){return x.qty>0;});
+  try{await F.updateDoc(C.doc('products',BOMPID),{fnbBom:BOM});C.closeModal('#fnb-bom');C.toast('✅ Đã lưu công thức');C.dirty();}
+  catch(e){C.err(e,'Lưu công thức');}
+}
+/* Trừ kho NVL sau khi đơn đã lưu THÀNH CÔNG */
+async function bomDeduct(items){
+  var need={};
+  (items||[]).forEach(function(it){
+    var p=prod(it.id);if(!p||!p.fnbBom||!p.fnbBom.length)return;
+    p.fnbBom.forEach(function(g){
+      var q=(g.qty||0)*(it.baseQty||0);if(q>0)need[g.id]=(need[g.id]||0)+q;
+    });
+  });
+  var ids=Object.keys(need);if(!ids.length)return;
+  try{
+    var b=F.writeBatch(F.db);
+    ids.forEach(function(id){
+      b.update(C.doc('products',id),{stock:F.increment(-need[id])});
+      b.set(F.doc(C.col('stock_moves')),{productId:id,productName:(prod(id)||{}).name||'',delta:-need[id],reason:'fnb_bom',at:F.serverTimestamp()});
+    });
+    await b.commit();
+  }catch(e){console.error('[fnb] trừ NVL lỗi',e);C.toast('⚠️ Chưa trừ được kho nguyên liệu');}
+}
+
+/* ---------- HÀNH ĐỘNG ---------- */
+M.act('fnb-open',function(el,d){open_(d.id);});
+M.act('fnb-hold',function(){hold();});
+M.act('fnb-mgr',function(){mgr();});
+M.act('fnb-mgr-x',function(){saveMgr();});
+M.act('fnb-add',function(){add_();});
+M.act('fnb-del',function(el,d){del_(d.id);});
+M.act('fnb-bom',function(el,d){C.closeModal('#sk-prod');bomOpen(d.id);});
+M.act('fnb-bom-add',function(el,d){
+  var p=prod(d.id);if(!p)return;
+  for(var i=0;i<BOM.length;i++)if(BOM[i].id===d.id){C.toast('Đã có trong công thức');return;}
+  BOM.push({id:p.id,name:p.name,qty:1});bomList();
+  var q=document.getElementById('fnb-bom-q');if(q){q.value='';document.getElementById('fnb-bom-pick').innerHTML='';}
+});
+M.act('fnb-bom-del',function(el,d){BOM.splice(+d.i,1);bomList();});
+M.act('fnb-bom-save',function(){bomSave();});
+M.act('fnb-bom-x',function(){C.closeModal('#fnb-bom');});
+
+/* ---------- GẮN VÀO LÕI ---------- */
+M.on('boot',function(){
+  if(ON||!M.flag('fnb'))return;ON=true;
+  M.tab({id:'fnb',label:'Bàn',title:'Sơ đồ bàn',after:'sell',render:render,
+    icon:'<svg viewBox="0 0 24 24"><path d="M3 10h18M5 10V6h14v4M7 10v9M17 10v9"/></svg>',
+    body:'<div class="sk-actbar" style="margin-bottom:10px"><button data-act="fnb-mgr">🍽️ Quản lý bàn</button></div><div id="fnb-map"></div>'});
+  try{
+    UNSUB=F.onSnapshot(tcol(),function(s){
+      TB=s.docs.map(function(d){var o=d.data()||{};o.id=d.id;return o;});
+      render();bar();
+    });
+  }catch(e){console.warn('[fnb] không nghe được bàn',e);}
+});
+M.on('prod:form',function(c){
+  if(!M.flag('fnb'))return;
+  var f=document.getElementById('sk-prod');if(!f)return;
+  var old=document.getElementById('fnb-bom-btn');if(old)old.remove();
+  var acts=f.querySelector('.sk-card-acts');if(!acts)return;
+  var b=document.createElement('button');b.id='fnb-bom-btn';b.className='sk-btn outline';
+  b.setAttribute('data-act','fnb-bom');b.setAttribute('data-id',c.id||'');
+  b.textContent=c.id?'🧾 Công thức':'🧾 Công thức (lưu SP trước)';
+  acts.parentNode.insertBefore(b,acts);
+});
+M.on('order:saved',async function(c){
+  if(!M.flag('fnb'))return;
+  await bomDeduct(c.items);
+  if(CUR){var id=CUR;CUR=null;bar();await clearTable(id);}
+});
+M.on('view:show',function(c){if(M.flag('fnb')&&c.view==='sell')bar();});
+})();
+/* ═══════════ HẾT MODULE fnb ═══════════ */
+
+/* ═══════════ MODULE NGÀNH: THỜI TRANG — BIẾN THỂ SIZE / MÀU ═══════════
+   Namespace: fs    |    Cờ bật: mods.fs    |    Cần SKMOD v1
+   Dữ liệu:  products/{id}.fsVar = [{k:'M|Đỏ',s:'M',c:'Đỏ',stock,price}]
+   Cơ chế:   biến thể = 1 "đơn vị" ratio 1 → lõi tự trừ tồn TỔNG,
+             module trừ thêm tồn TỪNG biến thể. Hai bên luôn khớp.
+   ══════════════════════════════════════════════════════════════════════ */
+(function(){
+if(!window.SKMOD)return;
+var M=window.SKMOD,C=M.core,F=M.fb;
+if(!M.reg('fs',{ns:'fs',name:'Thời trang — Biến thể',ver:'1.0',flag:'fs'}))return;
+
+var VAR=[],VPID=null;
+function prod(id){var L=C.products();for(var i=0;i<L.length;i++)if(L[i].id===id)return L[i];return null;}
+function vars_(p){return (p&&p.fsVar&&p.fsVar.length)?p.fsVar:null;}
+function inCart(pid,k){var c=C.cart(),n=0;for(var i=0;i<c.length;i++)if(c[i].id===pid&&c[i].unit===k)n+=c[i].qty||0;return n;}
+
+M.css('fs','\
+#pos-screen .fs-mx{overflow-x:auto;margin:8px 0}\
+#pos-screen .fs-mx table{border-collapse:collapse;font-size:12px;min-width:100%}\
+#pos-screen .fs-mx th,#pos-screen .fs-mx td{border:1px solid #e4e8ec;padding:4px 6px;text-align:center}\
+#pos-screen .fs-mx th{background:#f4f6f8;font-weight:800;color:#243b53;white-space:nowrap}\
+#pos-screen .fs-mx input{width:52px;border:1px solid #dfe6e9;border-radius:6px;padding:5px 4px;text-align:center;font-size:12px;font-family:inherit}\
+#pos-screen .fs-pick{display:grid;grid-template-columns:repeat(auto-fill,minmax(88px,1fr));gap:8px;max-height:46vh;overflow-y:auto}\
+#pos-screen .fs-v{border:1.5px solid #dfe6e9;background:#fff;border-radius:11px;padding:9px 6px;text-align:center;cursor:pointer;font-family:inherit}\
+#pos-screen .fs-v b{display:block;font-size:13px;font-weight:800;color:#243b53}\
+#pos-screen .fs-v span{display:block;font-size:11px;color:#8a97a3;margin-top:2px}\
+#pos-screen .fs-v.out{opacity:.42}\
+#pos-screen .fs-v.ok{border-color:#0d7a5f}\
+#pos-screen .fs-lbl{display:flex;gap:7px;margin-bottom:8px}\
+#pos-screen .fs-lbl input{flex:1;min-width:0;border:1.5px solid #dfe6e9;border-radius:9px;padding:8px 10px;font-size:13px;font-family:inherit}');
+
+/* ---------- CHỌN BIẾN THỂ KHI BÁN ---------- */
+function pick(p){
+  var el=document.getElementById('fs-pick');
+  if(!el){el=document.createElement('div');el.id='fs-pick';el.className='sk-modal';el.innerHTML='<div class="sk-card"></div>';document.getElementById('pos-screen').appendChild(el);}
+  var vs=vars_(p)||[];
+  el.querySelector('.sk-card').innerHTML='<h3>Chọn size / màu: '+C.esc(p.name)+'</h3>'
+    +'<div class="fs-pick">'+vs.map(function(v){
+        var left=(v.stock||0)-inCart(p.id,v.k);
+        return '<button class="fs-v'+(left<=0?' out':' ok')+'" data-act="fs-pick" data-pid="'+p.id+'" data-k="'+C.esc(v.k)+'"'+(left<=0?' disabled':'')+'>'
+          +'<b>'+C.esc(v.k.replace('|',' · '))+'</b><span>'+C.fmt(v.price||p.price||0)+'</span>'
+          +'<span style="color:'+(left<=0?'#c0392b':'#0d7a5f')+'">còn '+C.n(left)+'</span></button>';
+      }).join('')+'</div>'
+    +'<div class="sk-card-acts" style="margin-top:12px"><span style="flex:1"></span><button class="sk-btn ghost" data-act="fs-pick-x">Đóng</button></div>';
+  C.modal('#fs-pick');
+}
+
+/* ---------- MA TRẬN BIẾN THỂ TRONG FORM SP ---------- */
+function mxOpen(pid){
+  var p=prod(pid);if(!p){C.toast('Lưu sản phẩm trước rồi mở lại để đặt biến thể');return;}
+  VPID=pid;VAR=JSON.parse(JSON.stringify(p.fsVar||[]));
+  var el=document.getElementById('fs-mx');
+  if(!el){el=document.createElement('div');el.id='fs-mx';el.className='sk-modal';el.innerHTML='<div class="sk-card"></div>';document.getElementById('pos-screen').appendChild(el);}
+  var ss=[],cs=[];
+  VAR.forEach(function(v){if(ss.indexOf(v.s)<0)ss.push(v.s);if(cs.indexOf(v.c)<0)cs.push(v.c);});
+  el.querySelector('.sk-card').innerHTML='<h3>👕 Biến thể: '+C.esc(p.name)+'</h3>'
+    +'<div class="fs-lbl"><input id="fs-ss" placeholder="Size, cách nhau dấu phẩy: S,M,L,XL" value="'+C.esc(ss.join(','))+'"></div>'
+    +'<div class="fs-lbl"><input id="fs-cs" placeholder="Màu, cách nhau dấu phẩy: Đỏ,Đen,Trắng" value="'+C.esc(cs.join(','))+'"></div>'
+    +'<button class="sk-btn wide" data-act="fs-mk" style="margin-bottom:6px">🔲 Tạo / cập nhật bảng</button>'
+    +'<div class="sk-mut" style="font-size:12px;margin-bottom:6px">Ô trống = không có biến thể đó. Tồn tổng của SP sẽ tự bằng tổng các ô.</div>'
+    +'<div id="fs-mx-box" class="fs-mx"></div>'
+    +'<div class="sk-card-acts" style="margin-top:12px"><button class="sk-btn ghost" data-act="fs-mx-x">Hủy</button>'
+    +'<span style="flex:1"></span><button class="sk-btn green" data-act="fs-mx-save">Lưu biến thể</button></div>';
+  mxDraw(ss,cs);C.modal('#fs-mx');
+}
+function mxDraw(ss,cs){
+  var b=document.getElementById('fs-mx-box');if(!b)return;
+  if(!ss.length||!cs.length){b.innerHTML='<div class="sk-mut" style="padding:10px 0">Nhập size và màu rồi bấm “Tạo / cập nhật bảng”.</div>';return;}
+  var get=function(s,c){for(var i=0;i<VAR.length;i++)if(VAR[i].s===s&&VAR[i].c===c)return VAR[i];return null;};
+  var h='<table><tr><th>Size \\ Màu</th>'+cs.map(function(c){return '<th>'+C.esc(c)+'</th>';}).join('')+'</tr>';
+  ss.forEach(function(s){
+    h+='<tr><th>'+C.esc(s)+'</th>';
+    cs.forEach(function(c){
+      var v=get(s,c);
+      h+='<td><input inputmode="numeric" placeholder="—" value="'+(v?(v.stock||0):'')+'" data-fs-s="'+C.esc(s)+'" data-fs-c="'+C.esc(c)+'"></td>';
+    });
+    h+='</tr>';
+  });
+  b.innerHTML=h+'</table>';
+}
+function mxMake(){
+  var ss=(document.getElementById('fs-ss').value||'').split(',').map(function(x){return x.trim();}).filter(Boolean);
+  var cs=(document.getElementById('fs-cs').value||'').split(',').map(function(x){return x.trim();}).filter(Boolean);
+  mxCollect();mxDraw(ss,cs);
+}
+function mxCollect(){
+  var b=document.getElementById('fs-mx-box');if(!b)return;
+  var ins=b.querySelectorAll('[data-fs-s]');if(!ins.length)return;
+  var nv=[];
+  for(var i=0;i<ins.length;i++){
+    var s=ins[i].getAttribute('data-fs-s'),c=ins[i].getAttribute('data-fs-c'),raw=String(ins[i].value).trim();
+    if(raw==='')continue;
+    var st=parseFloat(raw);if(isNaN(st))continue;
+    var old=null;for(var j=0;j<VAR.length;j++)if(VAR[j].s===s&&VAR[j].c===c){old=VAR[j];break;}
+    nv.push({k:s+'|'+c,s:s,c:c,stock:st,price:(old&&old.price)||0});
+  }
+  VAR=nv;
+}
+async function mxSave(){
+  mxCollect();
+  var tot=0;VAR.forEach(function(v){tot+=(v.stock||0);});
+  try{
+    await F.updateDoc(C.doc('products',VPID),VAR.length?{fsVar:VAR,stock:tot}:{fsVar:[]});
+    C.closeModal('#fs-mx');C.toast('✅ Đã lưu '+VAR.length+' biến thể · tồn tổng '+C.n(tot));C.dirty();
+  }catch(e){C.err(e,'Lưu biến thể');}
+}
+
+/* ---------- TRỪ TỒN BIẾN THỂ SAU KHI ĐƠN LƯU ---------- */
+async function deduct(items){
+  var byP={};
+  (items||[]).forEach(function(it){
+    var p=prod(it.id);if(!vars_(p))return;
+    if(!byP[it.id])byP[it.id]={};
+    byP[it.id][it.unit]=(byP[it.id][it.unit]||0)+(it.qty||0);
+  });
+  var pids=Object.keys(byP);if(!pids.length)return;
+  try{
+    var b=F.writeBatch(F.db),n=0;
+    pids.forEach(function(pid){
+      var p=prod(pid),vs=JSON.parse(JSON.stringify(p.fsVar||[])),hit=false;
+      vs.forEach(function(v){var q=byP[pid][v.k];if(q>0){v.stock=(v.stock||0)-q;hit=true;}});
+      if(hit){b.update(C.doc('products',pid),{fsVar:vs});n++;}
+    });
+    if(n)await b.commit();
+  }catch(e){console.error('[fs] trừ biến thể lỗi',e);C.toast('⚠️ Chưa trừ được tồn biến thể');}
+}
+
+/* ---------- HÀNH ĐỘNG ---------- */
+M.act('fs-pick',function(el,d){
+  var p=prod(d.pid);if(!p)return;
+  var vs=vars_(p)||[],v=null;
+  for(var i=0;i<vs.length;i++)if(vs[i].k===d.k){v=vs[i];break;}
+  if(!v)return;
+  if((v.stock||0)-inCart(p.id,v.k)<=0){C.toast('Hết size/màu này');return;}
+  C.closeModal('#fs-pick');
+  C.addLine(p,{name:v.k,ratio:1,price:v.price||p.price||0});
+});
+M.act('fs-pick-x',function(){C.closeModal('#fs-pick');});
+M.act('fs-var',function(el,d){C.closeModal('#sk-prod');mxOpen(d.id);});
+M.act('fs-mk',function(){mxMake();});
+M.act('fs-mx-save',function(){mxSave();});
+M.act('fs-mx-x',function(){C.closeModal('#fs-mx');});
+
+/* ---------- GẮN VÀO LÕI ---------- */
+M.on('cart:add',function(c){
+  if(!M.flag('fs'))return;
+  var p=c.product;if(!vars_(p))return;
+  c.cancel=true;pick(p);
+});
+M.on('prod:form',function(c){
+  if(!M.flag('fs'))return;
+  var f=document.getElementById('sk-prod');if(!f)return;
+  var old=document.getElementById('fs-var-btn');if(old)old.remove();
+  var acts=f.querySelector('.sk-card-acts');if(!acts)return;
+  var p=c.id?prod(c.id):null,n=(p&&p.fsVar&&p.fsVar.length)||0;
+  var b=document.createElement('button');b.id='fs-var-btn';b.className='sk-btn outline';
+  b.setAttribute('data-act','fs-var');b.setAttribute('data-id',c.id||'');
+  b.textContent=c.id?('👕 Biến thể'+(n?(' ('+n+')'):'')):'👕 Biến thể (lưu SP trước)';
+  acts.parentNode.insertBefore(b,acts);
+});
+M.on('order:saved',async function(c){if(M.flag('fs'))await deduct(c.items);});
+})();
+/* ═══════════ HẾT MODULE fs ═══════════ */
+
+/* ═══════════ MODULE NGÀNH: PHÒNG TÍNH GIỜ (Karaoke / Spa / Nhà nghỉ) ═══════════
+   Namespace: rm    |    Cờ bật: mods.rm    |    Cần SKMOD v1
+   Thiết kế: PHÒNG LÀ SẢN PHẨM (category "Phòng") → dùng lại được kho, báo cáo,
+             lãi gộp, hoá đơn của lõi. Không tạo bảng dữ liệu song song.
+   Dữ liệu:  products/{id}.rmRate (giá/giờ) · .rmMin (số phút tối thiểu)
+                            .rmOpenAt (ms, null = trống) · .rmCart (đồ gọi thêm)
+   ═══════════════════════════════════════════════════════════════════════════════ */
+(function(){
+if(!window.SKMOD)return;
+var M=window.SKMOD,C=M.core,F=M.fb;
+if(!M.reg('rm',{ns:'rm',name:'Phòng tính giờ',ver:'1.0',flag:'rm'}))return;
+
+var ON=false,CUR=null;
+function prod(id){var L=C.products();for(var i=0;i<L.length;i++)if(L[i].id===id)return L[i];return null;}
+function rooms(){return C.products().filter(function(p){return p.rmRate>0;}).sort(function(a,b){return String(a.name).localeCompare(String(b.name),'vi');});}
+function mins(a){return Math.max(0,Math.floor((Date.now()-a)/60000));}
+function hhmm(m){var h=Math.floor(m/60);return h?(h+'g'+(m%60?(' '+(m%60)+'p'):'')):(m+'p');}
+/* Tính tiền: làm tròn LÊN theo block 15 phút, không dưới rmMin */
+function charge(p,m){
+  var use=Math.max(m,p.rmMin||0);
+  var blocks=Math.ceil(use/15);
+  return {mins:use,money:Math.round(blocks*15/60*(p.rmRate||0))};
+}
+
+M.css('rm','\
+#pos-screen .rm-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:9px}\
+#pos-screen .rm-c{border:2px solid #dfe6e9;background:#fff;border-radius:14px;padding:11px 8px;text-align:center;cursor:pointer;font-family:inherit}\
+#pos-screen .rm-c b{display:block;font-size:14px;font-weight:800;color:#243b53}\
+#pos-screen .rm-c span{display:block;font-size:11px;color:#8a97a3;margin-top:3px}\
+#pos-screen .rm-c.on{border-color:#8e44ad;background:#f6ecfb}\
+#pos-screen .rm-c.on b{color:#6c3483}\
+#pos-screen .rm-c.on span{color:#8e44ad;font-weight:700}\
+#pos-screen .rm-row{display:flex;gap:8px;align-items:center;padding:9px 0;border-bottom:1px solid #eef1f3}\
+#pos-screen .rm-row input{border:1.5px solid #dfe6e9;border-radius:9px;padding:8px 10px;font-size:13px;font-family:inherit;min-width:0}\
+#pos-screen .rm-row .nm{flex:1}\
+#pos-screen .rm-row .rt{width:96px;text-align:right}\
+#pos-screen .rm-bill{background:#f6ecfb;border-radius:12px;padding:11px 13px;margin:10px 0}\
+#pos-screen .rm-bill .r{display:flex;justify-content:space-between;font-size:13px;padding:3px 0}\
+#pos-screen .rm-bill .r.t{font-weight:800;color:#6c3483;border-top:1px solid #ddc4ea;margin-top:5px;padding-top:7px}');
+
+function render(){
+  var box=document.getElementById('rm-map');if(!box)return;
+  var L=rooms();
+  if(!L.length){box.innerHTML='<div class="sk-empty">Chưa có phòng. Bấm 🛏️ Quản lý phòng để thêm.</div>';return;}
+  box.innerHTML='<div class="rm-grid">'+L.map(function(p){
+    var on=p.rmOpenAt>0,m=on?mins(p.rmOpenAt):0;
+    return '<button class="rm-c'+(on?' on':'')+'" data-act="rm-tap" data-id="'+p.id+'">'
+      +'<b>'+C.esc(p.name)+'</b>'
+      +'<span>'+(on?('⏱ '+hhmm(m)):('Trống · '+C.fmt(p.rmRate||0)+'/giờ'))+'</span>'
+      +(on?('<span>'+C.fmt(charge(p,m).money)+'</span>'):'')+'</button>';
+  }).join('')+'</div>';
+}
+
+/* ---------- MỞ / ĐÓNG PHÒNG ---------- */
+function tap(id){
+  var p=prod(id);if(!p)return;
+  if(!(p.rmOpenAt>0)){
+    if(!confirm('Mở phòng "'+p.name+'"?\nGiá '+C.fmt(p.rmRate||0)+'/giờ'))return;
+    F.updateDoc(C.doc('products',id),{rmOpenAt:Date.now(),rmCart:[]}).then(function(){C.toast('▶️ Đã mở '+p.name);render();})['catch'](function(e){C.err(e,'Mở phòng');});
+    return;
+  }
+  sheet(p);
+}
+function sheet(p){
+  var m=mins(p.rmOpenAt),ch=charge(p,m);
+  var extra=p.rmCart||[],ex=0;extra.forEach(function(i){ex+=(i.price||0)*(i.qty||0);});
+  var el=document.getElementById('rm-sheet');
+  if(!el){el=document.createElement('div');el.id='rm-sheet';el.className='sk-modal';el.innerHTML='<div class="sk-card"></div>';document.getElementById('pos-screen').appendChild(el);}
+  el.querySelector('.sk-card').innerHTML='<h3>🛏️ '+C.esc(p.name)+'</h3>'
+    +'<div class="rm-bill">'
+      +'<div class="r"><span>Vào lúc</span><span>'+new Date(p.rmOpenAt).toLocaleTimeString('vi-VN',{hour:'2-digit',minute:'2-digit'})+'</span></div>'
+      +'<div class="r"><span>Đã dùng</span><span>'+hhmm(m)+(ch.mins>m?(' → tính '+hhmm(ch.mins)):'')+'</span></div>'
+      +'<div class="r"><span>Tiền phòng</span><span>'+C.fmt(ch.money)+'</span></div>'
+      +(ex?('<div class="r"><span>Đồ gọi thêm ('+extra.length+')</span><span>'+C.fmt(ex)+'</span></div>'):'')
+      +'<div class="r t"><span>Tạm tính</span><span>'+C.fmt(ch.money+ex)+'</span></div>'
+    +'</div>'
+    +'<button class="sk-btn wide" data-act="rm-more" data-id="'+p.id+'" style="margin-bottom:8px">🍺 Gọi thêm đồ</button>'
+    +'<button class="sk-btn green wide" data-act="rm-close" data-id="'+p.id+'" style="margin-bottom:8px">🧾 Đóng phòng &amp; thanh toán</button>'
+    +'<button class="sk-btn red wide" data-act="rm-cancel" data-id="'+p.id+'">✕ Huỷ mở phòng (không tính tiền)</button>'
+    +'<div class="sk-card-acts" style="margin-top:12px"><span style="flex:1"></span><button class="sk-btn ghost" data-act="rm-x">Đóng</button></div>';
+  C.modal('#rm-sheet');
+}
+function more(id){
+  var p=prod(id);if(!p)return;
+  CUR=id;C.closeModal('#rm-sheet');
+  C.setCart(JSON.parse(JSON.stringify(p.rmCart||[])));
+  M.go('sell');C.toast('Chọn đồ cho '+p.name+', xong bấm 💾 Giữ phòng');
+  bar();
+}
+async function keep(){
+  if(!CUR)return;
+  var c=C.cart();
+  try{await F.updateDoc(C.doc('products',CUR),{rmCart:JSON.parse(JSON.stringify(c))});}
+  catch(e){C.err(e,'Giữ phòng');return;}
+  C.setCart([]);CUR=null;bar();M.go('rm');C.toast('✅ Đã lưu đồ gọi thêm');
+}
+function bar(){
+  var v=document.getElementById('sk-v-sell');if(!v)return;
+  var b=document.getElementById('rm-bar');
+  if(!CUR){if(b)b.remove();return;}
+  var p=prod(CUR);if(!p){if(b)b.remove();return;}
+  if(!b){b=document.createElement('div');b.id='rm-bar';b.className='fnb-bar';b.style.background='#8e44ad';v.insertBefore(b,v.firstChild);}
+  b.innerHTML='🛏️ Đang gọi cho: '+C.esc(p.name)+'<button data-act="rm-keep">💾 Giữ phòng</button>';
+}
+function closeRoom(id){
+  var p=prod(id);if(!p||!(p.rmOpenAt>0))return;
+  var m=mins(p.rmOpenAt),ch=charge(p,m);
+  C.closeModal('#rm-sheet');
+  var lines=JSON.parse(JSON.stringify(p.rmCart||[]));
+  lines.unshift({key:p.id+'|giờ',id:p.id,name:p.name,unit:hhmm(ch.mins),ratio:0,
+                 price:ch.money,cost:0,qty:1,baseQty:0});
+  CUR=null;bar();
+  C.setCart(lines);M.go('sell');C.openCart();
+  C.toast('Kiểm tra rồi bấm thanh toán');
+}
+async function cancelRoom(id){
+  if(!confirm('Huỷ mở phòng? Toàn bộ đồ đã gọi cũng bị xoá.'))return;
+  try{await F.updateDoc(C.doc('products',id),{rmOpenAt:null,rmCart:[]});C.closeModal('#rm-sheet');render();C.toast('Đã huỷ');}
+  catch(e){C.err(e,'Huỷ phòng');}
+}
+
+/* ---------- QUẢN LÝ PHÒNG ---------- */
+function mgr(){
+  var el=document.getElementById('rm-mgr');
+  if(!el){el=document.createElement('div');el.id='rm-mgr';el.className='sk-modal';el.innerHTML='<div class="sk-card"></div>';document.getElementById('pos-screen').appendChild(el);}
+  var L=rooms();
+  el.querySelector('.sk-card').innerHTML='<h3>🛏️ Quản lý phòng</h3>'
+    +'<div class="sk-mut" style="font-size:12px;margin-bottom:8px">Phòng được lưu như một sản phẩm dịch vụ, nên vẫn vào báo cáo doanh thu bình thường.</div>'
+    +'<div id="rm-mgr-list" style="max-height:46vh;overflow-y:auto">'
+    +(L.length?L.map(function(p){
+        return '<div class="rm-row"><input class="nm" value="'+C.esc(p.name)+'" data-rm-n="'+p.id+'">'
+          +'<input class="rt" inputmode="numeric" value="'+(p.rmRate||0)+'" data-rm-r="'+p.id+'" placeholder="đ/giờ"></div>';
+      }).join(''):'<div class="sk-mut" style="padding:10px 0">Chưa có phòng.</div>')
+    +'</div>'
+    +'<button class="sk-btn green wide" data-act="rm-add" style="margin-top:10px">➕ Thêm phòng</button>'
+    +'<div class="sk-card-acts" style="margin-top:10px"><span style="flex:1"></span><button class="sk-btn green" data-act="rm-mgr-save">Lưu &amp; đóng</button></div>';
+  C.modal('#rm-mgr');
+}
+function addRoom(){
+  C.num('Tên phòng mới','',function(v){
+    var n=String(v||'').trim();if(!n)return;
+    C.num('Giá mỗi giờ của "'+n+'"',0,async function(r){
+      if(!(r>0)){C.toast('Giá phải lớn hơn 0');return;}
+      try{
+        await F.addDoc(C.col('products'),{name:n,category:'Phòng',baseUnit:'giờ',cost:0,price:r,stock:0,minStock:0,
+          rmRate:r,rmMin:60,rmOpenAt:null,rmCart:[],createdAt:F.serverTimestamp()});
+        C.toast('✅ Đã thêm '+n);C.closeModal('#rm-mgr');
+      }catch(e){C.err(e,'Thêm phòng');}
+    });
+  },{text:true});
+}
+async function mgrSave(){
+  var b=document.getElementById('rm-mgr-list');if(!b){C.closeModal('#rm-mgr');return;}
+  var ns=b.querySelectorAll('[data-rm-n]'),k=0;
+  for(var i=0;i<ns.length;i++){
+    var id=ns[i].getAttribute('data-rm-n'),nm=ns[i].value.trim();
+    var ri=b.querySelector('[data-rm-r="'+id+'"]'),rt=ri?(parseFloat(ri.value)||0):0;
+    var p=prod(id);
+    if(p&&nm&&rt>0&&(p.name!==nm||p.rmRate!==rt)){
+      try{await F.updateDoc(C.doc('products',id),{name:nm,rmRate:rt,price:rt});k++;}catch(e){}
+    }
+  }
+  C.closeModal('#rm-mgr');if(k)C.toast('✅ Đã lưu '+k+' phòng');
+}
+
+/* ---------- HÀNH ĐỘNG ---------- */
+M.act('rm-tap',function(e,d){tap(d.id);});
+M.act('rm-more',function(e,d){more(d.id);});
+M.act('rm-keep',function(){keep();});
+M.act('rm-close',function(e,d){closeRoom(d.id);});
+M.act('rm-cancel',function(e,d){cancelRoom(d.id);});
+M.act('rm-x',function(){C.closeModal('#rm-sheet');});
+M.act('rm-mgr',function(){mgr();});
+M.act('rm-mgr-save',function(){mgrSave();});
+M.act('rm-add',function(){addRoom();});
+
+/* ---------- GẮN VÀO LÕI ---------- */
+M.on('boot',function(){
+  if(ON||!M.flag('rm'))return;ON=true;
+  M.tab({id:'rm',label:'Phòng',title:'Phòng tính giờ',after:'sell',render:render,
+    icon:'<svg viewBox="0 0 24 24"><path d="M3 18v-6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v6M3 18h18M5 10V7a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v3"/></svg>',
+    body:'<div class="sk-actbar" style="margin-bottom:10px"><button data-act="rm-mgr">🛏️ Quản lý phòng</button></div><div id="rm-map"></div>'});
+  setInterval(function(){var s=document.getElementById('sk-v-rm');if(s&&s.classList.contains('sk-on'))render();},30000);
+});
+/* Ẩn phòng khỏi lưới bán để nhân viên không bấm nhầm */
+M.on('sell:render',function(c){
+  if(!M.flag('rm')||!c.box)return;
+  rooms().forEach(function(p){
+    var b=c.box.querySelector('[data-id="'+p.id+'"]');if(b)b.style.display='none';
+  });
+});
+/* Đóng phòng sau khi đơn thanh toán xong */
+M.on('order:saved',async function(c){
+  if(!M.flag('rm'))return;
+  var ids=[];
+  (c.items||[]).forEach(function(it){var p=prod(it.id);if(p&&p.rmRate>0&&p.rmOpenAt>0&&ids.indexOf(it.id)<0)ids.push(it.id);});
+  for(var i=0;i<ids.length;i++){try{await F.updateDoc(C.doc('products',ids[i]),{rmOpenAt:null,rmCart:[]});}catch(e){}}
+  if(ids.length)render();
+});
+M.on('view:show',function(c){if(M.flag('rm')&&c.view==='sell')bar();});
+})();
+/* ═══════════ HẾT MODULE rm ═══════════ */
+
+/* ═══════════ MODULE NGÀNH: CÂN KÝ + GIÁ THEO BẬC SỐ LƯỢNG ═══════════
+   Namespace: kg    |    Cờ bật: mods.kg    |    Cần SKMOD v1
+   Dùng cho: vật liệu xây dựng, nông sản, thực phẩm cân ký, bán sỉ.
+   Dữ liệu:  products/{id}.kgTier = [{min:10,price:8000},{min:50,price:7500}]
+   Cơ chế:   hook cart:render → mỗi lần đổi số lượng là tự áp lại đúng bậc giá.
+   ═════════════════════════════════════════════════════════════════════ */
+(function(){
+if(!window.SKMOD)return;
+var M=window.SKMOD,C=M.core,F=M.fb;
+if(!M.reg('kg',{ns:'kg',name:'Cân ký & Giá bậc',ver:'1.0',flag:'kg'}))return;
+
+var T=[],TPID=null;
+function prod(id){var L=C.products();for(var i=0;i<L.length;i++)if(L[i].id===id)return L[i];return null;}
+function tiers(p){
+  if(!p||!p.kgTier||!p.kgTier.length)return null;
+  return p.kgTier.slice().sort(function(a,b){return (a.min||0)-(b.min||0);});
+}
+/* Giá áp dụng cho số lượng q: bậc CAO NHẤT mà q >= min */
+function priceFor(p,q,base){
+  var ts=tiers(p);if(!ts)return base;
+  var pr=base;
+  for(var i=0;i<ts.length;i++){if(q>=(ts[i].min||0)&&ts[i].price>0)pr=ts[i].price;}
+  return pr;
+}
+
+M.css('kg','\
+#pos-screen .kg-row{display:flex;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid #eef1f3}\
+#pos-screen .kg-row input{border:1.5px solid #dfe6e9;border-radius:9px;padding:8px 10px;font-size:13px;font-family:inherit;width:100%;min-width:0}\
+#pos-screen .kg-row .lb{font-size:12px;color:#8a97a3;flex:none;width:52px}\
+#pos-screen .kg-del{background:#fdecea;color:#c0392b;border:none;border-radius:8px;padding:7px 10px;font-weight:800;cursor:pointer;flex:none}\
+#pos-screen .kg-tag{display:inline-block;background:#fff4e5;color:#b9770e;border-radius:6px;padding:1px 6px;font-size:10px;font-weight:800;margin-left:5px}');
+
+/* ---------- ÁP GIÁ BẬC MỖI LẦN GIỎ ĐỔI ---------- */
+M.on('cart:render',function(c){
+  if(!M.flag('kg'))return;
+  var tot={};
+  c.cart.forEach(function(i){tot[i.id]=(tot[i.id]||0)+(i.qty||0);});
+  c.cart.forEach(function(i){
+    var p=prod(i.id);if(!tiers(p))return;
+    var base=p.price||0;
+    if(i.ratio&&i.ratio>1){
+      var u=(p.units||[]).filter(function(x){return x.name===i.unit;})[0];
+      base=(u&&u.price)||base;
+    }
+    var np=priceFor(p,tot[i.id],base);
+    if(np>0&&np!==i.price)i.price=np;
+  });
+});
+
+/* ---------- BẢNG BẬC GIÁ TRONG FORM SP ---------- */
+function open_(pid){
+  var p=prod(pid);if(!p){C.toast('Lưu sản phẩm trước rồi mở lại để đặt bậc giá');return;}
+  TPID=pid;T=JSON.parse(JSON.stringify(tiers(p)||[]));
+  var el=document.getElementById('kg-tier');
+  if(!el){el=document.createElement('div');el.id='kg-tier';el.className='sk-modal';el.innerHTML='<div class="sk-card"></div>';document.getElementById('pos-screen').appendChild(el);}
+  el.querySelector('.sk-card').innerHTML='<h3>⚖️ Bậc giá: '+C.esc(p.name)+'</h3>'
+    +'<div class="sk-mut" style="font-size:12px;margin-bottom:9px">Mua từ <b>N '+C.esc(p.baseUnit||'')+'</b> trở lên thì áp giá đó. '
+    +'Dưới mọi bậc thì dùng giá bán thường ('+C.fmt(p.price||0)+'). Giá tự đổi ngay khi khách thêm/bớt số lượng.</div>'
+    +'<div id="kg-list"></div>'
+    +'<button class="sk-btn wide" data-act="kg-add" style="margin-top:9px">➕ Thêm bậc</button>'
+    +'<div class="sk-card-acts" style="margin-top:12px"><button class="sk-btn ghost" data-act="kg-x">Hủy</button>'
+    +'<span style="flex:1"></span><button class="sk-btn green" data-act="kg-save">Lưu bậc giá</button></div>';
+  list();C.modal('#kg-tier');
+}
+function list(){
+  var b=document.getElementById('kg-list');if(!b)return;
+  var p=prod(TPID)||{};
+  b.innerHTML=T.length?T.map(function(x,i){
+    return '<div class="kg-row"><span class="lb">Từ</span>'
+      +'<input inputmode="decimal" value="'+(x.min||0)+'" data-kg-m="'+i+'" placeholder="SL">'
+      +'<span class="lb" style="width:auto">'+C.esc(p.baseUnit||'')+' →</span>'
+      +'<input inputmode="numeric" value="'+(x.price||0)+'" data-kg-p="'+i+'" placeholder="giá">'
+      +'<button class="kg-del" data-act="kg-del" data-i="'+i+'">✕</button></div>';
+  }).join(''):'<div class="sk-mut" style="padding:8px 0">Chưa có bậc nào.</div>';
+}
+function collect(){
+  var b=document.getElementById('kg-list');if(!b)return;
+  var ms=b.querySelectorAll('[data-kg-m]');
+  for(var i=0;i<ms.length;i++){
+    var k=+ms[i].getAttribute('data-kg-m');
+    var pi=b.querySelector('[data-kg-p="'+k+'"]');
+    T[k].min=parseFloat(ms[i].value)||0;
+    T[k].price=parseFloat(pi?pi.value:0)||0;
+  }
+}
+async function save(){
+  collect();
+  T=T.filter(function(x){return x.min>0&&x.price>0;}).sort(function(a,b){return a.min-b.min;});
+  try{
+    await F.updateDoc(C.doc('products',TPID),{kgTier:T});
+    C.closeModal('#kg-tier');C.toast('✅ Đã lưu '+T.length+' bậc giá');C.dirty();C.renderCart();
+  }catch(e){C.err(e,'Lưu bậc giá');}
+}
+
+/* ---------- HÀNH ĐỘNG ---------- */
+M.act('kg-tier',function(e,d){C.closeModal('#sk-prod');open_(d.id);});
+M.act('kg-add',function(){collect();T.push({min:0,price:0});list();});
+M.act('kg-del',function(e,d){collect();T.splice(+d.i,1);list();});
+M.act('kg-save',function(){save();});
+M.act('kg-x',function(){C.closeModal('#kg-tier');});
+
+/* ---------- GẮN VÀO LÕI ---------- */
+M.on('prod:form',function(c){
+  if(!M.flag('kg'))return;
+  var f=document.getElementById('sk-prod');if(!f)return;
+  var old=document.getElementById('kg-tier-btn');if(old)old.remove();
+  var acts=f.querySelector('.sk-card-acts');if(!acts)return;
+  var p=c.id?prod(c.id):null,n=(p&&p.kgTier&&p.kgTier.length)||0;
+  var b=document.createElement('button');b.id='kg-tier-btn';b.className='sk-btn outline';
+  b.setAttribute('data-act','kg-tier');b.setAttribute('data-id',c.id||'');
+  b.textContent=c.id?('⚖️ Bậc giá'+(n?(' ('+n+')'):'')):'⚖️ Bậc giá (lưu SP trước)';
+  acts.parentNode.insertBefore(b,acts);
+});
+/* Gắn nhãn ⚖️ lên ô hàng có bậc giá để nhân viên biết */
+M.on('sell:render',function(c){
+  if(!M.flag('kg')||!c.box)return;
+  C.products().forEach(function(p){
+    if(!tiers(p))return;
+    var b=c.box.querySelector('[data-id="'+p.id+'"]');if(!b)return;
+    var n=b.querySelector('.sk-tile-price');
+    if(n&&n.innerHTML.indexOf('kg-tag')<0)n.innerHTML+='<span class="kg-tag">⚖️ bậc</span>';
+  });
+});
+})();
+/* ═══════════ HẾT MODULE kg ═══════════ */
+
+/* ═══════════ BẢNG BẬT/TẮT MODULE NGÀNH ═══════════
+   Chèn nút "🧩 Module ngành" vào tab Báo cáo (chỉ chủ shop thấy).
+   Cờ lưu tại users/{uid}/meta/shopSettings.mods
+   ══════════════════════════════════════════════════ */
+(function(){
+if(!window.SKMOD)return;
+var M=window.SKMOD,C=M.core;
+
+var LIST=[
+  {k:'fnb',ic:'🍽️',n:'F&B — Nhà hàng / Quán ăn / Cafe',d:'Sơ đồ bàn · giữ đơn theo bàn · định lượng nguyên vật liệu (bán 1 ly cà phê tự trừ cà phê + sữa + đá)'},
+  {k:'fs', ic:'👕',n:'Thời trang / Mỹ phẩm',          d:'Biến thể size – màu · ma trận tồn từng biến thể · chọn size khi bán'},
+  {k:'rm', ic:'🛏️',n:'Karaoke / Spa / Nhà nghỉ',      d:'Phòng tính theo giờ · gọi thêm đồ vào phòng · tự tính tiền khi đóng phòng'},
+  {k:'kg', ic:'⚖️',n:'Vật liệu XD / Nông sản / Bán sỉ',d:'Cân ký số lẻ · giá tự đổi theo bậc số lượng (mua càng nhiều càng rẻ)'}
+];
+
+M.css('skmodset','\
+#pos-screen .ms-i{border:1.5px solid #e4e8ec;border-radius:13px;padding:12px 13px;margin-bottom:9px;background:#fff}\
+#pos-screen .ms-i.on{border-color:#0d7a5f;background:#f4fbf8}\
+#pos-screen .ms-h{display:flex;align-items:center;gap:9px}\
+#pos-screen .ms-h b{flex:1;font-size:13.5px;color:#243b53;font-weight:800}\
+#pos-screen .ms-d{font-size:11.5px;color:#8a97a3;margin-top:6px;line-height:1.5}\
+#pos-screen .ms-sw{flex:none;width:46px;height:26px;border-radius:13px;background:#dfe6e9;border:none;cursor:pointer;position:relative;transition:.18s}\
+#pos-screen .ms-sw:after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:.18s;box-shadow:0 1px 3px rgba(0,0,0,.22)}\
+#pos-screen .ms-sw.on{background:#0d7a5f}\
+#pos-screen .ms-sw.on:after{left:23px}\
+#pos-screen .ms-warn{background:#fff8e6;border:1px solid #f5d78e;border-radius:11px;padding:10px 12px;font-size:12px;color:#8a6d3b;margin-bottom:11px;line-height:1.55}');
+
+var TMP={};
+function open_(){
+  TMP={};LIST.forEach(function(x){TMP[x.k]=M.flag(x.k);});
+  var el=document.getElementById('ms-box');
+  if(!el){el=document.createElement('div');el.id='ms-box';el.className='sk-modal';el.innerHTML='<div class="sk-card"></div>';document.getElementById('pos-screen').appendChild(el);}
+  draw();C.modal('#ms-box');
+}
+function draw(){
+  var el=document.getElementById('ms-box');if(!el)return;
+  el.querySelector('.sk-card').innerHTML='<h3>🧩 Module theo ngành nghề</h3>'
+    +'<div class="ms-warn">Chỉ bật đúng ngành của bạn. Bật thừa sẽ làm màn hình rối và máy chạy chậm hơn. <b>Bật xong phải tải lại trang</b> thì module mới hiện.</div>'
+    +'<div style="max-height:52vh;overflow-y:auto">'
+    +LIST.map(function(x){
+      return '<div class="ms-i'+(TMP[x.k]?' on':'')+'"><div class="ms-h"><span style="font-size:19px">'+x.ic+'</span>'
+        +'<b>'+x.n+'</b><button class="ms-sw'+(TMP[x.k]?' on':'')+'" data-act="ms-t" data-k="'+x.k+'"></button></div>'
+        +'<div class="ms-d">'+x.d+'</div></div>';
+    }).join('')
+    +'</div>'
+    +'<div class="sk-card-acts" style="margin-top:12px"><button class="sk-btn ghost" data-act="ms-x">Hủy</button>'
+    +'<span style="flex:1"></span><button class="sk-btn green" data-act="ms-save">Lưu</button></div>';
+}
+M.act('ms-open',function(){open_();});
+M.act('ms-t',function(e,d){TMP[d.k]=!TMP[d.k];draw();});
+M.act('ms-x',function(){C.closeModal('#ms-box');});
+M.act('ms-save',async function(){
+  var before=LIST.map(function(x){return M.flag(x.k)?1:0;}).join('');
+  var ok=await M.saveFlags(TMP);
+  if(!ok){C.toast('⚠️ Chưa lưu được — kiểm tra mạng');return;}
+  C.closeModal('#ms-box');
+  var after=LIST.map(function(x){return TMP[x.k]?1:0;}).join('');
+  if(before!==after&&confirm('Đã lưu. Tải lại trang ngay để áp dụng?'))location.reload();
+  else C.toast('✅ Đã lưu — tải lại trang để áp dụng');
+});
+
+M.on('boot',function(){
+  var bar=document.querySelector('#sk-v-report .sk-actbar');if(!bar)return;
+  if(document.getElementById('ms-btn'))return;
+  var b=document.createElement('button');b.id='ms-btn';b.setAttribute('data-act','ms-open');
+  b.textContent='🧩 Module ngành';bar.appendChild(b);
+});
+})();
+/* ═══════════ HẾT: BẢNG MODULE ═══════════ */
 </script>
 <style>
 #pos-screen{position:fixed;inset:0;z-index:2000;background:#eef1ef;display:none;flex-direction:column;color:#15211d;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
