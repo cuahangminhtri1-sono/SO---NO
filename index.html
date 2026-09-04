@@ -7898,7 +7898,7 @@ var API={
     setCart:function(a){var c=skCart;c.length=0;for(var i=0;i<(a||[]).length;i++)c.push(a[i]);skRenderCart();skRenderGrid();},
     held:function(){return skHeld;},
     discount:function(v){if(v!=null)skDiscount=v;return skDiscount;},
-    num:function(t,v,cb,o){skNum(t,v,cb,o);},
+    num:function(t,v,cb,o){o=o||{};if(o.text&&!o.onText)o={text:true,decimal:!!o.decimal,onText:cb};skNum(t,v,cb,o);},
     adjust:function(id,d,r,n){return skAdjust(id,d,r,n);},
     finalize:function(m,e){return skFinalize(m,e);},
     openCart:function(){skOpenCart();},
@@ -8116,7 +8116,7 @@ M.act('fnb-mgr',function(){mgr();});
 M.act('fnb-mgr-x',function(){saveMgr();});
 M.act('fnb-add',function(){add_();});
 M.act('fnb-del',function(el,d){del_(d.id);});
-M.act('fnb-bom',function(el,d){C.closeModal('#sk-prod');bomOpen(d.id);});
+M.act('fnb-bom',function(el,d){if(!d.id){C.toast('Bấm Lưu tạo sản phẩm trước, rồi mở lại để đặt công thức');return;}C.closeModal('#sk-prod');bomOpen(d.id);});
 M.act('fnb-bom-add',function(el,d){
   var p=prod(d.id);if(!p)return;
   for(var i=0;i<BOM.length;i++)if(BOM[i].id===d.id){C.toast('Đã có trong công thức');return;}
@@ -8297,7 +8297,7 @@ M.act('fs-pick',function(el,d){
   C.addLine(p,{name:v.k,ratio:1,price:v.price||p.price||0});
 });
 M.act('fs-pick-x',function(){C.closeModal('#fs-pick');});
-M.act('fs-var',function(el,d){C.closeModal('#sk-prod');mxOpen(d.id);});
+M.act('fs-var',function(el,d){if(!d.id){C.toast('Bấm Lưu tạo sản phẩm trước, rồi mở lại để đặt biến thể');return;}C.closeModal('#sk-prod');mxOpen(d.id);});
 M.act('fs-mk',function(){mxMake();});
 M.act('fs-mx-save',function(){mxSave();});
 M.act('fs-mx-x',function(){C.closeModal('#fs-mx');});
@@ -8621,7 +8621,7 @@ async function save(){
 }
 
 /* ---------- HÀNH ĐỘNG ---------- */
-M.act('kg-tier',function(e,d){C.closeModal('#sk-prod');open_(d.id);});
+M.act('kg-tier',function(e,d){if(!d.id){C.toast('Bấm Lưu tạo sản phẩm trước, rồi mở lại để đặt bậc giá');return;}C.closeModal('#sk-prod');open_(d.id);});
 M.act('kg-add',function(){collect();T.push({min:0,price:0});list();});
 M.act('kg-del',function(e,d){collect();T.splice(+d.i,1);list();});
 M.act('kg-save',function(){save();});
