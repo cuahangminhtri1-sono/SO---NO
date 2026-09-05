@@ -11021,6 +11021,7 @@ var CAT={
  bh :{i:'🛒',n:'Bán hàng (POS)'},
  kho:{i:'📦',n:'Kho & Nhập hàng'},
  bc :{i:'📊',n:'Báo cáo & Quỹ ca'},
+ cv :{i:'🧠',n:'Cố vấn kinh doanh (AI)'},
  nv :{i:'👥',n:'Nhân viên & Phân quyền'},
  cn :{i:'🏪',n:'Chi nhánh & Module ngành'},
  sl :{i:'💾',n:'Sao lưu & Phục hồi'},
@@ -12087,7 +12088,159 @@ a:`<b class="snai-h">🔗 Khách không mở được link</b>
 <li>Kiểm tra link gửi có bị <b>cắt cụt</b> không — gửi lại bằng nút <b>📤 Chia sẻ</b>.</li>
 <li>Khách cần có <b>mạng</b> để xem.</li>
 <li>Nếu bạn đã <b>xóa khách</b> đó thì link cũng bị hủy theo — tạo lại khách và chia sẻ link mới.</li>
-</ol>`}
+</ol>`},
+
+/* ───────────── 🧠 CỐ VẤN KINH DOANH (AI) ───────────── */
+{c:'cv',t:'Cố vấn kinh doanh là gì? Nằm ở đâu?',k:'co van kinh doanh bo nao ai tab co van nam o dau tim thay muc co van gioi thieu tro ly kinh doanh phan tich so lieu',
+a:`<b class="snai-h">🧠 Tab Cố vấn kinh doanh</b>
+Đây là <b>bộ não AI</b> tự đọc số liệu shop của bạn rồi mách việc nên làm.
+<b>Đường vào:</b>
+<ol>
+<li>Bấm nút xanh <span class="snai-path">🛒 BÁN HÀNG</span> trên đầu màn hình.</li>
+<li>Nhìn <b>thanh nút dưới cùng</b> → bấm <b>🧠 Cố vấn</b> (nằm ngay sau nút Báo cáo).</li>
+</ol>
+<b>Bên trong có 7 mục</b> (hàng nút cuộn ngang) và 1 nút <b>⚙️</b>:
+<ul>
+<li><b>📰 Tổng quan</b> — bản tin hôm nay + việc nên làm ngay</li>
+<li><b>🎯 Rủi ro nợ</b> — nên đòi ai trước</li>
+<li><b>📦 Nhập hàng</b> — hàng nào sắp hết, nhập bao nhiêu</li>
+<li><b>🚨 Bất thường</b> — dấu hiệu lỗ, sai sót, thất thoát</li>
+<li><b>👥 Khách</b> — VIP, sắp mất, ngủ đông</li>
+<li><b>🛒 Bán kèm</b> — mua món A thường mua thêm món B</li>
+<li><b>💰 Lời/lỗ</b> — mặt hàng nào đẻ ra tiền, mặt hàng nào lỗ</li>
+</ul>
+Trên cùng còn có ô <b>Hỏi hoặc ra lệnh…</b> và nút <b>🎤</b> để nói bằng miệng.
+<div class="snai-ok">✅ Mọi tính toán chạy <b>ngay trong máy bạn</b> — không gửi dữ liệu đi đâu, không cần mạng để tính, không tốn thêm phí.</div>
+<div class="snai-warn">⚠️ Tab này chỉ hiện với tài khoản <b>có quyền xem Báo cáo</b> (Chủ / Quản lý). Thu ngân bị tắt quyền Báo cáo sẽ không thấy.</div>`},
+
+{c:'cv',t:'Quét sâu — bấm 1 lần cho số chính xác',k:'quet sau nut quet sau doc them du lieu chinh xac hon 60 ngay du bao chinh xac co van it don',
+a:`<b class="snai-h">🔍 Quét sâu</b>
+Bình thường Cố vấn chỉ đọc <b>khoảng 300 đơn mới nhất</b> đã có sẵn trong máy — nhanh và miễn phí, nhưng ngắn ngày.
+Bấm nút viền <b>🔍 Quét sâu … ngày</b> (ngay dưới dòng "Đang phân tích …") để máy đọc thêm <b>1 lần</b> từ máy chủ.
+<b>Sau khi quét sâu:</b>
+<ul>
+<li>Dự báo hết hàng, vốn chết, bán kèm <b>chính xác hơn hẳn</b>.</li>
+<li><b>Phiếu trả hàng</b> mới được trừ vào số liệu (chưa quét thì chưa trừ).</li>
+</ul>
+<div class="snai-tip">💡 Kỳ mặc định <b>60 ngày</b>. Đổi ở <b>⚙️</b> → <b>Kỳ phân tích</b> (7–180 ngày). Đổi xong nhớ quét sâu lại.</div>
+<div class="snai-warn">⚠️ Quét sâu <b>cần mạng</b>. Mất mạng sẽ báo "Không quét được" và vẫn dùng dữ liệu sẵn có.</div>`},
+
+{c:'cv',t:'Bản tin hôm nay — việc nên làm ngay',k:'ban tin hom nay co van doanh thu hom nay viec nen lam ngay so voi trung binh 7 ngay ban chay hom nay man hinh dau tien',
+a:`<b class="snai-h">📰 Mục Tổng quan</b>
+<ul>
+<li><b>Doanh thu hôm nay</b> + lời gộp ước tính, kèm mũi tên ▲▼ so với <b>trung bình 7 ngày trước</b>.</li>
+<li>3 ô số: <b>mặt hàng sắp hết</b> · <b>khách cần đòi</b> · <b>cảnh báo bất thường</b>.</li>
+<li><b>🔥 Bán chạy nhất hôm nay</b>.</li>
+<li><b>⚡ Việc nên làm ngay</b> — gom 3 món sắp hết, 3 khách nên đòi và 2 cảnh báo nặng nhất; bấm thẳng vào là làm được luôn.</li>
+</ul>
+<div class="snai-tip">💡 Ô "khách cần đòi" hiện dấu <b>—</b> cho tới khi bạn bấm <b>🎯 Chấm điểm rủi ro công nợ</b> một lần.</div>`},
+
+{c:'cv',t:'Chấm điểm rủi ro nợ — nên đòi ai trước',k:'cham diem rui ro no doi ai truoc khach nao de mat tien nguy co mat tien soan tin nhac no thu no uu tien',
+a:`<b class="snai-h">🎯 Mục Rủi ro nợ</b>
+<ol>
+<li>Vào <b>🧠 Cố vấn</b> → chạm <b>🎯 Rủi ro nợ</b>.</li>
+<li>Chọn <b>🎯 Bắt đầu chấm điểm</b> (đọc thêm lịch sử trả nợ — chính xác nhất) hoặc <b>⚡ Xem nhanh</b> (không đọc thêm dữ liệu).</li>
+</ol>
+<b>Điểm 0–100</b> tính từ: nợ đã bao lâu · lần trả gần nhất · tỉ lệ đã trả trên đã mua · số nợ so với mặt bằng shop · xu hướng.
+<ul>
+<li>🟢 dưới <b>35</b> — an toàn</li>
+<li>🟡 <b>35–65</b> — cần theo dõi</li>
+<li>🔴 trên <b>65</b> — rủi ro cao</li>
+</ul>
+<b>Tiền có nguy cơ mất</b> = số nợ × điểm rủi ro. Danh sách xếp sẵn theo thứ tự — cứ <b>đòi từ trên xuống</b>.
+Mỗi khách có nút <b>✉️ Soạn tin nhắc nợ</b> (máy viết sẵn lời lịch sự, có tên shop và số nợ) → bấm <b>📋 Chép</b> hoặc <b>📤 Gửi Zalo / SMS</b>. Khách có số điện thoại thì hiện thêm nút <b>📞 Gọi</b>.
+<div class="snai-tip">💡 Hai ngưỡng 🟡 và 🔴 đổi được ở <b>⚙️</b> cho khớp cách shop bạn chạy.</div>`},
+
+{c:'cv',t:'Dự báo sắp hết hàng và hàng nằm im',k:'du bao sap het hang goi y so luong can nhap bao nhieu diem dat hang von chet hang nam im chon von co van',
+a:`<b class="snai-h">📦 Mục Nhập hàng</b>
+<b>⏳ Sắp hết — cần nhập:</b> máy tính <b>Điểm đặt hàng = bán trung bình mỗi ngày × số ngày chờ hàng + tồn an toàn</b>. Tồn chạm mức đó là báo, kèm câu <u>"Nên nhập …"</u> đủ dùng <b>14 ngày</b> (đổi ở ⚙️).
+Bấm <b>➕ Thêm vào phiếu nhập</b> là món đó nhảy thẳng qua tab <b>Nhập</b>, khỏi gõ tay.
+<b>🧊 Vốn chết:</b> hàng còn tồn nhưng <b>từ 45 ngày không bán được món nào</b> và giá trị từ <b>100.000đ</b> trở lên — tiền đang bị chôn ở đó.
+<div class="snai-warn">⚠️ Món <b>chưa từng bán</b> trong kỳ thì máy không có gì để dự báo, nó chỉ xét vào mục Vốn chết.</div>
+<div class="snai-tip">💡 Muốn số sát thực tế: vào <b>⚙️</b> chỉnh <b>Số ngày chờ hàng về</b> đúng với nhà cung cấp của bạn.</div>`},
+
+{c:'cv',t:'Bắt bất thường — máy tự soi dấu hiệu lạ',k:'bat thuong nghi ngo kiem tra shop ban duoi von giam gia la don ngoai gio ton am thieu von nhan vien giam gia nhieu',
+a:`<b class="snai-h">🚨 Mục Bất thường</b>
+Máy tự soi <b>7 dấu hiệu</b>:
+<ul>
+<li>💸 <b>Bán dưới giá vốn</b> — bán rẻ hơn giá nhập.</li>
+<li>🏷️ <b>Giảm giá lớn bất thường</b> — giảm trên 30% giá trị đơn.</li>
+<li>🌙 <b>Đơn ngoài giờ</b> — bán trước 4h sáng hoặc từ 23h đêm.</li>
+<li>📉 <b>Tồn kho ÂM</b> — bán ra trước mà chưa nhập vào.</li>
+<li>⚠️ <b>Giá bán ≤ giá vốn</b> đang niêm yết trong Kho.</li>
+<li>❓ <b>Chưa có giá vốn</b> mà vẫn bán — số lời đang bị tính sai.</li>
+<li>👤 <b>Nhân viên giảm giá nhiều lệch hẳn</b> so với mặt bằng cả shop.</li>
+</ul>
+<div class="snai-warn">⚠️ Đây chỉ là <b>dấu hiệu để bạn kiểm tra lại</b>, không phải kết luận. Có thể là khuyến mãi thật hoặc bán sớm/muộn thật.</div>`},
+
+{c:'cv',t:'Phân nhóm khách — VIP, sắp mất, ngủ đông',k:'phan khuc khach rfm khach vip trung thanh khach moi khach sap mat ngu dong nen goi lai cham soc khach',
+a:`<b class="snai-h">👥 Mục Khách</b>
+Máy xếp khách theo 3 tiêu chí: <b>mua gần đây</b> · <b>mua thường xuyên</b> · <b>chi nhiều</b>, chia thành 6 nhóm:
+<ul>
+<li>⚠️ <b>SẮP MẤT — nên gọi lại</b> (đáng gọi nhất: mua nhiều lần nhưng lâu rồi không quay lại)</li>
+<li>🌟 <b>Khách VIP</b> · 💚 <b>Trung thành</b> · 🌱 <b>Khách mới</b></li>
+<li>🙂 <b>Bình thường</b> · 😴 <b>Ngủ đông</b></li>
+</ul>
+Mỗi khách hiện: tổng tiền đã mua · số đơn · mua gần nhất bao lâu · trung bình mỗi đơn.
+<div class="snai-warn">⚠️ Máy chỉ đếm được <b>đơn có gắn tên khách</b>. Bán mà không chọn khách thì không vào bảng này — lúc bán nhớ <b>chọn khách</b> hoặc <b>Ghi nợ</b>.</div>`},
+
+{c:'cv',t:'Gợi ý bán kèm — mua A thường mua thêm B',k:'ban kem mua kem combo goi y ban them nhac ban kem khi them hang cap hang hay di chung',
+a:`<b class="snai-h">🛒 Mục Bán kèm</b>
+Máy học từ những đơn có <b>từ 2 món trở lên</b> rồi rút ra cặp: mua <b>A</b> thì bao nhiêu <b>%</b> khách mua thêm <b>B</b>.
+Bấm <b>➕ Thêm … vào giỏ</b> là món kèm vào giỏ ngay.
+<b>Bật nhắc tự động lúc bán:</b> vào <b>⚙️</b> → <b>Nhắc bán kèm khi thêm hàng</b> → bấm <b>Bật</b>. Từ đó cứ thêm 1 món vào giỏ là máy nhắc món hay đi kèm.
+<div class="snai-tip">💡 Mặc định TẮT cho yên tĩnh lúc bán. Bật lên cũng không bao giờ che thông báo của app.</div>
+<div class="snai-warn">⚠️ Báo chưa đủ dữ liệu? Cần ít nhất <b>10 đơn trong kỳ</b> và <b>5 đơn nhiều món</b>. Bấm <b>🔍 Quét sâu</b> trước đã.</div>`},
+
+{c:'cv',t:'Mặt hàng nào đang lỗ, biên lời mỏng',k:'canh bao lo bien loi mong lai gop mat hang nao lai mat hang nao lo chua nhap von de ra tien co van',
+a:`<b class="snai-h">💰 Mục Lời/lỗ</b>
+<b>Lời gộp = doanh thu − giá vốn</b> (đã trừ giảm giá, phân bổ về từng dòng nên khớp với Báo cáo).
+<ul>
+<li>3 ô đầu: <b>doanh thu kỳ</b> · <b>lời gộp</b> · <b>biên lời %</b>.</li>
+<li><b>🏆 Đẻ ra tiền nhiều nhất</b> — 10 mặt hàng lời nhất.</li>
+<li><b>🩸 Biên mỏng / đang lỗ</b> — biên dưới 12%, hoặc đang lỗ, hoặc <b>chưa nhập giá vốn</b>.</li>
+</ul>
+Bấm <b>Sửa giá vốn / giá bán</b> để mở thẳng sản phẩm ra chỉnh.
+<div class="snai-warn">⚠️ Món <b>chưa nhập giá vốn</b> làm số lời của cả shop bị sai. Thấy dòng "Chưa nhập giá vốn" thì sửa ngay.</div>`},
+
+{c:'cv',t:'Ra lệnh bằng giọng nói hoặc gõ chữ',k:'ra lenh giong noi micro noi bang mieng hoi hoac ra lenh go chu ban hang bang giong noi mic co van',
+a:`<b class="snai-h">🎤 Hỏi và ra lệnh</b>
+Ô <b>Hỏi hoặc ra lệnh…</b> nằm trên cùng tab <b>🧠 Cố vấn</b>. Gõ chữ rồi bấm <b>➤</b> (hoặc Enter), hoặc bấm <b>🎤</b> rồi nói tiếng Việt.
+<b>Thử nói / gõ:</b>
+<ul>
+<li>"bán 2 thùng bia sài gòn cho anh Tuấn ghi nợ"</li>
+<li>"tồn coca còn bao nhiêu" · "giá mì hảo hảo"</li>
+<li>"hôm nay lời bao nhiêu" · "doanh thu tuần"</li>
+<li>"ai nợ nhiều nhất" · "cần đòi nợ ai"</li>
+<li>"hàng nào sắp hết" · "hàng nào bán chạy" · "vốn chết"</li>
+<li>"khách sắp mất" · "mua kèm" · "bất thường"</li>
+</ul>
+<div class="snai-ok">✅ Máy <b>không tự bán</b>. Lệnh bán chỉ <b>thêm vào giỏ</b> rồi hiện nút để bạn tự bấm chốt.</div>
+<div class="snai-warn">⚠️ Nút 🎤 cần trình duyệt hỗ trợ nhận giọng nói (Chrome trên Android hoặc máy tính). Máy không hỗ trợ thì cứ gõ chữ. Báo chưa cho phép micro → Cài đặt trình duyệt → cho phép <b>Micro</b> cho trang này.</div>`},
+
+{c:'cv',t:'Chỉnh thông số cho Cố vấn',k:'cai dat co van so ngay cho hang ve nhap du dung bao nhieu ngay ky phan tich nguong rui ro nhac ban kem thong so',
+a:`<b class="snai-h">⚙️ Chỉnh thông số Cố vấn</b>
+Vào <b>🧠 Cố vấn</b> → chạm nút <b>⚙️</b> ở cuối hàng nút. Có 5 mục:
+<ul>
+<li><b>🚚 Số ngày chờ hàng về</b> — mặc định <b>3</b> (1–60). Từ lúc gọi nhà cung cấp tới lúc hàng tới kho.</li>
+<li><b>📦 Nhập đủ dùng bao nhiêu ngày</b> — mặc định <b>14</b> (1–120). Nhập nhiều thì ít phải gọi hàng nhưng chôn vốn.</li>
+<li><b>📅 Kỳ phân tích</b> — mặc định <b>60</b> ngày (7–180). Quét sâu sẽ đọc bằng đó ngày.</li>
+<li><b>🛒 Nhắc bán kèm khi thêm hàng</b> — mặc định <b>TẮT</b>.</li>
+<li><b>🎯 Ngưỡng rủi ro nợ</b> — mặc định 🟡 <b>35</b> / 🔴 <b>65</b>.</li>
+</ul>
+<div class="snai-warn">⚠️ Các số này lưu <b>trong máy này</b>, riêng theo từng tài khoản. Đổi sang điện thoại hay máy tính khác thì phải chỉnh lại.</div>`},
+
+{c:'cv',t:'Không thấy tab Cố vấn — xử lý sao?',k:'khong thay tab co van mat nut co van chua du du lieu thieu du lieu co van bao trong so lech bao cao khong tinh duoc',
+a:`<b class="snai-h">🆘 Sự cố ở mục Cố vấn</b>
+<b>Không thấy nút 🧠 Cố vấn:</b>
+<ol>
+<li>Đang ở màn <span class="snai-path">📒 SỔ NỢ</span> — phải bấm qua <span class="snai-path">🛒 BÁN HÀNG</span>.</li>
+<li>Tài khoản đang dùng <b>không có quyền xem Báo cáo</b> → đăng nhập tài khoản Chủ.</li>
+<li>Mới mở app thì chờ <b>vài giây</b> cho nạp xong, hoặc đóng hẳn app rồi mở lại.</li>
+</ol>
+<b>Báo chưa đủ dữ liệu / số quá ít:</b> bấm <b>🔍 Quét sâu</b> (cần mạng). Shop mới bán vài ngày thì máy chưa đủ cơ sở để dự báo — cứ bán thêm ít hôm.
+<b>Số của Cố vấn lệch với Báo cáo:</b> Cố vấn là <b>ước tính theo kỳ</b> (ưu tiên ngày gần đây) để dự báo; <b>Báo cáo mới là số chốt</b> để đối chiếu tiền. Chưa quét sâu thì Cố vấn cũng chưa trừ hàng trả.
+<div class="snai-ok">✅ Cố vấn chỉ <b>đọc</b> số liệu để phân tích — không tự sửa đơn, không tự bán, không xóa gì cả. Cứ dùng thoải mái.</div>`}
 
 ];
 
