@@ -9552,8 +9552,12 @@ body.la-nv #pos-screen [data-act="ca-cancel"]{display:none!important}
     applyUpdate(false);
   }
   function readTag(r){ return r ? (r.headers.get('ETag')||r.headers.get('Last-Modified')||null) : null; }
+  /* Dò bản mới trên CHÍNH TRANG ĐANG MỞ (thay vì cố định ./index.html)
+     -> đổi tên file hay đổi đường dẫn về sau vẫn chạy đúng, dùng chung được cho cả 6 app.
+     Là yêu cầu HEAD nên sw.js bỏ qua, luôn hỏi thẳng máy chủ, gần như 0 băng thông. */
+  var SELF_URL=(function(){ try{ return location.pathname || './index.html'; }catch(e){ return './index.html'; } })();
   function fetchTag(){
-    return fetch('./index.html', {method:'HEAD', cache:'no-store'})
+    return fetch(SELF_URL, {method:'HEAD', cache:'no-store'})
       .then(function(r){ return (r && r.ok) ? readTag(r) : null; })
       .catch(function(){ return null; });
   }
@@ -12574,7 +12578,7 @@ function unitsOf(p){
 }
 
 /* ── CẤU HÌNH (lưu trong máy, mỗi tài khoản 1 bản) ── */
-var CFG={lead:3,cover:14,riskHi:65,riskMid:35,tip:1,win:60};
+var CFG={lead:3,cover:14,riskHi:65,riskMid:35,tip:0,win:60};   /* tip MẶC ĐỊNH TẮT — bật ở ⚙️ */
 function cfgKey(){ return 'aib_cfg_'+(C.uid()||'x'); }
 function cfgLoad(){
   try{ var s=localStorage.getItem(cfgKey()); if(s){ var o=JSON.parse(s); for(var k in CFG) if(o[k]!=null) CFG[k]=o[k]; } }catch(e){}
@@ -13526,7 +13530,7 @@ function renderCfg(){
    +'<div class="s">Quét sâu sẽ đọc đơn trong bằng đó ngày gần nhất.</div>'
    +'<div class="aib-acts"><button data-act="aib-set" data-k="win">Đổi</button></div></div>'
    +'<div class="aib-c"><div class="t">🛒 Nhắc bán kèm khi thêm hàng<em>'+(CFG.tip?'BẬT':'TẮT')+'</em></div>'
-   +'<div class="s">Thêm 1 món vào giỏ, máy nhắc món thường đi kèm.</div>'
+   +'<div class="s">Thêm 1 món vào giỏ, máy nhắc món thường đi kèm. Mặc định TẮT cho yên tĩnh lúc bán; bật lên vẫn không bao giờ che thông báo của app.</div>'
    +'<div class="aib-acts"><button data-act="aib-tip">'+(CFG.tip?'Tắt':'Bật')+'</button></div></div>'
    +'<div class="aib-c"><div class="t">🎯 Ngưỡng rủi ro nợ<em>'+CFG.riskMid+' / '+CFG.riskHi+'</em></div>'
    +'<div class="s">Dưới '+CFG.riskMid+' = 🟢 an toàn · '+CFG.riskMid+'–'+CFG.riskHi+' = 🟡 theo dõi · trên '+CFG.riskHi+' = 🔴 rủi ro cao.</div>'
@@ -13836,7 +13840,13 @@ M.on('cart:add',function(ctx){
     var r=RULES&&RULES[ctx.id];
     if(r&&r.length&&r[0].conf>=0.30){
       TIPPED[ctx.id]=1;
-      setTimeout(function(){ toast('💡 Khách hay mua kèm: '+r[0].name+' ('+Math.round(r[0].conf*100)+'%)'); },1000);
+      setTimeout(function(){
+        /* TUYỆT ĐỐI không đè thông báo của lõi (app dùng CHUNG 1 ô #toast):
+           nếu đang hiện "Hết tồn…" / "Chỉ còn…" thì bỏ qua lượt gợi ý này. */
+        try{ var te=document.getElementById('toast');
+             if(te&&te.classList&&te.classList.contains('show')) return; }catch(e){ return; }
+        toast('💡 Khách hay mua kèm: '+r[0].name+' ('+Math.round(r[0].conf*100)+'%)');
+      },1400);
     }
   }catch(e){}
 });
