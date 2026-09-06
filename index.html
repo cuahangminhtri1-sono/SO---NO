@@ -15327,7 +15327,7 @@ window.AIB={ hoi:function(t){ try{ M.go('aib'); }catch(e){} setTimeout(function(
 })();
 </script>
 <!-- ═══════════════ HẾT: BỘ NÃO AI — CỐ VẤN KINH DOANH ═══════════════ -->
-<!-- ═══════════════ TRỢ LÝ GIỌNG NÓI — MỨC 2 (bản v5) ═══════════════ -->
+<!-- ═══════════════ TRỢ LÝ GIỌNG NÓI — MỨC 2 (bản v6) ═══════════════ -->
 <script>
 (function(){
 "use strict";
@@ -15489,10 +15489,10 @@ function noi(t,cb,hien){
 var SR=window.SpeechRecognition||window.webkitSpeechRecognition||null;
 var REC=null, MUON=false, CHAY=false, TAM=false, LOI=0, WD=null, WD2=null, WD3=null;
 var LASTSTART=0, LASTNGHE=0, NOITU=0, SOKQ=0, LOICUOI='', SOLANMO=0, CANHBAO=0;
-var BUF='', BUFT=null, NOIXONG=0, VUANOI='';
+var BUF='', BUFT=null, NOIXONG=0, VUANOI='', DAXAI=0, SOFIN=0, CUOIKEY='';
 function gonLap(s){ try{ return String(s).replace(/\b(\S+)(\s+\1\b){2,}/gi,'$1'); }catch(e){ return s; } }
 function chotCau(){
-  var t=BUF; BUF=''; BUFT=null;
+  var t=BUF; BUF=''; BUFT=null; DAXAI=SOFIN;   /* đánh dấu: từ đây trở về trước đã xử lý xong */
   if(!t)return;
   /* nghe lại đúng câu máy vừa đọc -> bỏ qua, không tự ra lệnh cho chính mình */
   try{ if(VUANOI&&Date.now()-NOIXONG<4000){ var kk=kd(t); if(kk.length>2&&VUANOI.indexOf(kk)>=0)return; } }catch(e){}
@@ -15505,19 +15505,22 @@ function taoRec(){
   if(!SR)return null;
   var r=new SR();
   r.lang='vi-VN'; r.continuous=false; r.interimResults=true; r.maxAlternatives=1;
-  r.onstart=function(){ CHAY=true; LOI=0; LASTNGHE=Date.now(); ve(); };
+  r.onstart=function(){ CHAY=true; LOI=0; LASTNGHE=Date.now(); DAXAI=0; SOFIN=0; BUF=''; ve(); };
   r.onaudiostart=function(){ CHAY=true; LASTNGHE=Date.now(); ve(); };
   r.onresult=function(ev){
     LASTNGHE=Date.now(); SOKQ++; LOI=0;
     if(TAM)return;
     /* đang đọc hoặc vừa đọc xong -> bỏ, kẻo máy nghe chính giọng của mình */
     if(DANGNOI||Date.now()-NOIXONG<700)return;
-    /* DỰNG LẠI TỪ ĐẦU — không cộng dồn, nên báo lại bao nhiêu lần cũng chỉ ra 1 câu */
-    var i,cuoi='',tam='',a;
+    /* DỰNG LẠI TỪ ĐẦU, nhưng BỎ QUA phần đã xử lý rồi —
+       nếu không, câu trước dính vào câu sau thành chuỗi rác. */
+    var i,cuoi='',tam='',a,cuoiFin=-1;
     for(i=0;i<ev.results.length;i++){
       a=ev.results[i][0]; if(!a)continue;
-      if(ev.results[i].isFinal) cuoi+=' '+a.transcript; else tam+=' '+a.transcript;
+      if(ev.results[i].isFinal){ cuoiFin=i; if(i>=DAXAI) cuoi+=' '+a.transcript; }
+      else tam+=' '+a.transcript;
     }
+    SOFIN=cuoiFin+1;
     var txt=(cuoi+' '+tam).replace(/\s+/g,' ').trim();
     if(!txt)return;
     txt=gonLap(txt);
@@ -15835,9 +15838,21 @@ function themGio2(sl,tenDV,ten){
                       cost:(Number(p.cost)||0)*(u.ratio||1),qty:q,baseQty:Math.round(q*(u.ratio||1)*1e6)/1e6});
       c.renderCart(); c.renderGrid();
     }catch(e){ noi('Không thêm được: '+((e&&e.message)||'lỗi')); return; }
+    CUOIKEY=p.id+'|'+u.name;
     var T=tongGio();
     noi('Đã thêm '+nnum(q)+' '+u.name+' '+p.name+'. Giỏ '+tien(T.total)+'.');
   })();
+}
+function suaSL(sl){
+  var g=gio();
+  if(!g.length){ noi('Giỏ đang trống, chưa có gì để sửa.'); return; }
+  var l=null,i;
+  if(CUOIKEY)for(i=0;i<g.length;i++)if(g[i].key===CUOIKEY){ l=g[i]; break; }
+  if(!l)l=g[g.length-1];
+  var cu=l.qty;
+  l.qty=sl; l.baseQty=Math.round(sl*(l.ratio||1)*1e6)/1e6;
+  try{ var c=CO(); c.renderCart(); c.renderGrid(); }catch(e){}
+  noi('Đã sửa '+l.name+' từ '+nnum(cu)+' thành '+nnum(sl)+' '+l.unit+'. Giỏ '+tien(tongGio().total)+'.');
 }
 function docGio(){
   var g=gio(); if(!g.length){ noi('Giỏ đang trống.'); return; }
@@ -15942,8 +15957,21 @@ function nhanBiet(k){
     }
   }
 
+  /* --- SỬA SỐ LƯỢNG món vừa thêm --- */
+  if(/(chu khong phai|khong phai|nham roi|bi nham|sua thanh|doi thanh|sua lai|sua so luong|doi so luong|dang le)/.test(k)){
+    var vSua=null, mkp=k.split(/chu khong phai|khong phai/);
+    if(mkp.length>1){
+      var r1=soTrongCau(mkp[0]);                        /* "10 bao chứ không phải 1 bao" -> lấy 10 */
+      if(r1&&r1.v>0) vSua=r1.v;
+      else{ var mml=mkp[1].match(/(?:ma la|ma phai|ma|la)\s+(.+)$/);   /* "không phải 1 mà là 10" */
+            var r2=soTrongCau(mml?mml[1]:mkp[1]); if(r2&&r2.v>0) vSua=r2.v; }
+    }else{ var r3=soTrongCau(k); if(r3&&r3.v>0) vSua=r3.v; }
+    if(vSua!=null&&vSua>0){ suaSL(vSua); return true; }
+  }
+
   /* --- BÁN HÀNG (POS) --- */
-  if((m=k.match(/^(ban|them|lay|bo them|cho them)\s+(.+)$/))
+  k=k.replace(/^(minh muon|toi muon|em muon|minh can|toi can|cho minh|cho toi|cho em|lay cho minh|lay cho toi|ban cho minh|ban cho toi|lam on cho)\s+/,'ban ');
+  if((m=k.match(/^(ban|them|lay|bo them|cho them|mua giup|lay giup)\s+(.+)$/))
      &&!/^(san pham|hang moi|khach|nhan vien|chi nhanh|ncc|nha cung cap|don vi|nguoi|ca|don)\b/.test(m[2])
      &&!/^(hang|do)$/.test(m[2])){
     var s3=m[2],t3=tk(s3),qty=1,idx=0,dv='';
@@ -16116,7 +16144,7 @@ function xuLy(raw){
     bang('… “'+(txtGhep||txt)+'” — mời nói tiếp');
     return;
   }
-  noi('Chưa hiểu.',null,'Em chưa hiểu “'+(txtGhep||txt)+'”.<br>'+HELP);
+  noi('Chưa hiểu.',null,'Em chưa hiểu “'+(txtGhep||txt)+'”.\n'+HELP);
 }
 
 /* ═════════ 12) GIAO DIỆN ═════════ */
@@ -16185,7 +16213,7 @@ function dungGiaoDien(){
 }
 function moBang(){ var p=el('vgn-panel'); if(p)p.classList.add('show'); }
 function dongBang(){ var p=el('vgn-panel'); if(p)p.classList.remove('show'); }
-function bang(m){ var e=el('vgn-msg'); if(e)e.innerHTML=esc(m); moBang(); }
+function bang(m){ var e=el('vgn-msg'); if(e)e.innerHTML=esc(m).replace(/\n/g,'<br>'); moBang(); }
 function nghe(t,cuoi){ var e=el('vgn-heard'); if(e)e.textContent=(cuoi?'“':'… “')+t+'”'; moBang(); }
 /* Báo nhanh: CHỈ hiện chữ, không đọc -> micro không bị ngắt, không nuốt mất câu sau */
 function nhac(m){ bang(m); }
