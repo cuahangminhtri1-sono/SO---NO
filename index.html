@@ -15327,7 +15327,7 @@ window.AIB={ hoi:function(t){ try{ M.go('aib'); }catch(e){} setTimeout(function(
 })();
 </script>
 <!-- ═══════════════ HẾT: BỘ NÃO AI — CỐ VẤN KINH DOANH ═══════════════ -->
-<!-- ═══════════════ TRỢ LÝ GIỌNG NÓI — MỨC 2 (bản v4) ═══════════════ -->
+<!-- ═══════════════ TRỢ LÝ GIỌNG NÓI — MỨC 2 (bản v5) ═══════════════ -->
 <script>
 (function(){
 "use strict";
@@ -15368,7 +15368,7 @@ function kd(s){
 }
 function tk(s){var a=kd(s).split(' '),o=[],i;for(i=0;i<a.length;i++)if(a[i])o.push(a[i]);return o;}
 /* Lấy lại đoạn chữ CÓ DẤU tương ứng với đoạn đã bỏ dấu — tên khách phải đúng dấu mới tìm ra */
-var RAWCMD='', THUC=0;
+var RAWCMD='', THUC=0, MANH=null;
 function rawTheo(nsub){
   try{
     var nAll=kd(RAWCMD).split(' ').filter(Boolean);
@@ -15490,6 +15490,7 @@ var SR=window.SpeechRecognition||window.webkitSpeechRecognition||null;
 var REC=null, MUON=false, CHAY=false, TAM=false, LOI=0, WD=null, WD2=null, WD3=null;
 var LASTSTART=0, LASTNGHE=0, NOITU=0, SOKQ=0, LOICUOI='', SOLANMO=0, CANHBAO=0;
 var BUF='', BUFT=null, NOIXONG=0, VUANOI='';
+function gonLap(s){ try{ return String(s).replace(/\b(\S+)(\s+\1\b){2,}/gi,'$1'); }catch(e){ return s; } }
 function chotCau(){
   var t=BUF; BUF=''; BUFT=null;
   if(!t)return;
@@ -15503,7 +15504,7 @@ function coAibDangNghe(){ return !!qs('[data-act="aib-mic"].rec'); }
 function taoRec(){
   if(!SR)return null;
   var r=new SR();
-  r.lang='vi-VN'; r.continuous=true; r.interimResults=true; r.maxAlternatives=1;
+  r.lang='vi-VN'; r.continuous=false; r.interimResults=true; r.maxAlternatives=1;
   r.onstart=function(){ CHAY=true; LOI=0; LASTNGHE=Date.now(); ve(); };
   r.onaudiostart=function(){ CHAY=true; LASTNGHE=Date.now(); ve(); };
   r.onresult=function(ev){
@@ -15511,18 +15512,18 @@ function taoRec(){
     if(TAM)return;
     /* đang đọc hoặc vừa đọc xong -> bỏ, kẻo máy nghe chính giọng của mình */
     if(DANGNOI||Date.now()-NOIXONG<700)return;
-    var i,cuoi='',tam='';
-    for(i=ev.resultIndex;i<ev.results.length;i++){
-      if(ev.results[i].isFinal) cuoi+=ev.results[i][0].transcript;
-      else tam+=ev.results[i][0].transcript;
+    /* DỰNG LẠI TỪ ĐẦU — không cộng dồn, nên báo lại bao nhiêu lần cũng chỉ ra 1 câu */
+    var i,cuoi='',tam='',a;
+    for(i=0;i<ev.results.length;i++){
+      a=ev.results[i][0]; if(!a)continue;
+      if(ev.results[i].isFinal) cuoi+=' '+a.transcript; else tam+=' '+a.transcript;
     }
-    if(tam) nghe((BUF+' '+tam).trim(),false);
-    if(cuoi){
-      BUF=(BUF+' '+cuoi).trim();
-      nghe(BUF,true);
-      if(BUFT)clearTimeout(BUFT);
-      BUFT=setTimeout(chotCau,900);   /* CHỜ IM 0,9 GIÂY mới xử lý — nói mấy mảnh cũng gom đủ */
-    }
+    var txt=(cuoi+' '+tam).replace(/\s+/g,' ').trim();
+    if(!txt)return;
+    txt=gonLap(txt);
+    BUF=txt; nghe(txt,!!cuoi);
+    if(BUFT)clearTimeout(BUFT);
+    BUFT=setTimeout(chotCau, cuoi?350:1500);
   };
   r.onerror=function(e){
     var c=(e&&e.error)||'';
@@ -15538,7 +15539,11 @@ function taoRec(){
     if(c==='network'){ LOI++; bang('⚠️ Mất mạng — nhận giọng nói cần mạng. Đang thử lại…'); return; }
     LOI++;
   };
-  r.onend=function(){ CHAY=false; ve(); if(MUON&&!TAM&&!DANGNOI)setTimeout(moTai,120); };
+  r.onend=function(){ CHAY=false; ve();
+    /* phiên đóng = chủ shop đã nói xong -> chốt NGAY, đừng để dính sang câu sau */
+    if(BUF){ if(BUFT){clearTimeout(BUFT);BUFT=null;} chotCau(); }
+    if(MUON&&!TAM&&!DANGNOI)setTimeout(moTai,150);   /* mở phiên MỚI, sạch trơn */
+  };
   return r;
 }
 /* LUÔN tạo đối tượng MỚI cho mỗi phiên — dùng lại đối tượng đã abort là chết câm trên Android */
@@ -15590,8 +15595,9 @@ function batNghe(){
     }catch(e){}
   },1500);
 }
-function tatNghe(){ MUON=false; TAM=false; CHO=null; dongTai(); ve(); }
-function tamNghi(){ TAM=true; dongTai(true); ve(); }
+function xoaCau(){ BUF=''; if(BUFT){clearTimeout(BUFT);BUFT=null;} }
+function tatNghe(){ MUON=false; TAM=false; CHO=null; xoaCau(); dongTai(); ve(); }
+function tamNghi(){ TAM=true; xoaCau(); dongTai(true); ve(); }
 function nghiTiep(){ TAM=false; moTai(); ve(); }
 
 /* ═════════ 5) TRẠNG THÁI MÀN HÌNH ═════════ */
@@ -15665,6 +15671,7 @@ var CHO=null;   /* {msg, ok} — đang chờ "đúng / không" */
 var CAM=/(xoa|xóa|huy don|khoi phuc|ghi de|phuc hoi|dang xuat|reset|lam moi du lieu)/;
 
 function xacNhan(msg,onOk){
+  MANH=null;
   CHO={msg:msg,ok:onOk,t:Date.now()};
   noi(msg+'. Đúng không?');
   ve();
@@ -16082,14 +16089,34 @@ function xuLy(raw){
   k=k.replace(/^(oi|nay|nghe day|lam on)\s+/,'').trim();
   RAWCMD=String(txt).trim();
 
+  /* NỐI CÂU: máy hay cắt giữa chừng ("mở" … rồi mới "bán hàng").
+     Mảnh cũ còn tươi (dưới 4 giây) thì ghép lại thử trước. */
+  var kGhep='', txtGhep='';
+  if(MANH&&Date.now()-MANH.at<4000){
+    txtGhep=(MANH.t+' '+txt).trim(); kGhep=kd(txtGhep);
+  }
+  MANH=null;
+
   var ok=false;
-  try{ ok=nhanBiet(k); }catch(e){ noi('Có lỗi khi làm: '+((e&&e.message)||'không rõ')); return; }
+  try{
+    if(kGhep){ RAWCMD=txtGhep; ok=nhanBiet(kGhep); }
+    if(!ok){ RAWCMD=String(txt).trim(); ok=nhanBiet(k); }
+  }catch(e){ noi('Có lỗi khi làm: '+((e&&e.message)||'không rõ')); return; }
   if(ok)return;
 
   /* thử coi như tên nút */
-  var nb2=timNut(k);
+  var nb2=timNut(kGhep||k);
   if(nb2&&kd(nb2.t).length>=3){ bam(nb2.e); noi('Đã bấm '+nb2.t+'.'); return; }
-  noi('Chưa hiểu.',null,'Em chưa hiểu “'+txt+'”.<br>'+HELP);
+
+  /* Câu quá ngắn -> nhiều khả năng máy mới cắt được nửa câu.
+     GIỮ LẠI, chỉ hiện chữ (KHÔNG đọc, kẻo nuốt mất nửa câu sau). */
+  var caiDoi=(kGhep||k).split(' ').filter(Boolean);
+  if(caiDoi.length<=3){
+    MANH={t:(txtGhep||txt),at:Date.now()};
+    bang('… “'+(txtGhep||txt)+'” — mời nói tiếp');
+    return;
+  }
+  noi('Chưa hiểu.',null,'Em chưa hiểu “'+(txtGhep||txt)+'”.<br>'+HELP);
 }
 
 /* ═════════ 12) GIAO DIỆN ═════════ */
