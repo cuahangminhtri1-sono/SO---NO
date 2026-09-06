@@ -15327,7 +15327,7 @@ window.AIB={ hoi:function(t){ try{ M.go('aib'); }catch(e){} setTimeout(function(
 })();
 </script>
 <!-- ═══════════════ HẾT: BỘ NÃO AI — CỐ VẤN KINH DOANH ═══════════════ -->
-<!-- ═══════════════ TRỢ LÝ GIỌNG NÓI — MỨC 2 (bản vá v2) ═══════════════ -->
+<!-- ═══════════════ TRỢ LÝ GIỌNG NÓI — MỨC 2 (bản v3) ═══════════════ -->
 <script>
 (function(){
 "use strict";
@@ -15368,7 +15368,7 @@ function kd(s){
 }
 function tk(s){var a=kd(s).split(' '),o=[],i;for(i=0;i<a.length;i++)if(a[i])o.push(a[i]);return o;}
 /* Lấy lại đoạn chữ CÓ DẤU tương ứng với đoạn đã bỏ dấu — tên khách phải đúng dấu mới tìm ra */
-var RAWCMD='';
+var RAWCMD='', THUC=0;
 function rawTheo(nsub){
   try{
     var nAll=kd(RAWCMD).split(' ').filter(Boolean);
@@ -15510,7 +15510,9 @@ function taoRec(){
   r.onerror=function(e){
     var c=(e&&e.error)||'';
     CHAY=false; LOICUOI=c||'?';
-    if(c==='not-allowed'||c==='service-not-allowed'){
+    if(c==='not-allowed'||c==='service-not-allowed'||c==='audio-capture'){
+      /* Đã từng nghe được -> chỉ là bị app khác giành micro tạm thời, KHÔNG được tắt trợ lý */
+      if(SOKQ>0){ bang('⚠️ Micro đang bị thứ khác chiếm — đang giành lại…'); return; }
       MUON=false; ve();
       bang('⚠️ Chưa được phép dùng micro. Vào Cài đặt trình duyệt → cho phép Micro cho trang này.');
       return;
@@ -16049,10 +16051,15 @@ function xuLy(raw){
 
   /* từ khóa đánh thức */
   if(!CFG.ranhtay){
-    var mw=k.match(/\b(tro ly|troly|alo tro ly|nghe day)\b\s*(oi)?\s*(.*)$/);
-    if(!mw){ bang('… (chưa gọi “trợ lý”)'); return; }
-    k=(mw[3]||'').trim();
-    if(!k){ noi('Dạ, em nghe.'); return; }
+    var mw=k.match(/\b(tro ly|tro li|troly|cho ly|chu ly|alo|nghe day)\b\s*(oi|ui)?\s*(.*)$/);
+    if(mw){
+      THUC=Date.now();
+      k=(mw[3]||'').trim();
+      /* KHÔNG được đọc thành tiếng ở đây — đọc là tắt micro, nuốt mất câu lệnh kế tiếp */
+      if(!k){ bang('🎤 Dạ — mời nói lệnh…'); return; }
+    }
+    else if(Date.now()-THUC<15000){ /* còn trong 15 giây sau khi gọi -> nói tiếp không cần gọi lại */ }
+    else { bang('… (chưa gọi “trợ lý”)'); return; }
   }
   k=k.replace(/^(oi|nay|nghe day|lam on)\s+/,'').trim();
   RAWCMD=String(txt).trim();
@@ -16069,8 +16076,9 @@ function xuLy(raw){
 
 /* ═════════ 12) GIAO DIỆN ═════════ */
 var CFG={ranhtay:true,doc:true};
-try{ var _c=localStorage.getItem('vgn_cfg'); if(_c){ var o=JSON.parse(_c); CFG.ranhtay=(o.ranhtay!==false); CFG.doc=(o.doc!==false); } }catch(e){}
-function luuCfg(){ try{ localStorage.setItem('vgn_cfg',JSON.stringify(CFG)); }catch(e){} }
+/* Đổi khóa lưu sang v2: cài đặt cũ trong máy KHÔNG được đè lên mặc định mới */
+try{ var _c=localStorage.getItem('vgn_cfg2'); if(_c){ var o=JSON.parse(_c); CFG.ranhtay=(o.ranhtay!==false); CFG.doc=(o.doc!==false); } }catch(e){}
+function luuCfg(){ try{ localStorage.setItem('vgn_cfg2',JSON.stringify(CFG)); }catch(e){} }
 
 var CSS=''
 +'#vgn-fab{position:fixed;left:14px;bottom:calc(18px + env(safe-area-inset-bottom,0px));z-index:2147482000;'
@@ -16085,7 +16093,8 @@ var CSS=''
 +'@keyframes vgnP{0%,100%{opacity:1}50%{opacity:.62}}'
 +'#vgn-panel{position:fixed;left:10px;right:10px;bottom:calc(84px + env(safe-area-inset-bottom,0px));z-index:2147482001;'
 +'background:#0f172a;color:#e6edf7;border-radius:16px;padding:12px 13px;box-shadow:0 14px 40px rgba(0,0,0,.42);'
-+'font-family:inherit;font-size:13.5px;line-height:1.55;display:none;max-width:520px;margin:0 auto}'
++'font-family:inherit;font-size:13.5px;line-height:1.55;display:none;max-width:520px;margin:0 auto;'
++'max-height:52dvh;overflow-y:auto;-webkit-overflow-scrolling:touch}'
 +'#vgn-panel.pos{bottom:calc(194px + env(safe-area-inset-bottom,0px))}'
 +'#vgn-panel.show{display:block}'
 +'#vgn-panel .h{display:flex;align-items:center;gap:7px;font-size:11.5px;font-weight:800;letter-spacing:.3px;color:#8fb3ff;margin-bottom:7px}'
@@ -16122,7 +16131,7 @@ function dungGiaoDien(){
   an(el('vgn-x'),function(){ dongBang(); });
   an(el('vgn-dr'),function(){ chanDoan(); });
   an(el('vgn-hf'),function(){ CFG.ranhtay=!CFG.ranhtay; luuCfg(); ve();
-    bang(CFG.ranhtay?'Rảnh tay: BẬT — nói thẳng lệnh, không cần gọi “trợ lý”.':'Rảnh tay: TẮT — phải gọi “trợ lý” trước mỗi lệnh (an toàn hơn khi quán ồn).'); });
+    bang(CFG.ranhtay?'✅ Rảnh tay ĐANG BẬT — nói thẳng lệnh, khỏi gọi “trợ lý”.':'🔒 Rảnh tay ĐANG TẮT — phải gọi “trợ lý” trước, sau đó có 15 giây để nói lệnh.'); });
   an(el('vgn-tts'),function(){ CFG.doc=!CFG.doc; TTSHONG=false; VOI=null; luuCfg(); ve(); bang(CFG.doc?'Đọc lại: BẬT':'Đọc lại: TẮT'); });
   var c=el('vgn-cfm');
   an(c.children[0],function(){ if(CHO){var f=CHO.ok;CHO=null;ve();try{if(f)f();}catch(e){}} });
@@ -16133,6 +16142,8 @@ function moBang(){ var p=el('vgn-panel'); if(p)p.classList.add('show'); }
 function dongBang(){ var p=el('vgn-panel'); if(p)p.classList.remove('show'); }
 function bang(m){ var e=el('vgn-msg'); if(e)e.innerHTML=esc(m); moBang(); }
 function nghe(t,cuoi){ var e=el('vgn-heard'); if(e)e.textContent=(cuoi?'“':'… “')+t+'”'; moBang(); }
+/* Báo nhanh: CHỈ hiện chữ, không đọc -> micro không bị ngắt, không nuốt mất câu sau */
+function nhac(m){ bang(m); }
 function dinhVi(){
   var p=posMo(),f=el('vgn-fab'),b=el('vgn-panel');
   if(f)f.classList.toggle('pos',p);
@@ -16150,7 +16161,8 @@ function ve(){
   var st=el('vgn-stat');
   if(st)st.textContent=(MUON?(CHAY?'● tai đang mở':'○ tai đang đóng'):'○ tắt')
     +' · nghe được '+SOKQ+' lần'+(LOICUOI?(' · lỗi: '+LOICUOI):'')
-    +' · '+(CFG.ranhtay?'rảnh tay':'phải gọi “trợ lý”');
+    +' · '+(CFG.ranhtay?'rảnh tay'
+        :((Date.now()-THUC<15000)?'đang mở — mời nói lệnh':'phải gọi “trợ lý”'));
   if(CHO){ var m=el('vgn-msg'); if(m)m.innerHTML='❓ '+esc(CHO.msg)+' — <b>đúng / không</b>'; }
 }
 
@@ -16181,14 +16193,19 @@ function chanDoan(){
       ve2();
     },function(){}); }catch(e){}
   }
-  if(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia){
+  /* ĐANG nghe thì TUYỆT ĐỐI không thu âm thử — sẽ giành mất micro của chính trợ lý */
+  if(MUON||CHAY){
+    add(true,'Thu âm thử: bỏ qua (tai đang mở nên micro chắc chắn tốt)');
+    ve2();
+  }else if(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia){
     navigator.mediaDevices.getUserMedia({audio:true}).then(function(st){
       add(true,'Thu âm thử: ĐƯỢC (micro tốt)');
       try{ st.getTracks().forEach(function(t){t.stop();}); }catch(e){}
       ve2();
     },function(er){ add(false,'Thu âm thử: HỎNG — '+((er&&er.name)||'lỗi')); ve2(); });
   }
-  setTimeout(function(){ L.push(''); L.push('Chụp màn hình này gửi lại giúp mình nhé.'); ve2(); },1800);
+  setTimeout(function(){ L.push(''); L.push('Chụp màn hình này gửi lại giúp mình nhé.'); ve2();
+    if(MUON&&!CHAY)moTai(); },1800);
 }
 
 /* ═════════ 13) KHỞI ĐỘNG ═════════ */
