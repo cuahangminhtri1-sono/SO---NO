@@ -15327,7 +15327,7 @@ window.AIB={ hoi:function(t){ try{ M.go('aib'); }catch(e){} setTimeout(function(
 })();
 </script>
 <!-- ═══════════════ HẾT: BỘ NÃO AI — CỐ VẤN KINH DOANH ═══════════════ -->
-<!-- ═══════════════ TRỢ LÝ GIỌNG NÓI — MỨC 2 (điều khiển toàn app bằng miệng) ═══════════════ -->
+<!-- ═══════════════ TRỢ LÝ GIỌNG NÓI — MỨC 2 (bản vá v2) ═══════════════ -->
 <script>
 (function(){
 "use strict";
@@ -15450,26 +15450,43 @@ function layGiong(){
 }
 try{ if(TTS)window.speechSynthesis.onvoiceschanged=function(){VOI=null;layGiong();}; }catch(e){}
 
+var TTSHONG=false;
 function noi(t,cb){
   bang(t);
-  if(!TTS||!CFG.doc){ if(cb)setTimeout(cb,10); return; }
-  var xong=false,timer=null;
-  function het(){ if(xong)return; xong=true; DANGNOI=false; if(timer)clearTimeout(timer); moTai(); if(cb)cb(); }
+  /* Không đọc (hoặc loa hỏng) -> VẪN phải bật lại tai, nếu không trợ lý chết sau câu đầu */
+  if(!TTS||!CFG.doc||TTSHONG){ setTimeout(moTai,120); if(cb)setTimeout(cb,10); return; }
+  var xong=false,t1=null,t2=null,batdau=false;
+  var chu=String(t).replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim();
+  function het(){
+    if(xong)return; xong=true;
+    DANGNOI=false; NOITU=0;
+    if(t1)clearTimeout(t1); if(t2)clearTimeout(t2);
+    setTimeout(moTai,300);           /* chờ loa dứt hẳn rồi mới mở tai */
+    if(cb)setTimeout(cb,60);
+  }
   try{
-    DANGNOI=true; dongTai(true);
+    DANGNOI=true; NOITU=Date.now(); dungTai();
     window.speechSynthesis.cancel();
-    var u=new window.SpeechSynthesisUtterance(String(t).replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim());
+    var u=new window.SpeechSynthesisUtterance(chu);
     u.lang='vi-VN'; u.rate=1.05; u.pitch=1;
     var g=layGiong(); if(g)u.voice=g;
+    u.onstart=function(){ batdau=true; if(t1)clearTimeout(t1);
+      t2=setTimeout(het, Math.min(9000, 1200+chu.length*80)); };
     u.onend=het; u.onerror=het;
-    timer=setTimeout(het, Math.min(15000, 1800+String(t).length*90));
+    /* Loa không nhúc nhích sau 1,2 giây = loa hỏng -> bỏ đọc, mở tai lại NGAY */
+    t1=setTimeout(function(){
+      var dangdoc=false; try{ dangdoc=!!window.speechSynthesis.speaking; }catch(e){}
+      if(batdau||dangdoc){ t2=setTimeout(het, Math.min(9000, 1200+chu.length*80)); return; }
+      TTSHONG=true; het();
+    },1200);
     window.speechSynthesis.speak(u);
-  }catch(e){ het(); }
+  }catch(e){ TTSHONG=true; het(); }
 }
 
 /* ═════════ 4) TAI (nghe) ═════════ */
 var SR=window.SpeechRecognition||window.webkitSpeechRecognition||null;
-var REC=null, MUON=false, CHAY=false, TAM=false, LOI=0, WD=null, WD2=null, LASTSTART=0, LASTNGHE=0;
+var REC=null, MUON=false, CHAY=false, TAM=false, LOI=0, WD=null, WD2=null, WD3=null;
+var LASTSTART=0, LASTNGHE=0, NOITU=0, SOKQ=0, LOICUOI='', SOLANMO=0, CANHBAO=0;
 
 function coAibDangNghe(){ return !!qs('[data-act="aib-mic"].rec'); }
 
@@ -15480,7 +15497,7 @@ function taoRec(){
   r.onstart=function(){ CHAY=true; LOI=0; LASTNGHE=Date.now(); ve(); };
   r.onaudiostart=function(){ CHAY=true; LASTNGHE=Date.now(); ve(); };
   r.onresult=function(ev){
-    LASTNGHE=Date.now();
+    LASTNGHE=Date.now(); SOKQ++;
     if(TAM||DANGNOI)return;
     var i,cuoi='',tam='';
     for(i=ev.resultIndex;i<ev.results.length;i++){
@@ -15492,7 +15509,7 @@ function taoRec(){
   };
   r.onerror=function(e){
     var c=(e&&e.error)||'';
-    CHAY=false;
+    CHAY=false; LOICUOI=c||'?';
     if(c==='not-allowed'||c==='service-not-allowed'){
       MUON=false; ve();
       bang('⚠️ Chưa được phép dùng micro. Vào Cài đặt trình duyệt → cho phép Micro cho trang này.');
@@ -15505,34 +15522,50 @@ function taoRec(){
   r.onend=function(){ CHAY=false; ve(); };
   return r;
 }
+/* LUÔN tạo đối tượng MỚI cho mỗi phiên — dùng lại đối tượng đã abort là chết câm trên Android */
 function moTai(){
   if(!MUON||TAM||DANGNOI||!SR)return;
   if(coAibDangNghe())return;
   if(CHAY)return;
-  if(Date.now()-LASTSTART<350)return;
-  try{ if(!REC)REC=taoRec(); LASTSTART=Date.now(); REC.start(); CHAY=true; }
-  catch(e){ CHAY=false; }
+  if(Date.now()-LASTSTART<250)return;
+  dungTai();
+  try{
+    REC=taoRec(); LASTSTART=Date.now(); LASTNGHE=Date.now();
+    REC.start(); CHAY=true; SOLANMO++; LOICUOI='';
+  }catch(e){ CHAY=false; LOICUOI='start:'+((e&&e.name)||'lỗi'); }
   ve();
 }
-function dongTai(giu){
-  try{ if(REC)REC.abort(); }catch(e){}
-  CHAY=false; ve();
+function dungTai(){
+  try{
+    if(REC){ REC.onstart=null; REC.onaudiostart=null; REC.onresult=null; REC.onerror=null; REC.onend=null;
+             try{REC.abort();}catch(e){} try{REC.stop();}catch(e){} }
+  }catch(e){}
+  REC=null; CHAY=false; ve();
 }
+function dongTai(){ dungTai(); }
 function batNghe(){
   if(!SR){ bang('Máy này không hỗ trợ nhận giọng nói. Hãy dùng Chrome trên Android hoặc máy tính.'); moBang(); return; }
-  MUON=true; TAM=false; moBang(); moTai();
+  MUON=true; TAM=false; SOKQ=0; moBang(); ve();
   if(!WD)WD=setInterval(function(){
     try{
-      if(!MUON||TAM||DANGNOI)return;
+      if(!MUON||TAM)return;
+      /* loa kẹt quá 9 giây -> ép nhả, nếu không mọi lời nói đều bị nuốt */
+      if(DANGNOI){
+        if(Date.now()-NOITU>9000){ DANGNOI=false; NOITU=0; try{window.speechSynthesis.cancel();}catch(e){} }
+        else return;
+      }
       /* câu hỏi xác nhận treo quá 60 giây -> tự hủy, KHÔNG tự làm */
       if(CHO&&Date.now()-CHO.t>60000){ CHO=null; ve(); bang('Hết hạn câu hỏi — đã tự hủy cho an toàn.'); }
       if(coAibDangNghe())return;
       /* phiên nghe chết cứng (>25s không có tín hiệu) hoặc chạy quá 3 phút -> làm mới */
-      if(CHAY&&(Date.now()-LASTNGHE>25000||Date.now()-LASTSTART>180000)){
-        try{ REC.abort(); }catch(e){}
-        CHAY=false; REC=null; LASTNGHE=Date.now();
-      }
+      if(CHAY&&(Date.now()-LASTNGHE>20000||Date.now()-LASTSTART>150000)){ dungTai(); LASTNGHE=Date.now(); }
       if(!CHAY)moTai();
+      /* mở tai 3 lần mà chưa nghe được chữ nào -> báo cho chủ shop biết */
+      if(TTSHONG&&Date.now()-CANHBAO>30000){ CANHBAO=Date.now(); bang('ℹ️ Máy này không đọc thành tiếng được — trợ lý vẫn chạy, chỉ hiện chữ ở đây.'); }
+      else if(SOKQ===0&&SOLANMO>=3&&Date.now()-CANHBAO>15000){
+        CANHBAO=Date.now();
+        bang('⚠️ Micro bật rồi nhưng chưa nghe được chữ nào. Bấm nút 🩺 để kiểm tra máy.');
+      }
     }catch(e){}
   },1500);
   noi('Dạ, em nghe.');
@@ -15787,8 +15820,7 @@ function docGio(){
 }
 
 /* ═════════ 11) BỘ LỆNH ═════════ */
-var HELP='Thử nói: “mở bán hàng” · “bán 2 thùng bia sài gòn” · “mở giỏ” · “tiền mặt, khách đưa 500 nghìn” · '
- +'“mở khách anh Tuấn” · “ghi mua 250 nghìn” · “tồn coca” · “hôm nay lời bao nhiêu” · “bấm lưu” · “đọc màn hình”.';
+var HELP='Thử nói: mở bán hàng · bán 2 thùng bia · mở giỏ · tiền mặt · mở khách Anh Tuấn · ghi mua 250 nghìn · tồn coca · bấm lưu.';
 
 function nhanBiet(k){
   /* trả về true nếu ĐÃ xử lý */
@@ -16036,8 +16068,8 @@ function xuLy(raw){
 }
 
 /* ═════════ 12) GIAO DIỆN ═════════ */
-var CFG={ranhtay:false,doc:true};
-try{ var _c=localStorage.getItem('vgn_cfg'); if(_c){ var o=JSON.parse(_c); CFG.ranhtay=!!o.ranhtay; CFG.doc=(o.doc!==false); } }catch(e){}
+var CFG={ranhtay:true,doc:true};
+try{ var _c=localStorage.getItem('vgn_cfg'); if(_c){ var o=JSON.parse(_c); CFG.ranhtay=(o.ranhtay!==false); CFG.doc=(o.doc!==false); } }catch(e){}
 function luuCfg(){ try{ localStorage.setItem('vgn_cfg',JSON.stringify(CFG)); }catch(e){} }
 
 var CSS=''
@@ -16062,6 +16094,7 @@ var CSS=''
 +'#vgn-panel .h button.on{background:#2563eb;border-color:#2563eb;color:#fff}'
 +'#vgn-heard{color:#94a3b8;font-size:12.5px;min-height:17px;margin-bottom:5px;word-break:break-word}'
 +'#vgn-msg{font-weight:600;word-break:break-word}'
++'#vgn-stat{margin-top:7px;font-size:11px;color:#64748b;letter-spacing:.2px}'
 +'#vgn-cfm{margin-top:9px;display:none;gap:8px}'
 +'#vgn-cfm.show{display:flex}'
 +'#vgn-cfm button{flex:1;border:none;border-radius:10px;padding:11px;font-size:14px;font-weight:800;font-family:inherit;cursor:pointer}'
@@ -16076,19 +16109,21 @@ function dungGiaoDien(){
    +'<button id="vgn-fab" type="button" aria-label="Trợ lý giọng nói"><span class="fi">🎤</span><span class="fl">GIỌNG NÓI</span></button>'
    +'<div id="vgn-panel">'
    +'<div class="h"><span>🎤 TRỢ LÝ GIỌNG NÓI</span><span class="sp"></span>'
+   +'<button id="vgn-dr" type="button">🩺</button>'
    +'<button id="vgn-hf" type="button">Rảnh tay</button>'
    +'<button id="vgn-tts" type="button">Đọc</button>'
    +'<button id="vgn-x" type="button">✕</button></div>'
-   +'<div id="vgn-heard"></div><div id="vgn-msg"></div>'
+   +'<div id="vgn-heard"></div><div id="vgn-msg"></div><div id="vgn-stat"></div>'
    +'<div id="vgn-cfm"><button class="y" type="button">✔ Đúng</button><button class="n" type="button">✕ Hủy</button></div>'
    +'</div>';
   D.body.appendChild(wrap);
   function an(e,f){ if(e)e.addEventListener('click',function(){ try{ f(); }catch(x){} }); }
   an(el('vgn-fab'),function(){ if(MUON&&!TAM)tatNghe(); else batNghe(); });
   an(el('vgn-x'),function(){ dongBang(); });
+  an(el('vgn-dr'),function(){ chanDoan(); });
   an(el('vgn-hf'),function(){ CFG.ranhtay=!CFG.ranhtay; luuCfg(); ve();
     bang(CFG.ranhtay?'Rảnh tay: BẬT — nói thẳng lệnh, không cần gọi “trợ lý”.':'Rảnh tay: TẮT — phải gọi “trợ lý” trước mỗi lệnh (an toàn hơn khi quán ồn).'); });
-  an(el('vgn-tts'),function(){ CFG.doc=!CFG.doc; luuCfg(); ve(); bang(CFG.doc?'Đọc lại: BẬT':'Đọc lại: TẮT'); });
+  an(el('vgn-tts'),function(){ CFG.doc=!CFG.doc; TTSHONG=false; VOI=null; luuCfg(); ve(); bang(CFG.doc?'Đọc lại: BẬT':'Đọc lại: TẮT'); });
   var c=el('vgn-cfm');
   an(c.children[0],function(){ if(CHO){var f=CHO.ok;CHO=null;ve();try{if(f)f();}catch(e){}} });
   an(c.children[1],function(){ if(CHO){CHO=null;ve();noi('Đã hủy.');} });
@@ -16112,17 +16147,61 @@ function ve(){
   var h=el('vgn-hf'); if(h)h.classList.toggle('on',CFG.ranhtay);
   var t=el('vgn-tts'); if(t)t.classList.toggle('on',CFG.doc);
   var c=el('vgn-cfm'); if(c)c.classList.toggle('show',!!CHO);
+  var st=el('vgn-stat');
+  if(st)st.textContent=(MUON?(CHAY?'● tai đang mở':'○ tai đang đóng'):'○ tắt')
+    +' · nghe được '+SOKQ+' lần'+(LOICUOI?(' · lỗi: '+LOICUOI):'')
+    +' · '+(CFG.ranhtay?'rảnh tay':'phải gọi “trợ lý”');
   if(CHO){ var m=el('vgn-msg'); if(m)m.innerHTML='❓ '+esc(CHO.msg)+' — <b>đúng / không</b>'; }
 }
 
+/* ═════════ 12b) BÁC SĨ — kiểm tra vì sao không nghe được ═════════ */
+function chanDoan(){
+  var L=[],ua=String(navigator.userAgent||'');
+  function add(ok,t){ L.push((ok===null?'• ':(ok?'✅ ':'❌ '))+t); }
+  function ve2(){ var e=el('vgn-msg'); if(e)e.innerHTML='<b>🩺 KẾT QUẢ KIỂM TRA</b><br>'+L.map(esc).join('<br>'); moBang(); }
+
+  add(!!SR,'Trình duyệt có bộ nhận giọng nói: '+(SR?'CÓ':'KHÔNG — máy/trình duyệt này không chạy được'));
+  var pwa=false; try{ pwa=(window.matchMedia&&window.matchMedia('(display-mode: standalone)').matches)||navigator.standalone===true; }catch(e){}
+  var inapp=/FBAN|FBAV|FB_IAB|Instagram|Zalo|Line\/|MicroMessenger|TikTok|Snapchat/i.test(ua);
+  var ios=/iPad|iPhone|iPod/i.test(ua);
+  add(!inapp,'Mở trong Zalo/Facebook: '+(inapp?'CÓ — micro bị chặn, hãy mở bằng Chrome':'không'));
+  add(!(pwa&&ios),'Chế độ: '+(pwa?'App đã cài ra màn hình chính':'trình duyệt')+(pwa&&ios?' — iPhone dạng này KHÔNG nghe được':''));
+  add(null,'Máy: '+(ios?'iPhone/iPad':(/Android/i.test(ua)?'Android':'Máy tính'))
+      +(/SamsungBrowser/i.test(ua)?' · Samsung Internet':(/Chrome/i.test(ua)?' · Chrome':'')));
+  add(null,'Mạng: '+(navigator.onLine===false?'MẤT MẠNG — nhận giọng nói cần mạng':'có mạng'));
+  var nv=0,vvi=0; try{ var vs=window.speechSynthesis.getVoices()||[]; nv=vs.length;
+    for(var i=0;i<vs.length;i++)if(/^vi/i.test(vs[i].lang||''))vvi++; }catch(e){}
+  add(nv>0,'Giọng đọc: '+nv+' giọng, tiếng Việt '+vvi);
+  add(null,'Tai: '+(CHAY?'ĐANG CHẠY':'tắt')+' · đã mở '+SOLANMO+' lần · nghe được '+SOKQ+' lần'+(LOICUOI?(' · lỗi cuối: '+LOICUOI):''));
+  ve2();
+
+  if(navigator.permissions&&navigator.permissions.query){
+    try{ navigator.permissions.query({name:'microphone'}).then(function(r){
+      add(r.state==='granted','Quyền micro: '+(r.state==='granted'?'ĐÃ CHO PHÉP':(r.state==='denied'?'BỊ TỪ CHỐI — vào Cài đặt trình duyệt mở lại':'chưa hỏi')));
+      ve2();
+    },function(){}); }catch(e){}
+  }
+  if(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia){
+    navigator.mediaDevices.getUserMedia({audio:true}).then(function(st){
+      add(true,'Thu âm thử: ĐƯỢC (micro tốt)');
+      try{ st.getTracks().forEach(function(t){t.stop();}); }catch(e){}
+      ve2();
+    },function(er){ add(false,'Thu âm thử: HỎNG — '+((er&&er.name)||'lỗi')); ve2(); });
+  }
+  setTimeout(function(){ L.push(''); L.push('Chụp màn hình này gửi lại giúp mình nhé.'); ve2(); },1800);
+}
+
 /* ═════════ 13) KHỞI ĐỘNG ═════════ */
-function boot(){ try{ dungGiaoDien(); if(!WD2)WD2=setInterval(function(){try{dinhVi();}catch(e){}},900); }catch(e){} }
+function boot(){ try{ dungGiaoDien();
+  if(!WD2)WD2=setInterval(function(){try{dinhVi();}catch(e){}},900);
+  if(!WD3)WD3=setInterval(function(){try{ if(MUON)ve(); }catch(e){}},1000); }catch(e){} }
 if(D.readyState==='loading')D.addEventListener('DOMContentLoaded',boot);
 else boot();
 setTimeout(boot,1500); setTimeout(boot,4000);
 
 window.SNGN={
-  bat:batNghe, tat:tatNghe, noi:noi, lenh:xuLy,
+  bat:batNghe, tat:tatNghe, noi:noi, lenh:xuLy, kiemtra:chanDoan,
+  trangthai:function(){return {muon:MUON,chay:CHAY,noi:DANGNOI,kq:SOKQ,mo:SOLANMO,loi:LOICUOI,ranhtay:CFG.ranhtay};},
   so:function(s){var r=soTrongCau(s);return r?r.v:null;},
   cfg:CFG
 };
