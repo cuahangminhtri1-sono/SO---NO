@@ -15327,7 +15327,7 @@ window.AIB={ hoi:function(t){ try{ M.go('aib'); }catch(e){} setTimeout(function(
 })();
 </script>
 <!-- ═══════════════ HẾT: BỘ NÃO AI — CỐ VẤN KINH DOANH ═══════════════ -->
-<!-- ═══════════════ TRỢ LÝ GIỌNG NÓI — MỨC 2 (bản v3) ═══════════════ -->
+<!-- ═══════════════ TRỢ LÝ GIỌNG NÓI — MỨC 2 (bản v4) ═══════════════ -->
 <script>
 (function(){
 "use strict";
@@ -15451,21 +15451,23 @@ function layGiong(){
 try{ if(TTS)window.speechSynthesis.onvoiceschanged=function(){VOI=null;layGiong();}; }catch(e){}
 
 var TTSHONG=false;
-function noi(t,cb){
-  bang(t);
+function noi(t,cb,hien){
+  bang(hien||t);
+  VUANOI=kd(t); NOIXONG=Date.now();
   /* Không đọc (hoặc loa hỏng) -> VẪN phải bật lại tai, nếu không trợ lý chết sau câu đầu */
   if(!TTS||!CFG.doc||TTSHONG){ setTimeout(moTai,120); if(cb)setTimeout(cb,10); return; }
   var xong=false,t1=null,t2=null,batdau=false;
   var chu=String(t).replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim();
   function het(){
     if(xong)return; xong=true;
-    DANGNOI=false; NOITU=0;
+    DANGNOI=false; NOITU=0; NOIXONG=Date.now(); BUF='';
     if(t1)clearTimeout(t1); if(t2)clearTimeout(t2);
-    setTimeout(moTai,300);           /* chờ loa dứt hẳn rồi mới mở tai */
+    moTai();                         /* chỉ bật nếu tai đang đóng — KHÔNG cắt phiên đang chạy */
     if(cb)setTimeout(cb,60);
   }
   try{
-    DANGNOI=true; NOITU=Date.now(); dungTai();
+    /* KHÔNG tắt micro khi đọc nữa — tắt là nuốt mất phần sau câu nói của chủ shop */
+    DANGNOI=true; NOITU=Date.now();
     window.speechSynthesis.cancel();
     var u=new window.SpeechSynthesisUtterance(chu);
     u.lang='vi-VN'; u.rate=1.05; u.pitch=1;
@@ -15487,6 +15489,14 @@ function noi(t,cb){
 var SR=window.SpeechRecognition||window.webkitSpeechRecognition||null;
 var REC=null, MUON=false, CHAY=false, TAM=false, LOI=0, WD=null, WD2=null, WD3=null;
 var LASTSTART=0, LASTNGHE=0, NOITU=0, SOKQ=0, LOICUOI='', SOLANMO=0, CANHBAO=0;
+var BUF='', BUFT=null, NOIXONG=0, VUANOI='';
+function chotCau(){
+  var t=BUF; BUF=''; BUFT=null;
+  if(!t)return;
+  /* nghe lại đúng câu máy vừa đọc -> bỏ qua, không tự ra lệnh cho chính mình */
+  try{ if(VUANOI&&Date.now()-NOIXONG<4000){ var kk=kd(t); if(kk.length>2&&VUANOI.indexOf(kk)>=0)return; } }catch(e){}
+  xuLy(t);
+}
 
 function coAibDangNghe(){ return !!qs('[data-act="aib-mic"].rec'); }
 
@@ -15497,22 +15507,29 @@ function taoRec(){
   r.onstart=function(){ CHAY=true; LOI=0; LASTNGHE=Date.now(); ve(); };
   r.onaudiostart=function(){ CHAY=true; LASTNGHE=Date.now(); ve(); };
   r.onresult=function(ev){
-    LASTNGHE=Date.now(); SOKQ++;
-    if(TAM||DANGNOI)return;
+    LASTNGHE=Date.now(); SOKQ++; LOI=0;
+    if(TAM)return;
+    /* đang đọc hoặc vừa đọc xong -> bỏ, kẻo máy nghe chính giọng của mình */
+    if(DANGNOI||Date.now()-NOIXONG<700)return;
     var i,cuoi='',tam='';
     for(i=ev.resultIndex;i<ev.results.length;i++){
       if(ev.results[i].isFinal) cuoi+=ev.results[i][0].transcript;
       else tam+=ev.results[i][0].transcript;
     }
-    if(tam) nghe(tam,false);
-    if(cuoi){ nghe(cuoi,true); xuLy(cuoi); }
+    if(tam) nghe((BUF+' '+tam).trim(),false);
+    if(cuoi){
+      BUF=(BUF+' '+cuoi).trim();
+      nghe(BUF,true);
+      if(BUFT)clearTimeout(BUFT);
+      BUFT=setTimeout(chotCau,900);   /* CHỜ IM 0,9 GIÂY mới xử lý — nói mấy mảnh cũng gom đủ */
+    }
   };
   r.onerror=function(e){
     var c=(e&&e.error)||'';
     CHAY=false; LOICUOI=c||'?';
     if(c==='not-allowed'||c==='service-not-allowed'||c==='audio-capture'){
-      /* Đã từng nghe được -> chỉ là bị app khác giành micro tạm thời, KHÔNG được tắt trợ lý */
-      if(SOKQ>0){ bang('⚠️ Micro đang bị thứ khác chiếm — đang giành lại…'); return; }
+      LOI++;
+      if(SOKQ>0||LOI<3){ bang('⚠️ Micro bị gián đoạn — đang giành lại ('+LOI+'/3)…'); return; }
       MUON=false; ve();
       bang('⚠️ Chưa được phép dùng micro. Vào Cài đặt trình duyệt → cho phép Micro cho trang này.');
       return;
@@ -15521,7 +15538,7 @@ function taoRec(){
     if(c==='network'){ LOI++; bang('⚠️ Mất mạng — nhận giọng nói cần mạng. Đang thử lại…'); return; }
     LOI++;
   };
-  r.onend=function(){ CHAY=false; ve(); };
+  r.onend=function(){ CHAY=false; ve(); if(MUON&&!TAM&&!DANGNOI)setTimeout(moTai,120); };
   return r;
 }
 /* LUÔN tạo đối tượng MỚI cho mỗi phiên — dùng lại đối tượng đã abort là chết câm trên Android */
@@ -15547,7 +15564,9 @@ function dungTai(){
 function dongTai(){ dungTai(); }
 function batNghe(){
   if(!SR){ bang('Máy này không hỗ trợ nhận giọng nói. Hãy dùng Chrome trên Android hoặc máy tính.'); moBang(); return; }
-  MUON=true; TAM=false; SOKQ=0; moBang(); ve();
+  MUON=true; TAM=false; SOKQ=0; LOI=0; BUF=''; moBang();
+  moTai();                                   /* PHẢI mở ngay trong cú chạm tay của chủ shop */
+  bang('🎤 Đang nghe — mời nói.');            /* chỉ hiện chữ, KHÔNG đọc -> micro không bị cắt */
   if(!WD)WD=setInterval(function(){
     try{
       if(!MUON||TAM)return;
@@ -15570,7 +15589,6 @@ function batNghe(){
       }
     }catch(e){}
   },1500);
-  noi('Dạ, em nghe.');
 }
 function tatNghe(){ MUON=false; TAM=false; CHO=null; dongTai(); ve(); }
 function tamNghi(){ TAM=true; dongTai(true); ve(); }
@@ -15832,7 +15850,7 @@ function nhanBiet(k){
   if(/^(tam dung|tam nghi|nghi di|im lang|im di|dung nghe mot chut)\b/.test(k)){ noi('Vâng, em tạm nghỉ. Bấm nút micro để gọi lại em.',function(){tamNghi();}); return true; }
   if(/^(tat micro|tat tro ly|dung nghe|thoi nghe|tat nghe)\b/.test(k)){ noi('Em tắt đây.',function(){tatNghe();}); return true; }
   if(/^(tro ly|alo|nghe day)\s*(oi)?$/.test(k)){ noi('Dạ, em nghe.'); return true; }
-  if(/(giup|huong dan|noi gi duoc|lam duoc gi|co lenh gi)/.test(k)){ noi(HELP); return true; }
+  if(/(giup|huong dan|noi gi duoc|lam duoc gi|co lenh gi)/.test(k)){ noi('Đây là các lệnh.',null,HELP); return true; }
   if(/(doc man hinh|man hinh co gi|co nut gi|nut nao)/.test(k)){
     var ds=nutDangThay(),t=[],i;
     for(i=0;i<Math.min(10,ds.length);i++)t.push(ds[i].t);
@@ -16071,7 +16089,7 @@ function xuLy(raw){
   /* thử coi như tên nút */
   var nb2=timNut(k);
   if(nb2&&kd(nb2.t).length>=3){ bam(nb2.e); noi('Đã bấm '+nb2.t+'.'); return; }
-  noi('Em chưa hiểu “'+txt+'”. '+HELP);
+  noi('Chưa hiểu.',null,'Em chưa hiểu “'+txt+'”.<br>'+HELP);
 }
 
 /* ═════════ 12) GIAO DIỆN ═════════ */
