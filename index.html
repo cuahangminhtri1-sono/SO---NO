@@ -749,7 +749,7 @@ import { getFirestore, initializeFirestore, persistentLocalCache, persistentMult
 import { getStorage, ref as _sref, uploadBytes, getDownloadURL, deleteObject, listAll }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
 
-const APP_BUILD = "2026-09-04-R1"; // ⬆️ ĐỔI MỖI LẦN DEPLOY (đặt TRÙNG tên cache trong sw.js) — hiện ở ⚙️ Cài đặt để biết máy đã chạy bản mới chưa
+const APP_BUILD = "2026-09-10-VA1"; // ⬆️ ĐỔI MỖI LẦN DEPLOY (đặt TRÙNG tên cache trong sw.js) — hiện ở ⚙️ Cài đặt để biết máy đã chạy bản mới chưa
 const firebaseConfig = {
   apiKey: "AIzaSyA_kjQ-CdASRkf50Glz3kQajlkD5qGWC4k",
   authDomain: "so-no-cc57a.firebaseapp.com",
@@ -3483,8 +3483,8 @@ function skCartAddLine(p,u){const ratio=u.ratio||1;const key=p.id+'|'+u.name;con
   const _askPrice=function(qty){if(skAskPrice&&!skScanOn){skNum('Giá bán: '+p.name+' ('+u.name+')',u.price,function(v){_addNew(qty,v>0?v:(u.price||0));});}else{_addNew(qty,u.price);}};
   if(skAskQty&&!skScanOn){skNum('Số lượng ('+u.name+'): '+p.name,1,function(v){_askPrice(v>0?v:1);},{decimal:true});}else{_askPrice(1);}   // BẬT hỏi SL + KHÔNG quét mã → hỏi số lượng lúc thêm; để trống/≤0 = 1
 }
-function skCartInc(key){const l=skCart.find(c=>c.key===key);if(!l)return;const p=skProducts.find(x=>x.id===l.id);if(!SK_ALLOW_NEGATIVE_STOCK&&p&&(p.stock||0)<skCartBaseInCart(l.id)+l.ratio){toast('Hết tồn: '+l.name);return;}l.qty++;l.baseQty=l.qty*l.ratio;skRenderCart();skRenderGrid();}
-function skCartDec(key){const l=skCart.find(c=>c.key===key);if(!l)return;l.qty--;if(l.qty<=0)skCart=skCart.filter(c=>c.key!==key);else l.baseQty=l.qty*l.ratio;skRenderCart();skRenderGrid();}
+function skCartInc(key){const l=skCart.find(c=>c.key===key);if(!l)return;const p=skProducts.find(x=>x.id===l.id);if(!SK_ALLOW_NEGATIVE_STOCK&&p&&(p.stock||0)<skCartBaseInCart(l.id)+l.ratio){toast('Hết tồn: '+l.name);return;}l.qty=Math.round((l.qty+1)*1e6)/1e6;l.baseQty=Math.round(l.qty*l.ratio*1e6)/1e6;skRenderCart();skRenderGrid();}
+function skCartDec(key){const l=skCart.find(c=>c.key===key);if(!l)return;l.qty=Math.round((l.qty-1)*1e6)/1e6;if(l.qty<=0)skCart=skCart.filter(c=>c.key!==key);else l.baseQty=Math.round(l.qty*l.ratio*1e6)/1e6;skRenderCart();skRenderGrid();}
 function skCartDel(key){skCart=skCart.filter(c=>c.key!==key);skRenderCart();skRenderGrid();}
 function skCartPrice(key){const l=skCart.find(c=>c.key===key);if(!l)return;skNum('Sửa giá: '+l.name+' ('+l.unit+')',l.price,v=>{if(v>=0){l.price=v;skRenderCart();}});}
 function skSyncAskPriceBtn(){const b=skq('#sk-askprice-btn');if(!b)return;if(skAskPrice){b.textContent='💲 Hỏi giá: BẬT';b.classList.add('on');}else{b.textContent='💲 Hỏi giá khi thêm';b.classList.remove('on');}}
@@ -3719,7 +3719,8 @@ async function skFinalize(method,extra){
   batch.set(orderRef,{items:items,subtotal:sub,discount:disc,total:total,method:method,staffName:(typeof skStaff!=='undefined'&&skStaff?skStaff.name:null),paid:extra.paid||null,change:(extra.change!=null?extra.change:null),note:skOrderNote||'',customerId:(customer&&customer.id)||(isNew?custRef.id:null),customerName:(customer&&customer.name)||null,hdToken:hdToken,createdAt:serverTimestamp(),createdAtMs:Date.now()});
   pids.forEach(id=>{batch.update(bdoc('products',id),{stock:increment(-need[id])});batch.set(doc(bcol('stock_moves')),{productId:id,productName:(skProducts.find(x=>x.id===id)||{}).name||'',delta:-need[id],reason:'sale',orderId:orderRef.id,at:serverTimestamp()});}); // bán -> trừ tồn (increment âm) offline-safe
   if(custRef){const noteStr=items.map(i=>i.name+' '+skN(i.qty)+i.unit).join(', ');if(isNew)batch.set(custRef,{name:customer.name,phone:'',address:'',debt:total,createdAt:serverTimestamp()});else batch.update(custRef,{debt:increment(total)});const txRef=doc(collection(db,'users',UID,'customers',custRef.id,'transactions'));batch.set(txRef,{type:'mua',amount:total,note:noteStr,memo:'',orderId:orderRef.id,date:new Date(),createdAt:serverTimestamp(),createdAtMs:Date.now()});}
-  batch.commit().catch(e=>skErr(e,'Tạo đơn'));
+  const _bakCart=skCart.slice(),_bakDisc=skDiscount,_bakNote=skOrderNote; // giữ bản sao: máy chủ TỪ CHỐI ghi thì trả lại giỏ (offline vẫn xếp hàng bình thường)
+  batch.commit().catch(e=>{skErr(e,'Tạo đơn');try{if(!skCart.length){skCart=_bakCart;skDiscount=_bakDisc;skOrderNote=_bakNote;const _n=skq('#sk-note');if(_n)_n.value=_bakNote||'';skRenderCart();skRenderGrid();toast('⚠️ Đơn CHƯA lưu được — đã trả lại giỏ hàng');}}catch(_){}});
   // Đồng bộ trang chia sẻ: CHỈ khi có mạng (offline thì số nợ vẫn đúng nhờ increment; healDebt soát lại khi mở sổ nợ có mạng).
   if(method==='debt'&&customer&&customer.id&&navigator.onLine){const c=(customers||[]).find(x=>x.id===customer.id);if(c&&c.shareToken){(async()=>{try{const nd=await recomputeDebtOnline(c.id);await updateDoc(doc(db,'users',UID,'customers',c.id),{debt:nd});await syncShare(c.shareToken,c.id,c.name,c.phone,nd);}catch(e){}})();}}
   const receipt={id:orderRef.id,hdToken:hdToken,items:items,subtotal:sub,discount:disc,total:total,method:method,paid:extra.paid,change:extra.change,customerName:(customer&&customer.name)||null,note:skOrderNote||'',when:new Date()};
@@ -8104,6 +8105,8 @@ function bar(){
 function open_(id){
   var t=TB.filter(function(x){return x.id===id;})[0];if(!t)return;
   if(CUR&&CUR!==id){C.toast('Bấm “Giữ bàn” trước khi đổi bàn');return;}
+  if(CUR===id){M.go('sell');bar();return;}                                   /* bấm lại CHÍNH bàn đang phục vụ: KHÔNG nạp lại giỏ (kẻo mất món vừa gọi) */
+  if(C.cart().length&&!confirm('Giỏ đang có hàng chưa thanh toán.\nMở bàn sẽ THAY giỏ hiện tại. Tiếp tục?'))return;
   CUR=id;
   C.setCart(JSON.parse(JSON.stringify(t.cart||[])));
   if(!t.openAt){t.openAt=Date.now();F.updateDoc(tdoc(id),{openAt:t.openAt})['catch'](function(){});}
@@ -8147,7 +8150,7 @@ async function add_(){
 }
 async function del_(id){
   var t=TB.filter(function(x){return x.id===id;})[0];
-  if(t&&(t.cart||[]).length){C.toast('Bàn đang có khách — không xoá được');return;}
+  if(t&&((t.cart||[]).length||t.openAt)){C.toast('Bàn đang có khách — không xoá được');return;}
   if(!confirm('Xoá bàn "'+((t||{}).name||'')+'"?'))return;
   try{await F.deleteDoc(tdoc(id));if(CUR===id){CUR=null;bar();}}catch(e){C.err(e,'Xoá bàn');}
 }
@@ -8206,19 +8209,24 @@ async function bomSave(){
 }
 /* Trừ kho NVL sau khi đơn đã lưu THÀNH CÔNG */
 async function bomDeduct(items){
-  var need={};
+  var need={},back={};
   (items||[]).forEach(function(it){
     var p=prod(it.id);if(!p||!p.fnbBom||!p.fnbBom.length)return;
+    back[it.id]=(back[it.id]||0)+(it.baseQty||0);                              /* món chế biến KHÔNG có tồn riêng → cộng trả lại phần lõi vừa trừ */
     p.fnbBom.forEach(function(g){
       var q=(g.qty||0)*(it.baseQty||0);if(q>0)need[g.id]=(need[g.id]||0)+q;
     });
   });
-  var ids=Object.keys(need);if(!ids.length)return;
+  var delta={},kk;
+  for(kk in need)delta[kk]=(delta[kk]||0)-need[kk];
+  for(kk in back)if(back[kk]>0)delta[kk]=(delta[kk]||0)+back[kk];
+  var ids=Object.keys(delta);if(!ids.length)return;
   try{
     var b=F.writeBatch(F.db);
     ids.forEach(function(id){
-      b.update(C.doc('products',id),{stock:F.increment(-need[id])});
-      b.set(F.doc(C.col('stock_moves')),{productId:id,productName:(prod(id)||{}).name||'',delta:-need[id],reason:'fnb_bom',at:F.serverTimestamp()});
+      if(delta[id])b.update(C.doc('products',id),{stock:F.increment(delta[id])});
+      if(need[id])b.set(F.doc(C.col('stock_moves')),{productId:id,productName:(prod(id)||{}).name||'',delta:-need[id],reason:'fnb_bom',at:F.serverTimestamp()});
+      if(back[id])b.set(F.doc(C.col('stock_moves')),{productId:id,productName:(prod(id)||{}).name||'',delta:back[id],reason:'fnb_mon',at:F.serverTimestamp()});
     });
     await b.commit();
   }catch(e){console.error('[fnb] trừ NVL lỗi',e);C.toast('⚠️ Chưa trừ được kho nguyên liệu');}
@@ -8252,7 +8260,7 @@ M.on('boot',function(){
     UNSUB=F.onSnapshot(tcol(),function(s){
       TB=s.docs.map(function(d){var o=d.data()||{};o.id=d.id;return o;});
       render();bar();
-    });
+    },function(e){console.error('[fnb] mất kết nối sơ đồ bàn',e);try{C.toast('⚠️ Mất kết nối sơ đồ bàn — mở lại màn Bàn để tải lại');}catch(_){}});
   }catch(e){console.warn('[fnb] không nghe được bàn',e);}
 });
 M.on('prod:form',function(c){
@@ -8545,6 +8553,7 @@ function bar(){
 function closeRoom(id){
   var p=prod(id);if(!p||!(p.rmOpenAt>0))return;
   var m=mins(p.rmOpenAt),ch=charge(p,m);
+  if(C.cart().length&&!confirm('Giỏ đang có hàng chưa thanh toán.\nĐóng phòng sẽ THAY giỏ hiện tại. Tiếp tục?'))return;
   C.closeModal('#rm-sheet');
   var lines=JSON.parse(JSON.stringify(p.rmCart||[]));
   lines.unshift({key:p.id+'|giờ',id:p.id,name:p.name,unit:hhmm(ch.mins),ratio:0,
@@ -8569,7 +8578,8 @@ function mgr(){
     +'<div id="rm-mgr-list" style="max-height:46vh;overflow-y:auto">'
     +(L.length?L.map(function(p){
         return '<div class="rm-row"><input class="nm" value="'+C.esc(p.name)+'" data-rm-n="'+p.id+'">'
-          +'<input class="rt" inputmode="numeric" value="'+(p.rmRate||0)+'" data-rm-r="'+p.id+'" placeholder="đ/giờ"></div>';
+          +'<input class="rt" inputmode="numeric" value="'+(p.rmRate||0)+'" data-rm-r="'+p.id+'" placeholder="đ/giờ">'
+          +'<input class="rt" inputmode="numeric" value="'+(p.rmMin==null?60:p.rmMin)+'" data-rm-m="'+p.id+'" placeholder="phút TT" title="Số phút tính tiền tối thiểu" style="max-width:70px"></div>';
       }).join(''):'<div class="sk-mut" style="padding:10px 0">Chưa có phòng.</div>')
     +'</div>'
     +'<button class="sk-btn green wide" data-act="rm-add" style="margin-top:10px">➕ Thêm phòng</button>'
@@ -8595,9 +8605,11 @@ async function mgrSave(){
   for(var i=0;i<ns.length;i++){
     var id=ns[i].getAttribute('data-rm-n'),nm=ns[i].value.trim();
     var ri=b.querySelector('[data-rm-r="'+id+'"]'),rt=ri?(parseFloat(ri.value)||0):0;
+    var mi=b.querySelector('[data-rm-m="'+id+'"]'),mn=mi?parseFloat(mi.value):NaN;
     var p=prod(id);
-    if(p&&nm&&rt>0&&(p.name!==nm||p.rmRate!==rt)){
-      try{await F.updateDoc(C.doc('products',id),{name:nm,rmRate:rt,price:rt});k++;}catch(e){}
+    if(!(mn>=0))mn=(p&&p.rmMin!=null)?p.rmMin:60;                              /* để trống / gõ sai → giữ nguyên mức cũ */
+    if(p&&nm&&rt>0&&(p.name!==nm||p.rmRate!==rt||(p.rmMin==null?60:p.rmMin)!==mn)){
+      try{await F.updateDoc(C.doc('products',id),{name:nm,rmRate:rt,price:rt,rmMin:mn});k++;}catch(e){}
     }
   }
   C.closeModal('#rm-mgr');if(k)C.toast('✅ Đã lưu '+k+' phòng');
@@ -8677,7 +8689,7 @@ M.css('kg','\
 M.on('cart:render',function(c){
   if(!M.flag('kg'))return;
   var tot={};
-  c.cart.forEach(function(i){tot[i.id]=(tot[i.id]||0)+(i.qty||0);});
+  c.cart.forEach(function(i){tot[i.id]=(tot[i.id]||0)+(i.baseQty!=null?i.baseQty:(i.qty||0));});   /* bậc tính theo ĐƠN VỊ GỐC — đúng như dòng mô tả "mua từ N <đơn vị gốc>" */
   c.cart.forEach(function(i){
     var p=prod(i.id);if(!tiers(p))return;
     var base=p.price||0;
@@ -8686,7 +8698,7 @@ M.on('cart:render',function(c){
       base=(u&&u.price)||base;
     }
     var np=priceFor(p,tot[i.id],base);
-    if(np>0&&np!==i.price)i.price=np;
+    if(np>0&&(i._kgSet===undefined||i._kgSet===i.price)){i.price=np;i._kgSet=np;}   /* CHỈ áp bậc khi giá CHƯA bị sửa tay (nút ✎ / Hỏi giá) */
   });
 });
 
@@ -14413,6 +14425,7 @@ function forecast(){
   var T0=today0();
   for(var i=0;i<S.P.length;i++){
     var p=S.P[i]; if(!p||p.id==null) continue;
+    if(p.rmRate>0||(p.fnbBom&&p.fnbBom.length)) continue;   /* phòng tính giờ & món chế biến không có tồn thật → không nhắc nhập hàng */
     var s=S.S[p.id];
     var stock=num(p.stock);
     var avg=s?s.avg:0, sd=s?s.sd:0;
