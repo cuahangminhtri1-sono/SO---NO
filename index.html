@@ -623,6 +623,7 @@
       <button class="btn-share" onclick="generateShareLink()">📤 Chia sẻ</button>
       <button class="btn-share" onclick="openSignatures()">✍️ Chữ ký</button>
       <button class="btn-share" onclick="snOpenPrint()">🖨️ In A4/A5</button>
+      <button class="btn-share sn-editonly" onclick="openEditCust()">✏️ Sửa tên</button>
       <button class="btn-danger" onclick="deleteCustomer()">🗑</button>
     </div>
     <div style="font-size:.74em;color:#6b7280;margin:-4px 0 8px;line-height:1.4">🛒 Khách mua: nợ tăng. &nbsp;💰 Khách trả: nợ giảm. Khi khách trả dư, số dư tự chuyển sang <b style="color:#1d4ed8">Mình nợ khách</b>.</div>
@@ -633,6 +634,21 @@
     <div class="tx-edit-hint">✏️ Bấm vào một giao dịch để sửa lại</div>
     <div class="tx-list" id="tx-list"><div class="loading">Đang tải...</div></div>
     <button class="btn-cancel" style="width:100%;margin-top:16px" onclick="closeModal('modal-detail')">Đóng</button>
+  </div>
+</div>
+
+<!-- MODAL: Sửa tên khách hàng -->
+<div class="modal-overlay" id="modal-edit-cust">
+  <div class="modal">
+    <h2>✏️ Sửa tên khách hàng</h2>
+    <label>Tên khách hàng *</label><input id="ec-name" placeholder="Nguyễn Văn A">
+    <label>Số điện thoại</label><input id="ec-phone" placeholder="0901234567" type="tel">
+    <label>Địa chỉ / Ghi chú</label><input id="ec-addr" placeholder="Thôn...">
+    <div style="font-size:.76em;color:#6b7280;margin-top:12px;line-height:1.45">ℹ️ Chỉ đổi tên &amp; thông tin liên hệ — <b>công nợ và toàn bộ giao dịch giữ nguyên</b>. Nếu khách đã có link chia sẻ, trang của khách sẽ tự đổi sang tên mới.</div>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeModal('modal-edit-cust')">Hủy</button>
+      <button class="btn-save" onclick="saveEditCust()">Lưu</button>
+    </div>
   </div>
 </div>
 
@@ -3216,6 +3232,58 @@ window.deleteCustomer=async()=>{
   });
   markDirty();
   closeModal('modal-detail');
+};
+/* ═══ SỬA TÊN KHÁCH CÔNG NỢ (drop-in — KHÔNG đụng code cũ) ═══
+   Chỉ đổi tên / SĐT / địa chỉ trên hồ sơ khách. KHÔNG đụng số nợ, KHÔNG đụng giao dịch.
+   - KHÔNG await updateDoc: mất mạng là promise treo mãi (đúng như ghi chú ở deleteCustomer).
+   - Cập nhật NGAY tại máy để màn hình không còn hiện tên cũ trong lúc chờ bộ lắng nghe.
+   - Máy chủ từ chối ⇒ trả lại thông tin cũ + báo rõ mã lỗi.
+   - Khách đã có link chia sẻ ⇒ đẩy tên mới lên trang của khách. */
+window.openEditCust=function(){
+  try{ if(document.body.classList.contains('sn-lockedit')){ alert('🔒 Sổ nợ đang khoá sửa — máy này không có quyền sửa tên khách.'); return; } }catch(e){}
+  var c=customers.find(function(x){return x.id===currentCustomerId;});
+  if(!c){ toast('Không tìm thấy khách hàng.'); return; }
+  var g=function(k){return document.getElementById(k);};
+  g('ec-name').value=c.name||''; g('ec-phone').value=c.phone||''; g('ec-addr').value=c.address||'';
+  g('modal-edit-cust').classList.add('active');
+  setTimeout(function(){ try{ g('ec-name').focus(); }catch(e){} },80);
+};
+window.saveEditCust=function(){
+  var id=currentCustomerId;
+  var c=customers.find(function(x){return x.id===id;});
+  if(!c){ toast('Không tìm thấy khách hàng.'); return; }
+  var g=function(k){return document.getElementById(k);};
+  var name=g('ec-name').value.trim();
+  if(!name){ alert('Vui lòng nhập tên!'); return; }
+  var phone=g('ec-phone').value.trim(), addr=g('ec-addr').value.trim();
+  var oName=c.name||'', oPhone=c.phone||'', oAddr=c.address||'';
+  if(name===oName&&phone===oPhone&&addr===oAddr){ closeModal('modal-edit-cust'); return; }
+  if(name.toLowerCase()!==oName.toLowerCase()){
+    var dup=customers.some(function(x){ return x.id!==id && String(x.name||'').trim().toLowerCase()===name.toLowerCase(); });
+    if(dup && !confirm('⚠️ Trong sổ đã có khách tên "'+name+'".\n\nVẫn lưu tên này chứ?')) return;
+  }
+  var paint=function(n,p,a){
+    try{
+      if(currentCustomerId===id){
+        var e1=document.getElementById('detail-name'); if(e1) e1.textContent='👤 '+n;
+        var e2=document.getElementById('detail-info'); if(e2) e2.textContent=[p,a].filter(Boolean).join(' · ');
+      }
+      renderList();
+    }catch(e){}
+  };
+  updateDoc(doc(db,'users',UID,'customers',id),{name:name,phone:phone,address:addr}).catch(function(err){
+    var cc=customers.find(function(x){return x.id===id;})||c;
+    if((cc.name||'')===name&&(cc.phone||'')===phone&&(cc.address||'')===addr){
+      cc.name=oName; cc.phone=oPhone; cc.address=oAddr; paint(oName,oPhone,oAddr);
+    }
+    alert('⚠️ MÁY CHỦ TỪ CHỐI SỬA TÊN — đã trả lại thông tin cũ.\n\nMã lỗi: '+((err&&err.code)||'')+'\n'+((err&&err.message)||err));
+  });
+  c.name=name; c.phone=phone; c.address=addr;
+  paint(name,phone,addr);
+  markDirty();
+  closeModal('modal-edit-cust');
+  toast('✅ Đã sửa tên khách: '+name);
+  if(c.shareToken){ try{ syncShare(c.shareToken,id,name,phone,c.debt||0).catch(function(){}); }catch(e){} }
 };
 window.closeModal=id=>{if(id==='modal-tx'){_dropPendingUpload().catch(()=>{});}document.getElementById(id).classList.remove('active');};
 window.openTools=()=>document.getElementById('modal-tools').classList.add('active');
