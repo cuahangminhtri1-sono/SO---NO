@@ -937,13 +937,16 @@ let LICMAP = {};              // admin: { uid: { sono:{...}, sono_pos:{...} } }
 const _DOC=(...a)=>doc(db,...a), _COLL=(...a)=>collection(db,...a), _CG=(n)=>collectionGroup(db,n),
       _SET=setDoc, _GET=getDoc, _GETS=getDocs, _ADD=addDoc, _DEL=deleteDoc, _SRV=serverTimestamp;
 async function _ask(m){ return window.confirm(m); }
-const APP_IDS=['sono','sono_pos','tro','cafe'];
-const APP_TEN={sono:'Sổ Nợ',sono_pos:'Bán hàng (POS)',tro:'TrọSafe',cafe:'Cafe'};
-const MY_APPS=['sono','sono_pos'];
+const APP_IDS=['sono','sono_pos','sono_cn','tro','cafe'];
+const APP_TEN={sono:'Sổ Nợ',sono_pos:'Bán hàng (POS)',sono_cn:'Chi nhánh (thêm)',tro:'TrọSafe',cafe:'Cafe'};
+const MY_APPS=['sono','sono_pos','sono_cn'];
 let _REQS=[], _EMAILS={}, _admBusy=false;
 function _esc2(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function _vnd(n){return Number(n||0).toLocaleString('vi-VN')+'đ';}
 function _dts(ts){if(!ts)return'';const d=ts.toDate?ts.toDate():new Date(ts);if(isNaN(d))return'';return d.getDate()+'/'+(d.getMonth()+1)+'/'+d.getFullYear();}
+/* Cộng tháng theo LỊCH — y hệt hàm themThang() của app Quản trị.
+   Bản cũ lấy 30 ngày/tháng nên gói 12 tháng hụt 5 ngày và hai bảng hiện hai hạn khác nhau. */
+function _congThang(d,n){var x=new Date(d),ng=x.getDate();x.setMonth(x.getMonth()+Number(n||0));if(x.getDate()<ng)x.setDate(0);x.setHours(23,59,0,0);return x;}
 function _ms(ts){if(!ts)return 0;if(typeof ts==='number')return ts;if(ts.toMillis)return ts.toMillis();const d=ts.toDate?ts.toDate():new Date(ts);return isNaN(d)?0:d.getTime();}
 function _ec(e){return String((e&&(e.code||e.message))||'lỗi không rõ');}
 function _permHint(e){return (e&&e.code==='permission-denied')?' — Firestore Rules CHƯA cập nhật, hãy dán firestore.rules mới (xem Báo cáo).':'';}
@@ -984,7 +987,7 @@ function _admStat(L,a){
 function normReq(id,x){x=x||{};var uid=x.uid,app=x.app||'';
   if(id.indexOf('__')>-1){var p=id.split('__');uid=uid||p[0];app=app||p[1]||'';}else{uid=uid||id;}
   if(APP_IDS.indexOf(app)===-1)app='';
-  return {reqId:id,uid:uid,app:app,months:Number(x.months)||1,amount:Number(x.amount)||0,email:x.email||''};}
+  return {reqId:id,uid:uid,app:app,months:Number(x.months)||1,amount:Number(x.amount)||0,email:x.email||'',qty:Number(x.qty)||0};}
 function _pendingFor(uid,app){for(var i=0;i<_REQS.length;i++){var q=_REQS[i];
   if(q.uid===uid&&(q.app===app||(q.app===''&&app===MA_APP)))return q.reqId;}return '';}
 async function markReqDone(reqId){ if(!reqId)return;
@@ -994,19 +997,23 @@ window.adminGrantApp=async function(uid,months,app,reqId){
   try{
     months=[1,3,6,12].indexOf(Number(months))>-1?Number(months):1;
     app=APP_IDS.indexOf(app)>-1?app:MA_APP;
+    /* Gói Chi nhánh thêm tính tiền theo SỐ SUẤT (qty) — chỉ app Quản trị mới có ô nhập đó.
+       Duyệt ở đây sẽ cấp thiếu suất, nên chặn hẳn cho khỏi cấp sai. */
+    if(app===MA_CN){ toast('🏪 Gói Chi nhánh: duyệt trong app Quản trị (có ô Số chi nhánh).'); return; }
     if(!reqId)reqId=_pendingFor(uid,app);
     var base=Date.now();
     var snap=await _GET(licRef(uid,app));
     if(snap.exists()){var a=snap.data();
       if(a.paidUntil){var u=a.paidUntil.toDate?a.paidUntil.toDate():new Date(a.paidUntil);
         if(!isNaN(u)&&u.getTime()>base)base=u.getTime();}}
-    else{ try{var s0=await _GET(_DOC('accounts',uid));
-      if(s0.exists()){var a0=s0.data();var lg=(app==='sono_pos')?a0.posUntil:a0.paidUntil;
-        if(a0.migrated!==true&&lg){var u0=lg.toDate?lg.toDate():new Date(lg);
-          if(!isNaN(u0)&&u0.getTime()>base)base=u0.getTime();}}
-    }catch(e){} }
-    var until=new Date(base+months*30*86400000);
-    await _SET(licRef(uid,app),{active:true,trial:false,trialUsed:true,paidUntil:until,updatedAt:_SRV(),updatedBy:'admin'},{merge:true});
+    /* BỎ cộng dồn từ hạn kiểu cũ ở doc tài khoản. Bộ Rules đang chạy KHÔNG cho
+       trường đó mở khoá gì cả, nên nó không phải hạn còn dùng được — lấy nó làm
+       mốc là biếu không nhiều tháng. App Quản trị chỉ tính từ lic/{app}, ở đây
+       phải giống hệt, không thì hai bảng ra hai con số. */
+    var until=_congThang(new Date(base),months);
+    /* vinhVien:false BẮT BUỘC — thiếu nó thì khách từng được đặt "vĩnh viễn" vẫn được
+       Rules cho dùng mãi (conHan xét vinhVien trước), trong khi bảng quản trị đã báo hết hạn. */
+    await _SET(licRef(uid,app),{active:true,trial:false,trialUsed:true,vinhVien:false,paidUntil:until,updatedAt:_SRV(),updatedBy:'admin'},{merge:true});
     await markReqDone(reqId);
     try{ await _ADD(_COLL('payments'),{uid:uid,email:_EMAILS[uid]||'',app:app,months:months,amount:giaGiaHan(priceFor(app),months),at:_SRV(),src:reqId?'duyet':'tay'}); }catch(e){}
     toast('✅ Đã gia hạn '+(APP_TEN[app]||app)+' +'+months+' tháng · hạn mới: '+_dts(until));
@@ -1975,15 +1982,20 @@ async function logRenewRequest(months,amount){
     const u=auth.currentUser;
     // Rules chung: renewalRequests/{uid} — ID doc = uid (khách chỉ ghi được doc của mình).
     await setDoc(doc(db,'renewalRequests',u.uid),
-      {uid:u.uid,app:'sono',email:u.email||'',months,amount,requestedAt:serverTimestamp(),status:'pending'},{merge:true});
+      {uid:u.uid,app:'sono',email:u.email||'',months,amount,noiDung:(u.email||''),requestedAt:serverTimestamp(),status:'pending',handledAt:null},{merge:true});
   }catch(e){console.warn('logRenewRequest',e&&e.code);}
 }
 async function logPosRequest(months,amount){
   try{
     if(!auth.currentUser||isAdmin())return;
+    if(LA_NV)return;                       /* máy nhân viên không đứng tên đơn của shop */
     const u=auth.currentUser;
-    // POS đi đường riêng qua accounts.posRequested (Rules chung cho phép update đúng bộ khoá này).
-    await setDoc(doc(db,'accounts',u.uid),{posRequested:true,posReqMonths:months,posReqAmount:amount,posReqEmail:u.email||'',posRequestedAt:serverTimestamp()},{merge:true});
+    /* ĐƯỜNG CŨ ghi cờ vào accounts/{uid}: Rules hiện hành chỉ cho khách sửa
+       email/name/phone/updatedAt nên lệnh đó LUÔN bị chối — đơn POS mất sạch,
+       app Quản trị không bao giờ thấy. Nay đi chung đường với Sổ Nợ:
+       renewalRequests/{uid}__sono_pos (Rules cho phép doc id = uid + '__' + mã app). */
+    await setDoc(doc(db,'renewalRequests',u.uid+'__'+MA_POS),
+      {uid:u.uid,app:MA_POS,email:u.email||'',months,amount,noiDung:((u.email||'')+' POS'),requestedAt:serverTimestamp(),status:'pending',handledAt:null},{merge:true});
   }catch(e){console.warn('logPosRequest',e&&e.code);}
 }
 window.copyText=async(t)=>{
@@ -4513,6 +4525,22 @@ function skCnUpsell(fromSwitch){
   skCnRenderUpsell(!!fromSwitch);
 }
 function skCnCloseUpsell(){ var el=document.getElementById('cn-upsell'); if(el)el.remove(); }
+/* ── GHI ĐƠN MUA CHI NHÁNH ────────────────────────────────────────────────
+   Trước đây màn này CHỈ vẽ QR rồi thôi: khách quét mã chuyển tiền xong mà app
+   Quản trị không có đơn nào ⇒ tiền vào tài khoản mà không ai biết là của ai.
+   Doc id uid__sono_cn để bảng quản trị đọc đúng mã app, số tháng và SỐ SUẤT (qty). */
+var _cnDonCuoi='';
+async function logCnRequest(qty,months,amount){
+  try{
+    if(!auth.currentUser||isAdmin()||LA_NV)return;
+    var sl=Math.max(1,Number(qty)||1), th=Number(months)||1, ti=Number(amount)||0;
+    var key=sl+'|'+th+'|'+ti; if(key===_cnDonCuoi)return; _cnDonCuoi=key;   /* bấm +/- nhiều lần chỉ ghi khi số đổi */
+    var u=auth.currentUser, mail=u.email||'';
+    await setDoc(doc(db,'renewalRequests',u.uid+'__'+MA_CN),
+      {uid:u.uid,app:MA_CN,email:mail,months:th,amount:ti,qty:sl,
+       noiDung:(mail+' CN'+sl),requestedAt:serverTimestamp(),status:'pending',handledAt:null},{merge:true});
+  }catch(e){console.warn('logCnRequest',e&&e.code);}
+}
 function skCnRenderUpsell(fromSwitch){
   var el=document.getElementById('cn-upsell'); if(!el)return;
   var unit=(typeof priceFor==='function')?priceFor(MA_CN):0;
@@ -4591,6 +4619,7 @@ function skCnRenderUpsell(fromSwitch){
   Array.prototype.forEach.call(el.querySelectorAll('.cn-m'),function(b){ b.onclick=function(){ _cnWantMonths=parseInt(b.getAttribute('data-cnm'),10)||1; skCnRenderUpsell(fromSwitch); }; });
   Array.prototype.forEach.call(el.querySelectorAll('.cn-cp'),function(b){ b.onclick=function(){ if(typeof copyText==='function')copyText(b.getAttribute('data-cp')); }; });
   var cl=q('.cn-close'); if(cl)cl.onclick=skCnCloseUpsell;
+  if(unit>0&&bank) logCnRequest(_cnWantQty,_cnWantMonths,total);   /* có QR thật mới ghi đơn */
 }
 /* ═══════════ HẾT MODULE CHI NHÁNH THÊM ═══════════ */
 
@@ -4986,12 +5015,15 @@ async function skDiag(){
       if(L.exists()){ daTungCoPos=true; info=_posInfoLic(L.data()); _posCache=info; }
     }catch(e){}
 
-    /* ② TƯƠNG THÍCH: field POS kiểu cũ nằm ở doc gốc */
+    /* ② DẤU VẾT POS KIỂU CŨ ở doc gốc — CHỈ dùng để KHÔNG phát lại lượt dùng thử.
+       Không còn mở cửa POS bằng mấy trường này nữa: Rules đang chạy chỉ xét
+       accounts/{uid}/lic/sono_pos, nên mở lên thì màn Bán hàng trống trơn và mọi
+       thao tác đều bị chối — khách tưởng app hỏng, gọi điện than phiền.
+       Nay rơi xuống màn nâng cấp để chủ shop cấp giấy phép thật (hoặc bán tiếp). */
     if(!daTungCoPos){
       try{
         var s=await getDoc(doc(db,'accounts',UID)); acc=s.exists()?s.data():null;
-        if(acc&&acc.migrated!==true&&(acc.posActive===true||acc.posUntil)){ daTungCoPos=true; info=_posInfo(acc); _posCache=info; }
-        else if(acc&&acc.posTrialUsed===true){ daTungCoPos=true; info={ok:false}; }   // đã xài lượt thử POS kiểu cũ
+        if(acc&&(acc.posActive===true||acc.posUntil||acc.posTrialUsed===true)){ daTungCoPos=true; info={ok:false}; }
       }catch(e){ info=_posCache; }
     }
 
@@ -5016,8 +5048,12 @@ async function skDiag(){
     if(!el){el=document.createElement('div');el.id='pos-upsell';document.body.appendChild(el);}
     var bank=(typeof renewBank==='function')?renewBank():null;
     var P=(typeof BILLING==='object'&&BILLING)?BILLING:null;
-    var pm=(P&&P.posPricePerMonth>0)?P.posPricePerMonth:0;
-    var priceHtml=pm?('<div style="background:#eafaf3;border:1px solid #b7e4d2;border-radius:10px;padding:10px 13px;font-size:13.5px;line-height:1.8;margin:10px 0"><div style="font-weight:700;color:#0a5f4a;margin-bottom:2px">💰 Giá gói Bán hàng: '+fmt(pm)+'/tháng</div>3 tháng: <b>'+fmt(pm*3)+'</b> · 6 tháng: <b>'+fmt(pm*6)+'</b> · 12 tháng: <b>'+fmt(pm*12)+'</b></div>'):'';
+    /* Ô giá thật của gói POS là billing/info.pricePos (ô mà app Quản trị ghi).
+       Bản cũ chỉ đọc posPricePerMonth nên đặt giá ở Quản trị xong màn này vẫn
+       trống trơn, khách không biết bao nhiêu tiền. Số tháng cũng phải tính theo
+       ưu đãi gói năm cho khớp đúng số tiền trên mã QR. */
+    var pm=(typeof priceFor==='function')?priceFor(MA_POS):((P&&P.posPricePerMonth>0)?P.posPricePerMonth:0);
+    var priceHtml=pm?('<div style="background:#eafaf3;border:1px solid #b7e4d2;border-radius:10px;padding:10px 13px;font-size:13.5px;line-height:1.8;margin:10px 0"><div style="font-weight:700;color:#0a5f4a;margin-bottom:2px">💰 Giá gói Bán hàng: '+fmt(pm)+'/tháng</div>3 tháng: <b>'+fmt(giaGiaHan(pm,3))+'</b> · 6 tháng: <b>'+fmt(giaGiaHan(pm,6))+'</b> · 12 tháng: <b>'+fmt(giaGiaHan(pm,12))+'</b> 🎁</div>'):'';
     var expired=(info&&info.expired&&info.until)?('<div style="background:#fff3cd;border:1px solid #ffe08a;border-radius:10px;padding:9px 12px;font-size:13px;color:#8a6d00;margin-bottom:10px">'+(info.trial?'Bản dùng thử Bán hàng đã kết thúc ngày ':'Gói Bán hàng đã hết hạn ngày ')+fmtDateRaw(info.until)+'. Nâng cấp để dùng tiếp.</div>'):'';
     var bankHtml=bank?('<div style="background:#f0f7f4;border:1px solid #d6e9e1;border-radius:10px;padding:11px 13px;font-size:13.5px;line-height:1.7;margin:10px 0">'
         +'<div style="font-weight:700;color:#0a5f4a;margin-bottom:4px">Chuyển khoản nâng cấp</div>'
@@ -5039,7 +5075,13 @@ async function skDiag(){
   window.skClosePosUpsell=function(){var el=document.getElementById('pos-upsell');if(el)el.style.display='none';};
   window.skRequestPos=async function(){
     try{
-      await setDoc(doc(db,'accounts',UID),{posRequested:true,posRequestedAt:serverTimestamp(),posReqEmail:(auth.currentUser&&auth.currentUser.email)||''},{merge:true});
+      /* Bản cũ ghi cờ posRequested vào accounts/{uid} — Rules chối, nên nút này
+         LUÔN báo lỗi và chủ shop không hề nhận được yêu cầu nào. */
+      var _u=auth.currentUser, _m=(_u&&_u.email)||'';
+      if(!_u){ toast('❌ Chưa đăng nhập'); return; }
+      if(LA_NV){ toast('Chỉ Chủ mới gửi được yêu cầu nâng cấp'); return; }
+      await setDoc(doc(db,'renewalRequests',_u.uid+'__'+MA_POS),
+        {uid:_u.uid,app:MA_POS,email:_m,months:1,amount:giaGiaHan(priceFor(MA_POS),1),noiDung:(_m+' POS'),requestedAt:serverTimestamp(),status:'pending',handledAt:null},{merge:true});
       toast('✅ Đã gửi yêu cầu. Chủ phần mềm sẽ duyệt sớm.'); skClosePosUpsell();
     }catch(e){ toast('❌ Gửi chưa được, thử lại'); }
   };
@@ -5097,19 +5139,24 @@ async function skDiag(){
         var base=Date.now();
         var snap=await getDoc(licRef(uid,MA_POS));
         if(snap.exists()){var a=snap.data();if(a.paidUntil){var u=a.paidUntil.toDate?a.paidUntil.toDate():new Date(a.paidUntil);if(!isNaN(u)&&u.getTime()>base)base=u.getTime();}}
-        else{ try{ var s0=await getDoc(doc(db,'accounts',uid));
-          if(s0.exists()){var a0=s0.data();if(a0.migrated!==true&&a0.posUntil){var u0=a0.posUntil.toDate?a0.posUntil.toDate():new Date(a0.posUntil);if(!isNaN(u0)&&u0.getTime()>base)base=u0.getTime();}}
-        }catch(e){} }
-        data.paidUntil=new Date(base+months*30*86400000);
-      }else{ data.paidUntil=null; }   // null = vĩnh viễn
+        /* BỎ cộng dồn từ posUntil kiểu cũ — xem ghi chú ở adminGrantApp. */
+        data.paidUntil=_congThang(new Date(base),months);   /* theo LỊCH, bằng app Quản trị */
+        data.vinhVien=false;                                /* đặt ngày là GỠ vĩnh viễn, nếu không Rules cho dùng mãi */
+      }else{ data.paidUntil=null; data.vinhVien=true; }
+      /* vinhVien:true BẮT BUỘC ở nhánh vĩnh viễn. Bản cũ chỉ ghi paidUntil:null:
+         app hiện "đang dùng không thời hạn" nhưng Rules đọc conHan() ra FALSE
+         (không có ngày, không có cờ) ⇒ khách trả tiền trọn đời lại bị chặn sạch. */
       await setDoc(licRef(uid,MA_POS),data,{merge:true});
       try{ await setDoc(doc(db,'accounts',uid),{posRequested:false},{merge:true}); }catch(e){}
-      try{ await addDoc(collection(db,'payments'),{uid:uid,app:MA_POS,months:months,amount:months>0?giaGiaHan(posRenewPrice(),months):0,at:serverTimestamp()}); }catch(e){}
+      try{ await markReqDone(_pendingFor(uid,MA_POS)); }catch(e){}   /* đóng đơn bên app Quản trị */
+      /* Cấp VĨNH VIỄN không thu tiền theo tháng: ghi dòng 0đ chỉ làm bẩn sổ doanh thu
+         và thổi phồng "số lần trả" của khách. App Quản trị cũng bỏ qua khi tiền = 0. */
+      if(months>0){ try{ await addDoc(collection(db,'payments'),{uid:uid,email:_EMAILS[uid]||'',app:MA_POS,months:months,amount:giaGiaHan(posRenewPrice(),months),at:serverTimestamp(),src:'tay'}); }catch(e){} }
       toast('✅ Đã mở POS '+(months>0?('+'+months+' tháng'):'vĩnh viễn')); window.loadAdminList();
     }catch(e){console.error(e);toast('❌ Không mở được ['+_ec(e)+']'+_permHint(e));}
   };
   window.skAdminPosOff=async function(uid){ try{ await setDoc(licRef(uid,MA_POS),{active:false,updatedAt:serverTimestamp()},{merge:true}); toast('🔒 Đã tắt POS'); window.loadAdminList(); }catch(e){console.error(e);toast('❌ Không tắt được ['+_ec(e)+']'+_permHint(e));} };
-  window.skAdminPosDismiss=async function(uid){ try{ await setDoc(doc(db,'accounts',uid),{posRequested:false},{merge:true}); toast('✅ Đã ẩn'); window.loadAdminList(); }catch(e){console.error(e);toast('❌ Lỗi');} };
+  window.skAdminPosDismiss=async function(uid){ try{ await setDoc(doc(db,'accounts',uid),{posRequested:false},{merge:true}); try{ await markReqDone(_pendingFor(uid,MA_POS)); }catch(e2){} toast('✅ Đã ẩn'); window.loadAdminList(); }catch(e){console.error(e);toast('❌ Lỗi');} };
 })();
 
 
