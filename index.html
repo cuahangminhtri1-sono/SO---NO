@@ -16300,5 +16300,380 @@ window.SNGN={
 })();
 </script>
 <!-- ═══════════════ HẾT: TRỢ LÝ GIỌNG NÓI ═══════════════ -->
+<!-- ═══════════════════════════════════════════════════════════════════════
+     🧠 TẦNG DỊCH Ý  —  AI HIỂU CÂU NÓI TỰ NHIÊN  (v2.0)
+     ───────────────────────────────────────────────────────────────────────
+     • CHỈ THÊM — KHÔNG SỬA 1 NÉT NÀO CỦA CODE CŨ.
+     • Chỉ chạy trên ĐƯỜNG THẤT BẠI: khi trợ lý cũ nói "Em chưa hiểu".
+       Câu nào luật cũ hiểu được thì khối này KHÔNG hề đụng tới.
+     • Không tự chạm dữ liệu: chỉ DỊCH câu nói thành CÂU LỆNH CHUẨN
+       rồi giao lại cho bộ máy cũ (SNGN.lenh) thực thi
+       -> mọi xác nhận tiền + chặn xóa của bản cũ giữ nguyên 100%.
+     • Chạy 100% trong máy: không mạng, không API key, không tốn 1 đồng.
+     • Namespace riêng "snhy". Bọc try/catch toàn bộ.
+     • DÁN NGUYÊN KHỐI NGAY TRƯỚC  </body>  (sau khối TRỢ LÝ GIỌNG NÓI).
+
+     API thử nhanh trong Console:
+        SNHY.dich('cho bác Tuấn lấy hai trăm nghìn')   -> xem dịch ra gì
+        SNHY.chay('bác Tuấn trả 500 nghìn')            -> dịch và chạy luôn
+        SNHY.tat() / SNHY.bat()                        -> tắt/bật tầng này
+     ═══════════════════════════════════════════════════════════════════════ -->
+<script>
+(function(){
+"use strict";
+if(window.SNHY__)return; window.SNHY__=1;
+try{
+
+/* ═════════ 1) LÕI DỊCH Ý (thuần, không đụng DOM) ═════════ */
+
+function kd(s){
+  s=String(s==null?'':s).toLowerCase().normalize('NFD');
+  var o='',i,c;
+  for(i=0;i<s.length;i++){c=s.charCodeAt(i);if(c>=0x300&&c<=0x36f)continue;o+=s[i];}
+  o=o.replace(/đ/g,'d');
+  o=o.replace(/(\d)[.\s](\d{3})(?![\d])/g,'$1$2');
+  o=o.replace(/(\d)[.\s](\d{3})(?![\d])/g,'$1$2');
+  o=o.replace(/(\d),(\d{3})(?![\d])/g,'$1$2');
+  o=o.replace(/(\d)[.,](\d{1,2})(?![\d])/g,'$1.$2');
+  return o.replace(/[^a-z0-9.\s]/g,' ').replace(/\s+/g,' ').trim();
+}
+function capTu(raw){
+  var rw=String(raw||'').trim().split(/\s+/),out=[],i,j,n,sp;
+  for(i=0;i<rw.length;i++){
+    n=kd(rw[i]); if(!n)continue;
+    if(n.indexOf(' ')>=0){ sp=n.split(' '); for(j=0;j<sp.length;j++) if(sp[j]) out.push({r:sp[j],n:sp[j]}); }
+    else out.push({r:String(rw[i]).replace(/^[“"'(\[]+/,'').replace(/[”"'),.!?;:\]]+$/,''),n:n});
+  }
+  return out;
+}
+function thoTheo(P,nsub){
+  var sub=String(nsub||'').trim().split(/\s+/).filter(Boolean),i,j,o;
+  if(!sub.length)return '';
+  for(i=0;i+sub.length<=P.length;i++){
+    var ok=true;
+    for(j=0;j<sub.length;j++) if(P[i+j].n!==sub[j]){ok=false;break;}
+    if(ok){ o=[]; for(j=0;j<sub.length;j++)o.push(P[i+j].r); return o.join(' '); }
+  }
+  return sub.join(' ');
+}
+
+var NW='(?:khong|mot|hai|ba|bon|tu|nam|lam|sau|bay|tam|chin|muoi|chuc|tram|nghin|ngan|trieu|ty|linh|le|ruoi|nua|k|tr|ng|\\d+(?:\\.\\d+)?)';
+var SO='(?:'+NW+')(?:\\s+(?:'+NW+'))*';
+var DV='(?:cai|chiec|con|thung|lon|chai|hop|goi|bich|bao|tui|vi|thanh|cay|qua|trai|ky|kg|kilo|can|lang|gam|g|lit|l|met|m|bo|doi|cap|tam|to|cuon|ram|vien|hu|ket|lop|set|phan|suat|dia|ly|coc|bat|khay|via|xap|xau|nai|buong|be|tep)';
+var HON=/^(?:anh|chi|bac|chu|co|ong|ba|em|thang|cau|di|duong|thim|chau|be|bo|me|ma|nha)$/;
+var CHAN=/^(?:tat ca|het|tong|gio|don|no|khach|day|do|con lai|cai nay|cai do|nay|kia|bao nhieu|tien)$/;
+
+function bo(s,re){ var t=s; while(re.test(t)) t=t.replace(re,''); return t.trim(); }
+function laTien(s){ return /\b(tram|nghin|ngan|trieu|ty|k|tr|ruoi|chuc)\b/.test(s)||/\d{3,}/.test(String(s).replace(/\s+/g,'')); }
+
+function timTien(k){
+  var re=new RegExp('\\b('+SO+')\\b','g'),m,s,i,truoc,sp;
+  while((m=re.exec(k))){
+    s=m[1]; i=m.index;
+    truoc=(k.slice(0,i).trim().split(' ').pop()||'');
+    if(HON.test(truoc)){
+      sp=s.split(' ');
+      if(sp.length<2) continue;
+      i+=sp[0].length+1; s=sp.slice(1).join(' ');
+    }
+    if(laTien(s)) return {s:s,i:i};
+  }
+  return null;
+}
+function timSL(k){ var m=k.match(new RegExp('\\b('+SO+')\\b')); return m?{s:m[1],i:m.index}:null; }
+function soRa(s){ return kd(String(s).replace(/\s+/g,' ')); }
+function lamSachTen(s){
+  var x=bo(String(s||'').trim(),/^(?:cho minh hoi|cho hoi|minh hoi|xem|coi|kiem tra|kiem|hoi|thu|cho|minh|toi|em|gia|ton|mat hang|san pham|hang)\s+/);
+  x=x.replace(new RegExp('^'+SO+'\\s+'+DV+'\\s+(?=\\S)'),'');
+  x=bo(x,/^(?:con|mot|cai)\s+/);
+  return x.trim();
+}
+
+function thanhToan(k,P,gio){
+  var m,b,tt;
+  if(/\b(tien mat|cash|dua tien mat|thu tien mat|tra bang tien mat|tien tuoi)\b/.test(k)
+     ||/\b(khach dua|dua truoc|thu tien|tinh tien|chot don)\b/.test(k)){
+    tt=timTien(k);
+    return ['tien mat'+(tt?' '+soRa(tt.s):'')];
+  }
+  if(/\b(chuyen khoan|ck|quet ma qr|ma qr|qr|banking|chuyen tien|internet banking|bank)\b/.test(k)) return ['chuyen khoan'];
+  if(gio>0&&/\b(ghi no|cho no|no lai|ghi so|de no|no da|tra sau|thanh toan sau|ghi vo so|ghi vao so|cho chiu|ban chiu)\b/.test(k)){
+    b='';
+    if((m=k.match(/\b(?:ghi no|cho no|ghi so|de no|tra sau|thanh toan sau|ghi vo so|ghi vao so|cho chiu|ban chiu)\s*(?:cho\s+)?(.+)$/))) b=m[1];
+    else if((m=k.match(/^(?:ghi|cho|de|ban)?\s*(?:so\s+)?(?:cho\s+)?(.+?)\s+(?:no lai|no|ghi so|chiu|tra sau)\s*$/))) b=m[1];
+    b=bo(String(b||'').trim(),/^(?:khach hang|khach|ten|la|cho|so|no)\s+/);
+    b=bo(b,/\s+(?:no lai|no|nhe|nha|di|voi|luon|do|day|truoc|da|chiu)$/);
+    if(/^(?:no|lai|do|day|di|nhe|)$/.test(b)) b='';
+    if(b&&(b.split(' ').length>4||/\b(mai|hom nay|hom qua|ngay|tra|sau|nua|di|roi|luon|gio|chieu|sang|toi)\b/.test(b))) b='';
+    return ['ghi no cho'+(b?' '+thoTheo(P,b):'')];
+  }
+  if(/\b(giam gia|bot gia|chiet khau|giam cho|bot cho|giam bot|khuyen mai|sale)\b/.test(k)){
+    tt=timTien(k);
+    if(tt) return ['giam gia '+soRa(tt.s)];
+  }
+  return null;
+}
+
+function dichY(raw,ctx){
+  ctx=ctx||{};
+  var P=capTu(raw); if(!P.length)return null;
+  var k=P.map(function(x){return x.n;}).join(' ');
+  k=k.replace(/(\d)([a-z])/g,'$1 $2');
+  k=bo(k,/^(?:e|ei|hey|u|um|a|o|day|nghe|tro ly|troly|alo|nghe day|ban oi|em oi|nay|oi|lam on|phien|nho|xin|vui long|giup minh|giup em|giup toi)\s+/);
+  k=bo(k,/\s+(?:nhe|nha|nhi|a|voi|di|luon|day|do|ne|nghen|he|ha|dum|gium|giup|cai|nua|roi|dc|duoc khong|duoc ko|dc khong|dc ko|khong|ko|nhe ban|dum minh|gium minh|dum em|voi nhe|giup minh|giup em|ok|thoi)$/);
+  if(!k)return null;
+
+  var pos=!!ctx.pos, gio=Number(ctx.gio)||0, m,b,r,tt,sau,note,ten;
+  function POS(c){ return pos?[c]:['mo ban hang',c]; }
+  function SONO(c){ return pos?['ve so no',c]:[c]; }
+
+  /* 1 — ĐÓNG */
+  if(/^(?:dong lai|dong cai nay|thoat ra|thoat cai nay|ra ngoai|di ra|back|tro lai|ve lai|quay ra|huy bo|bo qua)\b/.test(k)) return ['dong'];
+
+  /* 2 — ĐIỀU HƯỚNG */
+  if(/\b(so no|cong no|man so no|danh sach khach|ds khach)\b/.test(k)&&/\b(ve|quay|tro|chuyen|sang|mo|vao|xem|di)\b/.test(k)&&!/\b(in|bang ke)\b/.test(k)) return ['ve so no'];
+  if(/\b(ban hang|pos|quay hang|thu ngan|quay thu ngan|man ban)\b/.test(k)) return ['mo ban hang'];
+  if(/\b(nhap hang|phieu nhap hang)\b/.test(k)&&!/\b(luu|chot|xong)\b/.test(k)&&!timSL(k)) return POS('nhap hang');
+  if(/\b(kho|ton kho|hang hoa|kho hang)\b/.test(k)&&/\b(mo|xem|vao|sang|chuyen|coi|qua)\b/.test(k)&&!/\b(lich su|the kho|kiem)\b/.test(k)) return POS('kho');
+  if(/\b(bao cao|thong ke|so lieu)\b/.test(k)&&!/\b(in|a4|a5)\b/.test(k)) return POS('bao cao');
+  if(/\b(co van|bo nao|tro ly kinh doanh)\b/.test(k)) return POS('co van');
+  if(/\b(cai dat|thiet lap|tuy chon|setting|cau hinh)\b/.test(k)) return ['cai dat'];
+  if(/\b(cong cu|sao luu|backup|xuat file|luu du lieu|xuat du lieu)\b/.test(k)) return ['cong cu'];
+
+  /* 3 — TAB SỔ NỢ */
+  if(/\b(ai (?:dang |con )?no|ai no|khach (?:nao )?(?:dang )?no|danh sach no|nhung ai no|nguoi no|con ai no)\b/.test(k)) return SONO('khach no');
+  if(/\b(minh no|toi no|em no|no khach|minh dang no|toi dang no)\b/.test(k)) return SONO('minh no');
+  if(/\b(da xong|xong het|khach xong|het no|da tra het|tra xong|tra het)\b/.test(k)) return SONO('da xong');
+  if(/\b(tat ca khach|toan bo khach|het thay khach|moi khach)\b/.test(k)) return SONO('tat ca khach');
+  if(/\b(tong no|tong cong no|tong tien no|bao nhieu khach|tinh hinh no|tong so no)\b/.test(k)) return SONO('tong no');
+
+  /* 4 — THÊM KHÁCH */
+  if((m=k.match(/\b(?:them|tao|dang ky|mo so|ghi ten|lap so)\s+(?:cho\s+)?(?:khach hang|khach|nguoi)\s*(?:moi\s*)?(.*)$/))){
+    b=bo((m[1]||'').trim(),/^(?:ten|la|moi|cho)\s+/);
+    return SONO('them khach'+(b?' '+thoTheo(P,b):''));
+  }
+
+  /* 5 — THANH TOÁN POS */
+  if(pos){ r=thanhToan(k,P,gio); if(r) return r; }
+
+  /* 6 — GHI MUA / TRẢ TIỀN */
+  var traT=/\b(tra tien|thanh toan|dua tien|dua truoc|gui tien|nop tien|tra bot|tra het|tra truoc|hoan tien|thu cua|dua cho|tra|dua|gui|nop|thu)\b/.test(k)&&!/\b(tra hang|tra lai hang|tra gop|tra sau|thanh toan sau)\b/.test(k);
+  var muaT=/\b(mua|lay hang|lay them|lay|no them|ghi no|ghi so|ghi them|ghi|cong them|cong|no|chiu|ban chiu|mua chiu|xuat hang|nhan hang|tinh cho)\b/.test(k);
+  if(traT||muaT){
+    tt=timTien(k);
+    if(tt){
+      b=k.slice(0,tt.i).trim();
+      sau=k.slice(tt.i+tt.s.length).trim();
+      b=bo(b,/^(?:ghi so|ghi vao so|ghi no|ghi|cong them|cong|them|bot|tru|xuat|ban chiu|ban|cho no|cho|lay hang|lay|hom nay|hom qua|sang nay|chieu nay|toi nay|nay|vua|moi|da|dang|thi|khach hang|khach|nguoi|so|no|voi|tinh|thu|nha|ben|cua|con)\s+/);
+      b=bo(b,/\s+(?:mua chiu|mua|lay hang|lay|no them|no|ghi|cong|them|tra tien|tra|thanh toan|dua|gui|nop|thu|chiu|het|la|khoang|chung|gan|do|tien|so tien|con|hon|duoc|di|voi|ma|vua|moi|so|thi|xuat|nhan|bot|truoc|lai|ngay|luon|roi)$/);
+      ten='';
+      if(b&&b.split(' ').length>4){
+        var _t=b.split(' '),_i;
+        for(_i=_t.length-1;_i>=0;_i--) if(HON.test(_t[_i])){ b=_t.slice(_i,Math.min(_t.length,_i+3)).join(' '); break; }
+      }
+      if(b&&b.split(' ').length<=4&&!/^(?:toi|minh|em|no|ho|ai|gi|day|do|nay|khach)$/.test(b)) ten=thoTheo(P,b);
+      sau=bo(sau,/^(?:dong|d|vnd|tien|nhe|nha|a|di|roi|nua|nay|la|cho|de|va)\s+/);
+      sau=bo(sau,/\s+(?:nhe|nha|a|di|roi|nua|thoi|day|do)$/);
+      note=(sau&&sau.split(' ').length<=6&&/[a-z]/.test(sau)&&!/^(?:no|tien|tien no|roi|do|day|nay|het|luon|nghe|mat)$/.test(sau))?(' '+thoTheo(P,sau)):'';
+      return SONO('ghi '+(ten?ten+' ':'')+(traT?'tra ':'mua ')+soRa(tt.s)+note);
+    }
+  }
+
+  /* 7 — MỞ KHÁCH */
+  if((m=k.match(/\b(?:so|so no|cong no|no|tai khoan|thong tin|lich su)\s+(?:cua\s+)?((?:anh|chi|bac|chu|co|ong|ba|em|thang|cau|di|duong|thim|bo|me|ma|chau|be)\s+\S+(?:\s+\S+)?|\S+(?:\s+\S+)?)$/))
+     &&/\b(mo|xem|coi|kiem tra|tra cuu|tim|goi|hien|kiem)\b/.test(k)){
+    b=bo((m[1]||'').trim(),/^(?:cua|khach hang|khach)\s+/);
+    b=bo(b,/\s+(?:coi|xem|di|voi|nhe|nao|thu|gium|dum|cai|luon|nua|day|do)$/);
+    if(b&&!/^(?:hom nay|hom qua|nay|do|day|gi|ai|het|tat ca|the nao|bao nhieu)$/.test(b)) return SONO('mo khach '+thoTheo(P,b));
+  }
+  if((m=k.match(/\b(?:mo|xem|coi|kiem tra|tra cuu|tim|goi|hien)\s+(?:so\s+|so no\s+|cong no\s+)?(?:cua\s+)?(?:khach hang|khach)\s+(.+)$/))){
+    b=bo((m[1]||'').trim(),/^(?:ten|la|cua)\s+/);
+    if(b&&!/^(?:no|dang no|minh no|tat ca|toan bo|xong|da xong|moi|nao)$/.test(b)) return SONO('mo khach '+thoTheo(P,b));
+  }
+  if((m=k.match(/^((?:anh|chi|bac|chu|co|ong|ba|em|thang|cau|di|thim|chau|be)\s+\S+(?:\s+\S+)??)\s+(?:con no|dang no|no|con thieu|thieu)\s+(?:bao nhieu|may|the nao|nhu the nao|gi)/))){
+    return SONO('mo khach '+thoTheo(P,m[1]));
+  }
+
+  /* 8 — HỎI GIÁ / TỒN */
+  if((m=k.match(/^(.+?)\s+(?:gia bao nhieu|bao nhieu mot cai|bao nhieu tien|bao nhieu mot|ban gia nao|gia the nao)\s*$/))){
+    b=lamSachTen(m[1]);
+    if(b&&!CHAN.test(b)) return ['gia '+b];
+  }
+  if((m=k.match(new RegExp('^(.+?)\\s+(?:con bao nhieu|con may|ton bao nhieu|con lai bao nhieu|het chua|con hang khong|con khong|con du khong)(?:\\s+'+DV+')?\\s*$')))){
+    b=lamSachTen(m[1]);
+    if(b&&!CHAN.test(b)) return ['ton '+b];
+  }
+  if((m=k.match(/^(?:xem|coi|kiem tra|kiem|cho hoi|hoi|thu)?\s*(?:ton kho|ton|con lai|con)\s+(?:cua\s+)?(.+)$/))&&/\b(ton|con)\b/.test(k)&&!/\b(no|tien|khach)\b/.test(k)){
+    b=lamSachTen(m[1]);
+    if(b&&!CHAN.test(b)) return ['ton '+b];
+  }
+  if((m=k.match(/^(?:xem|coi|hoi|cho hoi|cho minh hoi|thu)?\s*(?:gia|gia ca|gia ban)\s+(?:cua\s+)?(.+)$/))){
+    b=bo(lamSachTen(m[1]),/\s+(?:la bao nhieu|bao nhieu|the nao|nhu the nao)$/);
+    if(b&&!CHAN.test(b)) return ['gia '+b];
+  }
+
+  /* 9 — GIỎ + LỆNH POS */
+  if(/\b(mo gio|xem gio|gio hang|trong gio|co gi trong gio|xem lai gio|coi gio|gio co gi)\b/.test(k)) return POS('mo gio');
+  if(/\b(dong gio|tat gio|an gio|dong cai gio)\b/.test(k)) return ['dong gio'];
+  if(/\b(tong tien|tong cong|het bao nhieu|bao nhieu tien|tinh tong|cong lai|tat ca bao nhieu|thanh tien|het nhieu khong)\b/.test(k)&&!/\b(no|khach no)\b/.test(k)) return POS('tong tien');
+  if(/\b(giu don|treo don|de do|luu don lai|de lat tinh|de danh do)\b/.test(k)) return ['giu don'];
+  if(/\b(don giu|don treo|don da giu|don dang treo)\b/.test(k)) return POS('don giu');
+  if(/\b(don hang|lich su don|don da ban|xem don|tra hang|hoan hang|don cu)\b/.test(k)) return POS('don hang');
+  if(/\b(quet ma|bat camera|quet hang|quet barcode|mo camera|quet ma vach|bat may quet)\b/.test(k)) return POS('quet ma');
+  if(/\b(dung quet|tat camera|ngung quet|thoi quet|tat may quet)\b/.test(k)) return ['dung quet'];
+  if(/\b(in bill|in hoa don|in phieu|in cho khach|in ra|in giay|in bien lai)\b/.test(k)) return ['in bill'];
+
+  /* 10 — KHO */
+  if((m=k.match(/\b(?:nhap them|nhap kho|nhap ve|moi nhap|nhap vao|lay ve|nhap hang ve|bo sung|nhap)\s+(.+)$/))&&/\b(nhap|lay ve|bo sung)\b/.test(k)&&!/\b(phieu|man|mo)\b/.test(k)){
+    b=bo((m[1]||'').trim(),/^(?:them|vao|ve|kho|hang|cho)\s+/);
+    b=bo(b,/\s+(?:vao kho|vo kho|nhe|nha|di|roi)$/);
+    if(b&&timSL(b)) return POS('nhap them '+b);
+  }
+  if(/\b(kiem kho|kiem ke|dem hang|kiem tra kho|kiem hang)\b/.test(k)) return POS('kiem kho');
+  if(/\b(them san pham|tao san pham|hang moi|san pham moi|them mat hang|tao mat hang)\b/.test(k)) return POS('them san pham');
+  if(/\b(lich su kho|the kho|xuat nhap ton|lich su hang)\b/.test(k)) return POS('lich su kho');
+  if(/\b(luu phieu nhap|chot phieu nhap|xong phieu nhap|luu phieu|chot phieu)\b/.test(k)) return ['luu phieu nhap'];
+
+  /* 11 — BÁN */
+  if(/\b(ban|lay|them|bo|cho|mua|tinh|goi|dat|order|xuat)\b/.test(k)
+     &&!/\b(khach hang|nhan vien|chi nhanh|nha cung cap|ncc|san pham moi|hang moi|bao cao|cai dat|cong cu)\b/.test(k)){
+    b=k.replace(new RegExp('^(?:anh|chi|bac|chu|co|ong|ba|em|thang|cau|chau|be)\\s+\\S+\\s+(?=(?:lay|mua|can|muon|order|dat|goi|xin)\\b)'),'');
+    b=bo(b,/^(?:ban cho|lay cho|ban giup|lay giup|mua giup|cho|ban|lay|them vao gio|them vao|them|bo vao gio|bo vo gio|bo vao|bo vo|bo|mua|tinh|goi|dat|order|xuat|minh|toi|em|anh|chi|khach|nguoi ta|vao gio|vo gio|gio)\s+/);
+    b=bo(b,/\s+(?:vao gio|vo gio|vao gio hang|cho khach|nhe|nha|di|luon|nua|voi|day|do|thoi)$/);
+    if(b&&b!==k){
+      var sl='',dv='',tn=b,q=timSL(b);
+      if(q&&q.i===0){ sl=soRa(q.s); tn=b.slice(q.s.length).trim(); }
+      var t1=tn.split(' ')[0];
+      if(t1&&new RegExp('^'+DV+'$').test(t1)&&tn.split(' ').length>1){ dv=t1; tn=tn.split(' ').slice(1).join(' '); }
+      tn=bo(tn,/^(?:cua|hang|mat hang|san pham|loai)\s+/);
+      tn=tn.replace(/\s+(?:cho|ghi|no|va|roi|xong)\b[\s\S]*$/,'').trim();
+      if(!sl&&!dv&&/\b(gi|sao|dau|ai|the nao|nhu the nao|khong|chua|may gio|ten|khoe)\b/.test(tn)) tn='';
+      if(tn&&!/^(?:tien|no|hang|do|gi|nay)$/.test(tn)&&!laTien(tn))
+        return ['ban '+(sl?sl+' ':'')+(dv?dv+' ':'')+tn];
+    }
+  }
+
+  /* 12 — SỬA SỐ LƯỢNG */
+  if((m=k.match(new RegExp('\\b(?:sua|doi|chinh|dieu chinh)\\s+(?:lai\\s+)?(?:so luong\\s+|sl\\s+)?(?:thanh|ra|con|la)\\s+('+SO+')')))){
+    return ['sua thanh '+soRa(m[1])];
+  }
+
+  /* 13 — CÂU HỎI KINH DOANH */
+  if(/\b(hom nay ban duoc|thu duoc bao nhieu|kiem duoc bao nhieu|doanh so|tien ve|ban the nao|buon ban the nao|lai duoc bao nhieu|lo hay lai)\b/.test(k)) return POS('doanh thu hom nay');
+  if(/\b(hang nao ban chay|ban chay nhat|dat khach nhat|mon nao chay)\b/.test(k)) return POS('hang ban chay');
+  if(/\b(sap het hang|hang sap het|can nhap gi|nhap gi bay gio)\b/.test(k)) return POS('sap het hang');
+  if(/\b(ai no nhieu nhat|khach nao no nhieu|khach vip)\b/.test(k)) return POS('ai no nhieu');
+
+  /* 14 — BẤM NÚT */
+  if((m=k.match(/\b(?:bam|nhan|cham|click|an vao|bam vao|nhan vao|cham vao)\s+(.+)$/))){
+    b=bo((m[1]||'').trim(),/^(?:giup|gium|dum|ho|cho)\s+/);
+    b=bo(b,/^(?:minh|toi|em|anh|chi|cai|nut|o|phim|vao)\s+/);
+    b=bo(b,/\s+(?:di|nhe|nha|luon|giup|dum|gium|voi)$/);
+    if(b&&b.length>=2&&!/\b(giup|huong dan)\b/.test(b)) return ['bam '+b];
+  }
+
+  /* 15 — TÌM */
+  if((m=k.match(/^(?:tim|kiem|loc|search)\s+(.+)$/))&&!pos){
+    b=bo((m[1]||'').trim(),/^(?:kiem|giup|dum|cho|xem)\s+/);
+    if(b) return ['tim '+thoTheo(P,b)];
+  }
+
+  return null;
+}
+
+
+/* ═════════ 2) ĐỌC BỐI CẢNH MÀN HÌNH ═════════ */
+function CTX(){
+  var pos=false,g=0;
+  try{ var p=document.getElementById('pos-screen'); pos=!!(p&&p.classList.contains('on')); }catch(e){}
+  try{ var c=window.SKMOD&&window.SKMOD.core; var a=c?c.cart():[]; g=(a&&a.length)||0; }catch(e){}
+  return {pos:pos,gio:g};
+}
+
+/* ═════════ 3) MÓC VÀO ĐƯỜNG THẤT BẠI CỦA TRỢ LÝ CŨ ═════════ */
+var BAT=true, DANG=false, HEN=null, CUOI={k:'',t:0};
+
+function trongNgoac(t){ var m=String(t||'').match(/[\u201C"]([^\u201D"]+)[\u201D"]/); return m?m[1]:''; }
+
+function chay(ds){
+  DANG=true;
+  try{ window.speechSynthesis.cancel(); }catch(e){}
+  try{ if(typeof window.toast==='function') window.toast('\uD83E\uDDE0 '+ds.join(' \u2192 ')); }catch(e){}
+  var i=0;
+  (function buoc(){
+    if(i>=ds.length){ setTimeout(function(){DANG=false;},600); return; }
+    var c=ds[i++];
+    CUOI={k:kd(c),t:Date.now()};
+    try{ if(window.SNGN&&typeof window.SNGN.lenh==='function') window.SNGN.lenh(c); }catch(e){}
+    setTimeout(buoc,1500);
+  })();
+}
+
+function cuu(raw){
+  if(!BAT||DANG)return;
+  raw=String(raw||'').trim(); if(!raw)return;
+  var kk=kd(raw); if(!kk)return;
+  if(kk===CUOI.k&&Date.now()-CUOI.t<12000)return;   /* đã cứu câu này rồi -> không lặp */
+  CUOI={k:kk,t:Date.now()};
+  var out=null;
+  try{ out=dichY(raw,CTX()); }catch(e){ out=null; }
+  if(out&&out.length){ chay(out); return; }
+  /* ─ TẦNG 2 (tùy chọn): gắn SNHY.online = function(cau,ctx){return Promise<câu lệnh chuẩn>} ─ */
+  try{
+    if(window.SNHY&&typeof window.SNHY.online==='function'){
+      var p=window.SNHY.online(raw,CTX());
+      if(p&&p.then)p.then(function(r){
+        if(!r)return;
+        var ds=(typeof r==='string')?[r]:r;
+        if(ds&&ds.length)chay(ds);
+      },function(){});
+    }
+  }catch(e){}
+}
+
+function soi(){
+  if(DANG)return;
+  var e=document.getElementById('vgn-msg'); if(!e)return;
+  var t=(e.textContent||'');
+  if(HEN){ clearTimeout(HEN); HEN=null; }
+  if(t.indexOf('ch\u01B0a hi\u1EC3u')>=0){ cuu(trongNgoac(t)); return; }
+  /* câu ngắn bị máy cắt: trợ lý cũ giữ mảnh 4 giây -> chờ hết 4 giây mới cứu */
+  if(t.indexOf('m\u1EDDi n\u00F3i ti\u1EBFp')>=0){
+    var raw=trongNgoac(t), moc=t;
+    if(raw&&raw.split(/\s+/).length>=2){
+      HEN=setTimeout(function(){
+        HEN=null;
+        var e2=document.getElementById('vgn-msg');
+        if(e2&&(e2.textContent||'')===moc) cuu(raw);
+      },4300);
+    }
+  }
+}
+
+function gan(){
+  var e=document.getElementById('vgn-msg');
+  if(!e||e.__snhy)return;
+  e.__snhy=1;
+  try{
+    var mo=new MutationObserver(function(){ try{soi();}catch(x){} });
+    mo.observe(e,{childList:true,subtree:true,characterData:true});
+  }catch(x){}
+}
+setInterval(gan,1500); gan(); setTimeout(gan,2500); setTimeout(gan,6000);
+
+/* ═════════ 4) API ═════════ */
+window.SNHY={
+  dich:function(s){ try{return dichY(s,CTX());}catch(e){return null;} },
+  chay:function(s){ var o=null; try{o=dichY(s,CTX());}catch(e){} if(o&&o.length)chay(o); return o; },
+  online:null,
+  bat:function(){BAT=true;return 'T\u1EA7ng d\u1ECBch \u00FD: B\u1EACT';},
+  tat:function(){BAT=false;return 'T\u1EA7ng d\u1ECBch \u00FD: T\u1EAET';},
+  ctx:CTX
+};
+
+}catch(e){ /* tuyệt đối không để khối này làm hỏng app */ }
+})();
+</script>
+<!-- ═══════════════ HẾT: TẦNG DỊCH Ý ═══════════════ -->
 </body>
 </html>
