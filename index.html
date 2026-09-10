@@ -16675,5 +16675,107 @@ window.SNHY={
 })();
 </script>
 <!-- ═══════════════ HẾT: TẦNG DỊCH Ý ═══════════════ -->
+<!-- ═══════════════════════════════════════════════════════════════════════
+     ☁️ TẦNG 2 — BỘ HIỂU Ý ONLINE  (v1.0)
+     ───────────────────────────────────────────────────────────────────────
+     • CHỈ THÊM — KHÔNG SỬA 1 NÉT NÀO CỦA CODE CŨ.
+     • Chỉ chạy khi CẢ luật cũ LẪN tầng dịch ý offline đều bí (~2-5% số câu).
+     • KHÔNG có API key trong file này. Key nằm ở Cloud Function của bạn.
+     • KHÔNG gửi khách hàng / đơn hàng / số nợ đi đâu — chỉ gửi CÂU NÓI.
+     • Chưa deploy Cloud Function thì khối này im lặng, app chạy y như cũ.
+     • Namespace "snhy2". Bọc try/catch toàn bộ.
+
+     Công tắc trong Console:
+        SNHY.tatOnline()   /   SNHY.batOnline()
+        SNHY.conLuot()     -> còn bao nhiêu lượt hôm nay
+     ═══════════════════════════════════════════════════════════════════════ -->
+<script type="module">
+import { getApps } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getAuth } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+(function(){
+"use strict";
+if(window.SNHY2__)return; window.SNHY2__=1;
+try{
+
+var URL_HAM   = 'https://asia-southeast1-so-no-cc57a.cloudfunctions.net/hieuY';
+var TRAN_NGAY = 30;      /* trần ngay tại máy — chặn trước, khỏi tốn 1 lượt gọi */
+var CACH_NHAU = 2500;    /* ms tối thiểu giữa 2 lần gọi */
+var HET_GIO   = 9000;    /* ms chờ tối đa, quá thì bỏ, app không đứng */
+
+/* ── lấy đúng app CHÍNH đang đăng nhập (bỏ 'errlog' và 'pub' ẩn danh) ── */
+function nguoiDung(){
+  var apps=[],i,j;
+  try{ apps=getApps()||[]; }catch(_){ apps=[]; }
+  var app=null;
+  for(i=0;i<apps.length;i++){ var a=apps[i]; if(a&&a.name!=='errlog'&&a.name!=='pub'){ app=a; break; } }
+  if(!app&&apps.length) app=apps[0];
+  var u=null;
+  if(app){ try{ var au=getAuth(app); u=au&&au.currentUser; }catch(_){} }
+  if(!u||u.isAnonymous){
+    u=null;
+    for(j=0;j<apps.length;j++){
+      var b=apps[j]; if(!b||b.name==='errlog'||b.name==='pub') continue;
+      try{ var a2=getAuth(b); if(a2&&a2.currentUser&&!a2.currentUser.isAnonymous){ u=a2.currentUser; break; } }catch(_){}
+    }
+  }
+  return u||null;
+}
+
+/* ── đếm lượt trong máy ── */
+function khoa(){ var d=new Date(); return 'snhy2_'+d.getFullYear()+'_'+(d.getMonth()+1)+'_'+d.getDate(); }
+function daDung(){ try{ return parseInt(localStorage.getItem(khoa())||'0',10)||0; }catch(_){ return 0; } }
+function cong(){ try{ localStorage.setItem(khoa(),String(daDung()+1)); }catch(_){} }
+
+var lanCuoi=0;
+
+function online(cau,tt){
+  return new Promise(function(xong){
+    try{
+      if(Date.now()-lanCuoi<CACH_NHAU){ xong(null); return; }
+      if(daDung()>=TRAN_NGAY){ xong(null); return; }
+      var u=nguoiDung(); if(!u){ xong(null); return; }
+      lanCuoi=Date.now();
+      u.getIdToken().then(function(tok){
+        var da=false;
+        var canh=setTimeout(function(){ if(!da){ da=true; xong(null); } },HET_GIO);
+        fetch(URL_HAM,{
+          method:'POST',
+          headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},
+          body:JSON.stringify({
+            cau:String(cau||'').slice(0,200),
+            pos:!!(tt&&tt.pos),
+            gio:(tt&&tt.gio)||0
+          })
+        })
+        .then(function(r){ return r.json(); })
+        .then(function(j){
+          if(da)return; da=true; clearTimeout(canh); cong();
+          xong((j&&j.lenh&&j.lenh.length)?j.lenh:null);
+        })
+        .catch(function(){ if(da)return; da=true; clearTimeout(canh); xong(null); });
+      },function(){ xong(null); });
+    }catch(_){ xong(null); }
+  });
+}
+
+/* ── cắm vào Tầng 1 ── */
+var dem=0;
+(function gan(){
+  try{
+    if(window.SNHY){
+      window.SNHY.online     = online;
+      window.SNHY.tatOnline  = function(){ window.SNHY.online=null;   return 'Tầng 2: TẮT'; };
+      window.SNHY.batOnline  = function(){ window.SNHY.online=online; return 'Tầng 2: BẬT'; };
+      window.SNHY.conLuot    = function(){ return Math.max(0,TRAN_NGAY-daDung())+'/'+TRAN_NGAY+' lượt còn lại hôm nay'; };
+      return;
+    }
+  }catch(_){}
+  if(++dem<80) setTimeout(gan,500);
+})();
+
+}catch(e){ /* tuyệt đối không để khối này làm hỏng app */ }
+})();
+</script>
+<!-- ═══════════════ HẾT: TẦNG 2 ONLINE ═══════════════ -->
 </body>
 </html>
