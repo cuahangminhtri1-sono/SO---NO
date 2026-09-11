@@ -16240,5 +16240,572 @@ setInterval(function(){
 })();
 </script>
 <!-- ═══════════ HẾT: DÙNG THỬ GÓI CHI NHÁNH ═══════════ -->
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     MODULE: ĐƠN QR TẠI BÀN — khách quét mã trên bàn tự gọi món
+     Namespace: qrd   |   Mã giấy phép: sono_qr   |   Cần SKMOD v1 + gói F&B
+
+     DÁN NGUYÊN KHỐI NÀY VÀO CUỐI indexSNBH.html, NGAY TRƯỚC THẺ  </body>
+     KHÔNG sửa một dòng code cũ nào. Dùng type="module" để chạy SAU lõi.
+
+     • Tab "Đơn QR" chỉ hiện với khách ĐANG BẬT gói F&B (có sơ đồ bàn).
+       Khách tạp hoá / thời trang / karaoke không thấy gì thay đổi.
+     • Chưa mua gói sono_qr → tab hiện màn giới thiệu + nút dùng thử 14 ngày.
+     • Đơn khách gửi KHÔNG tự vào bill. Nhân viên bấm "Nhận vào bàn" mới vào.
+     • Giá luôn lấy theo GIÁ TRONG KHO lúc nhận đơn, không lấy giá khách gửi lên.
+     • Món đã xoá khỏi kho thì bỏ qua, báo rõ cho nhân viên — không bao giờ
+       nhét id lạ vào giỏ (sẽ làm hỏng bước trừ tồn lúc thanh toán).
+     ═══════════════════════════════════════════════════════════════════════════ -->
+<script type="module">
+(function(){
+try{
+if(!window.SKMOD) return;
+var M = window.SKMOD, C = M.core, F = M.fb;
+if(!M.reg('qrdon',{ns:'qrd', name:'Đơn QR — Khách tự đặt tại bàn', ver:'1.0'})) return;
+
+/* ═════════ CẤU HÌNH — SỬA Ở ĐÂY LÀ XONG ═════════ */
+var MA_GOI    = 'sono_qr';
+var TRIAL_NGAY= 14;
+var HOTLINE   = '0977823979';
+var LINK_MENU = 'https://cuahangminhtri1-sono.github.io/SO---NO/menu.html';
+var QR_LIB    = 'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js';
+/* ════════════════════════════════════════════════ */
+
+var ON=false, LIC=null, TOKEN='', TENQUAN='', SHARE=null, DON=[], BAN=[], UNSUB=null;
+var soDonTruoc=0, dangLam=false, daHoi=false;
+
+/* ───────── tiện ích ───────── */
+function esc(s){ return C.esc ? C.esc(s) : String(s==null?'':s)
+  .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function tien(n){ return C.fmt(Number(n)||0); }
+function noi(m){ try{ C.toast(m); }catch(e){} }
+function uid(){ try{ return C.uid(); }catch(e){ return null; } }
+function chiNhanh(){ try{ return C.branch() || 'main'; }catch(e){ return 'main'; } }
+function ms(t){
+  if(!t) return 0;
+  if(typeof t.toMillis === 'function') return t.toMillis();
+  if(t instanceof Date) return t.getTime();
+  return Number(t) || 0;
+}
+function conHan(l){
+  if(!l) return false;
+  if(l.active === false) return false;
+  if(l.vinhVien === true) return true;
+  return ms(l.paidUntil) > Date.now();
+}
+function sp(id){ var L=C.products(); for(var i=0;i<L.length;i++) if(L[i].id===id) return L[i]; return null; }
+
+/* Chuông báo đơn mới — không cần file âm thanh, không cần xin quyền */
+function chuong(){
+  try{
+    var A = window.AudioContext || window.webkitAudioContext; if(!A) return;
+    var c = new A();
+    [0, 0.18].forEach(function(d){
+      var o=c.createOscillator(), g=c.createGain();
+      o.type='sine'; o.frequency.value = d ? 1046 : 784;
+      g.gain.setValueAtTime(0.0001, c.currentTime+d);
+      g.gain.exponentialRampToValueAtTime(0.25, c.currentTime+d+0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, c.currentTime+d+0.15);
+      o.connect(g); g.connect(c.destination);
+      o.start(c.currentTime+d); o.stop(c.currentTime+d+0.17);
+    });
+    setTimeout(function(){ try{ c.close(); }catch(e){} }, 900);
+  }catch(e){}
+  try{ if(navigator.vibrate) navigator.vibrate([90,60,90]); }catch(e){}
+}
+
+/* ───────── CSS ───────── */
+M.css('qrd','\
+#pos-screen .qrd-w{padding:2px 0 10px}\
+#pos-screen .qrd-box{background:#fff;border:1px solid #e4e8ec;border-radius:13px;padding:12px 13px;margin-bottom:10px}\
+#pos-screen .qrd-hd{display:flex;align-items:center;gap:10px;margin-bottom:9px}\
+#pos-screen .qrd-hd b{flex:1;min-width:0;font-size:14px;font-weight:800;color:#243b53}\
+#pos-screen .qrd-sw{flex:none;width:50px;height:28px;border-radius:14px;background:#dfe6e9;border:none;cursor:pointer;position:relative;transition:.18s}\
+#pos-screen .qrd-sw:after{content:"";position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#fff;transition:.18s;box-shadow:0 1px 3px rgba(0,0,0,.22)}\
+#pos-screen .qrd-sw.on{background:#16a34a}\
+#pos-screen .qrd-sw.on:after{left:25px}\
+#pos-screen .qrd-st{font-size:12px;color:#7d8d87;line-height:1.6}\
+#pos-screen .qrd-st b{color:#0a5f4a}\
+#pos-screen .qrd-row{display:flex;gap:7px;flex-wrap:wrap;margin-top:9px}\
+#pos-screen .qrd-b{border:none;border-radius:9px;padding:9px 12px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit;background:#eef7f3;color:#0a5f4a}\
+#pos-screen .qrd-b.green{background:#16a34a;color:#fff}\
+#pos-screen .qrd-b.grey{background:#eef1f0;color:#51655f}\
+#pos-screen .qrd-b.red{background:#fdecec;color:#b02a2a}\
+#pos-screen .qrd-b:disabled{opacity:.5}\
+#pos-screen .qrd-d{border:1.6px solid #e4e8ec;border-left:5px solid #16a34a;border-radius:13px;background:#fff;padding:12px 13px;margin-bottom:10px}\
+#pos-screen .qrd-d-h{display:flex;align-items:baseline;gap:9px;margin-bottom:8px}\
+#pos-screen .qrd-d-h b{font-size:15px;font-weight:800;color:#0a5f4a}\
+#pos-screen .qrd-d-h span{flex:1;min-width:0;font-size:11.5px;color:#94a4a0}\
+#pos-screen .qrd-li{display:flex;gap:9px;font-size:13px;padding:3px 0;line-height:1.5}\
+#pos-screen .qrd-li i{flex:none;font-style:normal;font-weight:800;color:#0a5f4a;min-width:26px}\
+#pos-screen .qrd-li u{flex:1;min-width:0;text-decoration:none}\
+#pos-screen .qrd-li em{font-style:normal;color:#b06a00;font-size:11.5px;display:block}\
+#pos-screen .qrd-li s{flex:none;text-decoration:none;color:#5a6b64;white-space:nowrap}\
+#pos-screen .qrd-li.mat u{color:#b02a2a;text-decoration:line-through}\
+#pos-screen .qrd-gc{background:#fff8e6;border-radius:8px;padding:7px 9px;font-size:12px;color:#856300;margin-top:7px;line-height:1.55}\
+#pos-screen .qrd-t{display:flex;justify-content:space-between;align-items:center;font-size:14px;font-weight:800;border-top:1px dashed #e1e8e5;margin-top:9px;padding-top:9px}\
+#pos-screen .qrd-t b{font-size:17px;color:#c0392b}\
+#pos-screen .qrd-none{text-align:center;color:#94a4a0;font-size:13px;padding:32px 14px;line-height:1.7}\
+#pos-screen .qrd-sell{text-align:center;padding:18px 6px}\
+#pos-screen .qrd-sell .ic{font-size:40px;margin-bottom:10px}\
+#pos-screen .qrd-sell h4{font-size:16px;font-weight:800;color:#0a5f4a;margin:0 0 8px}\
+#pos-screen .qrd-sell p{font-size:12.8px;color:#6e807a;line-height:1.7;margin:0 auto 14px;max-width:330px}\
+#pos-screen .qrd-warn{background:#fff3cd;border:1px solid #ffe08a;border-radius:10px;padding:10px 12px;font-size:12px;color:#856300;line-height:1.6;margin-bottom:10px}\
+');
+
+/* ───────── VẼ MÀN ───────── */
+function render(){
+  var box = document.getElementById('qrd-w'); if(!box) return;
+
+  if(!conHan(LIC)){ box.innerHTML = htmlChaoHang(); return; }
+  if(!TOKEN){ box.innerHTML = htmlChuaBat(); return; }
+
+  var nhan = !!(SHARE && SHARE.nhanDon);
+  var cnHienTai = chiNhanh();
+  var list = DON.filter(function(d){ return (d.chiNhanh||'main') === cnHienTai; })
+                .sort(function(a,b){ return (a.tsClient||0)-(b.tsClient||0); });
+
+  var h = '<div class="qrd-box">'
+    + '<div class="qrd-hd"><b>Nhận đơn từ mã QR</b>'
+    + '<button class="qrd-sw'+(nhan?' on':'')+'" data-act="qrd-sw" aria-label="Bật tắt nhận đơn"></button></div>'
+    + '<div class="qrd-st">Tên hiện cho khách: <b>'+esc(TENQUAN||'Thực đơn')+'</b><br>'+(nhan
+        ? 'Đang <b>nhận đơn</b> — khách quét mã trên bàn là gọi món được.'
+        : 'Đang <b>tắt</b> — khách quét mã sẽ thấy dòng "Quán tạm ngưng nhận đơn qua mã QR".')
+    + '<br>Thực đơn trên mã: <b>'+((SHARE&&SHARE.menu&&SHARE.menu.length)||0)+' món</b>'
+    + ' · Sơ đồ: <b>'+((SHARE&&SHARE.ban&&Object.keys(SHARE.ban).length)||0)+' bàn</b></div>'
+    + '<div class="qrd-row">'
+    + '<button class="qrd-b green" data-act="qrd-day">Cập nhật thực đơn lên mã</button>'
+    + '<button class="qrd-b" data-act="qrd-in">In mã QR các bàn</button>'
+    + '<button class="qrd-b" data-act="qrd-ten">Đổi tên quán</button>'
+    + '<button class="qrd-b red" data-act="qrd-doi">Đổi mã (huỷ mã cũ)</button>'
+    + '</div></div>';
+
+  if(!list.length){
+    h += '<div class="qrd-none">Chưa có đơn nào đang chờ.<br>Đơn khách gửi từ bàn sẽ hiện ở đây kèm chuông báo.</div>';
+  }else{
+    list.forEach(function(d){
+      var phut = Math.max(0, Math.floor((Date.now()-(d.tsClient||Date.now()))/60000));
+      h += '<div class="qrd-d"><div class="qrd-d-h"><b>Bàn '+esc(d.banTen||d.banId)+'</b>'
+         + '<span>'+(phut?(phut+' phút trước'):'vừa xong')+'</span></div>';
+      var tong = 0;
+      (d.items||[]).forEach(function(it){
+        var p = sp(it.i), mat = !p;
+        var gia = p ? (Number(p.price)||0) : (Number(it.p)||0);
+        if(!mat) tong += gia * (Number(it.q)||0);
+        h += '<div class="qrd-li'+(mat?' mat':'')+'"><i>'+(Number(it.q)||0)+'×</i>'
+           + '<u>'+esc(p?p.name:(it.n||'Món'))+(mat?' (không còn trong kho)':'')
+           + (it.g ? '<em>· '+esc(it.g)+'</em>' : '') + '</u>'
+           + '<s>'+(mat?'—':tien(gia*(Number(it.q)||0)))+'</s></div>';
+      });
+      if(d.ghiChu) h += '<div class="qrd-gc">Ghi chú: '+esc(d.ghiChu)+'</div>';
+      h += '<div class="qrd-t"><span>Tạm tính theo giá kho</span><b>'+tien(tong)+'</b></div>'
+         + '<div class="qrd-row">'
+         + '<button class="qrd-b green" data-act="qrd-nhan" data-id="'+esc(d.id)+'">Nhận vào bàn</button>'
+         + '<button class="qrd-b grey" data-act="qrd-bo" data-id="'+esc(d.id)+'">Bỏ đơn</button>'
+         + '</div></div>';
+    });
+  }
+  box.innerHTML = h;
+}
+
+function htmlChaoHang(){
+  var het = LIC && ms(LIC.paidUntil) > 0 && ms(LIC.paidUntil) <= Date.now();
+  var daThu = !!(LIC && LIC.trialUsed);
+  return '<div class="qrd-box qrd-sell"><div class="ic">📱</div>'
+    + '<h4>Khách tự gọi món bằng mã QR trên bàn</h4>'
+    + '<p>Dán một mã QR lên mỗi bàn. Khách quét là thấy thực đơn, tự bấm chọn rồi gửi thẳng xuống máy tính tiền — '
+    + 'nhân viên chỉ bấm nhận. Đỡ hẳn một người chạy bàn ghi giấy.</p>'
+    + (het ? '<div class="qrd-warn">Gói đã hết hạn ngày '
+             + new Date(ms(LIC.paidUntil)).toLocaleDateString('vi-VN')
+             + '. Khách quét mã sẽ không gửi đơn được nữa.</div>' : '')
+    + '<div class="qrd-row" style="justify-content:center">'
+    + (daThu ? '' : '<button class="qrd-b green" data-act="qrd-thu">Dùng thử '+TRIAL_NGAY+' ngày miễn phí</button>')
+    + '<a class="qrd-b" href="tel:'+HOTLINE+'" style="text-decoration:none">Gọi '+HOTLINE+' để mở gói</a>'
+    + '</div></div>';
+}
+
+function htmlChuaBat(){
+  return '<div class="qrd-box qrd-sell"><div class="ic">🍽️</div>'
+    + '<h4>Bật nhận đơn qua mã QR</h4>'
+    + '<p>Bấm nút dưới đây để tạo mã cho quán và đẩy thực đơn từ kho lên. '
+    + 'Sau đó in mã dán lên từng bàn là xong.</p>'
+    + '<div class="qrd-row" style="justify-content:center">'
+    + '<button class="qrd-b green" data-act="qrd-day">Tạo mã &amp; đẩy thực đơn</button></div></div>';
+}
+
+/* ───────── ĐẨY THỰC ĐƠN LÊN MÃ ───────── */
+function taoToken(){
+  var k='abcdefghijkmnpqrstuvwxyz23456789', s='';
+  try{
+    var cr = window.crypto || window.msCrypto;
+    var a=new Uint8Array(22); cr.getRandomValues(a);
+    for(var i=0;i<a.length;i++) s += k[a[i] % k.length];
+  }catch(e){
+    for(var j=0;j<22;j++) s += k[Math.floor(Math.random()*k.length)];
+  }
+  return s;
+}
+
+async function docBan(){
+  var r = [];
+  try{
+    var s = await F.getDocs(C.col('pos_tables'));
+    s.forEach(function(d){ var o=d.data()||{}; r.push({id:d.id, name:o.name||d.id, ord:o.ord||0}); });
+  }catch(e){}
+  r.sort(function(a,b){ return (a.ord||0)-(b.ord||0); });
+  return r;
+}
+
+async function dayThucDon(batNhan){
+  if(dangLam) return; dangLam = true;
+  try{
+    var u = uid(); if(!u){ noi('Chưa đăng nhập'); return; }
+
+    BAN = await docBan();
+    if(!BAN.length){
+      noi('⚠️ Chưa có bàn nào — vào tab "Bàn" tạo bàn trước đã');
+      return;
+    }
+
+    var P = C.products(), menu = [], bo = 0;
+    P.forEach(function(p){
+      if(!p || !p.id || !p.name) return;
+      if(p.qrAn === true) return;                 /* chừa sẵn: món ẩn khỏi thực đơn QR */
+      if(menu.length >= 300){ bo++; return; }
+      var m = { i:p.id, n:String(p.name).slice(0,80), p:Number(p.price)||0,
+                u:String(p.baseUnit||'').slice(0,20), c:String(p.category||'Món khác').slice(0,40) };
+      if(p.image && String(p.image).slice(0,5)==='https') m.a = String(p.image).slice(0,500);
+      menu.push(m);
+    });
+    if(!menu.length){ noi('⚠️ Kho chưa có món nào để đưa lên thực đơn'); return; }
+    if(bo) noi('⚠️ Thực đơn QR chỉ nhận 300 món — đã bỏ bớt '+bo+' món');
+
+    if(!TOKEN){ TOKEN = taoToken(); }
+
+    var banMap = {};
+    BAN.forEach(function(b){ banMap[b.id] = String(b.name||b.id).slice(0,60); });
+
+    var data = {
+      ownerUid: u,
+      chiNhanh: chiNhanh(),
+      quan:     TENQUAN || 'Thực đơn',
+      nhanDon:  (batNhan === undefined) ? !!(SHARE && SHARE.nhanDon) : !!batNhan,
+      ban:      banMap,
+      menu:     menu,
+      capNhat:  F.serverTimestamp()
+    };
+
+    await F.setDoc(F.doc(F.db,'shares_qr',TOKEN), data, {merge:true});
+    await F.setDoc(C.doc('pos_meta','qr'), {token:TOKEN, quan:(TENQUAN||'Thực đơn')}, {merge:true});
+
+    SHARE = data; SHARE.nhanDon = data.nhanDon;
+    noi('✅ Đã cập nhật thực đơn ('+menu.length+' món · '+BAN.length+' bàn)');
+    render();
+  }catch(e){
+    C.err ? C.err(e,'Cập nhật thực đơn QR') : noi('Lỗi: '+((e&&e.code)||e));
+  }finally{ dangLam = false; }
+}
+
+async function batTat(){
+  if(!TOKEN){ return dayThucDon(true); }
+  var moi = !(SHARE && SHARE.nhanDon);
+  try{
+    await F.setDoc(F.doc(F.db,'shares_qr',TOKEN),
+      { ownerUid: uid(), nhanDon: moi, capNhat: F.serverTimestamp() }, {merge:true});
+    if(SHARE) SHARE.nhanDon = moi; 
+    noi(moi ? '✅ Đã bật nhận đơn qua mã QR' : '⏸️ Đã tắt — khách quét mã sẽ không gửi đơn được');
+    render();
+  }catch(e){ C.err ? C.err(e,'Bật/tắt nhận đơn QR') : noi('Lỗi: '+((e&&e.code)||e)); }
+}
+
+async function doiMa(){
+  if(!confirm('ĐỔI MÃ sẽ làm TẤT CẢ mã QR đang dán trên bàn chết ngay lập tức.\nBạn phải in và dán lại toàn bộ.\n\nChỉ nên làm khi bị người ngoài quét trộm đặt phá.\n\nTiếp tục?')) return;
+  var cu = TOKEN; TOKEN = '';
+  await dayThucDon(true);
+  if(cu){ try{ await F.deleteDoc(F.doc(F.db,'shares_qr',cu)); }catch(e){} }
+  noi('✅ Đã đổi mã — nhớ in và dán lại mã mới cho từng bàn');
+}
+
+/* ───────── NHẬN ĐƠN VÀO BÀN ───────── */
+async function nhanDon(id){
+  if(dangLam) return; dangLam = true;
+  try{
+    var d = DON.find(function(x){ return x.id === id; });
+    if(!d){ noi('Đơn không còn'); return; }
+
+    var ref = C.doc('pos_tables', d.banId);
+    var snap = await F.getDoc(ref);
+    if(!snap.exists()){
+      noi('⚠️ Bàn "'+(d.banTen||d.banId)+'" không còn trong sơ đồ — hãy tạo lại bàn rồi bấm nhận');
+      return;
+    }
+    var t = snap.data() || {};
+    var gio = Array.isArray(t.cart) ? JSON.parse(JSON.stringify(t.cart)) : [];
+    var mat = [], them = 0;
+
+    (d.items||[]).forEach(function(it){
+      var p = sp(it.i);
+      if(!p){ mat.push(it.n||'Món'); return; }          /* KHÔNG nhét id lạ vào giỏ */
+      var q = Number(it.q) || 0; if(q <= 0) return;
+      var dv  = String(p.baseUnit || 'cái');
+      var ten = String(p.name) + (it.g ? ' ('+String(it.g).slice(0,60)+')' : '');
+      var key = p.id + '|' + dv + (it.g ? '|' + String(it.g).slice(0,60) : '');
+      var line = null;
+      for(var i=0;i<gio.length;i++) if(gio[i].key === key){ line = gio[i]; break; }
+      if(line){
+        line.qty     = Math.round((Number(line.qty||0) + q) * 1e6) / 1e6;
+        line.baseQty = Math.round(line.qty * (Number(line.ratio)||1) * 1e6) / 1e6;
+      }else{
+        gio.push({ key:key, id:p.id, name:ten, unit:dv, ratio:1,
+                   price:Number(p.price)||0, cost:Number(p.cost)||0,
+                   qty:q, baseQty:q });
+      }
+      them++;
+    });
+
+    if(!them){
+      noi('⚠️ Đơn này không còn món nào trong kho — đã bỏ đơn');
+      await F.deleteDoc(F.doc(F.db,'qr_don',id));
+      return;
+    }
+
+    await F.updateDoc(ref, { cart: gio, openAt: t.openAt || Date.now() });
+    await F.deleteDoc(F.doc(F.db,'qr_don',id));
+
+    noi('✅ Đã đưa '+them+' món vào bàn '+(d.banTen||d.banId)
+        + (mat.length ? ' — bỏ qua: '+mat.join(', ') : ''));
+    if(mat.length) alert('Những món sau KHÔNG còn trong kho nên không đưa vào bàn:\n\n• '
+        + mat.join('\n• ') + '\n\nBáo khách đổi món giúp nhé.');
+  }catch(e){
+    C.err ? C.err(e,'Nhận đơn QR') : noi('Lỗi: '+((e&&e.code)||e));
+  }finally{ dangLam = false; }
+}
+
+async function boDon(id){
+  var d = DON.find(function(x){ return x.id === id; });
+  if(!confirm('Bỏ đơn của bàn '+((d&&(d.banTen||d.banId))||'?')+'?\nMón sẽ KHÔNG vào bill.')) return;
+  try{ await F.deleteDoc(F.doc(F.db,'qr_don',id)); noi('Đã bỏ đơn'); }
+  catch(e){ C.err ? C.err(e,'Bỏ đơn QR') : noi('Lỗi: '+((e&&e.code)||e)); }
+}
+
+/* ───────── IN MÃ QR TỪNG BÀN ───────── */
+function napQR(){
+  return new Promise(function(ok, ng){
+    if(window.QRCode) return ok();
+    var s = document.createElement('script');
+    s.src = QR_LIB; s.onload = function(){ ok(); }; s.onerror = function(){ ng(new Error('lib')); };
+    document.head.appendChild(s);
+  });
+}
+
+async function inMa(){
+  if(!TOKEN){ noi('Chưa có mã — bấm "Cập nhật thực đơn lên mã" trước'); return; }
+  BAN = await docBan();
+  if(!BAN.length){ noi('Chưa có bàn nào'); return; }
+
+  try{ await napQR(); }
+  catch(e){ noi('⚠️ Cần mạng để tải bộ tạo mã QR — bật mạng rồi bấm lại'); return; }
+
+  var kho = document.createElement('div');
+  kho.style.cssText = 'position:fixed;left:-9999px;top:0';
+  document.body.appendChild(kho);
+
+  var the = [], quan = TENQUAN || 'THỰC ĐƠN';
+  try{
+    for(var i=0;i<BAN.length;i++){
+      var o = document.createElement('div'); kho.appendChild(o);
+      var url = LINK_MENU + '?t=' + encodeURIComponent(TOKEN) + '&b=' + encodeURIComponent(BAN[i].id);
+      new window.QRCode(o, { text:url, width:420, height:420,
+        correctLevel: window.QRCode.CorrectLevel.M });
+      await new Promise(function(r){ setTimeout(r, 60); });
+      var cv = o.querySelector('canvas'), im = o.querySelector('img');
+      var src = cv ? cv.toDataURL('image/png') : (im ? im.src : '');
+      if(src) the.push({ ten: BAN[i].name, src: src });
+    }
+  }catch(e){
+    kho.remove(); noi('⚠️ Không tạo được mã QR: '+((e&&e.message)||e)); return;
+  }
+  kho.remove();
+  if(!the.length){ noi('⚠️ Không tạo được mã QR'); return; }
+
+  var h = '<!DOCTYPE html><html lang="vi"><head><meta charset="utf-8"><title>Mã QR các bàn</title><style>'
+    + '*{box-sizing:border-box}body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:#fff;color:#15302a}'
+    + '.g{display:grid;grid-template-columns:1fr 1fr;gap:10mm;padding:10mm}'
+    + '.c{border:2px dashed #9fb5ad;border-radius:8mm;padding:7mm 5mm;text-align:center;page-break-inside:avoid;break-inside:avoid}'
+    + '.q{font-size:11pt;color:#3f7a68;font-weight:700;margin:0 0 2mm}'
+    + '.b{font-size:22pt;font-weight:800;margin:0 0 4mm;line-height:1.2}'
+    + '.c img{width:56mm;height:56mm;display:block;margin:0 auto 4mm}'
+    + '.h{font-size:10.5pt;font-weight:700;margin:0 0 1mm}'
+    + '.s{font-size:8.5pt;color:#6e807a;line-height:1.5;margin:0}'
+    + '@page{size:A4;margin:0}@media print{.no{display:none}}'
+    + '</style></head><body>'
+    + '<div class="no" style="padding:10mm 10mm 0"><button onclick="window.print()" style="padding:10px 18px;font-size:14px;font-weight:700;border:none;border-radius:9px;background:#0d7a5f;color:#fff;cursor:pointer">In</button></div>'
+    + '<div class="g">'
+    + the.map(function(t){
+        return '<div class="c"><p class="q">' + esc(quan) + '</p>'
+             + '<p class="b">BÀN ' + esc(t.ten) + '</p>'
+             + '<img src="' + t.src + '" alt="">'
+             + '<p class="h">Quét mã để gọi món</p>'
+             + '<p class="s">Mở camera điện thoại rồi hướng vào mã.<br>Không cần cài ứng dụng.</p></div>';
+      }).join('')
+    + '</div></body></html>';
+
+  var w = window.open('', '_blank');
+  if(!w){ noi('⚠️ Trình duyệt chặn cửa sổ in — cho phép pop-up rồi bấm lại'); return; }
+  w.document.open(); w.document.write(h); w.document.close();
+}
+
+/* ───────── DÙNG THỬ ───────── */
+async function dungThu(){
+  var u = uid(); if(!u) return;
+  if(!confirm('Mở dùng thử gói "Đơn QR tại bàn" '+TRIAL_NGAY+' ngày miễn phí?\n\nChỉ mở được MỘT LẦN duy nhất.')) return;
+  try{
+    await F.setDoc(F.doc(F.db,'accounts',u,'lic',MA_GOI), {
+      trial: true, trialUsed: true, active: true,
+      paidUntil: new Date(Date.now() + TRIAL_NGAY*86400000),
+      startedAt: F.serverTimestamp()
+    });
+    noi('✅ Đã mở dùng thử '+TRIAL_NGAY+' ngày');
+    await docLic();
+    if(conHan(LIC)){ await docCfg(); ngheDon(); }   /* chạy được NGAY, không bắt tải lại trang */
+    render();
+  }catch(e){
+    if(e && e.code === 'permission-denied')
+      alert('Tài khoản này đã dùng thử gói Đơn QR rồi.\nGọi '+HOTLINE+' để mở gói trả phí nhé.');
+    else C.err ? C.err(e,'Dùng thử gói QR') : noi('Lỗi: '+((e&&e.code)||e));
+  }
+}
+
+/* ───────── NẠP DỮ LIỆU ───────── */
+async function docLic(){
+  var u = uid(); if(!u){ LIC = null; return; }
+  try{
+    var s = await F.getDoc(F.doc(F.db,'accounts',u,'lic',MA_GOI));
+    LIC = s.exists() ? s.data() : null;
+  }catch(e){ LIC = null; }
+}
+
+async function docTenQuan(){
+  /* Lõi giữ skShopName trong phạm vi module nên ngoài này KHÔNG đọc được.
+     Ưu tiên tên đã lưu riêng cho thực đơn QR; chưa có thì thử lấy tên cửa hàng. */
+  if(TENQUAN) return TENQUAN;
+  var u = uid(); if(!u) return '';
+  try{
+    var s = await F.getDoc(F.doc(F.db,'users',u,'meta','shopSettings'));
+    if(s.exists()){ var d=s.data()||{}; TENQUAN = String(d.shopName || d.accName || '').slice(0,80); }
+  }catch(e){}                       /* khách chỉ mua POS thì đọc 'meta' bị chối — bỏ qua */
+  return TENQUAN;
+}
+
+async function doiTen(){
+  var t = prompt('Tên quán hiện trên thực đơn khách quét:', TENQUAN || '');
+  if(t === null) return;
+  TENQUAN = String(t).trim().slice(0,80) || 'Thực đơn';
+  try{
+    await F.setDoc(C.doc('pos_meta','qr'), {quan:TENQUAN}, {merge:true});
+    if(TOKEN) await F.setDoc(F.doc(F.db,'shares_qr',TOKEN),
+      {ownerUid:uid(), quan:TENQUAN, capNhat:F.serverTimestamp()}, {merge:true});
+    if(SHARE) SHARE.quan = TENQUAN;
+    noi('✅ Đã đổi tên hiện trên thực đơn');
+    render();
+  }catch(e){ C.err ? C.err(e,'Đổi tên quán') : noi('Lỗi: '+((e&&e.code)||e)); }
+}
+
+async function docCfg(){
+  try{
+    var s = await F.getDoc(C.doc('pos_meta','qr'));
+    var d = (s.exists() && s.data()) || {};
+    TOKEN   = d.token || '';
+    TENQUAN = d.quan  || '';
+  }catch(e){ TOKEN = ''; }
+  if(!TENQUAN) await docTenQuan();
+  if(!TOKEN){ SHARE = null; return; }
+  try{
+    var q = await F.getDoc(F.doc(F.db,'shares_qr',TOKEN));
+    SHARE = q.exists() ? q.data() : null;
+    if(!SHARE) TOKEN = '';
+  }catch(e){ SHARE = null; }
+}
+
+function ngheDon(){
+  var u = uid(); if(!u || UNSUB) return;
+  try{
+    UNSUB = F.onSnapshot(
+      F.query(F.collection(F.db,'qr_don'), F.where('ownerUid','==',u), F.limit(50)),
+      function(s){
+        DON = s.docs.map(function(d){ var o=d.data()||{}; o.id=d.id; return o; })
+                    .filter(function(o){ return o.tt === 'cho'; });
+        var n = DON.filter(function(d){ return (d.chiNhanh||'main') === chiNhanh(); }).length;
+        if(n > soDonTruoc){
+          chuong();
+          noi('🔔 Có ' + (n - soDonTruoc) + ' đơn mới từ bàn');
+        }
+        soDonTruoc = n;
+        capNhatHuy(n);
+        render();
+      },
+      function(e){
+        console.error('[qrd] mất kết nối đơn QR', e);
+        noi('⚠️ Mất kết nối đơn QR — mở lại tab "Đơn QR" để nối lại');
+        try{ UNSUB(); }catch(_){}
+        UNSUB = null;
+      });
+  }catch(e){ console.warn('[qrd] không nghe được đơn QR', e); }
+}
+
+/* Chấm đỏ trên nút tab khi có đơn chờ */
+function capNhatHuy(n){
+  try{
+    var b = document.querySelector('#pos-screen .sk-tab[data-v="qrd"]'); if(!b) return;
+    var d = b.querySelector('.qrd-dot');
+    if(n > 0){
+      if(!d){
+        d = document.createElement('span'); d.className = 'qrd-dot';
+        d.style.cssText = 'display:inline-block;min-width:17px;height:17px;line-height:17px;border-radius:9px;background:#e11d48;color:#fff;font-size:10.5px;font-weight:800;margin-left:5px;padding:0 4px';
+        b.appendChild(d);
+      }
+      d.textContent = n > 99 ? '99+' : String(n);
+    }else if(d) d.remove();
+  }catch(e){}
+}
+
+/* ───────── HÀNH ĐỘNG ───────── */
+M.act('qrd-sw',   function(){ batTat(); });
+M.act('qrd-day',  function(){ dayThucDon(true); });
+M.act('qrd-in',   function(){ inMa(); });
+M.act('qrd-doi',  function(){ doiMa(); });
+M.act('qrd-nhan', function(el,ds){ nhanDon(ds.id); });
+M.act('qrd-bo',   function(el,ds){ boDon(ds.id); });
+M.act('qrd-ten',  function(){ doiTen(); });
+M.act('qrd-thu',  function(){ dungThu(); });
+
+/* ───────── GẮN VÀO LÕI ───────── */
+M.on('boot', async function(){
+  if(ON) return;
+  if(!M.flag('fnb')) return;            /* chỉ quán F&B mới thấy tab này */
+  ON = true;
+
+  M.tab({ id:'qrd', label:'Đơn QR', title:'Đơn khách gửi từ bàn', after:'fnb',
+    icon:'<svg viewBox="0 0 24 24"><path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h2v2h-2zM18 14h2v2h-2zM14 18h2v2h-2zM18 18h2v2h-2z"/></svg>',
+    render: render,
+    body:'<div id="qrd-w" class="qrd-w"><div class="qrd-none">Đang tải…</div></div>' });
+
+  await docLic();
+  if(conHan(LIC)){ await docCfg(); ngheDon(); }
+  render();
+});
+
+/* Đổi chi nhánh thì nạp lại cấu hình của chi nhánh đó */
+M.on('view:show', function(c){
+  if(c && c.view === 'qrd' && conHan(LIC) && !daHoi){
+    daHoi = true;
+    docCfg().then(render).catch(function(){});
+    setTimeout(function(){ daHoi = false; }, 4000);
+  }
+});
+
+}catch(e){ console.error('[qrd] module Đơn QR lỗi khởi động', e); }
+})();
+</script>
+<!-- ═══════════ HẾT MODULE ĐƠN QR ═══════════ -->
 </body>
 </html>
