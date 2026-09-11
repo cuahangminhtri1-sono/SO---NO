@@ -749,7 +749,7 @@ import { getFirestore, initializeFirestore, persistentLocalCache, persistentMult
 import { getStorage, ref as _sref, uploadBytes, getDownloadURL, deleteObject, listAll }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
 
-const APP_BUILD = "2026-09-11-VA2"; // ⬆️ ĐỔI MỖI LẦN DEPLOY (đặt TRÙNG tên cache trong sw.js) — hiện ở ⚙️ Cài đặt để biết máy đã chạy bản mới chưa
+const APP_BUILD = "2026-09-11-NGANH5"; // ⬆️ ĐỔI MỖI LẦN DEPLOY (đặt TRÙNG tên cache trong sw.js) — hiện ở ⚙️ Cài đặt để biết máy đã chạy bản mới chưa
 const firebaseConfig = {
   apiKey: "AIzaSyA_kjQ-CdASRkf50Glz3kQajlkD5qGWC4k",
   authDomain: "so-no-cc57a.firebaseapp.com",
@@ -15416,5 +15416,197 @@ window.AIB={ hoi:function(t){ try{ M.go('aib'); }catch(e){} setTimeout(function(
 })();
 </script>
 <!-- ═══════════════ HẾT: BỘ NÃO AI — CỐ VẤN KINH DOANH ═══════════════ -->
+<!-- ═══════════════ CHỌN NGÀNH NGHỀ KHI VÀO BÁN HÀNG (drop-in · namespace nga-) ═══════════════
+     Bấm tab "🛒 BÁN HÀNG" ở màn Sổ Nợ → hiện 5 LỰA CHỌN rồi mới mở màn Bán hàng:
+        1) 🛒 Bán hàng (thường)   2) 🍽️ F&B   3) 👕 Thời trang   4) 🛏️ Karaoke/Spa   5) ⚖️ Cân ký/Bán sỉ
+     Đúng 4 module ngành sẵn có (fnb · fs · rm · kg) — trước nằm sâu trong tab Báo cáo nên khách
+     không nhìn thấy, nay đưa ra ngay cửa vào. Bảng "🧩 Module ngành" cũ GIỮ NGUYÊN, không đụng.
+     KHÔNG sửa một dòng code cũ. Chỉ bọc window.openPOS (dùng type="module" để chạy SAU lõi).
+     ═══════════════════════════════════════════════════════════════════════════════════════════ -->
+<style id="nga-css">
+.nga-mask{position:fixed;inset:0;z-index:2147483100;background:rgba(8,26,20,.55);display:none;align-items:flex-end;justify-content:center;-webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px)}
+.nga-mask.on{display:flex}
+.nga-sheet{width:100%;max-width:560px;background:#f5f8f7;border-radius:20px 20px 0 0;padding:12px 14px calc(18px + env(safe-area-inset-bottom,0px));max-height:90vh;overflow-y:auto;-webkit-overflow-scrolling:touch;box-shadow:0 -10px 34px rgba(0,0,0,.32);animation:ngaUp .2s ease;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+@keyframes ngaUp{from{transform:translateY(28px);opacity:.35}to{transform:none;opacity:1}}
+.nga-grip{width:44px;height:4px;border-radius:4px;background:#cdd8d3;margin:2px auto 12px}
+.nga-hd{display:flex;align-items:center;gap:10px;margin:0 2px 11px}
+.nga-hd b{flex:1;min-width:0;font-size:16px;font-weight:800;color:#15302a;line-height:1.35}
+.nga-x{flex:none;border:none;background:#e7edea;color:#41615a;font-size:16px;font-weight:800;width:34px;height:34px;border-radius:50%;cursor:pointer;font-family:inherit;line-height:1}
+.nga-note{background:#fff8e6;border:1px solid #f3d98d;border-radius:12px;padding:10px 12px;font-size:11.8px;color:#8a6d3b;line-height:1.6;margin:0 0 11px}
+.nga-i{display:flex;align-items:flex-start;gap:11px;width:100%;text-align:left;border:1.6px solid #e1e8e5;background:#fff;border-radius:15px;padding:13px;margin-bottom:9px;cursor:pointer;font-family:inherit;transition:transform .12s,border-color .14s,background .14s}
+.nga-i:active{transform:scale(.985)}
+.nga-i.on{border-color:#0d7a5f;background:#f2fbf7;box-shadow:0 2px 10px rgba(13,122,95,.14)}
+.nga-ic{flex:none;font-size:23px;line-height:1.2}
+.nga-tx{flex:1;min-width:0}
+.nga-tx b{display:block;font-size:14.5px;font-weight:800;color:#1d3b33;line-height:1.4}
+.nga-tx span{display:block;font-size:11.8px;color:#7d8d87;margin-top:4px;line-height:1.55}
+.nga-tag{display:inline-block;margin-top:7px;background:#0d7a5f;color:#fff;font-size:10.5px;font-weight:800;border-radius:6px;padding:2px 8px;letter-spacing:.2px}
+.nga-busy{text-align:center;font-size:12.5px;color:#3f6157;font-weight:700;line-height:1.55;padding:8px 4px 2px}
+</style>
+<script type="module">
+(function(){
+  if(window.__NGA_PICK__) return; window.__NGA_PICK__=true;
+
+  var KEYS=['fnb','fs','rm','kg'];
+  var LIST=[
+    {k:'',    ic:'🛒', n:'Bán hàng (thường)',               d:'Bán tính tiền như hiện tại: quét mã, giỏ hàng, tiền mặt / VietQR / ghi nợ, hóa đơn, kho, báo cáo.'},
+    {k:'fnb', ic:'🍽️', n:'Nhà hàng · Quán ăn · Cafe',       d:'Thêm màn "Bàn": sơ đồ bàn, giữ đơn theo từng bàn, định lượng nguyên vật liệu (bán 1 ly cà phê tự trừ cà phê + sữa + đá).'},
+    {k:'fs',  ic:'👕', n:'Thời trang · Mỹ phẩm',            d:'Biến thể Size – Màu, ma trận tồn từng biến thể, chọn size/màu ngay lúc bán.'},
+    {k:'rm',  ic:'🛏️', n:'Karaoke · Spa · Nhà nghỉ',        d:'Thêm màn "Phòng": tính tiền theo giờ, gọi thêm đồ vào phòng, tự tính tiền khi đóng phòng.'},
+    {k:'kg',  ic:'⚖️', n:'Vật liệu XD · Nông sản · Bán sỉ', d:'Cân ký số lẻ (2,5 bao…), giá tự đổi theo bậc số lượng — mua càng nhiều càng rẻ.'}
+  ];
+  var OPENKEY='nga_open_pos_v1';
+  var real=null, installed=false, bypass=false, busy=false, ready=false, pre=false, mask=null, msg='';
+
+  function SK(){ return window.SKMOD||null; }
+  function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  function say(m){
+    try{ var s=SK(); if(s&&s.core&&typeof s.core.toast==='function'){ s.core.toast(m); return; } }catch(e){}
+    try{ if(typeof window.toast==='function') window.toast(m); }catch(e){}
+  }
+  function nameOf(k){ for(var i=0;i<LIST.length;i++) if(LIST[i].k===k) return LIST[i].n; return LIST[0].n; }
+  function cur(){
+    var s=SK(); if(!s) return '';
+    var f={}; try{ f=s.flags()||{}; }catch(e){}
+    for(var i=0;i<KEYS.length;i++) if(f[KEYS[i]]===true) return KEYS[i];
+    return '';
+  }
+  /* Chỉ CHỦ shop mới được đổi ngành. Nhận biết bằng lớp CSS lõi tự gắn (body.la-nv / #pos-screen.role-*) */
+  function laChu(){
+    try{ if(document.body && document.body.classList.contains('la-nv')) return false; }catch(e){}
+    try{ var p=document.getElementById('pos-screen');
+         if(p && (p.classList.contains('role-manager')||p.classList.contains('role-cashier'))) return false; }catch(e){}
+    return true;
+  }
+
+  /* ---------- BỌC openPOS (cài SAU lõi vì đây là type="module") ---------- */
+  function install(){
+    if(installed) return true;
+    if(typeof window.openPOS!=='function') return false;
+    real=window.openPOS;
+    window.openPOS=function(){
+      try{
+        if(bypass){ bypass=false; return real.apply(window,arguments); }
+        var ps=document.getElementById('pos-screen');
+        if(ps && ps.classList.contains('on')) return real.apply(window,arguments);
+        if(!SK()) return real.apply(window,arguments);      /* chưa có khung module → chạy y như cũ */
+        openSheet(); return;
+      }catch(e){ try{ return real.apply(window,arguments); }catch(e2){} }
+    };
+    installed=true; return true;
+  }
+  if(!install()){
+    var t1=setInterval(function(){ if(install()) clearInterval(t1); },250);
+    setTimeout(function(){ try{clearInterval(t1);}catch(e){} },20000);
+  }
+
+  /* ---------- Đọc trước cờ module để bảng chọn hiện đúng "ĐANG DÙNG" ---------- */
+  function preload(){
+    if(pre) return true;
+    var s=SK(); if(!s) return false;
+    var u=null; try{ u=s.core.uid(); }catch(e){}
+    if(!u) return false;
+    pre=true;
+    try{
+      s.loadFlags().then(function(){ ready=true; if(mask&&mask.classList.contains('on')) draw(); })
+                   .catch(function(){ ready=true; if(mask&&mask.classList.contains('on')) draw(); });
+    }catch(e){ ready=true; }
+    return true;
+  }
+  if(!preload()){
+    var t2=setInterval(function(){ if(preload()) clearInterval(t2); },600);
+    setTimeout(function(){ try{clearInterval(t2);}catch(e){} },180000);
+  }
+
+  /* ---------- BẢNG 5 LỰA CHỌN ---------- */
+  function build(){
+    if(mask) return;
+    mask=document.createElement('div'); mask.className='nga-mask'; mask.id='nga-mask';
+    mask.innerHTML='<div class="nga-sheet" id="nga-sheet"></div>';
+    document.body.appendChild(mask);
+    mask.addEventListener('click',function(e){
+      if(e.target===mask){ if(!busy) close(); return; }
+      var b=(e.target&&e.target.closest)?e.target.closest('[data-nga]'):null;
+      if(!b) return;
+      var a=b.getAttribute('data-nga');
+      if(a==='x'){ if(!busy) close(); return; }
+      if(a==='pick') pick(b.getAttribute('data-k')||'');
+    },false);
+  }
+  function openSheet(){ build(); preload(); msg=''; draw(); mask.classList.add('on'); }
+  function close(){ if(mask) mask.classList.remove('on'); msg=''; }
+  function draw(){
+    var box=document.getElementById('nga-sheet'); if(!box) return;
+    var c=cur(), i, x, on;
+    var h='<div class="nga-grip"></div>'
+        + '<div class="nga-hd"><b>🛒 Vào Bán hàng — chọn ngành nghề</b><button type="button" class="nga-x" data-nga="x">✕</button></div>'
+        + '<div class="nga-note">Chọn đúng ngành thì màn Bán hàng mở thêm công cụ riêng cho ngành đó. Không chắc thì cứ chọn <b>Bán hàng (thường)</b> — đổi lại lúc nào cũng được.</div>';
+    for(i=0;i<LIST.length;i++){
+      x=LIST[i]; on=(x.k===c);
+      h+='<button type="button" class="nga-i'+(on?' on':'')+'" data-nga="pick" data-k="'+esc(x.k)+'">'
+       +   '<span class="nga-ic">'+x.ic+'</span>'
+       +   '<span class="nga-tx"><b>'+esc(x.n)+'</b><span>'+esc(x.d)+'</span>'
+       +   (on?'<span class="nga-tag">✓ ĐANG DÙNG</span>':'')
+       +   '</span></button>';
+    }
+    if(msg) h+='<div class="nga-busy">'+esc(msg)+'</div>';
+    box.innerHTML=h;
+  }
+
+  function go(){ try{ bypass=true; return window.openPOS(); }catch(e){ bypass=false; } }
+
+  function pick(k){
+    if(busy) return;
+    var s=SK(); if(!s){ close(); go(); return; }
+
+    if(!ready){                                   /* chưa đọc xong cờ → không đoán bừa */
+      if(navigator.onLine===false){ say('📴 Không có mạng — mở Bán hàng với cài đặt hiện tại.'); close(); go(); return; }
+      preload(); msg='⏳ Đang đọc cài đặt của shop — chờ 1 giây rồi chọn lại…'; draw(); return;
+    }
+    if(k===cur()){ close(); go(); return; }       /* đúng ngành đang dùng → vào thẳng, không tải lại */
+    if(!laChu()){ say('🔒 Chỉ CHỦ shop mới đổi được ngành nghề'); close(); go(); return; }
+    if(navigator.onLine===false){ msg='📴 Không có mạng — chưa đổi được ngành nghề. Bật mạng rồi chọn lại.'; draw(); return; }
+
+    busy=true; msg='⏳ Đang chuyển sang: '+nameOf(k)+' — trang sẽ tự tải lại…'; draw();
+    var nf={}, i; for(i=0;i<KEYS.length;i++) nf[KEYS[i]]=(KEYS[i]===k);
+    var done=false;
+    var to=setTimeout(function(){
+      if(done) return; done=true; busy=false;
+      msg='⚠️ Mạng chậm — chưa lưu được. Thử lại.'; draw();
+    },9000);
+    Promise.resolve(s.saveFlags(nf)).then(function(ok){
+      if(done) return; done=true; clearTimeout(to);
+      if(!ok){ busy=false; msg='⚠️ Chưa lưu được — kiểm tra mạng rồi thử lại.'; draw(); return; }
+      try{ sessionStorage.setItem(OPENKEY,'1'); }catch(e){}
+      try{ location.reload(); }catch(e){ busy=false; msg='✅ Đã lưu — hãy tải lại trang.'; draw(); }
+    }).catch(function(){
+      if(done) return; done=true; clearTimeout(to);
+      busy=false; msg='⚠️ Chưa lưu được — thử lại.'; draw();
+    });
+  }
+
+  /* ---------- Sau khi tải lại trang: tự mở thẳng màn Bán hàng ---------- */
+  (function(){
+    var v=null; try{ v=sessionStorage.getItem(OPENKEY); }catch(e){}
+    if(!v) return;
+    var n=0;
+    var t=setInterval(function(){
+      n++;
+      if(n>60){ clearInterval(t); try{sessionStorage.removeItem(OPENKEY);}catch(e){} return; }
+      if(!installed || typeof window.openPOS!=='function') return;
+      var ps=document.getElementById('pos-screen');
+      if(ps && ps.classList.contains('on')){ clearInterval(t); try{sessionStorage.removeItem(OPENKEY);}catch(e){} return; }
+      var app=document.getElementById('app'); if(!app) return;
+      var vis=false; try{ vis=(getComputedStyle(app).display!=='none'); }catch(e){ vis=(app.style.display!=='none'); }
+      if(!vis) return;
+      var s=SK(), u=null; try{ u=s&&s.core.uid(); }catch(e){}
+      if(!u) return;
+      clearInterval(t); try{ sessionStorage.removeItem(OPENKEY); }catch(e){}
+      setTimeout(go,250);
+    },400);
+  })();
+})();
+</script>
+<!-- ═══════════════ HẾT: CHỌN NGÀNH NGHỀ KHI VÀO BÁN HÀNG ═══════════════ -->
 </body>
 </html>
