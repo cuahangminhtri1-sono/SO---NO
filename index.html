@@ -16351,6 +16351,25 @@ M.css('qrd','\
 #pos-screen .qrd-sell p{font-size:12.8px;color:#6e807a;line-height:1.7;margin:0 auto 14px;max-width:330px}\
 #pos-screen .qrd-warn{background:#fff3cd;border:1px solid #ffe08a;border-radius:10px;padding:10px 12px;font-size:12px;color:#856300;line-height:1.6;margin-bottom:10px}\
 ');
+/* ── THẺ MÃ QR DÁN BÀN — in qua khung #sk-print có sẵn của app ── */
+M.css('qrd-print','\
+@media print{\
+#pos-screen #sk-print.qrd-in{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:12px;color:#000}\
+#pos-screen #sk-print.qrd-in.k58{width:58mm;padding:2mm}\
+#pos-screen #sk-print.qrd-in.k80{width:80mm;padding:3mm}\
+#pos-screen #sk-print.qrd-in.kA4,#pos-screen #sk-print.qrd-in.kA5{position:static;width:auto;padding:0;display:grid;grid-template-columns:1fr 1fr;gap:6mm}\
+#pos-screen #sk-print.qrd-in .qc{text-align:center;page-break-inside:avoid;break-inside:avoid}\
+#pos-screen #sk-print.qrd-in.k58 .qc,#pos-screen #sk-print.qrd-in.k80 .qc{page-break-after:always;padding:3mm 0 5mm}\
+#pos-screen #sk-print.qrd-in.k58 .qc:last-child,#pos-screen #sk-print.qrd-in.k80 .qc:last-child{page-break-after:auto}\
+#pos-screen #sk-print.qrd-in.kA4 .qc,#pos-screen #sk-print.qrd-in.kA5 .qc{border:1.5pt dashed #777;border-radius:5mm;padding:6mm 4mm}\
+#pos-screen #sk-print.qrd-in .qc-q{font-size:9pt;font-weight:700;margin-bottom:1mm}\
+#pos-screen #sk-print.qrd-in .qc-b{font-size:20pt;font-weight:800;line-height:1.15;margin-bottom:3mm}\
+#pos-screen #sk-print.qrd-in .qc-i{display:block;margin:0 auto 3mm;width:44mm;height:44mm}\
+#pos-screen #sk-print.qrd-in.kA4 .qc-i,#pos-screen #sk-print.qrd-in.kA5 .qc-i{width:52mm;height:52mm}\
+#pos-screen #sk-print.qrd-in.k80 .qc-i{width:56mm;height:56mm}\
+#pos-screen #sk-print.qrd-in .qc-h{font-size:10pt;font-weight:700;margin-bottom:1mm}\
+#pos-screen #sk-print.qrd-in .qc-s{font-size:7.5pt;line-height:1.45}\
+}');
 
 /* ───────── VẼ MÀN ───────── */
 function render(){
@@ -16597,7 +16616,60 @@ function napQR(){
   });
 }
 
-async function inMa(){
+function khoNhiet(){ try{ return (localStorage.getItem('sk_paper')==='80')?'80':'58'; }catch(e){ return '58'; } }
+function khoTo(){ try{ return (localStorage.getItem('sk_inv_size')==='A5')?'A5':'A4'; }catch(e){ return 'A4'; } }
+
+/* Bảng chọn cách in — dùng đúng 2 ô cài đặt khổ giấy của app (sk_paper / sk_inv_size),
+   đổi ở đây thì hoá đơn và tem cũng theo, không đẻ ra cài đặt riêng cho khách phải nhớ. */
+function menuIn(){
+  if(document.getElementById('qrd-pm')) return;
+  var nhiet=khoNhiet(), to=khoTo();
+  var ov=document.createElement('div'); ov.id='qrd-pm';
+  ov.style.cssText='position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,.5);display:flex;align-items:flex-end;justify-content:center;';
+  var card=document.createElement('div');
+  card.style.cssText='background:#fff;color:#1a1a2e;width:100%;max-width:440px;border-radius:16px 16px 0 0;padding:18px 16px 22px;font-family:"Segoe UI",Roboto,sans-serif;box-shadow:0 -8px 30px rgba(0,0,0,.3);';
+  card.innerHTML='<div style="font-weight:800;font-size:17px;margin-bottom:14px;text-align:center;">Chọn cách in mã QR các bàn</div>'
+   +'<button id="qrdA4" style="width:100%;display:block;text-align:left;background:#fff7ed;border:1.5px solid #b45309;color:#92500a;border-radius:12px;padding:13px 15px;margin-bottom:8px;cursor:pointer;"><span style="font-weight:700;font-size:15px;">🖨️ Máy tính — khổ A4/A5</span><br><span style="font-size:12px;color:#a06a2a;">Nhiều thẻ một tờ, cắt rời dán lên bàn. Khổ: '+to+'</span></button>'
+   +'<div style="display:flex;align-items:center;gap:8px;margin:-2px 2px 12px;font-size:13px;color:#444;">Khổ A4/A5:<button id="qrdIA4" style="border:1px solid #ccc;border-radius:8px;padding:6px 12px;background:'+(to==='A4'?'#b45309':'#fff')+';color:'+(to==='A4'?'#fff':'#333')+';cursor:pointer;">A4</button><button id="qrdIA5" style="border:1px solid #ccc;border-radius:8px;padding:6px 12px;background:'+(to==='A5'?'#b45309':'#fff')+';color:'+(to==='A5'?'#fff':'#333')+';cursor:pointer;">A5</button></div>'
+   +'<button id="qrdNh" style="width:100%;display:block;text-align:left;background:#e8f5ee;border:1.5px solid #1a6b3c;color:#1a6b3c;border-radius:12px;padding:13px 15px;margin-bottom:10px;cursor:pointer;"><span style="font-weight:700;font-size:15px;">🖨️ In nhiệt qua trình duyệt (58/80mm)</span><br><span style="font-size:12px;color:#4b6b58;">Máy in nhiệt USB/WiFi / AirPrint / lưu PDF. Mỗi bàn một tờ rời.</span></button>'
+   +'<div style="display:flex;align-items:center;gap:8px;margin:6px 2px 12px;font-size:13px;color:#444;">Khổ giấy:<button id="qrdP58" style="border:1px solid #ccc;border-radius:8px;padding:6px 12px;background:'+(nhiet==='58'?'#1a6b3c':'#fff')+';color:'+(nhiet==='58'?'#fff':'#333')+';cursor:pointer;">58mm</button><button id="qrdP80" style="border:1px solid #ccc;border-radius:8px;padding:6px 12px;background:'+(nhiet==='80'?'#1a6b3c':'#fff')+';color:'+(nhiet==='80'?'#fff':'#333')+';cursor:pointer;">80mm</button></div>'
+   +'<div style="background:#eef2ff;border:1px solid #c7cef0;border-radius:10px;padding:10px 12px;font-size:12px;color:#3a4580;line-height:1.55;margin-bottom:12px;">📶 Máy in <b>Bluetooth</b> chưa in được mã QR ở bản này — in tạm bằng 1 trong 2 cách trên.</div>'
+   +'<button id="qrdPx" style="width:100%;background:#f0f0f0;border:none;border-radius:10px;padding:11px;font-size:14px;cursor:pointer;">Đóng</button>';
+  ov.appendChild(card); document.body.appendChild(ov);
+  function dong(){ ov.remove(); }
+  ov.addEventListener('click',function(e){ if(e.target===ov) dong(); });
+  card.querySelector('#qrdPx').onclick=dong;
+  card.querySelector('#qrdIA4').onclick=function(){ try{localStorage.setItem('sk_inv_size','A4');}catch(e){} dong(); menuIn(); };
+  card.querySelector('#qrdIA5').onclick=function(){ try{localStorage.setItem('sk_inv_size','A5');}catch(e){} dong(); menuIn(); };
+  card.querySelector('#qrdP58').onclick=function(){ try{localStorage.setItem('sk_paper','58');}catch(e){} dong(); menuIn(); };
+  card.querySelector('#qrdP80').onclick=function(){ try{localStorage.setItem('sk_paper','80');}catch(e){} dong(); menuIn(); };
+  card.querySelector('#qrdA4').onclick=function(){ dong(); inMa('to'); };
+  card.querySelector('#qrdNh').onclick=function(){ dong(); inMa('nhiet'); };
+}
+
+/* Vẽ mã QR của từng bàn ra ảnh PNG */
+async function veMa(){
+  var kho=document.createElement('div');
+  kho.style.cssText='position:fixed;left:-9999px;top:0';
+  document.body.appendChild(kho);
+  var the=[];
+  try{
+    for(var i=0;i<BAN.length;i++){
+      var o=document.createElement('div'); kho.appendChild(o);
+      var url=LINK_MENU+'?t='+encodeURIComponent(TOKEN)+'&b='+encodeURIComponent(BAN[i].id);
+      new window.QRCode(o,{text:url,width:420,height:420,correctLevel:window.QRCode.CorrectLevel.M});
+      await new Promise(function(r){ setTimeout(r,60); });
+      var cv=o.querySelector('canvas'), im=o.querySelector('img');
+      var src=cv?cv.toDataURL('image/png'):(im?im.src:'');
+      if(src) the.push({ten:BAN[i].name, src:src});
+    }
+  }finally{ kho.remove(); }
+  return the;
+}
+
+/* IN — đổ vào ĐÚNG khung #sk-print của app rồi window.print(),
+   y như cách app đang in hoá đơn và in tem. Không mở cửa sổ mới. */
+async function inMa(kieu){
   if(!TOKEN){ noi('Chưa có mã — bấm "Cập nhật thực đơn lên mã" trước'); return; }
   BAN = await docBan();
   if(!BAN.length){ noi('Chưa có bàn nào'); return; }
@@ -16605,53 +16677,43 @@ async function inMa(){
   try{ await napQR(); }
   catch(e){ noi('⚠️ Cần mạng để tải bộ tạo mã QR — bật mạng rồi bấm lại'); return; }
 
-  var kho = document.createElement('div');
-  kho.style.cssText = 'position:fixed;left:-9999px;top:0';
-  document.body.appendChild(kho);
-
-  var the = [], quan = TENQUAN || 'THỰC ĐƠN';
-  try{
-    for(var i=0;i<BAN.length;i++){
-      var o = document.createElement('div'); kho.appendChild(o);
-      var url = LINK_MENU + '?t=' + encodeURIComponent(TOKEN) + '&b=' + encodeURIComponent(BAN[i].id);
-      new window.QRCode(o, { text:url, width:420, height:420,
-        correctLevel: window.QRCode.CorrectLevel.M });
-      await new Promise(function(r){ setTimeout(r, 60); });
-      var cv = o.querySelector('canvas'), im = o.querySelector('img');
-      var src = cv ? cv.toDataURL('image/png') : (im ? im.src : '');
-      if(src) the.push({ ten: BAN[i].name, src: src });
-    }
-  }catch(e){
-    kho.remove(); noi('⚠️ Không tạo được mã QR: '+((e&&e.message)||e)); return;
-  }
-  kho.remove();
+  var the;
+  try{ the = await veMa(); }
+  catch(e){ noi('⚠️ Không tạo được mã QR: '+((e&&e.message)||e)); return; }
   if(!the.length){ noi('⚠️ Không tạo được mã QR'); return; }
 
-  var h = '<!DOCTYPE html><html lang="vi"><head><meta charset="utf-8"><title>Mã QR các bàn</title><style>'
-    + '*{box-sizing:border-box}body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:#fff;color:#15302a}'
-    + '.g{display:grid;grid-template-columns:1fr 1fr;gap:10mm;padding:10mm}'
-    + '.c{border:2px dashed #9fb5ad;border-radius:8mm;padding:7mm 5mm;text-align:center;page-break-inside:avoid;break-inside:avoid}'
-    + '.q{font-size:11pt;color:#3f7a68;font-weight:700;margin:0 0 2mm}'
-    + '.b{font-size:22pt;font-weight:800;margin:0 0 4mm;line-height:1.2}'
-    + '.c img{width:56mm;height:56mm;display:block;margin:0 auto 4mm}'
-    + '.h{font-size:10.5pt;font-weight:700;margin:0 0 1mm}'
-    + '.s{font-size:8.5pt;color:#6e807a;line-height:1.5;margin:0}'
-    + '@page{size:A4;margin:0}@media print{.no{display:none}}'
-    + '</style></head><body>'
-    + '<div class="no" style="padding:10mm 10mm 0"><button onclick="window.print()" style="padding:10px 18px;font-size:14px;font-weight:700;border:none;border-radius:9px;background:#0d7a5f;color:#fff;cursor:pointer">In</button></div>'
-    + '<div class="g">'
-    + the.map(function(t){
-        return '<div class="c"><p class="q">' + esc(quan) + '</p>'
-             + '<p class="b">BÀN ' + esc(t.ten) + '</p>'
-             + '<img src="' + t.src + '" alt="">'
-             + '<p class="h">Quét mã để gọi món</p>'
-             + '<p class="s">Mở camera điện thoại rồi hướng vào mã.<br>Không cần cài ứng dụng.</p></div>';
-      }).join('')
-    + '</div></body></html>';
+  var pr = document.getElementById('sk-print');
+  if(!pr){ noi('⚠️ Không tìm thấy khung in của app'); return; }
 
-  var w = window.open('', '_blank');
-  if(!w){ noi('⚠️ Trình duyệt chặn cửa sổ in — cho phép pop-up rồi bấm lại'); return; }
-  w.document.open(); w.document.write(h); w.document.close();
+  var quan = TENQUAN || 'THỰC ĐƠN';
+  var lop  = (kieu==='to') ? ('qrd-in k'+khoTo()) : ('qrd-in k'+khoNhiet());
+
+  /* @page chỉ gắn lúc in mã QR rồi gỡ ngay — để không đụng tới lệnh in
+     hoá đơn / tem của app sau đó. */
+  var ps=null;
+  if(kieu==='to'){
+    ps=document.createElement('style'); ps.id='qrd-page';
+    ps.textContent='@page{size:'+khoTo()+';margin:8mm}';
+    document.head.appendChild(ps);
+  }
+
+  var luuHTML = pr.innerHTML, luuClass = pr.className;
+  pr.className = lop;
+  pr.innerHTML = the.map(function(t){
+    return '<div class="qc"><div class="qc-q">'+esc(quan)+'</div>'
+         + '<div class="qc-b">BÀN '+esc(t.ten)+'</div>'
+         + '<img class="qc-i" src="'+t.src+'" alt="">'
+         + '<div class="qc-h">Quét mã để gọi món</div>'
+         + '<div class="qc-s">Mở camera điện thoại rồi hướng vào mã.<br>Không cần cài ứng dụng.</div></div>';
+  }).join('');
+
+  setTimeout(function(){
+    try{ window.print(); }catch(e){}
+    setTimeout(function(){
+      pr.className = luuClass; pr.innerHTML = luuHTML;
+      if(ps) ps.remove();
+    }, 800);
+  }, 120);
 }
 
 /* ───────── DÙNG THỬ ───────── */
@@ -16771,7 +16833,7 @@ function capNhatHuy(n){
 /* ───────── HÀNH ĐỘNG ───────── */
 M.act('qrd-sw',   function(){ batTat(); });
 M.act('qrd-day',  function(){ dayThucDon(true); });
-M.act('qrd-in',   function(){ inMa(); });
+M.act('qrd-in',   function(){ menuIn(); });
 M.act('qrd-doi',  function(){ doiMa(); });
 M.act('qrd-nhan', function(el,ds){ nhanDon(ds.id); });
 M.act('qrd-bo',   function(el,ds){ boDon(ds.id); });
