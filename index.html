@@ -749,7 +749,7 @@ import { getFirestore, initializeFirestore, persistentLocalCache, persistentMult
 import { getStorage, ref as _sref, uploadBytes, getDownloadURL, deleteObject, listAll }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
 
-const APP_BUILD = "2026-09-11-DKX1"; // ⬆️ ĐỔI MỖI LẦN DEPLOY (đặt TRÙNG tên cache trong sw.js) — hiện ở ⚙️ Cài đặt để biết máy đã chạy bản mới chưa
+const APP_BUILD = "2026-09-11-THU14"; // ⬆️ ĐỔI MỖI LẦN DEPLOY (đặt TRÙNG tên cache trong sw.js) — hiện ở ⚙️ Cài đặt để biết máy đã chạy bản mới chưa
 const firebaseConfig = {
   apiKey: "AIzaSyA_kjQ-CdASRkf50Glz3kQajlkD5qGWC4k",
   authDomain: "so-no-cc57a.firebaseapp.com",
@@ -878,8 +878,8 @@ window.donKhoAnh=async function(){
 };
 
 // ===== CẤU HÌNH DÙNG THỬ & NHẬN TIỀN GIA HẠN =====
-const TRIAL_DAYS = 15;          // số ngày dùng thử miễn phí cho khách mới
-const POS_TRIAL_DAYS = 15;      // số ngày dùng thử miễn phí gói Bán hàng (POS)
+const TRIAL_DAYS = 14;          // số ngày dùng thử miễn phí cho khách mới
+const POS_TRIAL_DAYS = 14;      // số ngày dùng thử miễn phí gói Bán hàng (POS)
 const RENEW_PRICE = 10000;      // giá mặc định 1 tháng (đồng) — có thể đổi trong 👑 Quản lý khách
 // (Tuỳ chọn) điền cứng tài khoản NHẬN TIỀN gia hạn của bạn vào đây nếu không muốn cấu hình trong app.
 // Nên để trống và dùng nút "💳 Cấu hình nhận tiền" trong 👑 Quản lý khách cho tiện.
@@ -15493,7 +15493,7 @@ window.AIB={ hoi:function(t){ try{ M.go('aib'); }catch(e){} setTimeout(function(
   if(window.__NGA_PICK__) return; window.__NGA_PICK__=true;
 
   /* ═════════ CẤU HÌNH — sửa ở đây là xong ═════════ */
-  var MOD_TRIAL_DAYS = 7;        // ngày dùng thử MIỄN PHÍ mỗi gói ngành (đặt 0 = KHÔNG cho dùng thử)
+  var MOD_TRIAL_DAYS = 14;        // ngày dùng thử MIỄN PHÍ mỗi gói ngành (đặt 0 = KHÔNG cho dùng thử)
   var KM = { 12: 2 };            // mua 12 tháng tặng 2 (thu tiền 10) — giống KM_GIA_HAN của lõi
   var HOTLINE = '0977823979';
   var MODS = [
@@ -16016,7 +16016,7 @@ if (window.__RMT_READY__) return; window.__RMT_READY__ = true;
 try{
 
 /* ĐỔI CHUỖI NÀY CHO TRÙNG APP_BUILD MỖI LẦN DEPLOY (chỉ để hiện ở bảng quản trị) */
-var BUILD = '2026-09-11-DKX1';
+var BUILD = '2026-09-11-THU14';
 var NHIP   = 6*3600*1000;          /* báo về tối đa 6 giờ 1 lần — khỏi tốn lượt ghi */
 var KEY_HB = 'rmt_hb_v1';
 var KEY_XEM= 'rmt_xem_v1';
@@ -16163,5 +16163,82 @@ setTimeout(chay, 1500);
 })();
 </script>
 <!-- ═══════════ HẾT: NHẬN LỆNH TỪ BẢNG QUẢN TRỊ ═══════════ -->
+<!-- ═══════════════ DÙNG THỬ GÓI CHI NHÁNH 14 NGÀY (drop-in · namespace thu-) ═══════════════
+     App vốn cho dùng thử Sổ Nợ / Bán hàng / 4 gói ngành, RIÊNG gói "Chi nhánh thêm" thì không.
+     Khối này vá nốt: khách chạm trần chi nhánh (màn #cn-upsell hiện lên) mà CHƯA từng có giấy phép
+     sono_cn ⇒ tự mở dùng thử 14 ngày, 1 suất, CHỈ 1 LẦN (Rules chỉ cho TẠO, không cho tạo lại).
+     • Đang có hàng trong giỏ thì KHÔNG tự tải lại trang.
+     • Chỉ CHỦ shop, chỉ khi có mạng. Rules chưa cập nhật thì im lặng — khách vẫn thấy màn mua như cũ.
+     • KHÔNG đụng code cũ. Dán NGAY TRƯỚC </body>.
+     ══════════════════════════════════════════════════════════════════════════════════ -->
+<script>
+(function(){
+if (window.__THU_READY__) return; window.__THU_READY__ = true;
+try{
+
+/* Số ngày dùng thử gói CHI NHÁNH THÊM — để TRÙNG với TRIAL_DAYS/POS_TRIAL_DAYS/MOD_TRIAL_DAYS */
+var NGAY_THU = 14;
+
+function SK(){ return window.SKMOD||null; }
+function FB(){ var s=SK(); return (s&&s.fb)||null; }
+function uid(){ try{ var s=SK(); return s?s.core.uid():null; }catch(e){ return null; } }
+function noi(m){
+  try{ var s=SK(); if (s&&s.core&&typeof s.core.toast==='function'){ s.core.toast(m); return; } }catch(e){}
+  try{ if (typeof window.toast==='function') window.toast(m); }catch(e){}
+}
+/* chỉ CHỦ shop mới được mở dùng thử — nhân viên thì không */
+function laChu(){
+  try{ if (document.body && document.body.classList.contains('la-nv')) return false; }catch(e){}
+  try{ var p=document.getElementById('pos-screen');
+       if (p && (p.classList.contains('role-manager')||p.classList.contains('role-cashier'))) return false; }catch(e){}
+  return true;
+}
+
+var dangMo=false;
+async function moThuCn(el){
+  if (dangMo) return;
+  var f=FB(), u=uid();
+  if (!f || !u) return;
+  if (!laChu()) return;
+  if (navigator.onLine===false) return;          /* offline: lệnh ghi treo vĩnh viễn — không mở */
+  dangMo=true;
+  try{
+    var ref=f.doc(f.db,'accounts',u,'lic','sono_cn');
+    var d=await f.getDoc(ref);
+    /* ĐÃ có giấy phép (đang dùng thử / đã mua / đã hết hạn) ⇒ để nguyên màn MUA, không mở lại */
+    if (d && d.exists && d.exists()){ dangMo=false; return; }
+
+    var until=new Date(Date.now()+NGAY_THU*86400000);
+    await f.setDoc(ref,{ trial:true, trialUsed:true, active:true, paidUntil:until,
+                         startedAt:f.serverTimestamp(), qty:1 });
+    try{ el.remove(); }catch(e){}
+
+    /* đang có hàng trong giỏ thì TUYỆT ĐỐI không tự tải lại — mất đơn là mất tiền thật */
+    var gio=[]; try{ gio=SK().core.cart()||[]; }catch(e){ gio=[]; }
+    if (!gio.length){
+      noi('🎁 Đã mở dùng thử Chi nhánh miễn phí '+NGAY_THU+' ngày — đang tải lại…');
+      setTimeout(function(){ try{ location.reload(); }catch(e){} }, 900);
+    }else{
+      try{ alert('🎁 Đã mở dùng thử Chi nhánh miễn phí '+NGAY_THU+' ngày.\n\n'
+        +'Bạn đang có hàng trong giỏ nên app KHÔNG tự tải lại (tránh mất đơn).\n'
+        +'Thanh toán xong, tải lại trang là thêm chi nhánh được.'); }catch(e){}
+    }
+  }catch(e){ dangMo=false; }   /* mất mạng / Rules chưa cập nhật: im lặng, khách vẫn thấy màn mua */
+}
+
+/* Màn "mua thêm chi nhánh" của app có id cố định #cn-upsell — hiện lên là biết khách vừa đụng trần */
+setInterval(function(){
+  try{
+    var el=document.getElementById('cn-upsell');
+    if (!el || el.__thu) return;
+    el.__thu=1;
+    moThuCn(el);
+  }catch(e){}
+}, 400);
+
+}catch(e){ /* tuyệt đối không để khối này làm hỏng app khách */ }
+})();
+</script>
+<!-- ═══════════ HẾT: DÙNG THỬ GÓI CHI NHÁNH ═══════════ -->
 </body>
 </html>
