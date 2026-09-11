@@ -891,6 +891,20 @@ let BILLING = null;             // nạp từ Firestore billing/info nếu admin
 const MA_APP = 'sono';        // mã app NÀY. TrọSafe dùng 'tro' · Cafe dùng 'cafe'
 const MA_POS = 'sono_pos';    // gói Bán hàng (POS) = add-on riêng của Sổ Nợ
 const MA_CN  = 'sono_cn';     // gói CHI NHÁNH (thêm) = add-on tính tiền theo tháng như POS
+/* ── CHI NHÁNH THU TIỀN THEO NGÀNH — mỗi ngành một giấy phép riêng ──
+   Ngành đang bật đọc từ meta/shopSettings.mods (bảng chọn ngành chỉ bật ĐÚNG 1 ngành).
+   Không bật ngành nào = Bán hàng thường → vẫn dùng mã cũ 'sono_cn'. */
+const MA_CN_NGANH = {fnb:'sono_cn_fnb', fs:'sono_cn_fs', rm:'sono_cn_rm', kg:'sono_cn_kg'};
+const CN_NOIDUNG  = {sono_cn:'CN', sono_cn_fnb:'CNFNB', sono_cn_fs:'CNFS', sono_cn_rm:'CNRM', sono_cn_kg:'CNKG'};
+let   skCnMa = MA_CN;                       // mã gói chi nhánh ĐANG áp dụng
+async function docMaCnTheoNganh(){
+  try{
+    const s = await getDoc(doc(db,'users',UID,'meta','shopSettings'));
+    const m = (s.exists() && (s.data().mods||{})) || {};
+    for(const k in MA_CN_NGANH) if(m[k]===true) return MA_CN_NGANH[k];
+  }catch(e){}
+  return MA_CN;
+}
 const licRef = (uid, app) => doc(db, 'accounts', uid, 'lic', app);
 
 /* ── TÀI KHOẢN NÀY ĐÃ TỪNG TRẢ TIỀN CHƯA? ────────────────────────────────────
@@ -937,8 +951,8 @@ let LICMAP = {};              // admin: { uid: { sono:{...}, sono_pos:{...} } }
 const _DOC=(...a)=>doc(db,...a), _COLL=(...a)=>collection(db,...a), _CG=(n)=>collectionGroup(db,n),
       _SET=setDoc, _GET=getDoc, _GETS=getDocs, _ADD=addDoc, _DEL=deleteDoc, _SRV=serverTimestamp;
 async function _ask(m){ return window.confirm(m); }
-const APP_IDS=['sono','sono_pos','sono_cn','tro','cafe'];
-const APP_TEN={sono:'Sổ Nợ',sono_pos:'Bán hàng (POS)',sono_cn:'Chi nhánh (thêm)',tro:'TrọSafe',cafe:'Cafe'};
+const APP_IDS=['sono','sono_pos','sono_cn','sono_cn_fnb','sono_cn_fs','sono_cn_rm','sono_cn_kg','tro','cafe'];
+const APP_TEN={sono:'Sổ Nợ',sono_pos:'Bán hàng (POS)',sono_cn:'Chi nhánh (thêm)',sono_cn_fnb:'Chi nhánh · F&B',sono_cn_fs:'Chi nhánh · Thời trang',sono_cn_rm:'Chi nhánh · Karaoke/Spa',sono_cn_kg:'Chi nhánh · Cân ký',tro:'TrọSafe',cafe:'Cafe'};
 const MY_APPS=['sono','sono_pos','sono_cn'];
 let _REQS=[], _EMAILS={}, _admBusy=false;
 function _esc2(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
@@ -954,6 +968,10 @@ function priceFor(app){var B=BILLING||{};
   if(app==='sono')return (B.priceSono>0?B.priceSono:(B.pricePerMonth>0?B.pricePerMonth:10000));
   if(app==='sono_pos')return (B.pricePos>0?B.pricePos:(B.posPricePerMonth>0?B.posPricePerMonth:0));
   if(app==='sono_cn')return (B.priceCn>0?B.priceCn:(B.priceCnPerMonth>0?B.priceCnPerMonth:10000));
+  if(app==='sono_cn_fnb')return (B.priceCnFnb>0?B.priceCnFnb:(B.priceCn>0?B.priceCn:10000));
+  if(app==='sono_cn_fs') return (B.priceCnFs >0?B.priceCnFs :(B.priceCn>0?B.priceCn:10000));
+  if(app==='sono_cn_rm') return (B.priceCnRm >0?B.priceCnRm :(B.priceCn>0?B.priceCn:10000));
+  if(app==='sono_cn_kg') return (B.priceCnKg >0?B.priceCnKg :(B.priceCn>0?B.priceCn:10000));
   if(app==='tro')return (B.priceTro>0?B.priceTro:(B.price>0?B.price:50000));
   if(app==='cafe')return (B.priceCafe>0?B.priceCafe:(B.pricePerMonth>0?B.pricePerMonth:10000));
   return 0;}
@@ -999,7 +1017,7 @@ window.adminGrantApp=async function(uid,months,app,reqId){
     app=APP_IDS.indexOf(app)>-1?app:MA_APP;
     /* Gói Chi nhánh thêm tính tiền theo SỐ SUẤT (qty) — chỉ app Quản trị mới có ô nhập đó.
        Duyệt ở đây sẽ cấp thiếu suất, nên chặn hẳn cho khỏi cấp sai. */
-    if(app===MA_CN){ toast('🏪 Gói Chi nhánh: duyệt trong app Quản trị (có ô Số chi nhánh).'); return; }
+    if(String(app).indexOf('sono_cn')===0){ toast('🏪 Gói Chi nhánh: duyệt trong app Quản trị (có ô Số chi nhánh).'); return; }
     if(!reqId)reqId=_pendingFor(uid,app);
     var base=Date.now();
     var snap=await _GET(licRef(uid,app));
@@ -4495,8 +4513,14 @@ function skAllowedBranchIds(){ return skBranchOrder().slice(0, Math.max(1, skMax
 function skBranchAllowed(id){ if(!skCnLoaded||id==='main'||!id)return true; return skAllowedBranchIds().indexOf(id)>-1; }
 async function skLoadCn(){
   try{ if(typeof isAdmin==='function'&&isAdmin()){ skCnInfo={ok:true,admin:true}; skCnQty=99999; skCnBase=99999; skMaxCn=99999; try{skRenderBranchSel();}catch(e){} return; } }catch(e){}
-  try{ var L=await getDoc(licRef(UID,MA_CN)); skCnInfo=(L&&L.exists())?_cnLic(L.data()):{ok:false,qty:0}; }
-  catch(e){ skCnInfo=skCnInfo||{ok:false,qty:0}; }
+  skCnMa = await docMaCnTheoNganh();
+  /* Đọc CẢ giấy phép theo ngành LẪN gói chung cũ 'sono_cn'. Khách cũ đang giữ
+     sono_cn còn hạn thì TUYỆT ĐỐI không bị cắt — lấy bên nào còn hạn & nhiều suất hơn. */
+  var _A=null,_B=null;
+  try{ var L=await getDoc(licRef(UID,skCnMa)); if(L&&L.exists())_A=_cnLic(L.data()); }catch(e){}
+  if(skCnMa!==MA_CN){ try{ var L2=await getDoc(licRef(UID,MA_CN)); if(L2&&L2.exists())_B=_cnLic(L2.data()); }catch(e){} }
+  if(_A&&_B) skCnInfo=(_A.ok&&_B.ok)?((_B.qty>_A.qty)?_B:_A):(_A.ok?_A:(_B.ok?_B:_A));
+  else       skCnInfo=_A||_B||skCnInfo||{ok:false,qty:0};
   var qty=(skCnInfo&&skCnInfo.qty)||0, ok=!!(skCnInfo&&skCnInfo.ok);
   /* Grandfather: đọc/ghi 1 lần số chi nhánh THÊM đã có trước khi bật thu phí */
   var base=null;
@@ -4537,14 +4561,14 @@ async function logCnRequest(qty,months,amount){
     var sl=Math.max(1,Number(qty)||1), th=Number(months)||1, ti=Number(amount)||0;
     var key=sl+'|'+th+'|'+ti; if(key===_cnDonCuoi)return; _cnDonCuoi=key;   /* bấm +/- nhiều lần chỉ ghi khi số đổi */
     var u=auth.currentUser, mail=u.email||'';
-    await setDoc(doc(db,'renewalRequests',u.uid+'__'+MA_CN),
-      {uid:u.uid,app:MA_CN,email:mail,months:th,amount:ti,qty:sl,
-       noiDung:(mail+' CN'+sl),requestedAt:serverTimestamp(),status:'pending',handledAt:null},{merge:true});
+    await setDoc(doc(db,'renewalRequests',u.uid+'__'+skCnMa),
+      {uid:u.uid,app:skCnMa,email:mail,months:th,amount:ti,qty:sl,
+       noiDung:(mail+' '+(CN_NOIDUNG[skCnMa]||'CN')+sl),requestedAt:serverTimestamp(),status:'pending',handledAt:null},{merge:true});
   }catch(e){console.warn('logCnRequest',e&&e.code);}
 }
 function skCnRenderUpsell(fromSwitch){
   var el=document.getElementById('cn-upsell'); if(!el)return;
-  var unit=(typeof priceFor==='function')?priceFor(MA_CN):0;
+  var unit=(typeof priceFor==='function')?priceFor(skCnMa):0;
   var bank=(typeof renewBank==='function')?renewBank():null;
   var email=(auth.currentUser&&auth.currentUser.email)||'';
   var total=giaGiaHan(unit,_cnWantMonths)*_cnWantQty;
@@ -4566,7 +4590,7 @@ function skCnRenderUpsell(fromSwitch){
   }else{
     var qrBlock='';
     if(bank){
-      var info=email+' CN'+_cnWantQty;
+      var info=email+' '+(CN_NOIDUNG[skCnMa]||'CN')+_cnWantQty;
       var qrUrl='https://img.vietqr.io/image/'+bank.bin+'-'+bank.account+'-compact2.png?amount='+total+'&addInfo='+encodeURIComponent(info)+'&accountName='+encodeURIComponent(bank.accName||'');
       qrBlock='<div class="cn-qrbox"><img class="cn-qr-img" src="'+qrUrl+'" alt="QR mua chi nhánh"><div class="cn-qrlab">Quét bằng app ngân hàng — số tiền &amp; nội dung điền sẵn</div></div>'
         +'<div class="cn-info">'
@@ -8251,17 +8275,31 @@ M.act('fnb-bom-save',function(){bomSave();});
 M.act('fnb-bom-x',function(){C.closeModal('#fnb-bom');});
 
 /* ---------- GẮN VÀO LÕI ---------- */
+/* [CHI NHÁNH] Sơ đồ bàn phải nghe ĐÚNG chi nhánh đang chọn.
+   Bản cũ chỉ onSnapshot 1 lần lúc boot ⇒ khoá cứng vào chi nhánh chính: sang chi
+   nhánh khác vẫn thấy bàn của chi nhánh chính (bàn ma), thêm bàn không hiện ra,
+   giữ bàn báo lỗi, và tab Đơn QR báo "chưa có bàn" nên không tạo được mã QR. */
+var SUBCN=null, SUBLOI=false;
+function nghe(){
+  var cn=(C.branch&&C.branch())||'main';
+  if(cn===SUBCN&&(UNSUB||SUBLOI))return;
+  if(UNSUB){try{UNSUB();}catch(e){}UNSUB=null;}
+  if(CUR){CUR=null;bar();}          /* bàn đang phục vụ thuộc chi nhánh cũ → bỏ, tránh ghi nhầm */
+  SUBCN=cn;SUBLOI=false;TB=[];render();
+  try{
+    UNSUB=F.onSnapshot(tcol(),function(s){
+      TB=s.docs.map(function(d){var o=d.data()||{};o.id=d.id;return o;});
+      render();bar();
+    },function(e){console.error('[fnb] mất kết nối sơ đồ bàn',e);UNSUB=null;SUBLOI=true;
+      try{C.toast('⚠️ Mất kết nối sơ đồ bàn — đổi chi nhánh rồi quay lại để tải lại');}catch(_){}});
+  }catch(e){console.warn('[fnb] không nghe được bàn',e);}
+}
 M.on('boot',function(){
   if(ON||!M.flag('fnb'))return;ON=true;
   M.tab({id:'fnb',label:'Bàn',title:'Sơ đồ bàn',after:'sell',render:render,
     icon:'<svg viewBox="0 0 24 24"><path d="M3 10h18M5 10V6h14v4M7 10v9M17 10v9"/></svg>',
     body:'<div class="sk-actbar" style="margin-bottom:10px"><button data-act="fnb-mgr">🍽️ Quản lý bàn</button></div><div id="fnb-map"></div>'});
-  try{
-    UNSUB=F.onSnapshot(tcol(),function(s){
-      TB=s.docs.map(function(d){var o=d.data()||{};o.id=d.id;return o;});
-      render();bar();
-    },function(e){console.error('[fnb] mất kết nối sơ đồ bàn',e);try{C.toast('⚠️ Mất kết nối sơ đồ bàn — mở lại màn Bàn để tải lại');}catch(_){}});
-  }catch(e){console.warn('[fnb] không nghe được bàn',e);}
+  nghe();
 });
 M.on('prod:form',function(c){
   if(!M.flag('fnb'))return;
@@ -8278,7 +8316,7 @@ M.on('order:saved',async function(c){
   await bomDeduct(c.items);
   if(CUR){var id=CUR;CUR=null;bar();await clearTable(id);}
 });
-M.on('view:show',function(c){if(M.flag('fnb')&&c.view==='sell')bar();});
+M.on('view:show',function(c){if(!M.flag('fnb'))return;nghe();if(c&&c.view==='sell')bar();});
 })();
 /* ═══════════ HẾT MODULE fnb ═══════════ */
 
@@ -16203,7 +16241,11 @@ async function moThuCn(el){
   if (navigator.onLine===false) return;          /* offline: lệnh ghi treo vĩnh viễn — không mở */
   dangMo=true;
   try{
-    var ref=f.doc(f.db,'accounts',u,'lic','sono_cn');
+    var ma='sono_cn';
+    try{ var FL=(SK()&&SK().flags)?SK().flags():{};
+         var MP={fnb:'sono_cn_fnb',fs:'sono_cn_fs',rm:'sono_cn_rm',kg:'sono_cn_kg'};
+         for(var k in MP) if(FL[k]===true){ ma=MP[k]; break; } }catch(e){}
+    var ref=f.doc(f.db,'accounts',u,'lic',ma);
     var d=await f.getDoc(ref);
     /* ĐÃ có giấy phép (đang dùng thử / đã mua / đã hết hạn) ⇒ để nguyên màn MUA, không mở lại */
     if (d && d.exists && d.exists()){ dangMo=false; return; }
@@ -16271,7 +16313,7 @@ var QR_LIB    = 'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.mi
 /* ════════════════════════════════════════════════ */
 
 var ON=false, LIC=null, TOKEN='', TENQUAN='', SHARE=null, DON=[], BAN=[], UNSUB=null;
-var soDonTruoc=0, dangLam=false, daHoi=false;
+var soDonTruoc=0, dangLam=false, daHoi=false, CFGCN=null;  /* CFGCN = chi nhánh của cấu hình đang giữ trong bộ nhớ */
 
 /* ───────── tiện ích ───────── */
 function esc(s){ return C.esc ? C.esc(s) : String(s==null?'':s)
@@ -16478,6 +16520,11 @@ async function dayThucDon(batNhan){
   if(dangLam) return; dangLam = true;
   try{
     var u = uid(); if(!u){ noi('Chưa đăng nhập'); return; }
+
+    /* [CHI NHÁNH] Mã đang giữ là của chi nhánh khác ⇒ nạp lại. Không bao giờ
+       ghi thực đơn chi nhánh này đè lên mã QR đã dán ở chi nhánh kia. */
+    if(CFGCN !== chiNhanh()){ CFGCN = chiNhanh(); TOKEN=''; SHARE=null; TENQUAN=''; await docCfg(); }
+    if(SHARE && SHARE.chiNhanh && SHARE.chiNhanh !== chiNhanh()){ TOKEN=''; SHARE=null; }
 
     BAN = await docBan();
     if(!BAN.length){
@@ -16852,13 +16899,23 @@ M.on('boot', async function(){
     body:'<div id="qrd-w" class="qrd-w"><div class="qrd-none">Đang tải…</div></div>' });
 
   await docLic();
+  CFGCN = chiNhanh();
   if(conHan(LIC)){ await docCfg(); ngheDon(); }
   render();
 });
 
 /* Đổi chi nhánh thì nạp lại cấu hình của chi nhánh đó */
 M.on('view:show', function(c){
-  if(c && c.view === 'qrd' && conHan(LIC) && !daHoi){
+  if(!c) return;
+  /* [CHI NHÁNH] Đổi chi nhánh là nạp lại NGAY — không chờ hết 4 giây chống dội,
+     nếu không sẽ mang mã của chi nhánh cũ sang ghi đè cho chi nhánh mới. */
+  if(CFGCN !== chiNhanh()){
+    CFGCN = chiNhanh(); TOKEN=''; SHARE=null; TENQUAN=''; soDonTruoc=0;
+    try{ capNhatHuy(0); }catch(e){}
+    if(conHan(LIC)) docCfg().then(render).catch(function(){}); else render();
+    return;
+  }
+  if(c.view === 'qrd' && conHan(LIC) && !daHoi){
     daHoi = true;
     docCfg().then(render).catch(function(){});
     setTimeout(function(){ daHoi = false; }, 4000);
