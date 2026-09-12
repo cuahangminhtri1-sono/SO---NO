@@ -923,11 +923,22 @@ function skNganhCoGoi(k){
 /* Tải lại trang + tự mở thẳng lại màn Bán hàng (dùng lại cơ chế nga_open_pos_v1 sẵn có) */
 function skTaiLai(){ try{ sessionStorage.setItem('nga_open_pos_v1','1'); }catch(e){} try{ location.reload(); }catch(e){} }
 let   skCnMa = MA_CN;                       // mã gói chi nhánh ĐANG áp dụng
+let   skCnNgXin = null;                     // [v6] ngành đang xin mở thêm chi nhánh (null = ngành đang mở)
+/* [v6] Mã gói chi nhánh = theo NGÀNH của cửa hàng ĐANG MỞ (mỗi ngành một gói riêng).
+   Chưa biết ngành (khách cũ / lỗi mạng) thì rơi xuống cờ mods cũ rồi tới gói chung. */
+function maCnCuaNganh(k){ return (k&&MA_CN_NGANH[k])?MA_CN_NGANH[k]:MA_CN; }
 async function docMaCnTheoNganh(){
   try{
+    var k=null;
+    try{ k=skNganhBr(skBranch); }catch(e){ k=null; }
+    if(k===null){
+      try{ const b=await getDoc(doc(db,'users',UID,'branches',skBranch||'main'));
+           if(b.exists()){ const v=(b.data()||{}).nganh; if(typeof v==='string')k=v; } }catch(e){}
+    }
+    if(k!==null) return maCnCuaNganh(k);
     const s = await getDoc(doc(db,'users',UID,'meta','shopSettings'));
     const m = (s.exists() && (s.data().mods||{})) || {};
-    for(const k in MA_CN_NGANH) if(m[k]===true) return MA_CN_NGANH[k];
+    for(const k2 in MA_CN_NGANH) if(m[k2]===true) return MA_CN_NGANH[k2];
   }catch(e){}
   return MA_CN;
 }
@@ -4555,7 +4566,8 @@ function skSwitchBranch(id){if(skStaff&&skStaff.branch&&id!==skStaff.branch){toa
     setTimeout(skTaiLai,600);return;
   }
   skBranch=id;skBrNho(id);skCart=[];skDiscount=0;skBranchSubs();skRenderCart();skRenderBranchSel();skCloseModal('#sk-branch');skGo('sell');toast('Đã chuyển: '+skBranchName(id));}
-function skOpenBranchForm(id){if(!id&&skBranches.length>=skMaxCn){skCloseModal('#sk-branch');skCnUpsell(false);return;}skBrEditId=id||null;const b=id?skBranches.find(x=>x.id===id):{};skq('#sk-bf-title').textContent=id?'Sửa cửa hàng':'Mở cửa hàng mới';skq('#sk-bf-name').value=b.name||'';
+function skOpenBranchForm(id){/* [v6] không chặn ở đây nữa: hạn mức tính theo NGÀNH, mà ngành thì chọn ngay trong form ⇒ chặn ở lúc bấm Lưu */
+  skBrEditId=id||null;const b=id?skBranches.find(x=>x.id===id):{};skq('#sk-bf-title').textContent=id?'Sửa cửa hàng':'Mở cửa hàng mới';skq('#sk-bf-name').value=b.name||'';
   var _cur=id?skNganhBr(id):'';if(_cur===null)_cur='';
   var _ss=skNganhSanSang();
   var _sel=skq('#sk-bf-nganh');
@@ -4569,9 +4581,16 @@ function skOpenBranchForm(id){if(!id&&skBranches.length>=skMaxCn){skCloseModal('
 function skBfNgNote(){var el=skq('#sk-bf-ngnote'),s=skq('#sk-bf-nganh');if(!el||!s)return;var k=s.value||'';
   el.innerHTML=k?('📦 Cửa hàng này sẽ chạy <b>'+escHtml(skNganhTen(k))+'</b> — có thêm màn riêng của ngành. Sổ nợ vẫn dùng chung với mọi cửa hàng.'+(skNganhSanSang()&&!skNganhCoGoi(k)?'<br><b style="color:#c0392b">🔒 Chưa có gói ngành này — bấm Lưu để mở dùng thử / mua gói.</b>':''))
     :'🛒 Bán hàng thông thường: quét mã, giỏ hàng, tiền mặt / VietQR / ghi nợ, hóa đơn, kho, báo cáo. <b>Không tốn thêm gói.</b>';}
-async function skSaveBranch(){const name=skq('#sk-bf-name').value.trim();if(!name){toast('Nhập tên cửa hàng');return;}if(!skBrEditId&&skBranches.length>=skMaxCn){skCloseModal('#sk-branch-form');skCnUpsell(false);return;}
+async function skSaveBranch(){const name=skq('#sk-bf-name').value.trim();if(!name){toast('Nhập tên cửa hàng');return;}
   var ng=(skq('#sk-bf-nganh')?skq('#sk-bf-nganh').value:'')||'';
   var ngCu=skBrEditId?skNganhBr(skBrEditId):null;
+  /* [v6] Hạn mức theo NGÀNH: cửa hàng CHÍNH của mỗi ngành miễn phí,
+     từ cửa hàng thứ 2 CÙNG NGÀNH mới cần suất chi nhánh của ngành đó. */
+  if(!skBrEditId||ng!==ngCu){
+    var _dem=skDemNganh(ng,skBrEditId), _han=99999;
+    try{ _han=await skHanNganh(ng); }catch(e){ _han=99999; }
+    if(_dem>=_han){ skCloseModal('#sk-branch-form'); skCnUpsellNg(ng,false); return; }
+  }
   /* Chỉ chặn khi ĐỔI SANG ngành mới VÀ đã đọc xong giấy phép — tránh chặn oan lúc mạng chậm */
   if(ng&&ng!==ngCu&&skNganhSanSang()&&!skNganhCoGoi(ng)){ var okT=await skMoGoiNganh(ng); if(!okT)return; }
   try{if(skBrEditId)updateDoc(doc(db,'users',UID,'branches',skBrEditId),{name:name,nganh:ng}).catch(function(e){skErr(e,'Lưu cửa hàng');});
@@ -4617,8 +4636,44 @@ function skBranchOrder(){
     return String(a.id).localeCompare(String(b.id));
   });
 }
-function skAllowedBranchIds(){ return skBranchOrder().slice(0, Math.max(1, skMaxCn)).map(function(b){return b.id;}); }
-function skBranchAllowed(id){ if(!skCnLoaded||id==='main'||!id)return true; return skAllowedBranchIds().indexOf(id)>-1; }
+/* ══════════ [v6] HẠN MỨC CHI NHÁNH TÍNH RIÊNG TỪNG NGÀNH ══════════
+   Khách đã trả gói ngành nào thì ngành đó được 1 CỬA HÀNG CHÍNH MIỄN PHÍ.
+   Chỉ cửa hàng THỨ 2 TRỞ ĐI TRONG CÙNG MỘT NGÀNH mới tính tiền chi nhánh,
+   và tính bằng gói chi nhánh riêng của chính ngành đó (sono_cn_fnb/fs/rm/kg).
+   Chưa biết ngành của cửa hàng (khách cũ, mạng lỗi) ⇒ TUYỆT ĐỐI không khoá. */
+function skBranchOrderNg(k){ return skBranchOrder().filter(function(b){ return skNganhBr(b.id)===k; }); }
+function skDemNganh(k,truId){ var n=0,L=skBranches||[]; for(var i=0;i<L.length;i++){ if(truId&&L[i].id===truId)continue; if(skNganhBr(L[i].id)===k)n++; } return n; }
+function skAllowedBranchIds(){
+  var k=skNganhBr(skBranch);
+  if(k===null) return (skBranches||[]).map(function(b){return b.id;});
+  return skBranchOrderNg(k).slice(0, Math.max(1, skMaxCn)).map(function(b){return b.id;});
+}
+function skBranchAllowed(id){
+  if(!skCnLoaded||id==='main'||!id)return true;
+  var k=skNganhBr(id); if(k===null)return true;
+  var cur=skNganhBr(skBranch);
+  if(cur!==null&&k!==cur)return true;   /* khác ngành: hạn mức của ngành đó xét khi mở ngành đó */
+  return skAllowedBranchIds().indexOf(id)>-1;
+}
+/* Hạn mức của MỘT ngành bất kỳ — đọc thẳng giấy phép chi nhánh của ngành đó.
+   MẠNG LỖI / CHẬM ⇒ trả 99999 = KHÔNG chặn. Thà cho tạo (cửa hàng vượt suất vẫn
+   bị skBranchAllowed khoá lúc mở) còn hơn chặn oan khách đang có mạng chập chờn. */
+async function skHanNganh(k){
+  try{ if(typeof isAdmin==='function'&&isAdmin())return 99999; }catch(e){}
+  var ma=maCnCuaNganh(k), qty=0, xong=false, docOk=false;
+  try{
+    var job=(async function(){
+      try{ var L=await getDoc(licRef(UID,ma)); docOk=true; if(L&&L.exists()){ var i=_cnLic(L.data()); if(i.ok)qty=i.qty||0; } }catch(e){}
+      if(ma!==MA_CN){ try{ var L2=await getDoc(licRef(UID,MA_CN)); docOk=true; if(L2&&L2.exists()){ var j=_cnLic(L2.data()); if(j.ok&&(j.qty||0)>qty)qty=j.qty||0; } }catch(e){} }
+      xong=true; return true;
+    })();
+    var cho=new Promise(function(r){ setTimeout(function(){ r(false); },7000); });
+    await Promise.race([job,cho]);
+  }catch(e){}
+  if(!xong||!docOk) return 99999;   /* không đọc nổi giấy phép ⇒ KHÔNG chặn */
+  return Math.max(1+(skCnBase||0), 1+qty);
+}
+function skCnUpsellNg(k,fromSwitch){ skCnNgXin=(k===undefined)?null:k; try{ skCnMa=maCnCuaNganh(k); }catch(e){} skCnUpsell(fromSwitch); }
 async function skLoadCn(){
   try{ if(typeof isAdmin==='function'&&isAdmin()){ skCnInfo={ok:true,admin:true}; skCnQty=99999; skCnBase=99999; skMaxCn=99999; try{skRenderBranchSel();}catch(e){} return; } }catch(e){}
   skCnMa = await docMaCnTheoNganh();
@@ -4650,7 +4705,8 @@ async function skLoadCn(){
 }
 /* ── Màn NÂNG CẤP / MUA thêm chi nhánh (khách) — quét QR, giống luồng gia hạn POS ── */
 function skCnUpsell(fromSwitch){
-  var curExtras=Math.max(0, skBranches.length-1);
+  var _kx=(skCnNgXin!==null)?skCnNgXin:skNganhBr(skBranch);
+  var curExtras=Math.max(0, ((_kx===null)?skBranches.length:skDemNganh(_kx,null))-1);
   _cnWantQty=Math.max(1, skCnQty||0, curExtras + (fromSwitch?0:1));
   _cnWantMonths=1;
   var el=document.getElementById('cn-upsell');
@@ -4659,7 +4715,8 @@ function skCnUpsell(fromSwitch){
   el.onclick=function(e){ if(e.target===el) skCnCloseUpsell(); };
   skCnRenderUpsell(!!fromSwitch);
 }
-function skCnCloseUpsell(){ var el=document.getElementById('cn-upsell'); if(el)el.remove(); }
+function skCnCloseUpsell(){ var el=document.getElementById('cn-upsell'); if(el)el.remove();
+  skCnNgXin=null; try{ var _k=skNganhBr(skBranch); if(_k!==null) skCnMa=maCnCuaNganh(_k); }catch(e){} }
 /* ── GHI ĐƠN MUA CHI NHÁNH ────────────────────────────────────────────────
    Trước đây màn này CHỈ vẽ QR rồi thôi: khách quét mã chuyển tiền xong mà app
    Quản trị không có đơn nào ⇒ tiền vào tài khoản mà không ai biết là của ai.
@@ -4689,9 +4746,11 @@ function skCnRenderUpsell(fromSwitch){
     hanLine = skCnInfo.ok
       ? '<div class="cn-han ok">📅 Gói chi nhánh: hạn tới <b>'+fmtDateRaw(skCnInfo.until)+'</b> — còn '+days+' ngày</div>'
       : '<div class="cn-han bad">⛔ Gói chi nhánh đã HẾT HẠN ngày <b>'+fmtDateRaw(skCnInfo.until)+'</b></div>'; }
+  var _kh=(skCnNgXin!==null)?skCnNgXin:skNganhBr(skBranch);
+  var _dg=(_kh===null)?skBranches.length:skDemNganh(_kh,null);
   var head = fromSwitch
     ? '🔒 Chi nhánh này cần <b>gói Chi nhánh</b> còn hạn'
-    : '🏪 Bạn đang dùng <b>'+skBranches.length+'/'+skMaxCn+'</b> chi nhánh';
+    : '🏪 Ngành <b>'+escHtml((_kh===null)?'':skNganhTen(_kh))+'</b>: đang dùng <b>'+_dg+'</b> cửa hàng — cửa hàng chính <b>miễn phí</b>, mở thêm mới cần suất';
   var saveNote = (thangTang(_cnWantMonths)>0 && unit>0)
     ? '<div class="cn-save">🎁 Gói năm: tặng '+thangTang(_cnWantMonths)+' tháng — chỉ trả tiền '+thangTinhTien(_cnWantMonths)+' tháng · Tiết kiệm '+fmt(unit*_cnWantMonths*_cnWantQty-total)+' <s>'+fmt(unit*_cnWantMonths*_cnWantQty)+'</s></div>' : '';
   var body;
@@ -5029,7 +5088,7 @@ function skBind4(){
   document.addEventListener('click',function(e){
     const el=e.target.closest('[data-act]');if(!el)return;const a=el.dataset.act,id=el.dataset.id;
     switch(a){
-      case 'branch-list':skOpenBranches();break; case 'branch-switch':skSwitchBranch(id);break; case 'branch-new':skOpenBranchForm(null);break; case 'branch-edit':skOpenBranchForm(id);break; case 'branch-save':skSaveBranch();break; case 'branch-del':skDelBranch();break;
+      case 'branch-list':skOpenBranches();break; case 'nga-open':skCloseModal('#sk-branch');try{if(window.NGA&&window.NGA.mo)window.NGA.mo();}catch(_){}break; case 'branch-switch':skSwitchBranch(id);break; case 'branch-new':skOpenBranchForm(null);break; case 'branch-edit':skOpenBranchForm(id);break; case 'branch-save':skSaveBranch();break; case 'branch-del':skDelBranch();break;
       case 'transfer-open':skOpenTransfer();break; case 'tr-pick':skTrPick(id);break; case 'transfer-do':skDoTransfer();break;
       case 'regate':skRegate();break; case 'gate-pick':skGatePick(id);break; case 'pin-key':skPinKey(el.dataset.k);break;
       case 'pin-forgot':skPinForgotShow();break; case 'pf-ok':skPinForgotOk();break; case 'pf-back':skPinForgotBack();break; case 'pin-toggle':skTogglePin();break;
@@ -9733,7 +9792,7 @@ body.la-nv #pos-screen [data-act="ca-cancel"]{display:none!important}
 </style>
 
 <!-- CHI NHÁNH -->
-<div id="sk-branch" class="sk-modal"><div class="sk-card"><h3>🏪 Cửa hàng của tôi</h3><div style="margin-bottom:10px"><button class="sk-btn green wide sk-owner" data-act="branch-new">➕ Mở cửa hàng mới</button></div><div id="sk-branch-list" style="max-height:56vh;overflow-y:auto"></div><div class="sk-card-acts"><span style="flex:1"></span><button class="sk-btn ghost" data-act="modal-close" data-target="#sk-branch">Đóng</button></div></div></div>
+<div id="sk-branch" class="sk-modal"><div class="sk-card"><h3>🏪 Cửa hàng của tôi</h3><div style="margin-bottom:10px"><button class="sk-btn green wide sk-owner" data-act="branch-new">➕ Mở cửa hàng mới</button></div><div style="margin-bottom:10px"><button class="sk-btn wide sk-owner" data-act="nga-open">⇄ Chọn ngành khác</button></div><div id="sk-branch-list" style="max-height:56vh;overflow-y:auto"></div><div class="sk-card-acts"><span style="flex:1"></span><button class="sk-btn ghost" data-act="modal-close" data-target="#sk-branch">Đóng</button></div></div></div>
 <div id="sk-branch-form" class="sk-modal"><div class="sk-card sk-card-sm"><h3 id="sk-bf-title">Mở cửa hàng mới</h3><label class="sk-fld">Tên cửa hàng<input id="sk-bf-name" class="sk-inp" placeholder="VD: Quán Cafe Sân Vườn"></label><label class="sk-fld">Ngành nghề của cửa hàng này<select id="sk-bf-nganh" class="sk-inp"></select></label><div id="sk-bf-ngnote" style="margin:-4px 0 10px;font-size:12px;color:#6b7872;line-height:1.55"></div><div class="sk-card-acts"><button class="sk-btn red" id="sk-bf-del" data-act="branch-del" style="display:none">Xóa</button><span style="flex:1"></span><button class="sk-btn ghost" data-act="modal-close" data-target="#sk-branch-form">Hủy</button><button class="sk-btn green" data-act="branch-save">Lưu</button></div></div></div>
 
 <!-- KIỂM TRA KẾT NỐI & QUYỀN -->
@@ -12861,6 +12920,8 @@ a:`<b class="snai-h">🏪 Chi nhánh</b>
 a:`<b class="snai-h">🏪 Mỗi cửa hàng một ngành riêng</b>
 <b>👉 Cái này để làm gì:</b> mỗi cửa hàng (chi nhánh) của bạn chạy <b>đúng một ngành</b>, giao diện chỉ hiện thứ của ngành đó nên <b>gọn và dễ dùng như một app riêng</b>. Nợ của khách thì <b>vẫn chung một sổ</b> cho cả các cửa hàng.
 <div class="snai-tip">💡 Nhờ vậy bạn vừa mở <b>quán cà phê</b> vừa mở <b>tiệm tạp hóa</b> trên <b>cùng một tài khoản</b> — mỗi bên một cửa hàng, mỗi bên một ngành, không lẫn lộn.</div>
+<b>🚪 Vào Bán hàng là thấy ngay:</b> mỗi lần bấm <span class="snai-path">🛒 BÁN HÀNG</span>, app hiện <b>bảng 5 ngành</b> — chạm ngành nào là vào thẳng cửa hàng của ngành đó (chưa có thì app <b>tự lập giúp</b>, không tốn thêm tiền chi nhánh). Muốn qua ngành khác: về <b>📒 SỔ NỢ</b> rồi bấm <b>🛒 BÁN HÀNG</b> lại, hoặc đang ở Bán hàng thì bấm <b>🏪</b> → <b>⇄ Chọn ngành khác</b>.
+
 <b>🪜 Đổi ngành cho một cửa hàng:</b>
 <ol>
 <li>Vào <span class="snai-path">🛒 BÁN HÀNG</span>.</li>
@@ -12883,7 +12944,7 @@ a:`<b class="snai-h">🏪 Mỗi cửa hàng một ngành riêng</b>
 <li>⚖️ <b>Vật liệu XD · Nông sản · Bán sỉ</b>.
 <br>Được thêm: <b>cân ký số lẻ</b> và <b>giá theo bậc số lượng</b>.</li>
 </ul>
-<div class="snai-warn">💰 Bốn ngành chuyên biệt là <b>gói thuê riêng, tính phí riêng theo tháng</b>. Chọn ngành chưa có gói thì app <b>tự mở dùng thử</b> cho bạn, hết hạn thử mới hiện màn mua.</div>`},
+<div class="snai-warn">💰 Bốn ngành chuyên biệt là <b>gói thuê riêng, tính phí riêng theo tháng</b>. Chọn ngành chưa có gói thì app <b>tự mở dùng thử</b> cho bạn, hết hạn thử mới hiện màn mua.<br>🏪 Mỗi ngành đã trả phí được <b>1 cửa hàng chính MIỄN PHÍ</b> — chỉ khi mở <b>cửa hàng thứ 2 trở đi trong cùng một ngành</b> mới cần thêm suất chi nhánh của ngành đó.</div>`},
 
 {c:'cn',t:'Module F&B — sơ đồ bàn quán ăn, cà phê',k:'fnb nha hang quan an cafe so do ban giu don theo ban goi mon',
 a:`<b class="snai-h">🍽️ Module F&amp;B — Sơ đồ bàn</b>
@@ -15777,13 +15838,26 @@ window.AIB={ hoi:function(t){ try{ M.go('aib'); }catch(e){} setTimeout(function(
     setTimeout(function(){ try{clearInterval(t2);}catch(e){} },180000);
   }
 
-  /* ---------- BỌC openPOS — ĐÃ TẮT (v5) ----------
-     Trước: bấm "Bán hàng" hiện bảng chọn NGÀNH cho cả tài khoản.
-     Nay mỗi CỬA HÀNG mang ngành riêng, đổi ngay trong 🏪 của POS
-     ⇒ không chặn openPOS nữa, vào thẳng cửa hàng đang dùng.
-     Khối này giữ lại để: đọc giấy phép gói ngành · màn MUA GÓI · bảng giá admin. */
-  function install(){ installed=true; return true; }
-  install();
+  /* ---------- BỌC openPOS — BẬT LẠI (v6) ----------
+     Bấm "🛒 BÁN HÀNG" → hiện CỔNG CHỌN NGÀNH (5 lựa chọn) như trước.
+     Chọn ngành nào thì mở đúng CỬA HÀNG của ngành đó — kho, đơn hàng, tab
+     đều riêng, y như vào một app khác. Sổ nợ vẫn dùng CHUNG một sổ.
+     Máy nhân viên KHÔNG hiện cổng: vào thẳng cửa hàng đã được phân. */
+  function install(){
+    if(installed) return true;
+    if(typeof window.openPOS!=='function') return false;
+    real=window.openPOS;
+    window.openPOS=function(){
+      if(bypass){ bypass=false; return real.apply(this,arguments); }
+      try{ if(!laChu()) return real.apply(this,arguments); }catch(e){}
+      try{ openSheet(); }catch(e){ return real.apply(this,arguments); }
+    };
+    installed=true; return true;
+  }
+  if(!install()){
+    var tIns=setInterval(function(){ if(install()) clearInterval(tIns); },400);
+    setTimeout(function(){ try{clearInterval(tIns);}catch(e){} },30000);
+  }
 
   /* Cầu nối cho màn 🏪 Cửa hàng trong POS gọi sang */
   window.NGA={
@@ -15794,6 +15868,7 @@ window.AIB={ hoi:function(t){ try{ M.go('aib'); }catch(e){} setTimeout(function(
     ten:function(k){ return nameOf(k); },
     mua:function(k){ try{ if(k)openUp(k); }catch(e){} },
     thu:function(k){ try{ return moDungThu(k); }catch(e){ return Promise.resolve(false); } },
+    mo:function(){ try{ openSheet(); }catch(e){} },
     ngayThu:MOD_TRIAL_DAYS
   };
 
@@ -15847,7 +15922,7 @@ window.AIB={ hoi:function(t){ try{ M.go('aib'); }catch(e){} setTimeout(function(
         + '<div class="nga-note">Mỗi gói ngành là <b>một gói thuê riêng, tính phí riêng theo tháng</b> (cộng thêm gói Bán hàng nền). Không chắc thì cứ chọn <b>Bán hàng đa năng</b> — đổi lại lúc nào cũng được.</div>';
     h+=card(BASE,c==='',false);
     for(i=0;i<MODS.length;i++){ var m=MODS[i]; h+=card(m,c===m.k&&licOf(m.k).ok,!licOf(m.k).ok); }
-    h+='<div class="nga-foot">🏪 Gói nào cũng <b>mở thêm được chi nhánh</b> — vào Bán hàng bấm nút 🏪 ở góc trên bên phải.</div>';
+    h+='<div class="nga-foot">📒 <b>Sổ nợ dùng chung</b> cho mọi ngành — chọn ngành nào cũng không tách sổ.<br>🏪 Mỗi ngành được <b>1 cửa hàng chính miễn phí</b>; mở thêm cửa hàng cùng ngành thì vào Bán hàng bấm nút 🏪 góc trên bên phải.</div>';
     if(!ready) h+='<div class="nga-busy">⏳ Đang đọc gói của shop…</div>';
     if(msg) h+='<div class="nga-busy">'+esc(msg)+'</div>';
     box.innerHTML=h;
@@ -15884,21 +15959,49 @@ window.AIB={ hoi:function(t){ try{ M.go('aib'); }catch(e){} setTimeout(function(
     await apDung(k);
   }
 
+  /* [v6] Chọn ngành = MỞ ĐÚNG CỬA HÀNG CỦA NGÀNH ĐÓ (chưa có thì tự lập giúp).
+     KHÔNG ghi cờ mods nữa — lõi đọc ngành ở users/{uid}/branches/{id}.nganh.
+     Cửa hàng CHÍNH của mỗi ngành là miễn phí: đã trả gói ngành rồi. */
+  function brKey(u){ return 'sk_br_'+(u||''); }
   async function apDung(k){
-    var s=SK();
-    busy=true; msg='⏳ Đang chuyển sang: '+nameOf(k)+' — trang sẽ tự tải lại…'; draw();
-    var nf={}, i; for(i=0;i<KEYS.length;i++) nf[KEYS[i]]=(KEYS[i]===k);
-    var done=false;
-    var to=setTimeout(function(){ if(done)return; done=true; busy=false; msg='⚠️ Mạng chậm — chưa lưu được. Thử lại.'; draw(); },9000);
+    var f=FB(), u=uid();
+    if(!f||!u){ close(); go(); return; }
+    busy=true; msg='⏳ Đang mở '+nameOf(k)+' — trang sẽ tự tải lại…'; draw();
+    var hetGio=false;
+    var to=setTimeout(function(){ hetGio=true; busy=false; msg='⚠️ Mạng chậm — chưa mở được. Thử lại.'; draw(); },12000);
     try{
-      var ok=await s.saveFlags(nf);
-      if(done) return; done=true; clearTimeout(to);
-      if(!ok){ busy=false; msg='⚠️ Chưa lưu được — kiểm tra mạng rồi thử lại.'; draw(); return; }
+      var snap=await f.getDocs(f.collection(f.db,'users',u,'branches'));
+      if(hetGio) return;
+      clearTimeout(to);
+      var ds=[]; snap.docs.forEach(function(d){ var o=d.data()||{}; ds.push({id:d.id,nganh:(typeof o.nganh==='string')?o.nganh:null}); });
+      var cung=ds.filter(function(x){ return x.nganh===k; });
+      var nho=''; try{ nho=localStorage.getItem(brKey(u))||''; }catch(e){}
+      var id=null, i;
+      for(i=0;i<cung.length;i++) if(cung[i].id===nho){ id=cung[i].id; break; }
+      if(!id) for(i=0;i<cung.length;i++) if(cung[i].id==='main'){ id=cung[i].id; break; }
+      if(!id&&cung.length) id=cung[0].id;
+      if(!id){
+        var ten=k?nameOf(k):'Cửa hàng đa năng';
+        /* Ngành này CHƯA có cửa hàng nào mà tài khoản đã có cửa hàng khác:
+           HỎI trước. Không hỏi thì khách bấm nhầm sẽ thấy kho trống trơn và tưởng mất hàng. */
+        if(ds.length){
+          var oki=true;
+          try{ oki=confirm('Ngành "'+nameOf(k)+'" chưa có cửa hàng nào.\n\nLập cửa hàng mới cho ngành này?\n\n• Kho hàng và đơn hàng RIÊNG — dùng như một app riêng\n• Hàng hóa của cửa hàng cũ VẪN CÒN NGUYÊN bên đó\n• Sổ nợ vẫn dùng CHUNG cho mọi cửa hàng'); }catch(e){ oki=true; }
+          if(!oki){ busy=false; msg=''; draw(); return; }
+          busy=true; msg='⏳ Đang lập cửa hàng cho '+nameOf(k)+'…'; draw();
+        }
+        if(!ds.length){ await f.setDoc(f.doc(f.db,'users',u,'branches','main'),{name:ten,nganh:k,createdAt:f.serverTimestamp()},{merge:true}); id='main'; }
+        else{ var r=await f.addDoc(f.collection(f.db,'users',u,'branches'),{name:ten,nganh:k,createdAt:f.serverTimestamp()}); id=r.id; }
+      }
+      try{ localStorage.setItem(brKey(u),id); }catch(e){}
+      var dang=null; try{ dang=SK().core.branch(); }catch(e){}
+      if(dang&&dang===id&&k===cur()){ busy=false; msg=''; close(); go(); return; }
       try{ sessionStorage.setItem(OPENKEY,'1'); }catch(e){}
-      try{ location.reload(); }catch(e){ busy=false; msg='✅ Đã lưu — hãy tải lại trang.'; draw(); }
+      try{ location.reload(); }catch(e){ busy=false; msg='✅ Đã mở — hãy tải lại trang.'; draw(); }
     }catch(e){
-      if(done) return; done=true; clearTimeout(to);
-      busy=false; msg='⚠️ Chưa lưu được — thử lại.'; draw();
+      try{ clearTimeout(to); }catch(e2){}
+      if(hetGio) return;
+      busy=false; msg='⚠️ Chưa mở được — kiểm tra mạng rồi thử lại.'; draw();
     }
   }
 
