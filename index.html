@@ -4575,10 +4575,13 @@ function skOpenBranchForm(id){/* [v6] không chặn ở đây nữa: hạn mức
       var lock=(x.k&&_ss&&!skNganhCoGoi(x.k));
       return '<option value="'+x.k+'">'+x.ic+' '+x.n+(lock?'  🔒 chưa có gói':'')+'</option>';
     }).join('');_sel.value=_cur;
+    /* [v7] Mã chuẩn ⇒ ngành gắn chặt vào mã, không cho đổi tay (đổi được là lách tiền) */
+    _sel.disabled=!!(id&&skMaChuan(id));
     if(!_sel.__ng){_sel.__ng=1;_sel.addEventListener('change',skBfNgNote);}}
   skBfNgNote();
   skq('#sk-bf-del').style.display=(id&&skBranches.length>1)?'':'none';skModalOpen('#sk-branch-form');}
 function skBfNgNote(){var el=skq('#sk-bf-ngnote'),s=skq('#sk-bf-nganh');if(!el||!s)return;var k=s.value||'';
+  if(s.disabled){el.innerHTML='🔒 Cửa hàng này gắn cố định ngành <b>'+escHtml(skNganhTen(k))+'</b>. Muốn ngành khác: đóng bảng này → bấm <b>⇄ Chọn ngành khác</b>.';return;}
   el.innerHTML=k?('📦 Cửa hàng này sẽ chạy <b>'+escHtml(skNganhTen(k))+'</b> — có thêm màn riêng của ngành. Sổ nợ vẫn dùng chung với mọi cửa hàng.'+(skNganhSanSang()&&!skNganhCoGoi(k)?'<br><b style="color:#c0392b">🔒 Chưa có gói ngành này — bấm Lưu để mở dùng thử / mua gói.</b>':''))
     :'🛒 Bán hàng thông thường: quét mã, giỏ hàng, tiền mặt / VietQR / ghi nợ, hóa đơn, kho, báo cáo. <b>Không tốn thêm gói.</b>';}
 async function skSaveBranch(){const name=skq('#sk-bf-name').value.trim();if(!name){toast('Nhập tên cửa hàng');return;}
@@ -4594,7 +4597,8 @@ async function skSaveBranch(){const name=skq('#sk-bf-name').value.trim();if(!nam
   /* Chỉ chặn khi ĐỔI SANG ngành mới VÀ đã đọc xong giấy phép — tránh chặn oan lúc mạng chậm */
   if(ng&&ng!==ngCu&&skNganhSanSang()&&!skNganhCoGoi(ng)){ var okT=await skMoGoiNganh(ng); if(!okT)return; }
   try{if(skBrEditId)updateDoc(doc(db,'users',UID,'branches',skBrEditId),{name:name,nganh:ng}).catch(function(e){skErr(e,'Lưu cửa hàng');});
-    else addDoc(collection(db,'users',UID,'branches'),{name:name,nganh:ng,createdAt:serverTimestamp()}).catch(function(e){skErr(e,'Lưu cửa hàng');});
+    else{ var _ma=skMaMoiChoNganh(ng);   /* [v7] mã cố định — Rules dựa vào mã này để thu phí */
+      setDoc(doc(db,'users',UID,'branches',_ma),{name:name,nganh:ng,createdAt:serverTimestamp()},{merge:true}).catch(function(e){skErr(e,'Lưu cửa hàng');}); }
     if(skBrEditId)skNganhMap[skBrEditId]=ng;
     skCloseModal('#sk-branch-form');toast('✅ Đã lưu cửa hàng');markDirty();
     if(skBrEditId&&skBrEditId===skBranch&&ngCu!==null&&ngCu!==ng){skBrNho(skBranch);toast('🔄 Đổi ngành — đang tải lại…');setTimeout(skTaiLai,800);}
@@ -4641,6 +4645,19 @@ function skBranchOrder(){
    Chỉ cửa hàng THỨ 2 TRỞ ĐI TRONG CÙNG MỘT NGÀNH mới tính tiền chi nhánh,
    và tính bằng gói chi nhánh riêng của chính ngành đó (sono_cn_fnb/fs/rm/kg).
    Chưa biết ngành của cửa hàng (khách cũ, mạng lỗi) ⇒ TUYỆT ĐỐI không khoá. */
+/* ══════════ [v7] MÃ CỬA HÀNG CHUẨN — CHỐT CHẶN TIỀN Ở MÁY CHỦ ══════════
+   Firestore Rules chặn theo MÃ của cửa hàng, KHÔNG theo field 'nganh'.
+   Lý do: khách có quyền ghi vào branches nên sửa được field 'nganh' để nhảy
+   sang ngành có gói rẻ hơn. Mã document thì không ai đổi được ⇒ chặn thật.
+     Cửa hàng CHÍNH (miễn phí) : main · main_fnb · main_fs · main_rm · main_kg
+     Chi nhánh THÊM (thu phí)  : cn_1, cn_2…  ·  cn_fnb_1, cn_fnb_2…
+   Cửa hàng mã cũ (tự sinh) vẫn chạy y nguyên — admin cấp miễn trừ cho khách cũ. */
+function skMaChinh(k){ return k?('main_'+k):'main'; }
+function skTienToCn(k){ return k?('cn_'+k+'_'):'cn_'; }
+function skMaChuan(id){ return /^main(_(fnb|fs|rm|kg))?$/.test(id)||/^cn_((fnb|fs|rm|kg)_)?[0-9]+$/.test(id); }
+function skCoMa(id){ var L=skBranches||[]; for(var i=0;i<L.length;i++) if(L[i].id===id) return true; return false; }
+function skMaCnMoi(k){ var p=skTienToCn(k),n=1; while(skCoMa(p+n)&&n<500)n++; return p+n; }
+function skMaMoiChoNganh(k){ var m=skMaChinh(k); if(skDemNganh(k,null)===0&&!skCoMa(m))return m; return skMaCnMoi(k); }
 function skBranchOrderNg(k){ return skBranchOrder().filter(function(b){ return skNganhBr(b.id)===k; }); }
 function skDemNganh(k,truId){ var n=0,L=skBranches||[]; for(var i=0;i<L.length;i++){ if(truId&&L[i].id===truId)continue; if(skNganhBr(L[i].id)===k)n++; } return n; }
 function skAllowedBranchIds(){
@@ -15990,8 +16007,13 @@ window.AIB={ hoi:function(t){ try{ M.go('aib'); }catch(e){} setTimeout(function(
           if(!oki){ busy=false; msg=''; draw(); return; }
           busy=true; msg='⏳ Đang lập cửa hàng cho '+nameOf(k)+'…'; draw();
         }
-        if(!ds.length){ await f.setDoc(f.doc(f.db,'users',u,'branches','main'),{name:ten,nganh:k,createdAt:f.serverTimestamp()},{merge:true}); id='main'; }
-        else{ var r=await f.addDoc(f.collection(f.db,'users',u,'branches'),{name:ten,nganh:k,createdAt:f.serverTimestamp()}); id=r.id; }
+        /* [v7] Mã cố định: cửa hàng chính của ngành = main_<ngành> (Rules cho miễn phí).
+           Mã đó đã bị dùng thì lùi sang mã chi nhánh thêm cn_<ngành>_<n>. */
+        var co={}; for(i=0;i<ds.length;i++) co[ds[i].id]=1;
+        var ma=k?('main_'+k):'main';
+        if(co[ma]){ var pre=k?('cn_'+k+'_'):'cn_', j=1; while(co[pre+j]&&j<500)j++; ma=pre+j; }
+        await f.setDoc(f.doc(f.db,'users',u,'branches',ma),{name:ten,nganh:k,createdAt:f.serverTimestamp()},{merge:true});
+        id=ma;
       }
       try{ localStorage.setItem(brKey(u),id); }catch(e){}
       var dang=null; try{ dang=SK().core.branch(); }catch(e){}
