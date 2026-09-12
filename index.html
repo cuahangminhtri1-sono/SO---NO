@@ -3669,10 +3669,13 @@ function skStartReturn(orderId){const o=skOrders.find(x=>x.id===orderId);if(!o)r
   skCloseModal('#sk-orders');skRenderReturn();skModalOpen('#sk-ret');}
 function skRenderReturn(){const o=skRetOrder;if(!o)return;let refundRaw=0;(o.items||[]).forEach((it,i)=>{refundRaw+=(o._ret[i]||0)*it.price;});const _st=Number(o.subtotal)||0,_f=_st>0?Math.max(0,Math.min(1,(Number(o.total)||0)/_st)):1;const refund=Math.round(refundRaw*_f);skq('#sk-ret-body').innerHTML=(o.items||[]).map((it,i)=>{const done=(o._done&&o._done[i])||0;const max=(o._max&&o._max[i]!=null)?o._max[i]:(it.qty||0);const sub='đã mua '+skN(it.qty)+' '+escHtml(it.unit||'')+' × '+fmt(it.price)+(done>0?(' · đã trả '+skN(done)+' · còn trả được '+skN(max)):'');return '<div class="sk-ret-row"><div class="sk-ret-name">'+escHtml(it.name)+'<span class="sk-sess-sub">'+sub+'</span></div><div class="sk-qbox"><button data-act="ret-qty" data-i="'+i+'" data-d="-1">−</button><button class="sk-qnum" data-act="ret-set" data-i="'+i+'">'+skN(o._ret[i]||0)+'</button><button data-act="ret-qty" data-i="'+i+'" data-d="1"'+(max<=0?' disabled style="opacity:.4"':'')+'>+</button></div></div>';}).join('')+'<div class="sk-sum-r grand" style="margin-top:10px"><span>Hoàn trả</span><span>'+fmt(refund)+'</span></div>';}
 function skRetQty(i,d){if(!skRetOrder)return;const max=(skRetOrder._max&&skRetOrder._max[i]!=null)?skRetOrder._max[i]:((skRetOrder.items[i]||{}).qty||0);let v=(skRetOrder._ret[i]||0)+d;if(v<0)v=0;if(v>max)v=max;skRetOrder._ret[i]=v;skRenderReturn();}
-async function skDoReturn(){const o=skRetOrder;if(!o)return;const lines=[];let refundRaw=0;(o.items||[]).forEach((it,i)=>{const q=o._ret[i]||0;if(q>0){const ratio=it.ratio||1;lines.push({id:it.id,name:it.name,qty:q,unit:it.unit,baseQty:q*ratio,price:it.price,cost:(it.cost||0)});refundRaw+=q*it.price;}});if(!lines.length){toast('Chọn số lượng trả');return;}
+async function skDoReturn(){ try{ if(window.caChoPhepBan && window.caChoPhepBan()===false) return; }catch(_){} /* [CA] trả hàng rút tiền khỏi quỹ ca ⇒ chỉ NGƯỜI TRỰC CA mới được làm */
+  const o=skRetOrder;if(!o)return;const lines=[];let refundRaw=0;(o.items||[]).forEach((it,i)=>{const q=o._ret[i]||0;if(q>0){const ratio=it.ratio||1;lines.push({id:it.id,name:it.name,qty:q,unit:it.unit,baseQty:q*ratio,price:it.price,cost:(it.cost||0)});refundRaw+=q*it.price;}});if(!lines.length){toast('Chọn số lượng trả');return;}
   const _st=Number(o.subtotal)||0,_f=_st>0?Math.max(0,Math.min(1,(Number(o.total)||0)/_st)):1;const refund=Math.round(refundRaw*_f);
   const batch=writeBatch(db);
-  batch.set(doc(bcol('returns')),{orderId:o.id,items:lines,refund:refund,method:o.method,customerId:o.customerId||null,customerName:o.customerName||null,at:serverTimestamp()});
+  var _caR=null; try{_caR=window.caCaCuaToi&&window.caCaCuaToi();}catch(_){_caR=null;}
+  var _nvR=''; try{_nvR=(typeof skStaff!=='undefined'&&skStaff)?(skStaff.name||''):'Chủ shop';}catch(_){}
+  batch.set(doc(bcol('returns')),{orderId:o.id,items:lines,refund:refund,method:o.method,customerId:o.customerId||null,customerName:o.customerName||null,shiftId:(_caR?_caR.id:''),staffName:(_nvR||null),at:serverTimestamp()});
   lines.forEach(l=>{batch.update(bdoc('products',l.id),{stock:increment(l.baseQty)});batch.set(doc(bcol('stock_moves')),{productId:l.id,productName:l.name,delta:+l.baseQty,reason:'return',orderId:o.id,at:serverTimestamp()});}); // trả hàng -> cộng lại tồn (increment dương)
   if(o.method==='debt'&&o.customerId){
     const custRef=doc(db,'users',UID,'customers',o.customerId);
@@ -3771,7 +3774,12 @@ async function skFinalize(method,extra){
   const orderRef=doc(bcol('orders'));
   const hdToken=skRandTok(22); // mã link hóa đơn online (bền theo đơn)
   const batch=writeBatch(db);
-  batch.set(orderRef,{items:items,subtotal:sub,discount:disc,total:total,method:method,staffName:(typeof skStaff!=='undefined'&&skStaff?skStaff.name:null),paid:extra.paid||null,change:(extra.change!=null?extra.change:null),note:skOrderNote||'',customerId:(customer&&customer.id)||(isNew?custRef.id:null),customerName:(customer&&customer.name)||null,hdToken:hdToken,createdAt:serverTimestamp(),createdAtMs:Date.now()});
+  /* [v8] gắn ĐÚNG MÃ CA vào đơn: mỗi người một ca, tiền ca nào về ca đó, không đếm trùng.
+     Chủ bán khi chưa mở ca ⇒ shiftId rỗng, KHÔNG rơi vào ca của nhân viên nào. */
+  var _caMe=null; try{_caMe=window.caCaCuaToi&&window.caCaCuaToi();}catch(_){_caMe=null;}
+  var _nvTen='',_nvId='';
+  try{ if(typeof skStaff!=='undefined'&&skStaff){_nvTen=skStaff.name||'';_nvId=skStaff.id||'';} else {_nvTen='Chủ shop';} }catch(_){}
+  batch.set(orderRef,{items:items,subtotal:sub,discount:disc,total:total,method:method,staffName:(_nvTen||null),staffId:_nvId,shiftId:(_caMe?_caMe.id:''),paid:extra.paid||null,change:(extra.change!=null?extra.change:null),note:skOrderNote||'',customerId:(customer&&customer.id)||(isNew?custRef.id:null),customerName:(customer&&customer.name)||null,hdToken:hdToken,createdAt:serverTimestamp(),createdAtMs:Date.now()});
   pids.forEach(id=>{batch.update(bdoc('products',id),{stock:increment(-need[id])});batch.set(doc(bcol('stock_moves')),{productId:id,productName:(skProducts.find(x=>x.id===id)||{}).name||'',delta:-need[id],reason:'sale',orderId:orderRef.id,at:serverTimestamp()});}); // bán -> trừ tồn (increment âm) offline-safe
   if(custRef){const noteStr=items.map(i=>i.name+' '+skN(i.qty)+i.unit).join(', ');if(isNew)batch.set(custRef,{name:customer.name,phone:'',address:'',debt:total,createdAt:serverTimestamp()});else batch.update(custRef,{debt:increment(total)});const txRef=doc(collection(db,'users',UID,'customers',custRef.id,'transactions'));batch.set(txRef,{type:'mua',amount:total,note:noteStr,memo:'',orderId:orderRef.id,date:new Date(),createdAt:serverTimestamp(),createdAtMs:Date.now()});}
   const _bakCart=skCart.slice(),_bakDisc=skDiscount,_bakNote=skOrderNote; // giữ bản sao: máy chủ TỪ CHỐI ghi thì trả lại giỏ (offline vẫn xếp hàng bình thường)
@@ -4553,11 +4561,11 @@ function skRenderBranches(){const box=skq('#sk-branch-list');if(!box)return;box.
   var k=skNganhBr(b.id);
   var tn=(k===null)?'<span style="color:#c0392b">chưa đặt ngành — bấm ✎</span>':escHtml(skNganhTen(k));
   return '<div class="sk-row"><div class="sk-row-main" data-act="branch-switch" data-id="'+b.id+'">'
-    +'<div class="sk-row-name">'+(b.id===skBranch?'✓ ':'')+((skStaff&&!skStfCoBr(skStaff,b.id))?'🔒 ':'')+skNganhIconBr(b.id)+' '+escHtml(b.name)+'</div>'
+    +'<div class="sk-row-name">'+(b.id===skBranch?'✓ ':'')+((skStaff&&!skStfCoBr(skStaff,b.id)&&!skBrMoKhoaCa(b.id))?'🔒 ':'')+skNganhIconBr(b.id)+' '+escHtml(b.name)+'</div>'
     +'<div class="sk-row-sub">'+tn+' · '+(b.id===skBranch?'<b>Đang mở</b>':'Chạm để mở')+'</div>'
     +'</div><button class="sk-btn ghost sk-owner" data-act="branch-edit" data-id="'+b.id+'">✎</button></div>';
 }).join('');}
-function skSwitchBranch(id){if(skStaff&&!skStfCoBr(skStaff,id)){toast('🔒 Bạn chỉ được bán ở: '+skStfBrTen(skStaff));skCloseModal('#sk-branch');return;}if(!skBranchAllowed(id)){skCloseModal('#sk-branch');skCnUpsell(true);return;}if(id===skBranch){skCloseModal('#sk-branch');return;}
+function skSwitchBranch(id){if(skStaff&&!skStfCoBr(skStaff,id)&&!skBrMoKhoaCa(id)){toast('🔒 Bạn chỉ được bán ở: '+skStfBrTen(skStaff));skCloseModal('#sk-branch');return;}if(!skBranchAllowed(id)){skCloseModal('#sk-branch');skCnUpsell(true);return;}if(id===skBranch){skCloseModal('#sk-branch');return;}
   /* Khác NGÀNH thì phải tải lại trang: module ngành chỉ gắn tab được lúc khởi động, không gỡ ra được */
   var _a=skNganhBr(skBranch), _b=skNganhBr(id);
   if(_a!==null&&_b!==null&&_a!==_b){
@@ -4901,19 +4909,67 @@ function skGatePick(id){
   _skPin='';skq('#sk-gate-who').textContent=_skGateStaff.name;skq('#sk-gate-list').style.display='none';skq('#sk-gate-pin').style.display='';skRenderPin();}
 function skPinKey(k){if(k==='del')_skPin=_skPin.slice(0,-1);else if(k==='back'){skq('#sk-gate-pin').style.display='none';skq('#sk-gate-list').style.display='';return;}else if(k==='ok'){skVerifyPin();return;}else if(_skPin.length<6)_skPin+=k;skRenderPin();const pin=String((_skGateStaff&&_skGateStaff.pin)||'');if(pin&&_skPin.length===pin.length)setTimeout(skVerifyPin,120);}
 function skRenderPin(){let d='';for(let i=0;i<6;i++)d+='<span class="'+(i<_skPin.length?'on':'')+'"></span>';skq('#sk-gate-dots').innerHTML=d;}
-function skVerifyPin(){if(!_skGateStaff)return;if(String(_skPin)===String(_skGateStaff.pin||'')){skStaff=_skGateStaff;skRole=_skGateStaff.role||'cashier';
-  /* [v7] NV được phân NHIỀU cửa hàng: đang đứng ở 1 trong số đó thì GIỮ NGUYÊN,
-     không ép nhảy về cửa hàng đầu ⇒ mở ca / chốt ca ở chi nhánh nào cũng vào thẳng. */
+/* [v7.2] Chi nhánh được MỞ KHOÁ TẠM vì người này ĐANG ĐƯỢC TRỰC CA tại đó.
+   Chỉ đúng 1 người — đúng 1 chi nhánh — đúng ca đó. Hết ca / đổi người là hết. */
+var skCaBr='';
+function skBrMoKhoaCa(id){
+  if(!skCaBr||!id||id!==skCaBr)return false;
+  /* ca đã CHỐT ⇒ khoá lại ngay, không cho lởn vởn ở chi nhánh không được phân */
+  try{var s=window.caCaDangMo&&window.caCaDangMo();if(s&&s.branch===id&&!s.open)return false;}catch(_){}
+  return true;
+}
+/* Có CA ĐANG MỞ tại chi nhánh b, người trực đúng là NV này không?
+   Ưu tiên dữ liệu ca đã tải sẵn; chưa có thì đọc 1 phát từ máy chủ.
+   Lỗi / mất mạng ⇒ trả FALSE (giữ khoá y như cũ, không nới lỏng). */
+function skCaDungNguoi(b,nvId,nvTen,cb){
+  var da=false;
+  var xong=function(v){if(da)return;da=true;try{cb(!!v);}catch(_){}};
+  if(!b||(!nvId&&!nvTen)){xong(false);return;}
+  var khop=function(x){
+    if(!x)return false;
+    if(x.staffId)return !!(nvId&&x.staffId===nvId);
+    return !!(nvTen&&skKD(x.staffName||'')===skKD(nvTen));
+  };
+  try{var s=window.caCaDangMo&&window.caCaDangMo();
+    if(s&&s.branch===b){
+      var L=(s.list&&s.list.length)?s.list:[s], ok=false;
+      for(var i=0;i<L.length;i++){if(khop(L[i])){ok=true;break;}}
+      xong(s.open&&ok);return;}}catch(_){}
+  try{
+    setTimeout(function(){xong(false);},7000);      /* mạng treo ⇒ giữ khoá, không đứng hình */
+    getDocs(query(brCol(b,'shifts'),where('status','==','open'),limit(5))).then(function(r){
+      var ok=false;r.forEach(function(d){if(khop(d.data()||{}))ok=true;});xong(ok);
+    }).catch(function(){xong(false);});
+  }catch(_){xong(false);}
+}
+function skVaoCa(){skq('#sk-gate').classList.remove('on');skApplyRole();skGo('sell');try{toast('Xin chào '+(skStaff?skStaff.name:''));}catch(_){}}
+function skVerifyPin(){
+  if(!_skGateStaff)return;
+  if(String(_skPin)!==String(_skGateStaff.pin||'')){_skPin='';skRenderPin();toast('Sai mã PIN');return;}
+  skStaff=_skGateStaff;skRole=_skGateStaff.role||'cashier';skCaBr='';
+  /* [v7] NV được phân NHIỀU cửa hàng: đang đứng ở 1 trong số đó thì GIỮ NGUYÊN. */
   var _ds=skStfBrs(skStaff);
-  if(_ds.length&&_ds.indexOf(skBranch)<0){
-  var _to=skStfBr1(skStaff)||_ds[0];
-  var _a=skNganhBr(skBranch), _b=skNganhBr(_to);
-  /* NV bị khoá ở cửa hàng KHÁC NGÀNH ⇒ tải lại đúng ngành (chỉ 1 lần/máy, sau đó máy nhớ) */
-  if(_a!==null&&_b!==null&&_a!==_b){
-    skBrNho(_to);skq('#sk-gate').classList.remove('on');
-    toast('🔄 Mở đúng cửa hàng của bạn: '+skBranchName(_to)+'…');setTimeout(skTaiLai,800);return;
-  }
-  skBranch=_to;skBrNho(skBranch);if(typeof skBranchSubs==='function')skBranchSubs();if(typeof skRenderBranchSel==='function')skRenderBranchSel();}skq('#sk-gate').classList.remove('on');skApplyRole();skGo('sell');toast('Xin chào '+skStaff.name);}else{_skPin='';skRenderPin();toast('Sai mã PIN');}}
+  if(!_ds.length||_ds.indexOf(skBranch)>-1){skVaoCa();return;}
+  var _br=skBranch, _doi=true;
+  /* [v7.2] Chưa được phân cửa hàng này — NHƯNG chủ đã MỞ CA tại đây ĐÚNG TÊN người này
+     ⇒ cho bán NGAY TẠI ĐÂY. Chính ca đó là giấy phép, chỉ mình họ bán được. */
+  skCaDungNguoi(_br,skStaff.id,skStaff.name,function(duoc){
+    _doi=false;
+    if(!skStaff||skStaff.id!==_skGateStaff.id)return;       /* đã đổi người giữa chừng */
+    if(duoc){skCaBr=_br;try{skRenderBranchSel();}catch(_){}skVaoCa();
+      try{toast('🔑 Bạn đang được trực ca tại '+skBranchName(_br));}catch(_){}return;}
+    var _to=skStfBr1(skStaff)||_ds[0];
+    var _a=skNganhBr(_br), _b=skNganhBr(_to);
+    /* NV bị khoá ở cửa hàng KHÁC NGÀNH ⇒ tải lại đúng ngành (chỉ 1 lần/máy, sau đó máy nhớ) */
+    if(_a!==null&&_b!==null&&_a!==_b){
+      skBrNho(_to);skq('#sk-gate').classList.remove('on');
+      toast('🔄 Mở đúng cửa hàng của bạn: '+skBranchName(_to)+'…');setTimeout(skTaiLai,800);return;
+    }
+    skBranch=_to;skBrNho(skBranch);if(typeof skBranchSubs==='function')skBranchSubs();if(typeof skRenderBranchSel==='function')skRenderBranchSel();
+    skVaoCa();
+  });
+  if(_doi){try{toast('⏳ Đang kiểm tra ca tại '+skBranchName(_br)+'…');}catch(_){}}
+}
 function skRegate(){if(skStaffList&&skStaffList.length)skStaffGate();}
 function skPinForgotShow(){
   /* Lối này mở THẲNG vào quyền Chủ ⇒ máy nhân viên không được dùng. */
@@ -6481,8 +6537,8 @@ try { window.__skBusy = function(){
   var CA_ON = true;                     /* false = tắt hẳn module này */
   if(!CA_ON) return;
 
-  var VIEW='main', SHIFTS=[], LOGS=[], UNS=null, UNL=null, SUBBR=null,
-      DETID=null, BUSY=false, WIN=null, BOUND=false, LOGVIEW=null;
+  var VIEW='main', SHIFTS=[], LOGS=[], UNS=null, UNL=null, SUBBR=null, RDY=false,
+      DETID=null, BUSY=false, WIN=null, BOUND=false, LOGVIEW=null, CAID=null;
   /* [KHO CA] trạng thái màn Đối chiếu kho */
   var KHOV=null, KHOMAP={}, CNT={}, KHOQ='', KHOF='all', KHOLIM=400, KHOFOCUS=false, KHOT=null;
 
@@ -6528,7 +6584,14 @@ try { window.__skBusy = function(){
     return P2(d.getHours())+':'+P2(d.getMinutes())+' '+P2(d.getDate())+'/'+P2(d.getMonth()+1);}catch(_){return '—';}}
   function DAY(ms){try{var d=new Date(Number(ms)||0);
     return P2(d.getDate())+'/'+P2(d.getMonth()+1)+'/'+d.getFullYear();}catch(_){return '—';}}
-  function OPEN(){for(var i=0;i<SHIFTS.length;i++)if(SHIFTS[i].status==='open')return SHIFTS[i];return null;}
+  /* ═══ [v8] MỖI NGƯỜI MỘT CA — một chi nhánh mở được NHIỀU ca cùng lúc ═══
+     OPENS()  = tất cả ca đang mở tại chi nhánh này
+     OPENME() = ca đang mở CỦA CHÍNH NGƯỜI ĐANG ĐĂNG NHẬP
+     CUR()    = ca đang thao tác (chủ bấm vào ca của nhân viên để chốt hộ thì là ca đó) */
+  function OPENS(){var o=[];for(var i=0;i<SHIFTS.length;i++)if(SHIFTS[i].status==='open')o.push(SHIFTS[i]);return o;}
+  function OPEN(){var L=OPENS();return L.length?L[0]:null;}
+  function OPENME(){var L=OPENS();for(var i=0;i<L.length;i++)if(LADUNGNGUOI(L[i]))return L[i];return null;}
+  function CUR(){if(CAID){var s=SH(CAID);if(s&&s.status==='open')return s;CAID=null;}return OPENME();}
   function SH(id){for(var i=0;i<SHIFTS.length;i++)if(SHIFTS[i].id===id)return SHIFTS[i];return null;}
   function val(sel){var e=(typeof sel==='string')?q(sel):sel;if(!e)return 0;
     var v=parseInt(String(e.value||'').replace(/[^\d]/g,''),10);return isNaN(v)?0:v;}
@@ -6543,11 +6606,11 @@ try { window.__skBusy = function(){
     var b=BR();
     try{ if(!UID) return; }catch(_){ return; }
     if(b===SUBBR&&UNS)return;
-    SUBBR=b;SHIFTS=[];LOGS=[];
+    SUBBR=b;SHIFTS=[];LOGS=[];RDY=false;CAID=null;
     try{if(UNS){UNS();UNS=null;}}catch(_){}
     try{if(UNL){UNL();UNL=null;}}catch(_){}
     try{UNS=onSnapshot(query(brCol(b,'shifts'),orderBy('openAtMs','desc'),limit(80)),function(s){
-      SHIFTS=s.docs.map(function(d){return Object.assign({id:d.id},d.data());});paintBtn();repaint();
+      SHIFTS=s.docs.map(function(d){return Object.assign({id:d.id},d.data());});RDY=true;paintBtn();repaint();
     },function(){});}catch(_){}
     try{UNL=onSnapshot(query(brCol(b,'cashlog'),orderBy('atMs','desc'),limit(400)),function(s){
       LOGS=s.docs.map(function(d){return Object.assign({id:d.id},d.data());});repaint();
@@ -6555,17 +6618,30 @@ try { window.__skBusy = function(){
   }
 
   /* ---------- tính tiền của một ca ---------- */
+  /* [v8] Đơn / phiếu trả thuộc ca nào?
+     • Bản mới: đơn có gắn sẵn mã ca (shiftId) ⇒ khớp CHÍNH XÁC mã ca, nhiều ca song song
+       không bao giờ đếm trùng, và đơn Chủ bán ngoài ca (shiftId rỗng) không rơi vào ca ai.
+     • Đơn CŨ (chưa có trường shiftId) ⇒ tính theo KHUNG GIỜ y như trước, số liệu cũ không đổi. */
+  function thuocCa(x,sh,ms){
+    /* Ca mở bằng bản MỚI (caV>=2): CHỈ nhận đơn có ĐÚNG mã ca của nó.
+       Đơn không mang mã ca (Chủ bán ngoài ca, hoặc máy còn chạy bản cũ) rơi ra NGOÀI mọi ca
+       ⇒ không ai bị tính oan, và chốt ca sẽ hiện THỪA để chủ thấy ngay. */
+    if(Number(sh&&sh.caV)>=2)return !!(x&&x.shiftId===sh.id);
+    /* Ca CŨ (trước bản này): tính theo KHUNG GIỜ y hệt trước — số liệu lịch sử không đổi. */
+    var f=Number(sh.openAtMs)||0, t=sh.closeAtMs?Number(sh.closeAtMs):Date.now();
+    return ms>=f&&ms<=t;
+  }
   function calc(sh,orders,rets,logs){
     var f=Number(sh.openAtMs)||0, t=sh.closeAtMs?Number(sh.closeAtMs):Date.now();
     var cash=0,qr=0,debt=0,n=0,disc=0;
     (orders||[]).forEach(function(o){
-      var ms=ordMs(o); if(ms<f||ms>t)return;
+      var ms=ordMs(o); if(!thuocCa(o,sh,ms))return;
       var g=R(o.total); n++; disc+=R(o.discount);
       if(o.method==='cash')cash+=g; else if(o.method==='qr')qr+=g; else if(o.method==='debt')debt+=g;
     });
     var refundCash=0;
     (rets||[]).forEach(function(r){
-      var ms=anyMs(r&&r.at); if(ms<f||ms>t)return;
+      var ms=anyMs(r&&r.at); if(!thuocCa(r,sh,ms))return;
       if(r.method==='cash')refundCash+=R(r.refund);
     });
     var pay=0,payCk=0,exp=0,pin=0,pout=0,nPay=0,nExp=0;
@@ -6611,7 +6687,7 @@ try { window.__skBusy = function(){
 
   /* ---------- ghi sổ quỹ ---------- */
   function addLog(type,amount,note,extra){
-    var sh=OPEN(); if(!sh){say('⚠️ Chưa mở ca — hãy mở ca trước');return false;}
+    var sh=CUR(); if(!sh){say('⚠️ Chưa có ca nào đang mở của bạn — hãy mở ca trước');return false;}
     var m=ME(), b=BR(), t=Date.now();
     var d=Object.assign({type:type,amount:R(amount),note:note||'',who:m.name,whoId:m.id,
       shiftId:sh.id,branch:b,cash:true,atMs:t,at:serverTimestamp()},extra||{});
@@ -6631,23 +6707,40 @@ try { window.__skBusy = function(){
      ⇒ danh sách ca vẫn nhẹ như cũ, và KHÔNG phải sửa Firestore Rules.
      ═══════════════════════════════════════════════════════════════════════ */
 
-  var CA_BUOC_MO_CA = false;   /* true = CHƯA MỞ CA thì cấm bán luôn (mặc định tắt) */
+  /* [v8] Luật bán: CHỦ SHOP bán được mọi lúc · NHÂN VIÊN chỉ bán được khi có CA CỦA MÌNH đang mở. */
 
   function NUM(n){try{return skN(n);}catch(_){return String(Number(n)||0);}}
   function KD(x){try{return skKD(x);}catch(_){return String(x||'').toLowerCase();}}
   function ROLEVN(r){try{return skRoleLabel(r);}catch(_){return '';}}
 
   /* danh sách nhân viên dùng được ở chi nhánh hiện tại */
+  /* [v7.1] MỞ CA — liệt kê người trực ca theo NGÀNH của cửa hàng đang mở.
+     Đang mở ca ở ngành nào thì hiện ĐỦ nhân viên đã phân quyền cho ngành đó
+     (kể cả người được phân ở chi nhánh KHÁC nhưng CÙNG NGÀNH), rồi chủ tự chọn
+     đúng người đang bán tại chi nhánh này.
+     • NV phân "mọi cửa hàng"          ⇒ luôn có mặt (như cũ).
+     • NV phân đúng chi nhánh này      ⇒ có mặt (như cũ).
+     • NV phân chi nhánh khác cùng ngành ⇒ CÓ MẶT, kèm tên cửa hàng để khỏi chọn nhầm.
+     • Cửa hàng CHƯA đặt ngành (null)  ⇒ giữ nguyên nếp cũ: chỉ NV của đúng chi nhánh. */
   function NVDS(){
-    var b=BR(), out=[];
+    var b=BR(), k=null, out=[];
+    try{ k=skNganhBr(b); }catch(_){ k=null; }
     try{(skStaffList||[]).forEach(function(x){
       if(!x||!x.id)return;
-      /* [v7] NV được phân NHIỀU cửa hàng ⇒ hiện ra ở TẤT CẢ cửa hàng đã phân cho họ */
-      var ok=true;
-      try{ ok=(typeof skStfCoBr==='function')?skStfCoBr(x,b):(!x.branch||x.branch===b); }
-      catch(_){ ok=(!x.branch||x.branch===b); }
+      var L=[];
+      try{ L=(typeof skStfBrs==='function')?skStfBrs(x):(x.branch?[x.branch]:[]); }
+      catch(_){ L=(x.branch?[x.branch]:[]); }
+      var ok=(!L.length)||(L.indexOf(b)>-1), noi='';
+      if(!ok&&k!==null){
+        var ten=[];
+        for(var i=0;i<L.length;i++){
+          var kk=null; try{ kk=skNganhBr(L[i]); }catch(_){ kk=null; }
+          if(kk!==null&&kk===k){ ok=true; try{ ten.push(skBranchName(L[i])); }catch(_){} }
+        }
+        if(ok) noi=ten.join(', ');
+      }
       if(!ok)return;
-      out.push({id:x.id,name:x.name||'(chưa đặt tên)',role:x.role||'cashier'});
+      out.push({id:x.id,name:x.name||'(chưa đặt tên)',role:x.role||'cashier',noi:noi});
     });}catch(_){}
     return out;
   }
@@ -6676,10 +6769,12 @@ try { window.__skBusy = function(){
     var h='<label class="sk-fld">Người trực ca <b style="color:#c0392b">*</b>'
       +'<select id="ca-who" class="sk-inp"><option value="">— Bấm để chọn —</option>';
     ds.forEach(function(x){
-      h+='<option value="'+esc(x.id)+'"'+((me.id&&x.id===me.id)?' selected':'')+'>'+esc(x.name)+' · '+esc(ROLEVN(x.role))+'</option>';
+      h+='<option value="'+esc(x.id)+'"'+((me.id&&x.id===me.id)?' selected':'')+'>'+esc(x.name)+' · '+esc(ROLEVN(x.role))+(x.noi?' · 🏪 '+esc(x.noi):'')+'</option>';
     });
+    var _kn=false;for(var _i=0;_i<ds.length;_i++){if(ds[_i].noi){_kn=true;break;}}
     return h+'</select></label>'
-      +'<div class="ca-note">👤 <b>Chỉ người được chọn</b> mới bán được trong ca này. Người khác bấm thanh toán sẽ bị chặn.</div>';
+      +'<div class="ca-note">👤 <b>Chỉ người được chọn</b> mới bán được trong ca này. Người khác bấm thanh toán sẽ bị chặn.</div>'
+      +(_kn?'<div class="ca-note">🏪 Tên có kèm <b>cửa hàng</b> phía sau là người được phân ở chi nhánh khác <b>cùng ngành</b>. Chọn xong thì <b>chính ca này là giấy phép</b>: họ nhập PIN là bán được ngay tại chi nhánh này, <b>chốt ca là hết</b>.</div>':'');
   }
   /* ĐÚNG NGƯỜI TRỰC CA?  — dùng chung cho cảnh báo màn hình và khoá thanh toán */
   function LADUNGNGUOI(sh){
@@ -6693,9 +6788,11 @@ try { window.__skBusy = function(){
     if(!sh||!COKHOA())return '';
     if(!sh.staffId&&!sh.staffName)return '';
     if(LADUNGNGUOI(sh))return '';
-    return '<div class="ca-note ca-bad">🔒 Bạn <b>không phải</b> người trực ca này ('+esc(sh.staffName||'')+') nên <b>không bán được</b>.'
-      +(ISOWNER()?' Kể cả quyền <b>Chủ</b> cũng KHÔNG bán được — bấm <b>👤 Đổi người</b> vào đúng tên, hoặc <b>CHỐT CA</b> rồi mở ca mới.'
-                 :' Hãy báo chủ chốt ca rồi mở ca mới.')+'</div>';
+    if(ISOWNER())
+      return '<div class="ca-note ca-warn">👀 Bạn đang xem ca của <b>'+esc(sh.staffName||'')+'</b> bằng quyền <b>Chủ</b>. '
+        +'Đơn bạn tự bán <b>KHÔNG</b> tính vào ca này — muốn tính thì mở một ca riêng cho mình.</div>';
+    return '<div class="ca-note ca-bad">🔒 Đây <b>không phải ca của bạn</b> ('+esc(sh.staffName||'')+') nên bạn <b>không bán được</b>. '
+      +'Hãy báo chủ mở <b>ca riêng</b> cho bạn.</div>';
   }
 
   /* ---------- ẢNH KHO ---------- */
@@ -6744,20 +6841,34 @@ try { window.__skBusy = function(){
     });
   }
 
+  /* [v7.2] Công bố ca ĐANG MỞ của chi nhánh đang theo dõi — để cổng PIN biết
+     người vừa nhập PIN có đúng là người được mở ca tại đây không.
+     Trả null = CHƯA tải xong (bên gọi phải tự đọc máy chủ, không được đoán bừa). */
+  window.caCaDangMo=function(){
+    try{
+      if(!RDY||!SUBBR)return null;
+      var L=OPENS();
+      return {branch:SUBBR,open:L.length>0,
+        list:L.map(function(s){return {staffId:s.staffId||'',staffName:s.staffName||''};}),
+        staffId:(L[0]&&L[0].staffId)||'',staffName:(L[0]&&L[0].staffName)||''};
+    }catch(_){return null;}
+  };
+  /* [v8] Ca CỦA TÔI đang mở — để mỗi đơn bán ra gắn đúng mã ca (không đếm trùng giữa các ca). */
+  window.caCaCuaToi=function(){
+    try{var s=CUR();return s?{id:s.id,staffId:s.staffId||'',staffName:s.staffName||''}:null;}catch(_){return null;}
+  };
+
   /* ---------- KHOÁ QUYỀN BÁN: chỉ người trực ca mới được bán ----------
      Lỗi bất ngờ ⇒ TRẢ VỀ true (không chặn) — tuyệt đối không để shop chết máy. */
   window.caChoPhepBan=function(){
     try{
-      if(!COKHOA())return true;
-      var sh=OPEN();
-      if(!sh){
-        if(CA_BUOC_MO_CA){say('🔒 Chưa mở ca — hãy mở ca trước khi bán');return false;}
-        return true;
-      }
-      if(LADUNGNGUOI(sh))return true;
-      var ten=sh.staffName||'người trực ca';
-      say('🔒 Ca này do "'+ten+'" trực — CHỈ MÌNH "'+ten+'" được bán. '
-        +'Bấm 👤 Đổi người để vào đúng tên, hoặc CHỐT CA rồi mở ca mới.');
+      if(!COKHOA())return true;            /* chưa lập DS nhân viên / tắt hỏi PIN ⇒ giữ nếp cũ */
+      if(ISOWNER())return true;            /* [v8] CHỦ SHOP luôn bán được, có ca hay chưa */
+      if(OPENME())return true;             /* [v8] Nhân viên: phải CÓ CA CỦA MÌNH đang mở */
+      if(!OPENS().length)
+        say('🔒 Chưa mở ca — nhân viên chưa có ca thì KHÔNG bán được. Hãy báo CHỦ SHOP mở ca cho bạn.');
+      else
+        say('🔒 Ca đang mở không phải của bạn. Mỗi người một ca riêng — báo chủ mở ca cho bạn rồi mới bán được.');
       return false;
     }catch(_){return true;}
   };
@@ -6888,8 +6999,9 @@ try { window.__skBusy = function(){
 
   function paintBtn(){
     var b=document.getElementById('sk-ca-btn');if(!b)return;
-    var s=OPEN();
-    if(s){b.classList.add('on');b.textContent='💰 Ca đang mở · '+esc(s.staffName||'');}
+    var s=OPENME(), L=OPENS();
+    if(s){b.classList.add('on');b.textContent='💰 Ca của '+(s.staffName||'bạn');}
+    else if(L.length){b.classList.add('on');b.textContent='💰 '+L.length+' ca đang mở';}
     else{b.classList.remove('on');b.textContent='💰 Quỹ / Chốt ca';}
   }
   function isOn(){var m=document.getElementById('sk-ca');return !!(m&&m.classList.contains('on'));}
@@ -6907,7 +7019,7 @@ try { window.__skBusy = function(){
     else if(VIEW==='cash')h=vCash();
     else if(VIEW==='audit')h=vAudit();
     else if(VIEW==='kho')h=vKho();
-    else h=OPEN()?vRun():vIdle();
+    else h=CUR()?vRun():vIdle();
     box.innerHTML=h;
     if(VIEW==='close')setTimeout(function(){var e=q('#ca-counted');if(e)e.focus();},80);
     if(VIEW==='kho'){
@@ -6927,13 +7039,38 @@ try { window.__skBusy = function(){
       +'<button type="button" data-act="ca-chip" data-t="'+id+'" data-v="0">Xóa</button></div>';
   }
 
+  /* [v8] Danh sách CA ĐANG MỞ tại chi nhánh — mỗi người một ca, chủ bấm vào để xem / chốt hộ */
+  function dsCaMo(){
+    var L=OPENS();
+    if(!L.length)return '<div class="ca-sub">Chưa có ca nào đang mở tại cửa hàng này.</div>';
+    var h='<div class="ca-box"><div class="ca-bt">Đang có '+L.length+' ca mở tại cửa hàng này</div>';
+    L.forEach(function(x){
+      h+='<div class="ca-srow">'
+        +'<div class="ca-sh"><div class="ca-sn">👤 '+esc(x.staffName||'—')+'</div>'
+          +(CAN()?'<b>'+money(R(x.openFloat))+'</b>':'')+'</div>'
+        +'<div style="font-size:11.5px;color:#8a9993;margin-top:2px">mở lúc '+TM(x.openAtMs)
+          +(x.songSong?' · ca song song':'')+'</div>'
+        +(CAN()?'<button class="sk-btn ghost wide" data-act="ca-detail" data-id="'+x.id+'" style="margin-top:7px">▶️ Mở ca này ra — xem tiền / CHỐT CA</button>':'')
+        +'</div>';
+    });
+    return h+'</div>';
+  }
+  /* [v8] Nhắc rõ luật bán */
+  function luatBan(){
+    return '<div class="ca-note">🧭 <b>Luật bán:</b> mỗi người <b>một ca riêng</b> — ai bán thì tiền vào ca người đó.'
+      +'<br>• <b>Chủ shop</b>: bán được mọi lúc, chưa mở ca cũng bán được.'
+      +'<br>• <b>Nhân viên</b>: <b>chưa có ca của mình thì KHÔNG bán được</b>.'
+      +'<br>• Muốn tiền của chủ cũng vào ca: <b>mở một ca cho chính chủ</b> rồi bấm 👤 <b>Đổi người</b> vào đúng tên mình.'
+      +'<br>• Đơn bán lúc chưa có ca vẫn ghi rõ <b>người bán</b>, nhưng nằm <b>ngoài mọi ca</b>.</div>';
+  }
+
   /* — chưa mở ca — */
   function vIdle(){
     var last=null;for(var i=0;i<SHIFTS.length;i++){if(SHIFTS[i].status==='closed'){last=SHIFTS[i];break;}}
     var sug=last?R(last.openFloat):0;
     return head('💰 Quỹ ca — '+esc(BRN()))
       +'<div class="ca-note" style="background:#eef7f3;border-color:#bfe3d5;color:#0a5f4a">'+NGIC()+' Đang mở ca cho: <b>'+esc(BRN())+'</b><br>Ngành: <b>'+esc(NGTEN())+'</b> · tiền và kho của ca này <b>chỉ tính cho cửa hàng này</b>.</div>'
-      +'<div class="ca-sub">Chưa có ca nào đang mở tại cửa hàng này.</div>'
+      +dsCaMo()+luatBan()
       +(CANSHIFT()
         ?('<div class="ca-note">🧾 <b>Đầu buổi:</b> chủ giao cho nhân viên bao nhiêu <b>tiền thối</b> thì nhập đúng số đó vào ô dưới rồi bấm <b>Mở ca</b>. Cuối buổi bấm <b>Chốt ca</b>, app sẽ tự tính số tiền mặt phải nộp lại.</div>'
           +pickNV()
@@ -6949,14 +7086,17 @@ try { window.__skBusy = function(){
 
   /* — đang mở ca — */
   function vRun(){
-    var sh=OPEN();if(!sh)return vIdle();
+    var sh=CUR();if(!sh)return vIdle();
     var c=calc(sh,skOrdersSafe(),skReturnsSafe(),null);
     var h=head('💰 Ca đang mở — '+esc(BRN()))
+     +((CAID&&!LADUNGNGUOI(sh))?'<button class="sk-btn ghost wide" data-act="ca-roi" style="margin-bottom:10px">‹ Quay lại danh sách ca đang mở</button>':'')
      +'<div class="ca-sub">👤 Người trực ca: <b>'+esc(sh.staffName||'')+'</b> · mở lúc <b>'+TM(sh.openAtMs)+'</b>'
        +(sh.note?' · '+esc(sh.note):'')+'</div>'
      +canhBaoNguoiBan(sh)
      +(sh.khoMo?'<div class="ca-note">📦 Ảnh kho đầu ca đã chụp: <b>'+NUM(sh.khoMoN)+'</b> mặt hàng · <b>'+NUM(sh.khoMoQty)+'</b> đơn vị · vốn <b>'+money(sh.khoMoVon)+'</b>.</div>'
-        :'<div class="ca-note ca-warn">⚠️ Ca này mở bằng bản cũ nên <b>chưa có ảnh kho đầu ca</b>. Ca sau app sẽ tự chụp.</div>')
+        :(sh.songSong
+           ?'<div class="ca-note">📦 Đây là <b>ca song song</b> (mở khi đã có ca khác). Kho dùng chung nên app <b>không chụp ảnh kho riêng</b> — tiền của ca vẫn tính riêng đầy đủ.</div>'
+           :'<div class="ca-note ca-warn">⚠️ Ca này mở bằng bản cũ nên <b>chưa có ảnh kho đầu ca</b>. Ca sau app sẽ tự chụp.</div>'))
      +'<div class="ca-box">'
        +'<div class="ca-bt">Tiền vào két</div>'
        +row('Quỹ đầu ca (tiền thối)',c.open)
@@ -7019,7 +7159,7 @@ try { window.__skBusy = function(){
 
   /* — chốt ca — */
   function vClose(){
-    var sh=OPEN();if(!sh)return vIdle();
+    var sh=CUR();if(!sh)return vIdle();
     if(!WIN)return head('🔒 Chốt ca',1)+'<div class="ca-empty">⏳ Đang tải lại toàn bộ đơn hàng của ca…</div>';
     var c=WIN.c;
     return head('🔒 Chốt ca — '+esc(sh.staffName||''),1)
@@ -7088,7 +7228,7 @@ try { window.__skBusy = function(){
 
   /* — sổ quỹ chi tiết của ca đang mở — */
   function vLogs(){
-    var sh=OPEN();if(!sh)return vIdle();
+    var sh=CUR();if(!sh)return vIdle();
     var L=(LOGS||[]).filter(function(l){return l.shiftId===sh.id;})
                     .sort(function(a,b){return (b.atMs||0)-(a.atMs||0);});
     var h=head('📜 Thu / chi trong ca',1)+'<div class="ca-sub">'+L.length+' khoản · ca của '+esc(sh.staffName||'')+'</div>';
@@ -7176,6 +7316,8 @@ try { window.__skBusy = function(){
 
   /* ═══════ MÀN ĐỐI CHIẾU KHO ═══════ */
   function khoDong(){
+    if(OPENS().length)
+      return '<div class="ca-note ca-warn">📦 Đang có ca khác mở ⇒ ca này là <b>ca song song</b>. Kho dùng chung nên app <b>không chụp ảnh kho riêng</b> cho ca này; tiền của ca vẫn tính riêng đầy đủ.</div>';
     var t=khoTong(khoSnap());
     return '<div class="ca-note">📦 Bấm <b>Mở ca</b> là app <b>chụp ngay ảnh kho</b> làm bằng chứng: <b>'+NUM(t.n)+'</b> mặt hàng · '
       +'<b>'+NUM(t.q)+'</b> đơn vị · vốn <b>'+money(t.v)+'</b>.<br>Cuối ca, chủ shop mở <b>📦 Đối chiếu kho</b> đếm lại để soát hàng bán khống.</div>';
@@ -7366,8 +7508,8 @@ try { window.__skBusy = function(){
     var el=e.target.closest?e.target.closest('[data-act]'):null;if(!el)return;
     var a=el.dataset.act||'';if(a.indexOf('ca-')!==0)return;
     var id=el.dataset.id||'';
-    if(a==='ca-open'){ui();sub();VIEW='main';render();try{skModalOpen('#sk-ca');}catch(_){}return;}
-    if(a==='ca-x'){try{skCloseModal('#sk-ca');}catch(_){}VIEW='main';return;}
+    if(a==='ca-open'){ui();sub();CAID=null;WIN=null;VIEW='main';render();try{skModalOpen('#sk-ca');}catch(_){}return;}
+    if(a==='ca-x'){try{skCloseModal('#sk-ca');}catch(_){}CAID=null;VIEW='main';return;}
     if(a==='ca-back'){var _bk='main';
       if(VIEW==='detail'||VIEW==='audit')_bk='hist';
       else if(VIEW==='kho'){var _s=SH(DETID);_bk=(_s&&_s.status==='closed')?'detail':'main';}
@@ -7380,7 +7522,10 @@ try { window.__skBusy = function(){
     if(a==='ca-do-cash'){doCash(el.dataset.t||'expense');return;}
     if(a==='ca-logs'){VIEW='logs';render();return;}
     if(a==='ca-hist'){VIEW='hist';render();return;}
-    if(a==='ca-detail'){DETID=id;var s=SH(id);VIEW=(s&&s.status==='open')?'main':'detail';render();return;}
+    if(a==='ca-detail'){DETID=id;var s=SH(id);
+      if(s&&s.status==='open'){CAID=id;VIEW='main';}else{CAID=null;VIEW='detail';}
+      WIN=null;render();return;}
+    if(a==='ca-roi'){CAID=null;WIN=null;VIEW='main';render();return;}
     if(a==='ca-close'){goClose();return;}
     if(a==='ca-do-close'){doClose();return;}
     if(a==='ca-toggle'){toggleCash(id);return;}
@@ -7399,7 +7544,6 @@ try { window.__skBusy = function(){
   function doOpen(){
     if(BUSY)return;
     if(!CANSHIFT()){say('🔒 Bạn không có quyền mở ca — chủ shop sẽ mở');return;}
-    if(OPEN()){say('Đang có ca mở');VIEW='main';render();return;}
     var m=ME(), ds=NVDS(), nvId='', nm='';
     if(ds.length){                                   /* đã có DS nhân viên → BẮT BUỘC chọn trong danh sách */
       nvId=txt('#ca-who');
@@ -7411,20 +7555,30 @@ try { window.__skBusy = function(){
     }else{                                           /* chưa có DS nhân viên → giữ nguyên nếp cũ */
       nm=txt('#ca-who')||m.name; nvId='';
     }
+    /* [v8] MỖI NGƯỜI MỘT CA: chỉ chặn khi CHÍNH NGƯỜI ĐÓ đang có ca mở; người khác vẫn mở song song được. */
+    var _mo=OPENS(), _trung=null;
+    for(var _i=0;_i<_mo.length;_i++){
+      var _s=_mo[_i];
+      if(nvId ? (String(_s.staffId||'')===String(nvId)) : (KD(_s.staffName||'')===KD(nm)))
+        {_trung=_s;break;}
+    }
+    if(_trung){say('⚠️ '+(nm||'Người này')+' đang có ca mở rồi — chốt ca đó trước đã.');VIEW='main';render();return;}
+    var _song=_mo.length>0;    /* đã có ca khác ⇒ ca SONG SONG: kho dùng chung nên KHÔNG chụp ảnh kho riêng */
     var f=val('#ca-float'), nt=txt('#ca-note'), b=BR(), t=Date.now();
-    var _km=khoSnap(), _tm=khoTong(_km);
+    var _km=_song?null:khoSnap(), _tm=_song?{n:0,q:0,v:0}:khoTong(_km);
     BUSY=true;
     try{
       var _ref=doc(brCol(b,'shifts'));               /* tự sinh mã ca để gắn ảnh kho ngay */
       setDoc(_ref,{staffId:nvId,staffName:nm,openBy:m.name,openById:m.id,branch:b,branchName:BRN(),nganh:(NGK()||''),nganhTen:NGTEN(),
         openFloat:R(f),status:'open',note:nt,openAtMs:t,openAt:serverTimestamp(),createdAt:serverTimestamp(),
-        khoMo:1,khoMoN:_tm.n,khoMoQty:_tm.q,khoMoVon:_tm.v})
+        caV:2,songSong:(_song?1:0),khoMo:(_song?0:1),khoMoN:_tm.n,khoMoQty:_tm.q,khoMoVon:_tm.v})
         .catch(function(e){say('Lỗi mở ca: '+ec(e));});
-      luuKho(b,_ref.id,'mo',_km,t);                  /* ẢNH KHO ĐẦU CA */
-      say('✅ Đã mở ca · '+nm+' · quỹ đầu '+money(f)+' · đã chụp kho '+NUM(_tm.n)+' mặt hàng');
+      if(!_song)luuKho(b,_ref.id,'mo',_km,t);        /* ẢNH KHO ĐẦU CA (chỉ ca đầu tiên của chi nhánh) */
+      say('✅ Đã mở ca · '+nm+' · quỹ đầu '+money(f)
+        +(_song?' · ca song song (kho dùng chung nên không chụp kho riêng)':' · đã chụp kho '+NUM(_tm.n)+' mặt hàng'));
       try{markDirty();}catch(_){}
     }catch(e){say('Lỗi mở ca: '+ec(e));}
-    BUSY=false;VIEW='main';setTimeout(render,120);
+    BUSY=false;CAID=null;VIEW='main';setTimeout(render,120);
   }
 
   function doCash(t){
@@ -7437,11 +7591,11 @@ try { window.__skBusy = function(){
   }
 
   async function goClose(){
-    var sh=OPEN();if(!sh)return;
+    var sh=CUR();if(!sh)return;
     if(!CANSHIFT()){say('🔒 Bạn không có quyền chốt ca — hãy giao tiền cho chủ');return;}
     WIN=null;VIEW='close';render();
     var w=await fetchWin(sh);
-    if(!OPEN()||OPEN().id!==sh.id)return;
+    var _c1=CUR();if(!_c1||_c1.id!==sh.id)return;
     var at=Date.now();
     var c=calc(Object.assign({},sh,{closeAtMs:at}),w.orders,w.rets,w.logs);
     WIN={c:c,at:at,ok:w.ok,orders:w.orders,rets:w.rets,logs:w.logs,shiftId:sh.id};
@@ -7451,7 +7605,7 @@ try { window.__skBusy = function(){
   function doClose(){
     if(BUSY)return;
     if(!CANSHIFT()){say('🔒 Bạn không có quyền chốt ca');return;}
-    var sh=OPEN();if(!sh||!WIN||WIN.shiftId!==sh.id){say('Chưa tải xong số liệu');return;}
+    var sh=CUR();if(!sh||!WIN||WIN.shiftId!==sh.id){say('Chưa tải xong số liệu');return;}
     var e=q('#ca-counted');
     if(!e||String(e.value||'').replace(/[^\d]/g,'')===''){say('Nhập số tiền mặt đếm được');return;}
     var at=Date.now();
@@ -7471,9 +7625,9 @@ try { window.__skBusy = function(){
         sumCash:R(c.cash),sumQr:R(c.qr),sumDebt:R(c.debt),nOrders:R(c.n),sumDiscount:R(c.disc),
         sumDebtPay:R(c.pay),sumDebtPayCk:R(c.payCk),sumExpense:R(c.exp),sumPayin:R(c.pin),
         sumPayout:R(c.pout),sumRefundCash:R(c.refundCash),offlineCalc:!WIN.ok,
-        khoChot:1,khoChotN:_tc.n,khoChotQty:_tc.q,khoChotVon:_tc.v
+        khoChot:(sh.khoMo?1:0),khoChotN:_tc.n,khoChotQty:_tc.q,khoChotVon:_tc.v
       }).catch(function(er){say('Lỗi chốt ca: '+ec(er));});
-      luuKho(sh.branch||BR(),sh.id,'chot',_kc,at);   /* ẢNH KHO CUỐI CA */
+      if(sh.khoMo)luuKho(sh.branch||BR(),sh.id,'chot',_kc,at);   /* ẢNH KHO CUỐI CA */
       say(diff===0?'✅ Đã chốt ca — khớp chính xác':(diff<0?'🔴 Đã chốt ca — THIẾU '+money(-diff):'🟠 Đã chốt ca — THỪA '+money(diff)));
       try{markDirty();}catch(_){}
     }catch(er){say('Lỗi chốt ca: '+ec(er));}
@@ -7504,7 +7658,7 @@ try { window.__skBusy = function(){
 
   function editFloat(){
     if(!ISOWNER()){say('🔒 Chỉ CHỦ shop mới sửa được quỹ đầu ca');return;}
-    var sh=OPEN();if(!sh)return;
+    var sh=CUR();if(!sh)return;
     var v=window.prompt('Sửa QUỸ ĐẦU CA (₫) — nhập số:',String(R(sh.openFloat)));
     if(v==null)return;
     var n=parseInt(String(v).replace(/[^\d]/g,''),10);if(isNaN(n)){say('Số không hợp lệ');return;}
@@ -7571,7 +7725,7 @@ try { window.__skBusy = function(){
 
   function cancelShift(){
     if(!ISOWNER()){say('🔒 Chỉ CHỦ shop mới hủy được ca');return;}
-    var sh=OPEN();if(!sh)return;
+    var sh=CUR();if(!sh)return;
     var n=(LOGS||[]).filter(function(l){return l.shiftId===sh.id;}).length;
     if(!window.confirm('HỦY ca đang mở?\n\n• Ca sẽ bị xóa, KHÔNG lưu vào lịch sử.'
       +(n?'\n• '+n+' khoản thu/chi của ca cũng bị xóa.':'')+'\n• Đơn hàng đã bán KHÔNG bị ảnh hưởng.\n\nKhông thể hoàn tác!'))return;
@@ -7650,7 +7804,7 @@ try { window.__skBusy = function(){
         try{var cc=customers.find(function(x){return x.id===currentCustomerId;});cname=(cc&&cc.name)||'';}catch(_){}
         var r=_sv.apply(this,arguments);
         try{
-          if(!wasEdit&&type==='tra'&&OPEN()){
+          if(!wasEdit&&type==='tra'&&CUR()){
             var nt=(_curTxs&&_curTxs[0])||null;
             if(nt&&nt.id&&nt.id!==before&&R(nt.amount)>0)
               addLog('debtpay',nt.amount,'Thu nợ: '+(cname||'khách'),{custName:cname,custId:currentCustomerId,txId:nt.id});
