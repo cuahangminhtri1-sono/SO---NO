@@ -5017,14 +5017,32 @@ async function nvAccDel(nvUid){
 
 function skRenderStaffMgmt(){const box=skq('#sk-staff-list');if(!box)return;if(!skStaffList.length){box.innerHTML='<div class="sk-empty">Chưa có nhân viên. Thêm 1 người “Chủ” cho mình trước.</div>';return;}box.innerHTML=skStaffList.map(function(s){
   var b=s.branch||'', k=b?skNganhBr(b):null;
-  var pb=b?(skNganhIconBr(b)+' '+skBranchName(b)+(k===null?'':' · '+skNganhTen(k))):'🏪 Mọi cửa hàng';
+  var pb=b?('📍 Cố định: '+skNganhIconBr(b)+' '+(k===null?'':skNganhTen(k)+' › ')+skBranchName(b))
+          :'🌐 Đi khắp — mọi ngành, mọi cửa hàng';
   return '<div class="sk-row"><div class="sk-row-main" data-act="staff-edit" data-id="'+s.id+'"><div class="sk-row-name">'+escHtml(s.name)+'</div><div class="sk-row-sub">'+skRoleLabel(s.role)+' · PIN '+(s.pin?'••••':'(chưa đặt)')+'<br>'+escHtml(pb)+'</div></div></div>';}).join('');}
-function skOpenStaffForm(id){skStEditId=id||null;const s=id?skStaffList.find(x=>x.id===id):{};skq('#sk-stf-title').textContent=id?'Sửa nhân viên':'Thêm nhân viên';skq('#sk-stf-name').value=s.name||'';skq('#sk-stf-pin').value=s.pin||'';skq('#sk-stf-role').value=s.role||'cashier';var _bopts='<option value="">🏪 Mọi cửa hàng</option>'+(skBranches||[]).map(function(b){var k=skNganhBr(b.id);return '<option value="'+b.id+'">'+skNganhIconBr(b.id)+' '+escHtml(b.name)+(k===null?'':' — '+skNganhTen(k))+'</option>';}).join('');var _bsel=skq('#sk-stf-branch');if(_bsel){_bsel.innerHTML=_bopts;_bsel.value=s.branch||'';if(!_bsel.__ng){_bsel.__ng=1;_bsel.addEventListener('change',skStfNgNote);}}skStfNgNote();skq('#sk-stf-del').style.display=id?'':'none';skModalOpen('#sk-staff-form');}
+/* ═══ [v6] NHÂN VIÊN DÙNG CHUNG CHO MỌI NGÀNH ═══
+   Mặc định '' = ĐI KHẮP: có tên ở mọi cửa hàng của mọi ngành, chủ đứng ở đâu thì
+   mở ca cho họ ở đó. Chỉ khi chủ muốn CỐ ĐỊNH một người ở một cửa hàng mới chọn
+   cửa hàng — danh sách gom theo NGÀNH để nhìn phát biết ngay chỗ nào của ngành nào. */
+function skStfNoiOpts(){
+  var h='<option value="">🌐 Đi khắp — mọi ngành, mọi cửa hàng</option>';
+  var L=skBranches||[], xong={};
+  for(var i=0;i<SK_NGANH.length;i++){
+    var k=SK_NGANH[i].k, g='';
+    L.forEach(function(b){var x=null;try{x=skNganhBr(b.id);}catch(_){x=null;}
+      if(x!==k)return; xong[b.id]=1;
+      g+='<option value="'+b.id+'">📍 '+escHtml(b.name)+'</option>';});
+    if(g)h+='<optgroup label="'+escHtml(SK_NGANH[i].ic+' '+SK_NGANH[i].n)+'">'+g+'</optgroup>';
+  }
+  var g2='';L.forEach(function(b){if(xong[b.id])return;g2+='<option value="'+b.id+'">📍 '+escHtml(b.name)+'</option>';});
+  if(g2)h+='<optgroup label="🏪 Chưa đặt ngành">'+g2+'</optgroup>';
+  return h;}
+function skOpenStaffForm(id){skStEditId=id||null;const s=id?skStaffList.find(x=>x.id===id):{};skq('#sk-stf-title').textContent=id?'Sửa nhân viên':'Thêm nhân viên';skq('#sk-stf-name').value=s.name||'';skq('#sk-stf-pin').value=s.pin||'';skq('#sk-stf-role').value=s.role||'cashier';var _bsel=skq('#sk-stf-branch');if(_bsel){_bsel.innerHTML=skStfNoiOpts();var _b=s.branch||'';_bsel.value=_b;if(_bsel.value!==_b)_bsel.value='';if(!_bsel.__ng){_bsel.__ng=1;_bsel.addEventListener('change',skStfNgNote);}}skStfNgNote();skq('#sk-stf-del').style.display=id?'':'none';skModalOpen('#sk-staff-form');}
 function skStfNgNote(){var el=skq('#sk-stf-ngnote'),sel=skq('#sk-stf-branch');if(!el||!sel)return;var v=sel.value||'';
-  if(!v){el.innerHTML='👥 Bán & mở ca được ở <b>mọi cửa hàng</b>. Mở ca ở đâu thì tính theo ngành của cửa hàng đó.';return;}
+  if(!v){el.innerHTML='🌐 <b>Đi khắp:</b> người này có tên trong danh sách mở ca ở <b>mọi ngành, mọi cửa hàng</b> — hôm nay đưa họ đi đâu thì mở ca cho họ ở đó.';return;}
   var k=skNganhBr(v);
   el.innerHTML=(k===null)?'⚠️ Cửa hàng này <b>chưa đặt ngành</b> — vào 🏪 → ✎ để đặt trước.'
-    :'🔒 Chỉ bán & mở ca tại <b>'+escHtml(skBranchName(v))+'</b> · ngành <b>'+escHtml(skNganhTen(k))+'</b>';}
+    :'📍 <b>Cố định:</b> chỉ mở ca được tại <b>'+escHtml(skBranchName(v))+'</b> · ngành <b>'+escHtml(skNganhTen(k))+'</b>. Muốn họ chạy nhiều nơi thì chọn lại <b>🌐 Đi khắp</b>.';}
 async function skSaveStaff(){const name=skq('#sk-stf-name').value.trim();const pin=(skq('#sk-stf-pin').value||'').replace(/[^\d]/g,'');const role=skq('#sk-stf-role').value||'cashier';const branch=(skq('#sk-stf-branch')?skq('#sk-stf-branch').value:'')||'';if(!name){toast('Nhập tên nhân viên');return;}if(pin.length<4){toast('PIN tối thiểu 4 số');return;}try{if(skStEditId)updateDoc(doc(db,'users',UID,'staff',skStEditId),{name:name,pin:pin,role:role,branch:branch}).catch(function(e){skErr(e,'Lưu nhân viên');});else addDoc(collection(db,'users',UID,'staff'),{name:name,pin:pin,role:role,branch:branch,createdAt:serverTimestamp()}).catch(function(e){skErr(e,'Lưu nhân viên');});skCloseModal('#sk-staff-form');toast('✅ Đã lưu nhân viên');markDirty();}catch(e){skErr(e,'Lưu nhân viên');}}
 async function skDelStaff(){if(!skStEditId)return;try{deleteDoc(doc(db,'users',UID,'staff',skStEditId)).catch(function(e){skErr(e,'Xóa nhân viên');});skCloseModal('#sk-staff-form');toast('Đã xóa nhân viên');markDirty();}catch(e){skErr(e,'Xóa nhân viên');}}
 
@@ -6593,7 +6611,7 @@ try { window.__skBusy = function(){
       if(!x||!x.id)return;
       var sb=x.branch||'';
       if(sb&&sb!==b)return;
-      out.push({id:x.id,name:x.name||'(chưa đặt tên)',role:x.role||'cashier'});
+      out.push({id:x.id,name:x.name||'(chưa đặt tên)',role:x.role||'cashier',br:(x.branch||'')});
     });}catch(_){}
     return out;
   }
@@ -6622,7 +6640,7 @@ try { window.__skBusy = function(){
     var h='<label class="sk-fld">Người trực ca <b style="color:#c0392b">*</b>'
       +'<select id="ca-who" class="sk-inp"><option value="">— Bấm để chọn —</option>';
     ds.forEach(function(x){
-      h+='<option value="'+esc(x.id)+'"'+((me.id&&x.id===me.id)?' selected':'')+'>'+esc(x.name)+' · '+esc(ROLEVN(x.role))+'</option>';
+      h+='<option value="'+esc(x.id)+'"'+((me.id&&x.id===me.id)?' selected':'')+'>'+esc(x.name)+' · '+esc(ROLEVN(x.role))+(x.br?' · 📍 cố định ở đây':' · 🌐 đi khắp')+'</option>';
     });
     return h+'</select></label>'
       +'<div class="ca-note">👤 <b>Chỉ người được chọn</b> mới bán được trong ca này. Người khác bấm thanh toán sẽ bị chặn.</div>';
@@ -6900,6 +6918,8 @@ try { window.__skBusy = function(){
     var h=head('💰 Ca đang mở — '+esc(BRN()))
      +'<div class="ca-sub">👤 Người trực ca: <b>'+esc(sh.staffName||'')+'</b> · mở lúc <b>'+TM(sh.openAtMs)+'</b>'
        +(sh.note?' · '+esc(sh.note):'')+'</div>'
+     +'<div class="ca-note" style="background:#eef7f3;border-color:#bfe3d5;color:#0a5f4a">'+NGIC()
+       +' Ca này của cửa hàng: <b>'+esc(sh.branchName||BRN())+'</b> · ngành <b>'+esc(sh.nganhTen||NGTEN())+'</b></div>'
      +canhBaoNguoiBan(sh)
      +(sh.khoMo?'<div class="ca-note">📦 Ảnh kho đầu ca đã chụp: <b>'+NUM(sh.khoMoN)+'</b> mặt hàng · <b>'+NUM(sh.khoMoQty)+'</b> đơn vị · vốn <b>'+money(sh.khoMoVon)+'</b>.</div>'
         :'<div class="ca-note ca-warn">⚠️ Ca này mở bằng bản cũ nên <b>chưa có ảnh kho đầu ca</b>. Ca sau app sẽ tự chụp.</div>')
@@ -6970,6 +6990,8 @@ try { window.__skBusy = function(){
     var c=WIN.c;
     return head('🔒 Chốt ca — '+esc(sh.staffName||''),1)
       +'<div class="ca-sub">Từ '+TM(sh.openAtMs)+' đến '+TM(WIN.at)+' · '+c.n+' đơn</div>'
+      +'<div class="ca-note" style="background:#eef7f3;border-color:#bfe3d5;color:#0a5f4a">'+NGIC()
+        +' Chốt ca cho: <b>'+esc(sh.staffName||'')+'</b> · cửa hàng <b>'+esc(sh.branchName||BRN())+'</b> · ngành <b>'+esc(sh.nganhTen||NGTEN())+'</b></div>'
       +(WIN.ok?'':'<div class="ca-note ca-warn">⚠️ Đang mất mạng — số liệu tính từ dữ liệu đã lưu trong máy, có thể thiếu đơn của máy khác.</div>')
       +lechGio(WIN.orders)
       +'<div class="ca-box">'
@@ -9844,7 +9866,7 @@ body.la-nv #pos-screen [data-act="ca-cancel"]{display:none!important}
 <!-- NHÂN VIÊN -->
 <div id="sk-staff" class="sk-modal"><div class="sk-card"><h3>Nhân viên &amp; phân quyền</h3><div class="sk-note2">Phân quyền ở đây khóa theo máy &amp; mã PIN (dùng cho máy bán hàng chung, có ghi nhận ai bán). Không phải bảo mật cấp máy chủ.</div><div style="background:#f3f7f5;border-radius:10px;padding:10px 12px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;gap:10px"><div style="font-size:13.5px"><b>Yêu cầu PIN khi mở Bán hàng</b><div style="color:#6b7872;font-size:12px">Tắt nếu bạn bán một mình — vào thẳng quyền Chủ, khỏi chọn người &amp; nhập PIN.</div></div><button class="sk-btn green" id="sk-pin-toggle" data-act="pin-toggle">🔒 ĐANG BẬT</button></div><div class="sk-note2" style="color:#0a5f4a">💡 Quên PIN? Bấm vào tên nhân viên bên dưới để xem/đổi PIN. Nếu kẹt ở cổng PIN, dùng nút "🔑 Quên PIN? — Chủ mở khóa".</div><div style="margin-bottom:10px"><button class="sk-btn outline wide" data-act="perm-open">⚙️ Tùy chỉnh quyền chi tiết (Quản lý / Thu ngân)</button></div><div id="sk-nvacc-box" style="background:#fff8ec;border:1px solid #f0d9ae;border-radius:10px;padding:11px 12px;margin-bottom:10px"><div style="font-size:13.5px;font-weight:700;margin-bottom:3px">🔐 Tài khoản đăng nhập cho máy nhân viên</div><div style="color:#6b7872;font-size:12px;line-height:1.5;margin-bottom:8px">Tạo <b>một</b> tài khoản riêng để đăng nhập trên các máy nhân viên. Khi đó máy nhân viên <b>không đọc được PIN của Chủ</b>, <b>không tự cấp quyền cho mình</b> và <b>không xóa được</b> đơn hàng, ca đã chốt hay nhật ký — chặn ở máy chủ Firebase, không chỉ ở giao diện.<br>Máy của Chủ vẫn đăng nhập như bình thường.</div><div id="sk-nvacc-info" style="font-size:12.5px;margin-bottom:8px;color:#6b7872">Đang kiểm tra…</div><button class="sk-btn green wide" data-act="nvacc-open">➕ Tạo tài khoản nhân viên</button></div><div style="margin-bottom:10px"><button class="sk-btn green wide" data-act="staff-new">➕ Thêm nhân viên</button></div><div id="sk-staff-list" style="max-height:50vh;overflow-y:auto"></div><div class="sk-card-acts"><span style="flex:1"></span><button class="sk-btn ghost" data-act="modal-close" data-target="#sk-staff">Đóng</button></div></div></div>
 <div id="sk-nvacc" class="sk-modal"><div class="sk-card sk-card-sm"><h3>🔐 Tài khoản nhân viên</h3><div class="sk-note2">Tạo một tài khoản để đăng nhập trên <b>tất cả</b> máy nhân viên. Dùng email có thật của bạn cũng được (ví dụ <i>shopcuaban+nv@gmail.com</i>) — chỉ cần bạn nhớ mật khẩu để đưa cho nhân viên.</div><label class="sk-fld">Email tài khoản nhân viên<input id="sk-nv-email" class="sk-inp" type="email" inputmode="email" autocomplete="off" placeholder="vd: shopcuaban+nv@gmail.com"></label><label class="sk-fld">Mật khẩu (tối thiểu 6 ký tự)<input id="sk-nv-pass" class="sk-inp" type="text" autocomplete="off" placeholder="đặt mật khẩu dễ nhớ để đưa nhân viên"></label><div class="sk-note2" style="color:#a3620a">⚠️ Ghi lại email và mật khẩu này. Bạn sẽ dùng nó để đăng nhập trên máy nhân viên.</div><div id="sk-nv-msg" style="font-size:12.5px;margin-top:6px"></div><div class="sk-card-acts"><span style="flex:1"></span><button class="sk-btn ghost" data-act="modal-close" data-target="#sk-nvacc">Đóng</button><button class="sk-btn green" data-act="nvacc-save">Tạo tài khoản</button></div></div></div>
-<div id="sk-staff-form" class="sk-modal"><div class="sk-card sk-card-sm"><h3 id="sk-stf-title">Thêm nhân viên</h3><label class="sk-fld">Tên nhân viên<input id="sk-stf-name" class="sk-inp"></label><label class="sk-fld">Mã PIN (4–6 số)<input id="sk-stf-pin" class="sk-inp" inputmode="numeric" maxlength="6"></label><label class="sk-fld">Vai trò<select id="sk-stf-role" class="sk-inp"><option value="cashier">Thu ngân — chỉ bán hàng</option><option value="manager">Quản lý — bán + kho + báo cáo</option><option value="owner">Chủ — toàn quyền</option></select></label><label class="sk-fld">Cửa hàng được phân (kèm ngành)<select id="sk-stf-branch" class="sk-inp"><option value="">🏪 Mọi cửa hàng</option></select></label><div id="sk-stf-ngnote" style="margin:-4px 0 10px;font-size:12px;color:#6b7872;line-height:1.55"></div><div class="sk-card-acts"><button class="sk-btn red" id="sk-stf-del" data-act="staff-del" style="display:none">Xóa</button><span style="flex:1"></span><button class="sk-btn ghost" data-act="modal-close" data-target="#sk-staff-form">Hủy</button><button class="sk-btn green" data-act="staff-save">Lưu</button></div></div></div>
+<div id="sk-staff-form" class="sk-modal"><div class="sk-card sk-card-sm"><h3 id="sk-stf-title">Thêm nhân viên</h3><label class="sk-fld">Tên nhân viên<input id="sk-stf-name" class="sk-inp"></label><label class="sk-fld">Mã PIN (4–6 số)<input id="sk-stf-pin" class="sk-inp" inputmode="numeric" maxlength="6"></label><label class="sk-fld">Vai trò<select id="sk-stf-role" class="sk-inp"><option value="cashier">Thu ngân — chỉ bán hàng</option><option value="manager">Quản lý — bán + kho + báo cáo</option><option value="owner">Chủ — toàn quyền</option></select></label><label class="sk-fld">Nơi làm việc — chỉ định cho dễ mở ca<select id="sk-stf-branch" class="sk-inp"><option value="">🌐 Đi khắp — mọi ngành, mọi cửa hàng</option></select></label><div id="sk-stf-ngnote" style="margin:-4px 0 10px;font-size:12px;color:#6b7872;line-height:1.55"></div><div class="sk-card-acts"><button class="sk-btn red" id="sk-stf-del" data-act="staff-del" style="display:none">Xóa</button><span style="flex:1"></span><button class="sk-btn ghost" data-act="modal-close" data-target="#sk-staff-form">Hủy</button><button class="sk-btn green" data-act="staff-save">Lưu</button></div></div></div>
 <div id="sk-perm" class="sk-modal"><div class="sk-card"><h3>⚙️ Phân quyền chi tiết</h3><div class="sk-perm-tip">Tick = được phép. <b>Chủ</b> luôn có toàn quyền (không cần chỉnh). Bỏ tick để chặn — nhân viên bấm vào sẽ báo "không có quyền". Lưu xong áp dụng ngay trên mọi máy.</div><div class="sk-perm-tbl"><div class="sk-perm-hd"><span>Quyền thao tác</span><span>Quản lý</span><span>Thu ngân</span></div><div id="sk-perm-body"></div></div><div class="sk-card-acts"><button class="sk-btn ghost" data-act="modal-close" data-target="#sk-perm">Hủy</button><span style="flex:1"></span><button class="sk-btn green" data-act="perm-save">💾 Lưu phân quyền</button></div></div></div>
 
 <!-- TEM MÃ VẠCH -->
