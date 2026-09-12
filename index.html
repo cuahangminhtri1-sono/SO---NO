@@ -4690,6 +4690,28 @@ async function skHanNganh(k){
   if(!xong||!docOk) return 99999;   /* không đọc nổi giấy phép ⇒ KHÔNG chặn */
   return Math.max(1+(skCnBase||0), 1+qty);
 }
+/* ══════ [v8] HẾT GÓI NGÀNH ⇒ TỰ VỀ CỬA HÀNG THƯỜNG ══════
+   Firestore Rules nay khoá CỨNG theo mã cửa hàng: hết hạn gói ngành là máy chủ
+   chối sạch dữ liệu trong cửa hàng đó. Không có khối này thì khách mở app ra gặp
+   màn hình trắng kèm lỗi quyền khó hiểu, tưởng app hỏng rồi gọi điện than.
+   Nay app tự đưa về cửa hàng thường (vẫn bán được, sổ nợ vẫn nguyên) rồi mới
+   hiện màn mua gói. Dữ liệu của cửa hàng ngành KHÔNG mất — mua lại là có ngay. */
+var _ngKiemLai=0;
+function skKiemGoiNganh(){
+  try{
+    if(typeof isAdmin==='function'&&isAdmin())return;
+    var k=skNganhBr(skBranch);
+    if(k===null||k==='')return;                       /* chưa biết ngành / bán hàng thường ⇒ thôi */
+    if(!skNganhSanSang()){ if(_ngKiemLai++<20)setTimeout(skKiemGoiNganh,1500); return; }
+    if(skNganhCoGoi(k))return;                        /* còn hạn ⇒ thôi */
+    if(navigator.onLine===false)return;               /* mất mạng ⇒ KHÔNG đá khách ra */
+    var ve=null,L=skBranches||[],i;
+    for(i=0;i<L.length;i++){ if(skNganhBr(L[i].id)===''){ ve=L[i].id; break; } }
+    toast('🔒 Gói '+skNganhTen(k)+' đã hết hạn — dữ liệu vẫn còn nguyên, mua lại là dùng tiếp.');
+    setTimeout(function(){ try{ if(window.NGA&&window.NGA.mua)window.NGA.mua(k); }catch(e){} },700);
+    if(ve&&ve!==skBranch){ skBrNho(ve); setTimeout(skTaiLai,2600); }
+  }catch(e){}
+}
 function skCnUpsellNg(k,fromSwitch){ skCnNgXin=(k===undefined)?null:k; try{ skCnMa=maCnCuaNganh(k); }catch(e){} skCnUpsell(fromSwitch); }
 async function skLoadCn(){
   try{ if(typeof isAdmin==='function'&&isAdmin()){ skCnInfo={ok:true,admin:true}; skCnQty=99999; skCnBase=99999; skMaxCn=99999; try{skRenderBranchSel();}catch(e){} return; } }catch(e){}
@@ -4719,6 +4741,7 @@ async function skLoadCn(){
       if(typeof skBranchSubs==='function')skBranchSubs(); if(typeof skRenderCart==='function')skRenderCart(); }
     skRenderBranchSel(); if(typeof skRenderBranches==='function')skRenderBranches();
   }catch(e){}
+  try{ setTimeout(skKiemGoiNganh,2500); }catch(e){}
 }
 /* ── Màn NÂNG CẤP / MUA thêm chi nhánh (khách) — quét QR, giống luồng gia hạn POS ── */
 function skCnUpsell(fromSwitch){
