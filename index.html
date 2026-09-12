@@ -893,9 +893,35 @@ const MA_POS = 'sono_pos';    // gói Bán hàng (POS) = add-on riêng của S�
 const MA_CN  = 'sono_cn';     // gói CHI NHÁNH (thêm) = add-on tính tiền theo tháng như POS
 /* ── CHI NHÁNH THU TIỀN THEO NGÀNH — mỗi ngành một giấy phép riêng ──
    Ngành đang bật đọc từ meta/shopSettings.mods (bảng chọn ngành chỉ bật ĐÚNG 1 ngành).
-   Không bật ngành nào = Bán hàng thường → vẫn dùng mã cũ 'sono_cn'. */
+   Không bật ngành nào = Bán hàng đa năng → vẫn dùng mã cũ 'sono_cn'. */
 const MA_CN_NGANH = {fnb:'sono_cn_fnb', fs:'sono_cn_fs', rm:'sono_cn_rm', kg:'sono_cn_kg'};
 const CN_NOIDUNG  = {sono_cn:'CN', sono_cn_fnb:'CNFNB', sono_cn_fs:'CNFS', sono_cn_rm:'CNRM', sono_cn_kg:'CNKG'};
+/* ══════════ [v5] NGÀNH GẮN THEO TỪNG CHI NHÁNH ══════════
+   Trước: cờ ngành ở meta/shopSettings.mods → CẢ TÀI KHOẢN một ngành. Khách vừa có
+   quán cafe vừa có tạp hóa phải mở 2 email, sổ nợ bị tách đôi.
+   Nay: mỗi chi nhánh mang ngành riêng ở users/{uid}/branches/{id}.nganh
+        '' = Bán hàng đa năng (nền, không cần gói riêng)
+   PHAO: chi nhánh CHƯA có field 'nganh' (khách cũ, di trú lỗi, mất mạng) thì app
+   tự rơi xuống cờ mods cũ ⇒ không ai mất tab Bàn / Phòng. */
+const SK_NGANH=[
+  {k:'',    ic:'🛒', n:'Bán hàng đa năng'},
+  {k:'fnb', ic:'🍽️', n:'Nhà hàng · Quán ăn · Cafe'},
+  {k:'fs',  ic:'👕', n:'Thời trang · Mỹ phẩm'},
+  {k:'rm',  ic:'🛏️', n:'Karaoke · Spa · Nhà nghỉ'},
+  {k:'kg',  ic:'⚖️', n:'Vật liệu XD · Nông sản · Bán sỉ'}
+];
+function skNganhTen(k){for(var i=0;i<SK_NGANH.length;i++)if(SK_NGANH[i].k===(k||''))return SK_NGANH[i].n;return 'Bán hàng đa năng';}
+function skNganhIcon(k){for(var i=0;i<SK_NGANH.length;i++)if(SK_NGANH[i].k===(k||''))return SK_NGANH[i].ic;return '🛒';}
+/* Đã đọc xong giấy phép gói ngành chưa? Chưa xong thì TUYỆT ĐỐI không khoá gì cả. */
+function skNganhSanSang(){ try{ return !!(window.NGA&&window.NGA.san()); }catch(e){ return false; } }
+/* Có gói ngành còn hạn không? '' (đa năng) luôn được. */
+function skNganhCoGoi(k){
+  if(!k)return true;
+  try{ if(typeof isAdmin==='function'&&isAdmin())return true; }catch(e){}
+  try{ return !!(window.NGA&&window.NGA.ok(k)); }catch(e){ return false; }
+}
+/* Tải lại trang + tự mở thẳng lại màn Bán hàng (dùng lại cơ chế nga_open_pos_v1 sẵn có) */
+function skTaiLai(){ try{ sessionStorage.setItem('nga_open_pos_v1','1'); }catch(e){} try{ location.reload(); }catch(e){} }
 let   skCnMa = MA_CN;                       // mã gói chi nhánh ĐANG áp dụng
 async function docMaCnTheoNganh(){
   try{
@@ -4457,7 +4483,34 @@ function skInit4(){
   try{onSnapshot(collection(db,'users',UID,'branches'),s=>{skBranches=s.docs.map(d=>Object.assign({id:d.id},d.data()));skRenderBranchSel();skRenderBranches();},()=>{});}catch(e){}
   Promise.all([skEnsureBranch(),skLoadStaffOnce()]).then(()=>skAfterReady());
 }
-async function skEnsureBranch(){try{const s=await getDocs(collection(db,'users',UID,'branches'));if(s.empty){setDoc(doc(db,'users',UID,'branches','main'),{name:'Chi nhánh chính',createdAt:serverTimestamp()}).catch(function(){});skBranch='main';}else if(!s.docs.find(d=>d.id===skBranch)){skBranch=s.docs[0].id;}}catch(e){skBranch='main';}}
+/* [v5] Nhớ chi nhánh đang mở vào máy — reload xong vẫn đúng cửa hàng, đúng ngành */
+let skNganhMap={};
+function skBrKey(){ try{ return 'sk_br_'+(UID||''); }catch(e){ return 'sk_br_'; } }
+function skBrNho(id){ try{ localStorage.setItem(skBrKey(),String(id||'')); }catch(e){} }
+function skBrDoc(){ try{ return localStorage.getItem(skBrKey())||''; }catch(e){ return ''; } }
+/* DI TRÚ 1 LẦN: chi nhánh chưa có field 'nganh' thì gán theo cờ mods cũ.
+   Đọc mods lỗi ⇒ KHÔNG ghi gì, để PHAO ở loadFlags() gánh — không bao giờ gán bừa ''. */
+async function skMigNganh(snap){
+  try{ if(typeof LA_NV!=='undefined'&&LA_NV)return; }catch(e){}
+  try{
+    var thieu=[];
+    snap.docs.forEach(function(d){ var v=(d.data()||{}).nganh; if(typeof v!=='string')thieu.push(d.id); });
+    if(!thieu.length)return;
+    var ss=await getDoc(doc(db,'users',UID,'meta','shopSettings'));
+    var m=(ss.exists()&&(ss.data().mods||{}))||{}, K=['fnb','fs','rm','kg'], ng='';
+    for(var i=0;i<K.length;i++){ if(m[K[i]]===true){ ng=K[i]; break; } }
+    for(var j=0;j<thieu.length;j++){
+      try{ await setDoc(doc(db,'users',UID,'branches',thieu[j]),{nganh:ng},{merge:true}); skNganhMap[thieu[j]]=ng; }catch(e){}
+    }
+  }catch(e){}
+}
+async function skEnsureBranch(){try{const s=await getDocs(collection(db,'users',UID,'branches'));if(s.empty){setDoc(doc(db,'users',UID,'branches','main'),{name:'Chi nhánh chính',nganh:'',createdAt:serverTimestamp()}).catch(function(){});skBranch='main';skNganhMap={main:''};}else{
+  skNganhMap={};s.docs.forEach(function(d){var v=(d.data()||{}).nganh;if(typeof v==='string')skNganhMap[d.id]=v;});
+  var _nho=skBrDoc();
+  if(_nho&&s.docs.find(d=>d.id===_nho))skBranch=_nho;
+  else if(!s.docs.find(d=>d.id===skBranch))skBranch=s.docs[0].id;
+  await skMigNganh(s);
+}}catch(e){skBranch='main';}}
 async function skLoadStaffOnce(){try{const s=await getDocs(collection(db,'users',UID,'staff'));skStaffList=s.docs.map(d=>Object.assign({id:d.id},d.data()));}catch(e){skStaffList=[];}
   try{const ss=await getDoc(doc(db,'users',UID,'meta','shopSettings'));skRequirePin=ss.exists()?(ss.data().requirePin!==false):true;}catch(e){skRequirePin=true;}
   try{const ps=await getDoc(doc(db,'users',UID,'meta','permissions'));skPermMerge(ps.exists()?ps.data():{});}catch(e){skPermMerge({});}}
@@ -4476,13 +4529,68 @@ function skBranchSubs(){
 }
 
 /* ---- CHI NHÁNH ---- */
-function skRenderBranchSel(){const b=skq('#sk-branchbtn');if(b)b.textContent='🏪 '+skBranchName(skBranch)+' ▾';}
+function skNganhBr(id){
+  var b=(skBranches||[]).find(function(x){return x.id===id;});
+  if(b&&typeof b.nganh==='string')return b.nganh;
+  if(Object.prototype.hasOwnProperty.call(skNganhMap,id))return skNganhMap[id];
+  return null;   /* null = chưa biết ⇒ KHÔNG tự ý tải lại trang */
+}
+function skNganhIconBr(id){var k=skNganhBr(id);return (k===null)?'🏪':skNganhIcon(k);}
+function skRenderBranchSel(){const b=skq('#sk-branchbtn');if(b)b.textContent=skNganhIconBr(skBranch)+' '+skBranchName(skBranch)+' ▾';}
 function skOpenBranches(){skRenderBranches();skModalOpen('#sk-branch');}
-function skRenderBranches(){const box=skq('#sk-branch-list');if(!box)return;box.innerHTML=skBranches.map(b=>'<div class="sk-row"><div class="sk-row-main" data-act="branch-switch" data-id="'+b.id+'"><div class="sk-row-name">'+(b.id===skBranch?'✓ ':'')+escHtml(b.name)+'</div><div class="sk-row-sub">'+(b.id===skBranch?'Đang chọn':'Chạm để chuyển')+'</div></div><button class="sk-btn ghost sk-owner" data-act="branch-edit" data-id="'+b.id+'">✎</button></div>').join('');}
-function skSwitchBranch(id){if(skStaff&&skStaff.branch&&id!==skStaff.branch){toast('🔒 Bạn chỉ được bán ở chi nhánh: '+skBranchName(skStaff.branch));skCloseModal('#sk-branch');return;}if(!skBranchAllowed(id)){skCloseModal('#sk-branch');skCnUpsell(true);return;}if(id===skBranch){skCloseModal('#sk-branch');return;}skBranch=id;skCart=[];skDiscount=0;skBranchSubs();skRenderCart();skRenderBranchSel();skCloseModal('#sk-branch');skGo('sell');toast('Đã chuyển: '+skBranchName(id));}
-function skOpenBranchForm(id){if(!id&&skBranches.length>=skMaxCn){skCloseModal('#sk-branch');skCnUpsell(false);return;}skBrEditId=id||null;const b=id?skBranches.find(x=>x.id===id):{};skq('#sk-bf-title').textContent=id?'Sửa chi nhánh':'Thêm chi nhánh';skq('#sk-bf-name').value=b.name||'';skq('#sk-bf-del').style.display=(id&&skBranches.length>1)?'':'none';skModalOpen('#sk-branch-form');}
-async function skSaveBranch(){const name=skq('#sk-bf-name').value.trim();if(!name){toast('Nhập tên chi nhánh');return;}if(!skBrEditId&&skBranches.length>=skMaxCn){skCloseModal('#sk-branch-form');skCnUpsell(false);return;}try{if(skBrEditId)updateDoc(doc(db,'users',UID,'branches',skBrEditId),{name:name}).catch(function(e){skErr(e,'Lưu chi nhánh');});else addDoc(collection(db,'users',UID,'branches'),{name:name,createdAt:serverTimestamp()}).catch(function(e){skErr(e,'Lưu chi nhánh');});skCloseModal('#sk-branch-form');toast('✅ Đã lưu chi nhánh');markDirty();}catch(e){skErr(e,'Lưu chi nhánh');}}
-async function skDelBranch(){if(!skBrEditId)return;if(skBranches.length<=1){toast('Phải còn ít nhất 1 chi nhánh');return;}if(skBrEditId===skBranch){toast('Không xóa chi nhánh đang dùng');return;}try{deleteDoc(doc(db,'users',UID,'branches',skBrEditId)).catch(function(e){skErr(e,'Xóa chi nhánh');});skCloseModal('#sk-branch-form');toast('Đã xóa chi nhánh');markDirty();}catch(e){skErr(e,'Xóa chi nhánh');}}
+function skRenderBranches(){const box=skq('#sk-branch-list');if(!box)return;box.innerHTML=skBranches.map(function(b){
+  var k=skNganhBr(b.id);
+  var tn=(k===null)?'<span style="color:#c0392b">chưa đặt ngành — bấm ✎</span>':escHtml(skNganhTen(k));
+  return '<div class="sk-row"><div class="sk-row-main" data-act="branch-switch" data-id="'+b.id+'">'
+    +'<div class="sk-row-name">'+(b.id===skBranch?'✓ ':'')+skNganhIconBr(b.id)+' '+escHtml(b.name)+'</div>'
+    +'<div class="sk-row-sub">'+tn+' · '+(b.id===skBranch?'<b>Đang mở</b>':'Chạm để mở')+'</div>'
+    +'</div><button class="sk-btn ghost sk-owner" data-act="branch-edit" data-id="'+b.id+'">✎</button></div>';
+}).join('');}
+function skSwitchBranch(id){if(skStaff&&skStaff.branch&&id!==skStaff.branch){toast('🔒 Bạn chỉ được bán ở: '+skBranchName(skStaff.branch));skCloseModal('#sk-branch');return;}if(!skBranchAllowed(id)){skCloseModal('#sk-branch');skCnUpsell(true);return;}if(id===skBranch){skCloseModal('#sk-branch');return;}
+  /* Khác NGÀNH thì phải tải lại trang: module ngành chỉ gắn tab được lúc khởi động, không gỡ ra được */
+  var _a=skNganhBr(skBranch), _b=skNganhBr(id);
+  if(_a!==null&&_b!==null&&_a!==_b){
+    if(skCart&&skCart.length&&!confirm('Giỏ hàng đang có '+skCart.length+' món sẽ bị bỏ.\n\nMở "'+skBranchName(id)+'" ('+skNganhTen(_b)+') ?')){skCloseModal('#sk-branch');return;}
+    skBrNho(id);skCloseModal('#sk-branch');toast('🔄 Đang mở '+skNganhIcon(_b)+' '+skBranchName(id)+'…');
+    setTimeout(skTaiLai,600);return;
+  }
+  skBranch=id;skBrNho(id);skCart=[];skDiscount=0;skBranchSubs();skRenderCart();skRenderBranchSel();skCloseModal('#sk-branch');skGo('sell');toast('Đã chuyển: '+skBranchName(id));}
+function skOpenBranchForm(id){if(!id&&skBranches.length>=skMaxCn){skCloseModal('#sk-branch');skCnUpsell(false);return;}skBrEditId=id||null;const b=id?skBranches.find(x=>x.id===id):{};skq('#sk-bf-title').textContent=id?'Sửa cửa hàng':'Mở cửa hàng mới';skq('#sk-bf-name').value=b.name||'';
+  var _cur=id?skNganhBr(id):'';if(_cur===null)_cur='';
+  var _ss=skNganhSanSang();
+  var _sel=skq('#sk-bf-nganh');
+  if(_sel){_sel.innerHTML=SK_NGANH.map(function(x){
+      var lock=(x.k&&_ss&&!skNganhCoGoi(x.k));
+      return '<option value="'+x.k+'">'+x.ic+' '+x.n+(lock?'  🔒 chưa có gói':'')+'</option>';
+    }).join('');_sel.value=_cur;
+    if(!_sel.__ng){_sel.__ng=1;_sel.addEventListener('change',skBfNgNote);}}
+  skBfNgNote();
+  skq('#sk-bf-del').style.display=(id&&skBranches.length>1)?'':'none';skModalOpen('#sk-branch-form');}
+function skBfNgNote(){var el=skq('#sk-bf-ngnote'),s=skq('#sk-bf-nganh');if(!el||!s)return;var k=s.value||'';
+  el.innerHTML=k?('📦 Cửa hàng này sẽ chạy <b>'+escHtml(skNganhTen(k))+'</b> — có thêm màn riêng của ngành. Sổ nợ vẫn dùng chung với mọi cửa hàng.'+(skNganhSanSang()&&!skNganhCoGoi(k)?'<br><b style="color:#c0392b">🔒 Chưa có gói ngành này — bấm Lưu để mở dùng thử / mua gói.</b>':''))
+    :'🛒 Bán hàng thông thường: quét mã, giỏ hàng, tiền mặt / VietQR / ghi nợ, hóa đơn, kho, báo cáo. <b>Không tốn thêm gói.</b>';}
+async function skSaveBranch(){const name=skq('#sk-bf-name').value.trim();if(!name){toast('Nhập tên cửa hàng');return;}if(!skBrEditId&&skBranches.length>=skMaxCn){skCloseModal('#sk-branch-form');skCnUpsell(false);return;}
+  var ng=(skq('#sk-bf-nganh')?skq('#sk-bf-nganh').value:'')||'';
+  var ngCu=skBrEditId?skNganhBr(skBrEditId):null;
+  /* Chỉ chặn khi ĐỔI SANG ngành mới VÀ đã đọc xong giấy phép — tránh chặn oan lúc mạng chậm */
+  if(ng&&ng!==ngCu&&skNganhSanSang()&&!skNganhCoGoi(ng)){ var okT=await skMoGoiNganh(ng); if(!okT)return; }
+  try{if(skBrEditId)updateDoc(doc(db,'users',UID,'branches',skBrEditId),{name:name,nganh:ng}).catch(function(e){skErr(e,'Lưu cửa hàng');});
+    else addDoc(collection(db,'users',UID,'branches'),{name:name,nganh:ng,createdAt:serverTimestamp()}).catch(function(e){skErr(e,'Lưu cửa hàng');});
+    if(skBrEditId)skNganhMap[skBrEditId]=ng;
+    skCloseModal('#sk-branch-form');toast('✅ Đã lưu cửa hàng');markDirty();
+    if(skBrEditId&&skBrEditId===skBranch&&ngCu!==null&&ngCu!==ng){skBrNho(skBranch);toast('🔄 Đổi ngành — đang tải lại…');setTimeout(skTaiLai,800);}
+  }catch(e){skErr(e,'Lưu cửa hàng');}}
+/* Chưa có gói ngành: còn suất dùng thử thì mở luôn, hết thì hiện màn mua */
+async function skMoGoiNganh(k){
+  var N=window.NGA;if(!N){toast('⏳ Chưa đọc xong gói ngành — đợi 2 giây rồi bấm Lưu lại');return false;}
+  var i=N.han(k)||{};
+  if(N.ngayThu>0&&!i.has&&!i.trialUsed&&navigator.onLine!==false){
+    toast('⏳ Đang mở dùng thử '+N.ten(k)+'…');
+    var ok=false;try{ok=await N.thu(k);}catch(e){}
+    if(ok){toast('🎁 Đã mở dùng thử '+N.ten(k)+' '+N.ngayThu+' ngày');return true;}
+  }
+  skCloseModal('#sk-branch-form');skCloseModal('#sk-branch');N.mua(k);return false;}
+async function skDelBranch(){if(!skBrEditId)return;if(skBranches.length<=1){toast('Phải còn ít nhất 1 cửa hàng');return;}if(skBrEditId===skBranch){toast('Không xóa cửa hàng đang dùng');return;}try{deleteDoc(doc(db,'users',UID,'branches',skBrEditId)).catch(function(e){skErr(e,'Xóa cửa hàng');});skCloseModal('#sk-branch-form');toast('Đã xóa cửa hàng');markDirty();}catch(e){skErr(e,'Xóa cửa hàng');}}
 
 /* ═══════════ CHI NHÁNH THÊM — TÍNH TIỀN THEO THÁNG (add-on giống POS) ═══════════
    Chi nhánh chính (main) luôn miễn phí kèm gói POS. Mỗi chi nhánh THÊM là 1 suất,
@@ -4534,7 +4642,9 @@ async function skLoadCn(){
   skMaxCn=Math.max(1+base, 1+(ok?qty:0));
   skCnLoaded=true;
   try{
-    if(!skBranchAllowed(skBranch)){ skBranch='main'; if(typeof skBranchSubs==='function')skBranchSubs(); if(typeof skRenderCart==='function')skRenderCart(); }
+    if(!skBranchAllowed(skBranch)){ var _ngC=skNganhBr(skBranch); skBranch='main'; skBrNho('main'); var _ngM=skNganhBr('main');
+      if(_ngC!==null&&_ngM!==null&&_ngC!==_ngM){ toast('🔒 Hết hạn gói chi nhánh — quay về cửa hàng chính…'); setTimeout(skTaiLai,900); return; }
+      if(typeof skBranchSubs==='function')skBranchSubs(); if(typeof skRenderCart==='function')skRenderCart(); }
     skRenderBranchSel(); if(typeof skRenderBranches==='function')skRenderBranches();
   }catch(e){}
 }
@@ -4692,7 +4802,14 @@ function skGatePick(id){
   _skPin='';skq('#sk-gate-who').textContent=_skGateStaff.name;skq('#sk-gate-list').style.display='none';skq('#sk-gate-pin').style.display='';skRenderPin();}
 function skPinKey(k){if(k==='del')_skPin=_skPin.slice(0,-1);else if(k==='back'){skq('#sk-gate-pin').style.display='none';skq('#sk-gate-list').style.display='';return;}else if(k==='ok'){skVerifyPin();return;}else if(_skPin.length<6)_skPin+=k;skRenderPin();const pin=String((_skGateStaff&&_skGateStaff.pin)||'');if(pin&&_skPin.length===pin.length)setTimeout(skVerifyPin,120);}
 function skRenderPin(){let d='';for(let i=0;i<6;i++)d+='<span class="'+(i<_skPin.length?'on':'')+'"></span>';skq('#sk-gate-dots').innerHTML=d;}
-function skVerifyPin(){if(!_skGateStaff)return;if(String(_skPin)===String(_skGateStaff.pin||'')){skStaff=_skGateStaff;skRole=_skGateStaff.role||'cashier';if(skStaff&&skStaff.branch){skBranch=skStaff.branch;if(typeof skBranchSubs==='function')skBranchSubs();if(typeof skRenderBranchSel==='function')skRenderBranchSel();}skq('#sk-gate').classList.remove('on');skApplyRole();skGo('sell');toast('Xin chào '+skStaff.name);}else{_skPin='';skRenderPin();toast('Sai mã PIN');}}
+function skVerifyPin(){if(!_skGateStaff)return;if(String(_skPin)===String(_skGateStaff.pin||'')){skStaff=_skGateStaff;skRole=_skGateStaff.role||'cashier';if(skStaff&&skStaff.branch){
+  var _a=skNganhBr(skBranch), _b=skNganhBr(skStaff.branch);
+  /* NV bị khoá ở cửa hàng KHÁC NGÀNH ⇒ tải lại đúng ngành (chỉ 1 lần/máy, sau đó máy nhớ) */
+  if(skStaff.branch!==skBranch&&_a!==null&&_b!==null&&_a!==_b){
+    skBrNho(skStaff.branch);skq('#sk-gate').classList.remove('on');
+    toast('🔄 Mở đúng cửa hàng của bạn: '+skBranchName(skStaff.branch)+'…');setTimeout(skTaiLai,800);return;
+  }
+  skBranch=skStaff.branch;skBrNho(skBranch);if(typeof skBranchSubs==='function')skBranchSubs();if(typeof skRenderBranchSel==='function')skRenderBranchSel();}skq('#sk-gate').classList.remove('on');skApplyRole();skGo('sell');toast('Xin chào '+skStaff.name);}else{_skPin='';skRenderPin();toast('Sai mã PIN');}}
 function skRegate(){if(skStaffList&&skStaffList.length)skStaffGate();}
 function skPinForgotShow(){
   /* Lối này mở THẲNG vào quyền Chủ ⇒ máy nhân viên không được dùng. */
@@ -4799,8 +4916,16 @@ async function nvAccDel(nvUid){
   await nvAccLoad();
 }
 
-function skRenderStaffMgmt(){const box=skq('#sk-staff-list');if(!box)return;if(!skStaffList.length){box.innerHTML='<div class="sk-empty">Chưa có nhân viên. Thêm 1 người “Chủ” cho mình trước.</div>';return;}box.innerHTML=skStaffList.map(s=>'<div class="sk-row"><div class="sk-row-main" data-act="staff-edit" data-id="'+s.id+'"><div class="sk-row-name">'+escHtml(s.name)+'</div><div class="sk-row-sub">'+skRoleLabel(s.role)+' · PIN '+(s.pin?'••••':'(chưa đặt)')+'</div></div></div>').join('');}
-function skOpenStaffForm(id){skStEditId=id||null;const s=id?skStaffList.find(x=>x.id===id):{};skq('#sk-stf-title').textContent=id?'Sửa nhân viên':'Thêm nhân viên';skq('#sk-stf-name').value=s.name||'';skq('#sk-stf-pin').value=s.pin||'';skq('#sk-stf-role').value=s.role||'cashier';var _bopts='<option value="">Tất cả chi nhánh</option>'+(skBranches||[]).map(function(b){return '<option value="'+b.id+'">'+escHtml(b.name)+'</option>';}).join('');var _bsel=skq('#sk-stf-branch');if(_bsel){_bsel.innerHTML=_bopts;_bsel.value=s.branch||'';}skq('#sk-stf-del').style.display=id?'':'none';skModalOpen('#sk-staff-form');}
+function skRenderStaffMgmt(){const box=skq('#sk-staff-list');if(!box)return;if(!skStaffList.length){box.innerHTML='<div class="sk-empty">Chưa có nhân viên. Thêm 1 người “Chủ” cho mình trước.</div>';return;}box.innerHTML=skStaffList.map(function(s){
+  var b=s.branch||'', k=b?skNganhBr(b):null;
+  var pb=b?(skNganhIconBr(b)+' '+skBranchName(b)+(k===null?'':' · '+skNganhTen(k))):'🏪 Mọi cửa hàng';
+  return '<div class="sk-row"><div class="sk-row-main" data-act="staff-edit" data-id="'+s.id+'"><div class="sk-row-name">'+escHtml(s.name)+'</div><div class="sk-row-sub">'+skRoleLabel(s.role)+' · PIN '+(s.pin?'••••':'(chưa đặt)')+'<br>'+escHtml(pb)+'</div></div></div>';}).join('');}
+function skOpenStaffForm(id){skStEditId=id||null;const s=id?skStaffList.find(x=>x.id===id):{};skq('#sk-stf-title').textContent=id?'Sửa nhân viên':'Thêm nhân viên';skq('#sk-stf-name').value=s.name||'';skq('#sk-stf-pin').value=s.pin||'';skq('#sk-stf-role').value=s.role||'cashier';var _bopts='<option value="">🏪 Mọi cửa hàng</option>'+(skBranches||[]).map(function(b){var k=skNganhBr(b.id);return '<option value="'+b.id+'">'+skNganhIconBr(b.id)+' '+escHtml(b.name)+(k===null?'':' — '+skNganhTen(k))+'</option>';}).join('');var _bsel=skq('#sk-stf-branch');if(_bsel){_bsel.innerHTML=_bopts;_bsel.value=s.branch||'';if(!_bsel.__ng){_bsel.__ng=1;_bsel.addEventListener('change',skStfNgNote);}}skStfNgNote();skq('#sk-stf-del').style.display=id?'':'none';skModalOpen('#sk-staff-form');}
+function skStfNgNote(){var el=skq('#sk-stf-ngnote'),sel=skq('#sk-stf-branch');if(!el||!sel)return;var v=sel.value||'';
+  if(!v){el.innerHTML='👥 Bán & mở ca được ở <b>mọi cửa hàng</b>. Mở ca ở đâu thì tính theo ngành của cửa hàng đó.';return;}
+  var k=skNganhBr(v);
+  el.innerHTML=(k===null)?'⚠️ Cửa hàng này <b>chưa đặt ngành</b> — vào 🏪 → ✎ để đặt trước.'
+    :'🔒 Chỉ bán & mở ca tại <b>'+escHtml(skBranchName(v))+'</b> · ngành <b>'+escHtml(skNganhTen(k))+'</b>';}
 async function skSaveStaff(){const name=skq('#sk-stf-name').value.trim();const pin=(skq('#sk-stf-pin').value||'').replace(/[^\d]/g,'');const role=skq('#sk-stf-role').value||'cashier';const branch=(skq('#sk-stf-branch')?skq('#sk-stf-branch').value:'')||'';if(!name){toast('Nhập tên nhân viên');return;}if(pin.length<4){toast('PIN tối thiểu 4 số');return;}try{if(skStEditId)updateDoc(doc(db,'users',UID,'staff',skStEditId),{name:name,pin:pin,role:role,branch:branch}).catch(function(e){skErr(e,'Lưu nhân viên');});else addDoc(collection(db,'users',UID,'staff'),{name:name,pin:pin,role:role,branch:branch,createdAt:serverTimestamp()}).catch(function(e){skErr(e,'Lưu nhân viên');});skCloseModal('#sk-staff-form');toast('✅ Đã lưu nhân viên');markDirty();}catch(e){skErr(e,'Lưu nhân viên');}}
 async function skDelStaff(){if(!skStEditId)return;try{deleteDoc(doc(db,'users',UID,'staff',skStEditId)).catch(function(e){skErr(e,'Xóa nhân viên');});skCloseModal('#sk-staff-form');toast('Đã xóa nhân viên');markDirty();}catch(e){skErr(e,'Xóa nhân viên');}}
 
@@ -6220,6 +6345,10 @@ try { window.__skBusy = function(){
   function say(m){try{toast(m);}catch(_){}}
   function BR(){try{return skBranch||'main';}catch(_){return 'main';}}
   function BRN(){try{return skBranchName(BR())||'';}catch(_){return '';}}
+  /* [v5] ngành của cửa hàng đang mở — để mở ca biết rõ đang mở cho ngành nào */
+  function NGK(){try{return skNganhBr(BR());}catch(_){return null;}}
+  function NGTEN(){var k=NGK();if(k===null)return 'chưa đặt ngành';try{return skNganhTen(k);}catch(_){return '';}}
+  function NGIC(){var k=NGK();if(k===null)return '🏪';try{return skNganhIcon(k);}catch(_){return '🏪';}}
   function ME(){var s=null;try{s=skStaff;}catch(_){s=null;}
     return s?{id:s.id||'',name:s.name||'Nhân viên'}:{id:'',name:'Chủ'};}
   function CAN(){try{return skRoleCan('report');}catch(_){return true;}}
@@ -6650,7 +6779,8 @@ try { window.__skBusy = function(){
     var last=null;for(var i=0;i<SHIFTS.length;i++){if(SHIFTS[i].status==='closed'){last=SHIFTS[i];break;}}
     var sug=last?R(last.openFloat):0;
     return head('💰 Quỹ ca — '+esc(BRN()))
-      +'<div class="ca-sub">Chưa có ca nào đang mở tại chi nhánh này.</div>'
+      +'<div class="ca-note" style="background:#eef7f3;border-color:#bfe3d5;color:#0a5f4a">'+NGIC()+' Đang mở ca cho: <b>'+esc(BRN())+'</b><br>Ngành: <b>'+esc(NGTEN())+'</b> · tiền và kho của ca này <b>chỉ tính cho cửa hàng này</b>.</div>'
+      +'<div class="ca-sub">Chưa có ca nào đang mở tại cửa hàng này.</div>'
       +(CANSHIFT()
         ?('<div class="ca-note">🧾 <b>Đầu buổi:</b> chủ giao cho nhân viên bao nhiêu <b>tiền thối</b> thì nhập đúng số đó vào ô dưới rồi bấm <b>Mở ca</b>. Cuối buổi bấm <b>Chốt ca</b>, app sẽ tự tính số tiền mặt phải nộp lại.</div>'
           +pickNV()
@@ -7133,7 +7263,7 @@ try { window.__skBusy = function(){
     BUSY=true;
     try{
       var _ref=doc(brCol(b,'shifts'));               /* tự sinh mã ca để gắn ảnh kho ngay */
-      setDoc(_ref,{staffId:nvId,staffName:nm,openBy:m.name,openById:m.id,branch:b,branchName:BRN(),
+      setDoc(_ref,{staffId:nvId,staffName:nm,openBy:m.name,openById:m.id,branch:b,branchName:BRN(),nganh:(NGK()||''),nganhTen:NGTEN(),
         openFloat:R(f),status:'open',note:nt,openAtMs:t,openAt:serverTimestamp(),createdAt:serverTimestamp(),
         khoMo:1,khoMoN:_tm.n,khoMoQty:_tm.q,khoMoVon:_tm.v})
         .catch(function(e){say('Lỗi mở ca: '+ec(e));});
@@ -7862,6 +7992,21 @@ function setFlags(o){if(o&&typeof o==='object')for(var k in o)FLAGS[k]=(o[k]===t
 async function loadFlags(){
   try{
     if(typeof UID==='undefined'||!UID)return FLAGS;
+    /* [v5] Ngành gắn theo CHI NHÁNH: đọc field nganh của cửa hàng đang mở. */
+    try{
+      var _b=(typeof skBranch!=='undefined'&&skBranch)?skBranch:'main';
+      var _s=await getDoc(doc(db,'users',UID,'branches',_b));
+      if(_s.exists()){
+        var _d=_s.data()||{};
+        if(typeof _d.nganh==='string'){
+          var _nf={fnb:false,fs:false,rm:false,kg:false};
+          if(_d.nganh)_nf[_d.nganh]=true;
+          setFlags(_nf);
+          return FLAGS;
+        }
+      }
+    }catch(e1){}
+    /* PHAO: chưa có field nganh ⇒ dùng cờ mods cũ, khách cũ không mất tab nào */
     var s=await getDoc(doc(db,'users',UID,'meta','shopSettings'));
     if(s.exists()){var d=s.data()||{};setFlags(d.mods||{});if(d.shopType)FLAGS._type=d.shopType;}
   }catch(e){console.warn('[SKMOD] chưa đọc được cờ module:',(e&&e.code)||e);}
@@ -8818,7 +8963,7 @@ M.on('sell:render',function(c){
 /* ═══════════ HẾT MODULE kg ═══════════ */
 
 /* ═══════════ BẢNG BẬT/TẮT MODULE NGÀNH ═══════════
-   Chèn nút "🧩 Module ngành" vào tab Báo cáo (chỉ chủ shop thấy).
+   [v5] ĐÃ BỎ nút "🧩 Module ngành" khỏi tab Báo cáo — ngành nay gắn theo TỪNG CỬA HÀNG.
    Cờ lưu tại users/{uid}/meta/shopSettings.mods
    ══════════════════════════════════════════════════ */
 (function(){
@@ -8879,10 +9024,11 @@ M.act('ms-save',async function(){
 });
 
 M.on('boot',function(){
-  var bar=document.querySelector('#sk-v-report .sk-actbar');if(!bar)return;
-  if(document.getElementById('ms-btn'))return;
-  var b=document.createElement('button');b.id='ms-btn';b.setAttribute('data-act','ms-open');
-  b.textContent='🧩 Module ngành';bar.appendChild(b);
+  /* [v5] BỎ nút "🧩 Module ngành": ngành nay gắn theo TỪNG CỬA HÀNG.
+     Đổi ngành: Bán hàng → 🏪 (góc trên phải) → ✎ .
+     Giữ nguyên toàn bộ hàm bên trên để dữ liệu cờ cũ không hỏng — chỉ không hiện nút nữa. */
+  var old=document.getElementById('ms-btn');
+  if(old&&old.parentNode)old.parentNode.removeChild(old);
 });
 })();
 /* ═══════════ HẾT: BẢNG MODULE ═══════════ */
@@ -9587,8 +9733,8 @@ body.la-nv #pos-screen [data-act="ca-cancel"]{display:none!important}
 </style>
 
 <!-- CHI NHÁNH -->
-<div id="sk-branch" class="sk-modal"><div class="sk-card"><h3>Chi nhánh</h3><div style="margin-bottom:10px"><button class="sk-btn green wide sk-owner" data-act="branch-new">➕ Thêm chi nhánh</button></div><div id="sk-branch-list" style="max-height:56vh;overflow-y:auto"></div><div class="sk-card-acts"><span style="flex:1"></span><button class="sk-btn ghost" data-act="modal-close" data-target="#sk-branch">Đóng</button></div></div></div>
-<div id="sk-branch-form" class="sk-modal"><div class="sk-card sk-card-sm"><h3 id="sk-bf-title">Thêm chi nhánh</h3><label class="sk-fld">Tên chi nhánh<input id="sk-bf-name" class="sk-inp"></label><div class="sk-card-acts"><button class="sk-btn red" id="sk-bf-del" data-act="branch-del" style="display:none">Xóa</button><span style="flex:1"></span><button class="sk-btn ghost" data-act="modal-close" data-target="#sk-branch-form">Hủy</button><button class="sk-btn green" data-act="branch-save">Lưu</button></div></div></div>
+<div id="sk-branch" class="sk-modal"><div class="sk-card"><h3>🏪 Cửa hàng của tôi</h3><div style="margin-bottom:10px"><button class="sk-btn green wide sk-owner" data-act="branch-new">➕ Mở cửa hàng mới</button></div><div id="sk-branch-list" style="max-height:56vh;overflow-y:auto"></div><div class="sk-card-acts"><span style="flex:1"></span><button class="sk-btn ghost" data-act="modal-close" data-target="#sk-branch">Đóng</button></div></div></div>
+<div id="sk-branch-form" class="sk-modal"><div class="sk-card sk-card-sm"><h3 id="sk-bf-title">Mở cửa hàng mới</h3><label class="sk-fld">Tên cửa hàng<input id="sk-bf-name" class="sk-inp" placeholder="VD: Quán Cafe Sân Vườn"></label><label class="sk-fld">Ngành nghề của cửa hàng này<select id="sk-bf-nganh" class="sk-inp"></select></label><div id="sk-bf-ngnote" style="margin:-4px 0 10px;font-size:12px;color:#6b7872;line-height:1.55"></div><div class="sk-card-acts"><button class="sk-btn red" id="sk-bf-del" data-act="branch-del" style="display:none">Xóa</button><span style="flex:1"></span><button class="sk-btn ghost" data-act="modal-close" data-target="#sk-branch-form">Hủy</button><button class="sk-btn green" data-act="branch-save">Lưu</button></div></div></div>
 
 <!-- KIỂM TRA KẾT NỐI & QUYỀN -->
 <div id="sk-diag" class="sk-modal"><div class="sk-card"><h3>🔌 Kiểm tra kết nối &amp; quyền</h3><div class="sk-mut" style="margin-bottom:10px">Dò thử đọc/ghi từng đường dẫn Firestore của chi nhánh đang chọn. Nếu có dòng ✗ "Bị từ chối quyền" → cập nhật Firestore Rules theo hướng dẫn.</div><div id="sk-diag-body" style="max-height:60vh;overflow-y:auto"></div><div class="sk-card-acts"><button class="sk-btn ghost" data-act="diag-rerun">↻ Chạy lại</button><span style="flex:1"></span><button class="sk-btn green" data-act="modal-close" data-target="#sk-diag">Đóng</button></div></div></div>
@@ -9599,7 +9745,7 @@ body.la-nv #pos-screen [data-act="ca-cancel"]{display:none!important}
 <!-- NHÂN VIÊN -->
 <div id="sk-staff" class="sk-modal"><div class="sk-card"><h3>Nhân viên &amp; phân quyền</h3><div class="sk-note2">Phân quyền ở đây khóa theo máy &amp; mã PIN (dùng cho máy bán hàng chung, có ghi nhận ai bán). Không phải bảo mật cấp máy chủ.</div><div style="background:#f3f7f5;border-radius:10px;padding:10px 12px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;gap:10px"><div style="font-size:13.5px"><b>Yêu cầu PIN khi mở Bán hàng</b><div style="color:#6b7872;font-size:12px">Tắt nếu bạn bán một mình — vào thẳng quyền Chủ, khỏi chọn người &amp; nhập PIN.</div></div><button class="sk-btn green" id="sk-pin-toggle" data-act="pin-toggle">🔒 ĐANG BẬT</button></div><div class="sk-note2" style="color:#0a5f4a">💡 Quên PIN? Bấm vào tên nhân viên bên dưới để xem/đổi PIN. Nếu kẹt ở cổng PIN, dùng nút "🔑 Quên PIN? — Chủ mở khóa".</div><div style="margin-bottom:10px"><button class="sk-btn outline wide" data-act="perm-open">⚙️ Tùy chỉnh quyền chi tiết (Quản lý / Thu ngân)</button></div><div id="sk-nvacc-box" style="background:#fff8ec;border:1px solid #f0d9ae;border-radius:10px;padding:11px 12px;margin-bottom:10px"><div style="font-size:13.5px;font-weight:700;margin-bottom:3px">🔐 Tài khoản đăng nhập cho máy nhân viên</div><div style="color:#6b7872;font-size:12px;line-height:1.5;margin-bottom:8px">Tạo <b>một</b> tài khoản riêng để đăng nhập trên các máy nhân viên. Khi đó máy nhân viên <b>không đọc được PIN của Chủ</b>, <b>không tự cấp quyền cho mình</b> và <b>không xóa được</b> đơn hàng, ca đã chốt hay nhật ký — chặn ở máy chủ Firebase, không chỉ ở giao diện.<br>Máy của Chủ vẫn đăng nhập như bình thường.</div><div id="sk-nvacc-info" style="font-size:12.5px;margin-bottom:8px;color:#6b7872">Đang kiểm tra…</div><button class="sk-btn green wide" data-act="nvacc-open">➕ Tạo tài khoản nhân viên</button></div><div style="margin-bottom:10px"><button class="sk-btn green wide" data-act="staff-new">➕ Thêm nhân viên</button></div><div id="sk-staff-list" style="max-height:50vh;overflow-y:auto"></div><div class="sk-card-acts"><span style="flex:1"></span><button class="sk-btn ghost" data-act="modal-close" data-target="#sk-staff">Đóng</button></div></div></div>
 <div id="sk-nvacc" class="sk-modal"><div class="sk-card sk-card-sm"><h3>🔐 Tài khoản nhân viên</h3><div class="sk-note2">Tạo một tài khoản để đăng nhập trên <b>tất cả</b> máy nhân viên. Dùng email có thật của bạn cũng được (ví dụ <i>shopcuaban+nv@gmail.com</i>) — chỉ cần bạn nhớ mật khẩu để đưa cho nhân viên.</div><label class="sk-fld">Email tài khoản nhân viên<input id="sk-nv-email" class="sk-inp" type="email" inputmode="email" autocomplete="off" placeholder="vd: shopcuaban+nv@gmail.com"></label><label class="sk-fld">Mật khẩu (tối thiểu 6 ký tự)<input id="sk-nv-pass" class="sk-inp" type="text" autocomplete="off" placeholder="đặt mật khẩu dễ nhớ để đưa nhân viên"></label><div class="sk-note2" style="color:#a3620a">⚠️ Ghi lại email và mật khẩu này. Bạn sẽ dùng nó để đăng nhập trên máy nhân viên.</div><div id="sk-nv-msg" style="font-size:12.5px;margin-top:6px"></div><div class="sk-card-acts"><span style="flex:1"></span><button class="sk-btn ghost" data-act="modal-close" data-target="#sk-nvacc">Đóng</button><button class="sk-btn green" data-act="nvacc-save">Tạo tài khoản</button></div></div></div>
-<div id="sk-staff-form" class="sk-modal"><div class="sk-card sk-card-sm"><h3 id="sk-stf-title">Thêm nhân viên</h3><label class="sk-fld">Tên nhân viên<input id="sk-stf-name" class="sk-inp"></label><label class="sk-fld">Mã PIN (4–6 số)<input id="sk-stf-pin" class="sk-inp" inputmode="numeric" maxlength="6"></label><label class="sk-fld">Vai trò<select id="sk-stf-role" class="sk-inp"><option value="cashier">Thu ngân — chỉ bán hàng</option><option value="manager">Quản lý — bán + kho + báo cáo</option><option value="owner">Chủ — toàn quyền</option></select></label><label class="sk-fld">Chi nhánh được phân<select id="sk-stf-branch" class="sk-inp"><option value="">Tất cả chi nhánh</option></select></label><div class="sk-card-acts"><button class="sk-btn red" id="sk-stf-del" data-act="staff-del" style="display:none">Xóa</button><span style="flex:1"></span><button class="sk-btn ghost" data-act="modal-close" data-target="#sk-staff-form">Hủy</button><button class="sk-btn green" data-act="staff-save">Lưu</button></div></div></div>
+<div id="sk-staff-form" class="sk-modal"><div class="sk-card sk-card-sm"><h3 id="sk-stf-title">Thêm nhân viên</h3><label class="sk-fld">Tên nhân viên<input id="sk-stf-name" class="sk-inp"></label><label class="sk-fld">Mã PIN (4–6 số)<input id="sk-stf-pin" class="sk-inp" inputmode="numeric" maxlength="6"></label><label class="sk-fld">Vai trò<select id="sk-stf-role" class="sk-inp"><option value="cashier">Thu ngân — chỉ bán hàng</option><option value="manager">Quản lý — bán + kho + báo cáo</option><option value="owner">Chủ — toàn quyền</option></select></label><label class="sk-fld">Cửa hàng được phân (kèm ngành)<select id="sk-stf-branch" class="sk-inp"><option value="">🏪 Mọi cửa hàng</option></select></label><div id="sk-stf-ngnote" style="margin:-4px 0 10px;font-size:12px;color:#6b7872;line-height:1.55"></div><div class="sk-card-acts"><button class="sk-btn red" id="sk-stf-del" data-act="staff-del" style="display:none">Xóa</button><span style="flex:1"></span><button class="sk-btn ghost" data-act="modal-close" data-target="#sk-staff-form">Hủy</button><button class="sk-btn green" data-act="staff-save">Lưu</button></div></div></div>
 <div id="sk-perm" class="sk-modal"><div class="sk-card"><h3>⚙️ Phân quyền chi tiết</h3><div class="sk-perm-tip">Tick = được phép. <b>Chủ</b> luôn có toàn quyền (không cần chỉnh). Bỏ tick để chặn — nhân viên bấm vào sẽ báo "không có quyền". Lưu xong áp dụng ngay trên mọi máy.</div><div class="sk-perm-tbl"><div class="sk-perm-hd"><span>Quyền thao tác</span><span>Quản lý</span><span>Thu ngân</span></div><div id="sk-perm-body"></div></div><div class="sk-card-acts"><button class="sk-btn ghost" data-act="modal-close" data-target="#sk-perm">Hủy</button><span style="flex:1"></span><button class="sk-btn green" data-act="perm-save">💾 Lưu phân quyền</button></div></div></div>
 
 <!-- TEM MÃ VẠCH -->
@@ -11188,7 +11334,7 @@ var CAT={
  bc :{i:'📊',n:'Báo cáo & Quỹ ca'},
  cv :{i:'🧠',n:'Cố vấn kinh doanh (AI)'},
  nv :{i:'👥',n:'Nhân viên & Phân quyền'},
- cn :{i:'🏪',n:'Chi nhánh & Module ngành'},
+ cn :{i:'🏪',n:'Cửa hàng & Ngành nghề'},
  sl :{i:'💾',n:'Sao lưu & Phục hồi'},
  inn:{i:'🖨️',n:'In ấn & Chia sẻ'},
  loi:{i:'🆘',n:'Sự cố thường gặp'}
@@ -12524,7 +12670,7 @@ a:`<b class="snai-h">🎭 3 vai trò</b>
 <li>Bán hàng, quản kho, nhập hàng.</li>
 <li>Xem toàn bộ báo cáo, lãi lỗ.</li>
 <li>Thêm/sửa/xóa nhân viên, đặt phân quyền.</li>
-<li>Thêm chi nhánh, bật module ngành.</li>
+<li>Mở thêm cửa hàng, đặt ngành cho từng cửa hàng.</li>
 <li>Xóa đơn hàng, xóa ca, tính lại ca.</li>
 <li>Mở/chốt ca.</li>
 </ul>
@@ -12711,35 +12857,38 @@ a:`<b class="snai-h">🏪 Chi nhánh</b>
 <div class="snai-tip">💡 <b>Phân nhân viên chỉ được vào 1 chi nhánh:</b> tab <b>Báo cáo</b> → <b>👤 Quản lý nhân viên</b> → bấm vào tên nhân viên → tìm ô <b>Chi nhánh được phân</b> → chọn đúng chi nhánh của họ → Lưu.</div>
 <div class="snai-warn">⚠️ <b>Trước khi bán hàng, luôn nhìn nút 🏪 xem mình đang ở đúng chi nhánh chưa.</b> Bán nhầm chi nhánh sẽ làm sai tồn kho và sai doanh thu của cả hai bên.</div>`},
 
-{c:'cn',t:'Bảng Module ngành — bật thêm tính năng',k:'module nganh bat tat tinh nang mo rong loai hinh shop nha hang thoi trang',
-a:`<b class="snai-h">🧩 Module ngành</b>
-<b>👉 Cái này để làm gì:</b> app có sẵn các <b>gói tính năng chuyên biệt cho từng ngành</b>. Mặc định tất cả đều TẮT cho gọn. Bạn làm ngành nào thì bật gói đó lên.
-<b>🪜 Làm từng bước:</b>
+{c:'cn',t:'Ngành nghề của cửa hàng — mỗi cửa hàng một ngành',k:'nganh nghe module nganh cua hang chi nhanh doi nganh nha hang thoi trang karaoke can ky da nang',
+a:`<b class="snai-h">🏪 Mỗi cửa hàng một ngành riêng</b>
+<b>👉 Cái này để làm gì:</b> mỗi cửa hàng (chi nhánh) của bạn chạy <b>đúng một ngành</b>, giao diện chỉ hiện thứ của ngành đó nên <b>gọn và dễ dùng như một app riêng</b>. Nợ của khách thì <b>vẫn chung một sổ</b> cho cả các cửa hàng.
+<div class="snai-tip">💡 Nhờ vậy bạn vừa mở <b>quán cà phê</b> vừa mở <b>tiệm tạp hóa</b> trên <b>cùng một tài khoản</b> — mỗi bên một cửa hàng, mỗi bên một ngành, không lẫn lộn.</div>
+<b>🪜 Đổi ngành cho một cửa hàng:</b>
 <ol>
-<li>Vào <span class="snai-path">🛒 BÁN HÀNG</span> → tab <b>Báo cáo</b>.</li>
-<li>Tìm nút <b>🧩 Module ngành</b> → bấm vào.
-<div class="snai-warn">⚠️ Nút này <b>chỉ tài khoản vai trò CHỦ mới nhìn thấy</b>. Không thấy thì bạn đang đăng nhập bằng Quản lý hoặc Thu ngân.</div></li>
-<li>Hiện ra bảng có các <b>công tắc gạt</b>.</li>
-<li><b>Gạt công tắc</b> của module bạn cần dùng sang bên bật.</li>
-<li>Bấm <b>Lưu</b>.</li>
+<li>Vào <span class="snai-path">🛒 BÁN HÀNG</span>.</li>
+<li>Bấm nút <b>🏪</b> ở <b>góc trên bên phải</b> → hiện danh sách cửa hàng.
+<div class="snai-warn">⚠️ Việc này <b>chỉ vai trò CHỦ mới làm được</b>. Không thấy nút ✎ thì bạn đang đăng nhập bằng Quản lý hoặc Thu ngân.</div></li>
+<li>Bấm <b>✎</b> ở cửa hàng cần đổi.</li>
+<li>Chọn ô <b>Ngành nghề của cửa hàng này</b>.</li>
+<li>Bấm <b>Lưu</b> → app <b>tự tải lại</b> rồi mở đúng ngành mới.</li>
 </ol>
-<b>📖 CÓ 4 MODULE, chọn đúng ngành của bạn:</b>
+<b>📖 CÓ 5 NGÀNH, chọn đúng ngành của bạn:</b>
 <ul>
-<li>🍽️ <b>F&amp;B</b> — <b>Nhà hàng / Quán ăn / Quán cà phê / Trà sữa</b>.
+<li>🛒 <b>Bán hàng đa năng</b> — tạp hóa, vật tư, điện máy, phụ tùng, thuốc thú y, mỹ nghệ…
+<br>Quét mã, giỏ hàng, tiền mặt / VietQR / ghi nợ, hóa đơn, kho, báo cáo. <b>Không tốn thêm gói.</b></li>
+<li>🍽️ <b>Nhà hàng · Quán ăn · Cafe</b>.
 <br>Được thêm: <b>sơ đồ bàn</b> và <b>định lượng nguyên vật liệu</b>.</li>
-<li>👕 <b>Thời trang / Mỹ phẩm</b> — <b>Shop quần áo, giày dép, mỹ phẩm</b>.
+<li>👕 <b>Thời trang · Mỹ phẩm</b> — shop quần áo, giày dép, mỹ phẩm.
 <br>Được thêm: quản lý theo <b>size và màu</b>.</li>
-<li>🛏️ <b>Karaoke / Spa / Nhà nghỉ</b> — kinh doanh <b>phòng tính theo giờ</b>.
+<li>🛏️ <b>Karaoke · Spa · Nhà nghỉ</b> — kinh doanh <b>phòng tính theo giờ</b>.
 <br>Được thêm: mở phòng, đếm giờ, gọi thêm đồ, đóng phòng tính tiền.</li>
-<li>⚖️ <b>Vật liệu XD / Nông sản / Bán sỉ</b>.
+<li>⚖️ <b>Vật liệu XD · Nông sản · Bán sỉ</b>.
 <br>Được thêm: <b>cân ký số lẻ</b> và <b>giá theo bậc số lượng</b>.</li>
 </ul>
-<div class="snai-tip">💡 <b>Chỉ bật cái bạn THẬT SỰ dùng.</b> Bật ít thì app <b>nhẹ hơn, mở nhanh hơn, màn hình gọn hơn</b>, ít nút thừa gây rối. Sau này cần thì vào bật thêm lúc nào cũng được.</div>`},
+<div class="snai-warn">💰 Bốn ngành chuyên biệt là <b>gói thuê riêng, tính phí riêng theo tháng</b>. Chọn ngành chưa có gói thì app <b>tự mở dùng thử</b> cho bạn, hết hạn thử mới hiện màn mua.</div>`},
 
 {c:'cn',t:'Module F&B — sơ đồ bàn quán ăn, cà phê',k:'fnb nha hang quan an cafe so do ban giu don theo ban goi mon',
 a:`<b class="snai-h">🍽️ Module F&amp;B — Sơ đồ bàn</b>
 <b>👉 Cái này để làm gì:</b> quản lý quán theo <b>từng bàn</b>. Mỗi bàn giữ đơn riêng, khách gọi thêm cứ thêm vào bàn đó, tới lúc về mới tính tiền một lần.
-<b>📌 Bước bắt buộc trước tiên:</b> phải <b>bật module F&amp;B</b> ở tab <b>Báo cáo</b> → <b>🧩 Module ngành</b>. Bật xong sẽ xuất hiện thêm <b>tab 🍽️ Bàn</b> ở thanh dưới đáy.
+<b>📌 Bước bắt buộc trước tiên:</b> cửa hàng này phải được đặt ngành <b>🍽️ Nhà hàng · Quán ăn · Cafe</b>. Vào <span class="snai-path">🛒 BÁN HÀNG</span> → bấm nút <b>🏪</b> góc trên bên phải → bấm <b>✎</b> ở cửa hàng cần đổi → chọn <b>Ngành nghề</b> → <b>Lưu</b>. Xong sẽ xuất hiện thêm <b>tab 🍽️ Bàn</b> ở thanh dưới đáy.
 <b>🪜 BƯỚC 1 — Tạo danh sách bàn (làm 1 lần duy nhất):</b>
 <ol>
 <li>Bấm tab <b>🍽️ Bàn</b>.</li>
@@ -12772,7 +12921,7 @@ a:`<b class="snai-h">🧪 Định lượng nguyên vật liệu</b>
 <b>👉 Cái này để làm gì:</b> khai báo <b>công thức pha chế</b>. Bán 1 ly cà phê sữa → app <b>tự trừ</b> cà phê + sữa + đá + ly nhựa trong kho. Nhờ đó biết chính xác <b>còn pha được bao nhiêu ly nữa</b>.
 <b>🪜 BƯỚC CHUẨN BỊ — làm trước, rất quan trọng:</b>
 <ol>
-<li>Bật module <b>F&amp;B</b> ở tab <b>Báo cáo</b> → <b>🧩 Module ngành</b>.</li>
+<li>Đặt ngành <b>🍽️ Nhà hàng · Quán ăn · Cafe</b> cho cửa hàng: Vào <span class="snai-path">🛒 BÁN HÀNG</span> → bấm nút <b>🏪</b> góc trên bên phải → bấm <b>✎</b> ở cửa hàng cần đổi → chọn <b>Ngành nghề</b> → <b>Lưu</b>.</li>
 <li>Vào tab <b>Kho</b>, <b>tạo từng nguyên liệu thành một sản phẩm riêng</b>, với đơn vị nhỏ nhất phù hợp:
 <ul>
 <li><i>Cà phê bột</i> — đơn vị <b>gram</b>.</li>
@@ -12799,7 +12948,7 @@ a:`<b class="snai-h">👕 Module Thời trang — Biến thể</b>
 <b>👉 Cái này để làm gì:</b> một cái áo có nhiều <b>size</b> và nhiều <b>màu</b>. Module này cho phép quản lý tồn <b>riêng cho từng ô size × màu</b>, thay vì gộp chung một cục.
 <b>🪜 Làm từng bước:</b>
 <ol>
-<li>Bật module <b>Thời trang / Mỹ phẩm</b> ở tab <b>Báo cáo</b> → <b>🧩 Module ngành</b>.</li>
+<li>Đặt ngành <b>👕 Thời trang · Mỹ phẩm</b> cho cửa hàng: Vào <span class="snai-path">🛒 BÁN HÀNG</span> → bấm nút <b>🏪</b> góc trên bên phải → bấm <b>✎</b> ở cửa hàng cần đổi → chọn <b>Ngành nghề</b> → <b>Lưu</b>.</li>
 <li>Vào tab <b>Kho</b> → <b>mở sản phẩm</b> (ví dụ <i>"Áo thun cổ tròn"</i>).</li>
 <li>Tìm mục <b>biến thể</b>.</li>
 <li><b>Gõ danh sách SIZE</b>, các size <b>cách nhau bằng dấu phẩy</b>, không có khoảng trắng thừa:
@@ -12819,7 +12968,7 @@ a:`<b class="snai-h">🛏️ Module Phòng tính giờ</b>
 <b>👉 Cái này để làm gì:</b> kinh doanh <b>phòng tính theo giờ</b> — karaoke, nhà nghỉ, spa, phòng họp. App <b>tự đếm giờ</b> và tính tiền giùm.
 <b>🪜 BƯỚC 1 — Chuẩn bị (làm 1 lần):</b>
 <ol>
-<li>Bật module <b>Karaoke / Spa / Nhà nghỉ</b> ở tab <b>Báo cáo</b> → <b>🧩 Module ngành</b>.</li>
+<li>Đặt ngành <b>🛏️ Karaoke · Spa · Nhà nghỉ</b> cho cửa hàng: Vào <span class="snai-path">🛒 BÁN HÀNG</span> → bấm nút <b>🏪</b> góc trên bên phải → bấm <b>✎</b> ở cửa hàng cần đổi → chọn <b>Ngành nghề</b> → <b>Lưu</b>.</li>
 <li>Vào tab <b>Kho</b> → <b>tạo từng phòng như một sản phẩm</b>: <i>Phòng 1</i>, <i>Phòng VIP</i>...</li>
 <li>Với mỗi phòng, đặt:
 <ul>
@@ -12852,7 +13001,7 @@ a:`<b class="snai-h">🛏️ Module Phòng tính giờ</b>
 {c:'cn',t:'Module Cân ký & giá theo bậc số lượng',k:'can ky nong san vat lieu xay dung ban si gia bac mua nhieu re hon so le',
 a:`<b class="snai-h">⚖️ Module Cân ký &amp; Giá bậc</b>
 <b>👉 Dành cho ngành nào:</b> vật liệu xây dựng, nông sản, thực phẩm cân ký, cửa hàng bán sỉ — những nơi bán theo cân và <b>mua càng nhiều càng rẻ</b>.
-<b>📌 Bật module trước:</b> tab <b>Báo cáo</b> → <b>🧩 Module ngành</b> → bật <b>Vật liệu XD / Nông sản / Bán sỉ</b>.
+<b>📌 Đặt ngành trước:</b> Vào <span class="snai-path">🛒 BÁN HÀNG</span> → bấm nút <b>🏪</b> góc trên bên phải → bấm <b>✎</b> ở cửa hàng cần đổi → chọn <b>Ngành nghề</b> → <b>Lưu</b> → chọn <b>⚖️ Vật liệu XD · Nông sản · Bán sỉ</b>.
 <b>📖 Module này cho bạn 2 thứ:</b>
 <ol>
 <li><b>⚖️ CÂN KÝ — nhập được số lẻ.</b>
@@ -13202,7 +13351,7 @@ a:`<b class="snai-h">⛔ Lỗi "Bị từ chối quyền"</b>
 <b>🪜 Xử lý theo thứ tự — thử từng cái một:</b>
 <ol>
 <li><b>Kiểm tra bạn đang đăng nhập bằng tài khoản nào.</b>
-<br>Nếu đang dùng <b>tài khoản nhân viên</b> thì nhiều việc <b>chỉ Chủ mới làm được</b> (xóa đơn, xóa ca, quản lý nhân viên, module ngành).
+<br>Nếu đang dùng <b>tài khoản nhân viên</b> thì nhiều việc <b>chỉ Chủ mới làm được</b> (xóa đơn, xóa ca, quản lý nhân viên, mở cửa hàng & đặt ngành).
 <br><b>👉 Cách sửa:</b> đăng xuất, đăng nhập lại bằng <b>tài khoản chủ</b>.</li>
 <li><b>Kiểm tra xem có đang KHÓA SỔ không.</b>
 <br>Nhìn lên đầu màn hình Sổ Nợ xem có dòng <b>🔒 Sổ Nợ đang KHÓA</b> không.
@@ -13263,20 +13412,20 @@ a:`<b class="snai-h">🔍 Không thấy nút / chức năng</b>
 <br>Bạn đang đăng nhập bằng <b>Thu ngân</b> hoặc <b>Quản lý</b>. Nhiều nút <b>chỉ vai trò CHỦ mới thấy</b>:
 <ul>
 <li>👤 Quản lý nhân viên</li>
-<li>🧩 Module ngành</li>
+<li>🏪 Mở cửa hàng mới · ✎ sửa cửa hàng & đặt ngành</li>
 <li>🗑 Xóa ca · 🔄 Tính lại ca</li>
 <li>Một số phần trong báo cáo</li>
 </ul>
 <b>👉 Cách sửa:</b> đăng xuất, đăng nhập lại bằng <b>tài khoản chủ</b>. Hoặc dùng PIN của người có vai trò Chủ.</li>
 <li><b>NGUYÊN NHÂN 2 — Do module chưa bật.</b>
-<br>Các thứ sau <b>phải bật module ngành trước</b> mới hiện ra:
+<br>Các thứ sau <b>chỉ hiện khi cửa hàng đang mở được đặt đúng ngành</b>:
 <ul>
 <li>Tab <b>🍽️ Bàn</b> → cần bật module <b>F&amp;B</b>.</li>
 <li>Chọn <b>size / màu</b> → cần bật module <b>Thời trang</b>.</li>
 <li><b>Phòng tính giờ</b> → cần bật module <b>Karaoke / Nhà nghỉ</b>.</li>
 <li><b>Cân ký, giá bậc</b> → cần bật module <b>Vật liệu / Nông sản</b>.</li>
 </ul>
-<b>👉 Cách sửa:</b> tab <b>Báo cáo</b> → <b>🧩 Module ngành</b> → gạt bật module cần dùng → Lưu.</li>
+<b>👉 Cách sửa:</b> Vào <span class="snai-path">🛒 BÁN HÀNG</span> → bấm nút <b>🏪</b> góc trên bên phải → bấm <b>✎</b> ở cửa hàng cần đổi → chọn <b>Ngành nghề</b> → <b>Lưu</b> → chọn đúng ngành → app tự tải lại là thấy.</li>
 <li><b>NGUYÊN NHÂN 3 — Do đang khóa sổ.</b>
 <br>Khi <b>🔒 Sổ Nợ đang KHÓA</b>, các nút sửa công nợ (thêm khách, sửa giao dịch, xóa) đều <b>bị ẩn đi</b>.
 <br><b>👉 Cách sửa:</b> <span class="snai-path">⚙️ Cài đặt</span> → <b>🔒 Khóa sổ</b> → nhập mật khẩu để mở khóa.</li>
@@ -13320,8 +13469,8 @@ a:`<b class="snai-h">🐌 App chậm / trắng màn hình</b>
 </ul></li>
 <li><b>CÁCH 2 — Kiểm tra mạng.</b>
 <br>Mạng 4G yếu hoặc wifi chập chờn làm app tải rất lâu. Thử chuyển từ 4G sang wifi hoặc ngược lại.</li>
-<li><b>CÁCH 3 — Tắt bớt module ngành không dùng.</b>
-<br>Tab <b>Báo cáo</b> → <b>🧩 Module ngành</b> → gạt tắt những module bạn không dùng tới → Lưu. App sẽ nhẹ hơn.</li>
+<li><b>CÁCH 3 — Đặt đúng ngành cho cửa hàng.</b>
+<br>Mỗi cửa hàng chỉ chạy <b>một ngành duy nhất</b> nên app đã tự gọn sẵn. Nếu cửa hàng đang để ngành không đúng việc bạn làm thì Vào <span class="snai-path">🛒 BÁN HÀNG</span> → bấm nút <b>🏪</b> góc trên bên phải → bấm <b>✎</b> ở cửa hàng cần đổi → chọn <b>Ngành nghề</b> → <b>Lưu</b> → chọn lại cho đúng.</li>
 <li><b>CÁCH 4 — Khởi động lại điện thoại.</b>
 <br>Tắt nguồn hẳn, chờ 10 giây, bật lại. Cách này giải phóng bộ nhớ máy.</li>
 <li><b>CÁCH 5 — Cập nhật trình duyệt.</b>
@@ -15456,7 +15605,7 @@ window.AIB={ hoi:function(t){ try{ M.go('aib'); }catch(e){} setTimeout(function(
 <!-- ═══════════════ HẾT: BỘ NÃO AI — CỐ VẤN KINH DOANH ═══════════════ -->
 <!-- ═══════════════ CHỌN NGÀNH + GÓI NGÀNH TRẢ PHÍ RIÊNG (drop-in · namespace nga-/ngm-) ═══════════════
      Bấm tab "🛒 BÁN HÀNG" ở màn Sổ Nợ → hiện 5 LỰA CHỌN rồi mới mở màn Bán hàng:
-        1) 🛒 Bán hàng (thường) · 2) 🍽️ F&B · 3) 👕 Thời trang · 4) 🛏️ Karaoke/Spa · 5) ⚖️ Cân ký/Bán sỉ
+        1) 🛒 Bán hàng đa năng · 2) 🍽️ F&B · 3) 👕 Thời trang · 4) 🛏️ Karaoke/Spa · 5) ⚖️ Cân ký/Bán sỉ
      MỖI GÓI NGÀNH THU PHÍ RIÊNG theo tháng, giấy phép ở accounts/{uid}/lic/sono_fnb|sono_fs|sono_rm|sono_kg
      — cùng kiểu với gói POS (sono_pos) và gói Chi nhánh (sono_cn) nên KHÔNG cần sửa Firestore Rules.
      Gói nào cũng mở thêm được CHI NHÁNH (add-on sono_cn có sẵn, dùng chung cho cả 5 lựa chọn).
@@ -15544,8 +15693,8 @@ window.AIB={ hoi:function(t){ try{ M.go('aib'); }catch(e){} setTimeout(function(
     {k:'kg',  lic:'sono_kg',  pf:'priceKg',  ic:'⚖️', n:'Vật liệu XD · Nông sản · Bán sỉ',
      d:'Cân ký số lẻ (2,5 bao…), giá tự đổi theo bậc số lượng — mua càng nhiều càng rẻ.'}
   ];
-  var BASE = {k:'', ic:'🛒', n:'Bán hàng (thường)',
-    d:'Bán tính tiền như hiện tại: quét mã, giỏ hàng, tiền mặt / VietQR / ghi nợ, hóa đơn, kho, báo cáo.'};
+  var BASE = {k:'', ic:'🛒', n:'Bán hàng đa năng',
+    d:'Dùng cho mọi ngành: tạp hóa, vật tư, điện máy, phụ tùng, thuốc thú y, mỹ nghệ… Quét mã, giỏ hàng, tiền mặt / VietQR / ghi nợ, hóa đơn, kho, báo cáo.'};
   /* ════════════════════════════════════════════════ */
 
   var KEYS=MODS.map(function(x){return x.k;});
@@ -15628,26 +15777,25 @@ window.AIB={ hoi:function(t){ try{ M.go('aib'); }catch(e){} setTimeout(function(
     setTimeout(function(){ try{clearInterval(t2);}catch(e){} },180000);
   }
 
-  /* ---------- BỌC openPOS ---------- */
-  function install(){
-    if(installed) return true;
-    if(typeof window.openPOS!=='function') return false;
-    real=window.openPOS;
-    window.openPOS=function(){
-      try{
-        if(bypass){ bypass=false; return real.apply(window,arguments); }
-        var ps=document.getElementById('pos-screen');
-        if(ps && ps.classList.contains('on')) return real.apply(window,arguments);
-        if(!SK()) return real.apply(window,arguments);
-        openSheet(); return;
-      }catch(e){ try{ return real.apply(window,arguments); }catch(e2){} }
-    };
-    installed=true; return true;
-  }
-  if(!install()){
-    var t1=setInterval(function(){ if(install()) clearInterval(t1); },250);
-    setTimeout(function(){ try{clearInterval(t1);}catch(e){} },20000);
-  }
+  /* ---------- BỌC openPOS — ĐÃ TẮT (v5) ----------
+     Trước: bấm "Bán hàng" hiện bảng chọn NGÀNH cho cả tài khoản.
+     Nay mỗi CỬA HÀNG mang ngành riêng, đổi ngay trong 🏪 của POS
+     ⇒ không chặn openPOS nữa, vào thẳng cửa hàng đang dùng.
+     Khối này giữ lại để: đọc giấy phép gói ngành · màn MUA GÓI · bảng giá admin. */
+  function install(){ installed=true; return true; }
+  install();
+
+  /* Cầu nối cho màn 🏪 Cửa hàng trong POS gọi sang */
+  window.NGA={
+    san:function(){ return ready; },
+    nap:function(){ try{ loadAll(); }catch(e){} },
+    ok:function(k){ if(!k)return true; var i=licOf(k); return !!(i&&i.ok); },
+    han:function(k){ if(!k)return null; return licOf(k)||null; },
+    ten:function(k){ return nameOf(k); },
+    mua:function(k){ try{ if(k)openUp(k); }catch(e){} },
+    thu:function(k){ try{ return moDungThu(k); }catch(e){ return Promise.resolve(false); } },
+    ngayThu:MOD_TRIAL_DAYS
+  };
 
   /* ---------- BẢNG 5 LỰA CHỌN ---------- */
   function cur(){
@@ -15696,7 +15844,7 @@ window.AIB={ hoi:function(t){ try{ M.go('aib'); }catch(e){} setTimeout(function(
     var c=cur(), i;
     var h='<div class="nga-grip"></div>'
         + '<div class="nga-hd"><b>🛒 Vào Bán hàng — chọn ngành nghề</b><button type="button" class="nga-x" data-nga="x">✕</button></div>'
-        + '<div class="nga-note">Mỗi gói ngành là <b>một gói thuê riêng, tính phí riêng theo tháng</b> (cộng thêm gói Bán hàng nền). Không chắc thì cứ chọn <b>Bán hàng (thường)</b> — đổi lại lúc nào cũng được.</div>';
+        + '<div class="nga-note">Mỗi gói ngành là <b>một gói thuê riêng, tính phí riêng theo tháng</b> (cộng thêm gói Bán hàng nền). Không chắc thì cứ chọn <b>Bán hàng đa năng</b> — đổi lại lúc nào cũng được.</div>';
     h+=card(BASE,c==='',false);
     for(i=0;i<MODS.length;i++){ var m=MODS[i]; h+=card(m,c===m.k&&licOf(m.k).ok,!licOf(m.k).ok); }
     h+='<div class="nga-foot">🏪 Gói nào cũng <b>mở thêm được chi nhánh</b> — vào Bán hàng bấm nút 🏪 ở góc trên bên phải.</div>';
@@ -15814,7 +15962,7 @@ window.AIB={ hoi:function(t){ try{ M.go('aib'); }catch(e){} setTimeout(function(
       +'<div class="m-sub">'+esc(m.d)+'<br><b>Đây là gói thuê riêng</b>, tính phí riêng theo tháng (cộng thêm gói Bán hàng nền). Gói này cũng <b>mở thêm được chi nhánh</b>.</div>'
       +hanLine+body
       +'<button type="button" class="m-alt" data-ngm="req">📩 Chỉ gửi yêu cầu (chuyển khoản sau)</button>'
-      +'<button type="button" class="m-alt" data-ngm="base">➡️ Vào Bán hàng thường (không dùng gói ngành)</button>'
+      +'<button type="button" class="m-alt" data-ngm="base">↩️ Để sau — quay lại</button>'
       +'<a class="m-hot" href="tel:'+HOTLINE+'">📞 Gọi hotline hỗ trợ: 0977 823 979</a>'
       +'<button type="button" class="m-close" data-ngm="x">Đóng</button>'
       +'</div>';
@@ -15827,7 +15975,7 @@ window.AIB={ hoi:function(t){ try{ M.go('aib'); }catch(e){} setTimeout(function(
         if(a==='m'){ upM=parseInt(b.getAttribute('data-m'),10)||1; drawUp(); return; }
         if(a==='cp'){ try{ if(typeof window.copyText==='function') window.copyText(b.getAttribute('data-v')); }catch(e2){} return; }
         if(a==='req'){ ghiDon(upK,upM,giaGH(priceOf(upK),upM),true); return; }
-        if(a==='base'){ closeUp(); close(); if(cur()===''){ go(); } else { apDung(''); } return; }
+        if(a==='base'){ closeUp(); close(); return; }
       },false);
     }
     if(unit>0&&BANK) ghiDon(upK,upM,total,false);
