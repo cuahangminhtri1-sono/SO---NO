@@ -16455,7 +16455,7 @@ window.AIB={ hoi:function(t){ try{ M.go('aib'); }catch(e){} setTimeout(function(
       return;
     }catch(e){}
     try{   /* dự phòng: Rules chặn field lạ → ghi kiểu chuẩn */
-      await f.setDoc(ref,Object.assign({status:'pending'},base),{merge:true});
+      await f.setDoc(ref,Object.assign({status:'pending',ngStatus:'pending'},base),{merge:true});
       if(baoNguoiDung){ say('✅ Đã gửi yêu cầu. Chủ phần mềm sẽ duyệt sớm.'); closeUp(); }
     }catch(e){ if(baoNguoiDung) say('❌ Gửi chưa được, thử lại'); }
   }
