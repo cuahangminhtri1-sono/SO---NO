@@ -3782,8 +3782,9 @@ async function skFinalize(method,extra){
   batch.set(orderRef,{items:items,subtotal:sub,discount:disc,total:total,method:method,staffName:(_nvTen||null),staffId:_nvId,shiftId:(_caMe?_caMe.id:''),paid:extra.paid||null,change:(extra.change!=null?extra.change:null),note:skOrderNote||'',customerId:(customer&&customer.id)||(isNew?custRef.id:null),customerName:(customer&&customer.name)||null,hdToken:hdToken,createdAt:serverTimestamp(),createdAtMs:Date.now()});
   pids.forEach(id=>{batch.update(bdoc('products',id),{stock:increment(-need[id])});batch.set(doc(bcol('stock_moves')),{productId:id,productName:(skProducts.find(x=>x.id===id)||{}).name||'',delta:-need[id],reason:'sale',orderId:orderRef.id,at:serverTimestamp()});}); // bán -> trừ tồn (increment âm) offline-safe
   if(custRef){const noteStr=items.map(i=>i.name+' '+skN(i.qty)+i.unit).join(', ');if(isNew)batch.set(custRef,{name:customer.name,phone:'',address:'',debt:total,createdAt:serverTimestamp()});else batch.update(custRef,{debt:increment(total)});const txRef=doc(collection(db,'users',UID,'customers',custRef.id,'transactions'));batch.set(txRef,{type:'mua',amount:total,note:noteStr,memo:'',orderId:orderRef.id,date:new Date(),createdAt:serverTimestamp(),createdAtMs:Date.now()});}
+  try{ window.caGhiDonMoi&&window.caGhiDonMoi(); }catch(_){}   /* [v9] đếm đơn bán lúc mất mạng */
   const _bakCart=skCart.slice(),_bakDisc=skDiscount,_bakNote=skOrderNote; // giữ bản sao: máy chủ TỪ CHỐI ghi thì trả lại giỏ (offline vẫn xếp hàng bình thường)
-  batch.commit().catch(e=>{skErr(e,'Tạo đơn');try{if(!skCart.length){skCart=_bakCart;skDiscount=_bakDisc;skOrderNote=_bakNote;const _n=skq('#sk-note');if(_n)_n.value=_bakNote||'';skRenderCart();skRenderGrid();toast('⚠️ Đơn CHƯA lưu được — đã trả lại giỏ hàng');}}catch(_){}});
+  batch.commit().then(function(){try{window.caDaGui&&window.caDaGui();}catch(_){}}).catch(e=>{skErr(e,'Tạo đơn');try{if(!skCart.length){skCart=_bakCart;skDiscount=_bakDisc;skOrderNote=_bakNote;const _n=skq('#sk-note');if(_n)_n.value=_bakNote||'';skRenderCart();skRenderGrid();toast('⚠️ Đơn CHƯA lưu được — đã trả lại giỏ hàng');}}catch(_){}});
   // Đồng bộ trang chia sẻ: CHỈ khi có mạng (offline thì số nợ vẫn đúng nhờ increment; healDebt soát lại khi mở sổ nợ có mạng).
   if(method==='debt'&&customer&&customer.id&&navigator.onLine){const c=(customers||[]).find(x=>x.id===customer.id);if(c&&c.shareToken){(async()=>{try{const nd=await recomputeDebtOnline(c.id);await updateDoc(doc(db,'users',UID,'customers',c.id),{debt:nd});await syncShare(c.shareToken,c.id,c.name,c.phone,nd);}catch(e){}})();}}
   const receipt={id:orderRef.id,hdToken:hdToken,items:items,subtotal:sub,discount:disc,total:total,method:method,paid:extra.paid,change:extra.change,customerName:(customer&&customer.name)||null,note:skOrderNote||'',when:new Date()};
@@ -6841,6 +6842,37 @@ try { window.__skBusy = function(){
     });
   }
 
+  /* [v9] Máy này có đang mất mạng không? (dựa vào lần cuối nói chuyện được với máy chủ) */
+  function laOffline(){
+    try{ if(navigator.onLine===false)return true; }catch(_){}
+    return (Date.now()-ACK)>OFF_MS;
+  }
+  function treMs(){ var d=Date.now()-ACK; return d>0?d:0; }
+  /* Ca này bao lâu rồi chưa có tín hiệu từ máy đang bán? (chủ shop nhìn vào đây) */
+  function nhipTre(sh){
+    var t=0; try{ t=anyMs(sh&&sh.timSv)||0; }catch(_){ t=0; }
+    if(!t)t=Number(sh&&sh.openAtMs)||0;
+    if(!t)return 0;
+    var d=Date.now()-t; return d>0?d:0;
+  }
+  /* NHỊP TIM: máy đang trực ca ghi dấu lên chính ca của mình, 2 phút/lần.
+     Mất mạng ⇒ lệnh ghi nằm chờ, máy chủ KHÔNG nhận được ⇒ máy CHỦ SHOP thấy nhịp đứng
+     và biết ngay máy đó đang bán offline. Có mạng lại ⇒ nhịp chạy tiếp, NOFF về 0. */
+  function nhipTim(){
+    try{
+      var sh=OPENME(); if(!sh||!sh.id)return;
+      updateDoc(brDoc(sh.branch||BR(),'shifts',sh.id),{
+        timMs:Date.now(),timSv:serverTimestamp(),timBy:(ME().name||''),timOff:NOFF
+      }).then(function(){ACK=Date.now();NOFF=0;try{paintBtn();}catch(_){}}).catch(function(){});
+    }catch(_){}
+  }
+  try{ setInterval(nhipTim,NHIP_MS); setTimeout(nhipTim,8000); }catch(_){}
+  /* Mỗi đơn bán ra lúc mất mạng đều được đếm — để biết đã dồn bao nhiêu đơn chưa gửi về. */
+  window.caGhiDonMoi=function(){ try{ if(laOffline())NOFF++; }catch(_){} };
+  /* Máy chủ đã NHẬN đơn ⇒ chắc chắn có mạng: gỡ sạch trạng thái offline.
+     Đây là van tự lành — không bao giờ chặn oan một máy đang online. */
+  window.caDaGui=function(){ try{ ACK=Date.now(); NOFF=0; paintBtn(); }catch(_){} };
+
   /* [v7.2] Công bố ca ĐANG MỞ của chi nhánh đang theo dõi — để cổng PIN biết
      người vừa nhập PIN có đúng là người được mở ca tại đây không.
      Trả null = CHƯA tải xong (bên gọi phải tự đọc máy chủ, không được đoán bừa). */
@@ -6864,7 +6896,15 @@ try { window.__skBusy = function(){
     try{
       if(!COKHOA())return true;            /* chưa lập DS nhân viên / tắt hỏi PIN ⇒ giữ nếp cũ */
       if(ISOWNER())return true;            /* [v8] CHỦ SHOP luôn bán được, có ca hay chưa */
-      if(OPENME())return true;             /* [v8] Nhân viên: phải CÓ CA CỦA MÌNH đang mở */
+      if(OPENME()){
+        /* [v9] TRẦN BÁN OFFLINE — không để dồn hàng trăm đơn trong máy mà chủ không hay biết */
+        if(NOFF>=CAP_DON||(NOFF>0&&treMs()>=CAP_PHUT*60000)){
+          say('📵 Máy chưa gửi được về máy chủ'+(NOFF?' '+NOFF+' đơn':'')+(treMs()>60000?(' · mất mạng '+khoangTG(treMs())):'')+'. '
+            +'BẬT MẠNG rồi bán tiếp — hoặc báo CHỦ SHOP vào bán bằng quyền Chủ.');
+          return false;
+        }
+        return true;
+      }
       if(!OPENS().length)
         say('🔒 Chưa mở ca — nhân viên chưa có ca thì KHÔNG bán được. Hãy báo CHỦ SHOP mở ca cho bạn.');
       else
@@ -7000,7 +7040,8 @@ try { window.__skBusy = function(){
   function paintBtn(){
     var b=document.getElementById('sk-ca-btn');if(!b)return;
     var s=OPENME(), L=OPENS();
-    if(s){b.classList.add('on');b.textContent='💰 Ca của '+(s.staffName||'bạn');}
+    if(s){b.classList.add('on');
+      b.textContent='💰 Ca của '+(s.staffName||'bạn')+(laOffline()?(' · 📵'+(NOFF?' '+NOFF+' đơn chưa gửi':' mất mạng')):'');}
     else if(L.length){b.classList.add('on');b.textContent='💰 '+L.length+' ca đang mở';}
     else{b.classList.remove('on');b.textContent='💰 Quỹ / Chốt ca';}
   }
@@ -7050,6 +7091,10 @@ try { window.__skBusy = function(){
           +(CAN()?'<b>'+money(R(x.openFloat))+'</b>':'')+'</div>'
         +'<div style="font-size:11.5px;color:#8a9993;margin-top:2px">mở lúc '+TM(x.openAtMs)
           +(x.songSong?' · ca song song':'')+'</div>'
+        +(function(){var t=nhipTre(x);
+            if(t>5*60000)return '<div style="font-size:12px;color:#c0392b;font-weight:700;margin-top:3px">📵 Chưa có tín hiệu '+khoangTG(t)
+              +(Number(x.timOff)>0?(' · còn '+R(x.timOff)+' đơn chưa gửi'):'')+'</div>';
+            return '<div style="font-size:12px;color:#0a8f5f;font-weight:700;margin-top:3px">🟢 Máy đang online</div>';})()
         +(CAN()?'<button class="sk-btn ghost wide" data-act="ca-detail" data-id="'+x.id+'" style="margin-top:7px">▶️ Mở ca này ra — xem tiền / CHỐT CA</button>':'')
         +'</div>';
     });
@@ -7093,6 +7138,7 @@ try { window.__skBusy = function(){
      +'<div class="ca-sub">👤 Người trực ca: <b>'+esc(sh.staffName||'')+'</b> · mở lúc <b>'+TM(sh.openAtMs)+'</b>'
        +(sh.note?' · '+esc(sh.note):'')+'</div>'
      +canhBaoNguoiBan(sh)
+     +canhBaoMang(sh)
      +(sh.khoMo?'<div class="ca-note">📦 Ảnh kho đầu ca đã chụp: <b>'+NUM(sh.khoMoN)+'</b> mặt hàng · <b>'+NUM(sh.khoMoQty)+'</b> đơn vị · vốn <b>'+money(sh.khoMoVon)+'</b>.</div>'
         :(sh.songSong
            ?'<div class="ca-note">📦 Đây là <b>ca song song</b> (mở khi đã có ca khác). Kho dùng chung nên app <b>không chụp ảnh kho riêng</b> — tiền của ca vẫn tính riêng đầy đủ.</div>'
@@ -7134,6 +7180,31 @@ try { window.__skBusy = function(){
         +'</div>'
        :'<button class="sk-btn wide" data-act="ca-hist" style="margin-top:9px">🕘 Lịch sử</button>');
     h+='<div class="ca-note" style="margin-top:12px">🔄 Số liệu lấy trực tiếp từ đơn hàng của chi nhánh này. Lúc bấm <b>Chốt ca</b> app sẽ tải lại đầy đủ để tính chính xác tuyệt đối.</div>';
+    return h;
+  }
+  /* [v9] Ca đã chốt mà đơn còn về trễ (máy bán offline sync sau) — đếm để nhắc TÍNH LẠI */
+  function donVeTre(s){
+    try{
+      if(!s||s.status!=='closed'||!(Number(s.caV)>=2))return 0;
+      var n=0;(skOrdersSafe()||[]).forEach(function(o){if(o&&o.shiftId===s.id)n++;});
+      var d=n-(Number(s.nOrders)||0);
+      return d>0?d:0;
+    }catch(_){return 0;}
+  }
+  /* [v9] Cảnh báo mất mạng / bán offline — hiện cho CẢ người đang bán lẫn chủ xem ca người khác */
+  function canhBaoMang(sh){
+    var h='';
+    if(LADUNGNGUOI(sh)&&laOffline())
+      h+='<div class="ca-note ca-bad">📵 <b>Máy đang MẤT MẠNG</b> '+khoangTG(treMs())
+        +(NOFF?(' · đã bán <b>'+NOFF+' đơn</b> chưa gửi về máy chủ'):'')+'.<br>'
+        +'Đơn vẫn lưu trong máy và sẽ tự gửi khi có mạng, nhưng <b>chủ shop chưa thấy được</b>. '
+        +'Bán quá <b>'+CAP_DON+' đơn</b> hoặc mất mạng quá <b>'+CAP_PHUT+' phút</b> thì app sẽ <b>ngưng cho bán</b> tới khi có mạng.</div>';
+    var tre=nhipTre(sh);
+    if(!LADUNGNGUOI(sh)&&tre>5*60000)
+      h+='<div class="ca-note ca-bad">⏱ <b>Chưa nhận tín hiệu</b> từ máy của <b>'+esc(sh.staffName||'')+'</b> đã '+khoangTG(tre)+'.<br>'
+        +'Hoặc máy đó <b>chưa mở app</b>, hoặc <b>đang bán offline</b>'
+        +(Number(sh.timOff)>0?(' (lần cuối báo về: còn <b>'+R(sh.timOff)+' đơn</b> chưa gửi)'):'')
+        +'. Nên qua xem máy đó ngay.</div>';
     return h;
   }
   function row(label,v,sub,out){
@@ -7263,7 +7334,14 @@ try { window.__skBusy = function(){
           :(d<0?'<span class="ca-pill lo">Thiếu '+money(-d)+'</span>':'<span class="ca-pill hi">Thừa '+money(d)+'</span>'));
       h+='<button class="ca-item'+(op?' on':'')+'" data-act="ca-detail" data-id="'+s.id+'">'
         +'<div class="ca-rm"><div class="ca-rn">'+esc(s.staffName||'—')+'</div>'
-        +'<div class="ca-rs">'+DAY(s.openAtMs)+' · '+TM(s.openAtMs)+(op?' → nay':' → '+TM(s.closeAtMs))+'</div></div>'
+        +'<div class="ca-rs">'+DAY(s.openAtMs)+' · '+TM(s.openAtMs)+(op?' → nay':' → '+TM(s.closeAtMs))+'</div>'
+        +(function(){var vt=donVeTre(s), co=(!op&&Number(s.chotOffline)>0), t=nhipTre(s);
+            var w=[];
+            if(op&&t>5*60000)w.push('📵 chưa có tín hiệu '+khoangTG(t));
+            if(co)w.push('📵 chốt lúc mất mạng');
+            if(vt)w.push('⚠️ +'+vt+' đơn về trễ — cần Tính lại ca');
+            return w.length?'<div class="ca-rs" style="color:#c0392b;font-weight:700">'+w.join(' · ')+'</div>':'';})()
+        +'</div>'
         +pill+'</button>';
     });
     return h;
@@ -7309,7 +7387,15 @@ try { window.__skBusy = function(){
       h+='</div>';
     }
     if(CAN())h+='<button class="sk-btn green wide" data-act="ca-kho" data-id="'+s.id+'" style="margin-bottom:8px">📦 Đối chiếu kho — soát hàng bán khống</button>';
-    if(ISOWNER())h+='<button class="sk-btn wide" data-act="ca-recalc" data-id="'+s.id+'" style="margin-bottom:8px">🔄 Tính lại ca (khi đơn bán offline về trễ)</button>';
+    var _vt=donVeTre(s);
+    if(Number(s.chotOffline)>0)
+      h+='<div class="ca-note ca-bad">📵 Ca này được <b>chốt lúc máy mất mạng</b>'
+        +(Number(s.chotChuaGui)>0?(' — lúc đó còn <b>'+R(s.chotChuaGui)+' đơn</b> chưa gửi về'):'')
+        +'. Số liệu có thể thiếu — bấm <b>Tính lại ca</b> sau khi máy đó đã đồng bộ xong.</div>';
+    if(_vt)
+      h+='<div class="ca-note ca-bad">⚠️ Có <b>'+_vt+' đơn</b> của ca này <b>về sau khi đã chốt</b> (máy bán offline vừa đồng bộ). '
+        +'Bấm <b>Tính lại ca</b> để cập nhật đúng tiền.</div>';
+    if(ISOWNER())h+='<button class="sk-btn'+(_vt||Number(s.chotOffline)>0?' green':'')+' wide" data-act="ca-recalc" data-id="'+s.id+'" style="margin-bottom:8px">🔄 Tính lại ca (khi đơn bán offline về trễ)</button>';
     if(ISOWNER())h+='<button class="sk-btn red wide" data-act="ca-delshift" data-id="'+s.id+'">🗑 Xóa ca này khỏi lịch sử</button>';
     return h;
   }
@@ -7610,6 +7696,12 @@ try { window.__skBusy = function(){
     if(!e||String(e.value||'').replace(/[^\d]/g,'')===''){say('Nhập số tiền mặt đếm được');return;}
     var at=Date.now();
     var c=calc(Object.assign({},sh,{closeAtMs:at}),WIN.orders,WIN.rets,WIN.logs);
+    /* [v9] Chốt lúc mất mạng thì số liệu có thể THIẾU đơn — bắt xác nhận và đóng dấu vào ca */
+    if(laOffline()){
+      if(!window.confirm('📵 MÁY ĐANG MẤT MẠNG'+(NOFF?(' — còn '+NOFF+' đơn chưa gửi về máy chủ'):'')+'.\n\n'
+        +'Chốt lúc này số liệu có thể THIẾU đơn của ca.\n\n'
+        +'Nên: bật mạng, đợi đồng bộ xong rồi hãy chốt.\n\nVẫn chốt ca?'))return;
+    }
     var counted=val('#ca-counted'), diff=counted-c.expected, note=txt('#ca-cnote2'), m=ME();
     if(diff!==0){
       if(!window.confirm((diff<0?'⚠️ THIẾU '+money(-diff):'⚠️ THỪA '+money(diff))
@@ -7621,6 +7713,7 @@ try { window.__skBusy = function(){
     try{
       updateDoc(brDoc(sh.branch||BR(),'shifts',sh.id),{
         status:'closed',closeAtMs:at,closeAt:serverTimestamp(),closedBy:m.name,closedById:m.id,
+        chotOffline:(laOffline()?1:0),chotChuaGui:R(NOFF),
         counted:R(counted),expected:R(c.expected),diff:R(diff),closeNote:note,
         sumCash:R(c.cash),sumQr:R(c.qr),sumDebt:R(c.debt),nOrders:R(c.n),sumDiscount:R(c.disc),
         sumDebtPay:R(c.pay),sumDebtPayCk:R(c.payCk),sumExpense:R(c.exp),sumPayin:R(c.pin),
@@ -7765,7 +7858,9 @@ try { window.__skBusy = function(){
     if(!w.ok){BUSY=false;say('⚠️ Mất mạng — chưa tính lại được, thử lại khi có mạng');return;}
     var c=calc(s,w.orders,w.rets,w.logs);
     var counted=R(s.counted), diff=counted-c.expected, o1=R(s.expected), o2=R(s.diff);
-    if(R(c.expected)===o1&&R(diff)===o2){BUSY=false;say('✅ Không có đơn về trễ — số liệu ca đã đúng');return;}
+    if(R(c.expected)===o1&&R(diff)===o2){
+      if(Number(s.chotOffline)>0){try{updateDoc(brDoc(s.branch||BR(),'shifts',id),{chotOffline:0,chotChuaGui:0}).catch(function(){});}catch(_){}}
+      BUSY=false;say('✅ Không có đơn về trễ — số liệu ca đã đúng');setTimeout(render,200);return;}
     if(!window.confirm('TÍNH LẠI ca ngày '+DAY(s.openAtMs)+'?\n\n'
       +'Tiền phải có: '+money(o1)+'  →  '+money(c.expected)+'\n'
       +'Chênh lệch:  '+money(o2)+'  →  '+money(diff)+'\n\n'
@@ -7773,7 +7868,7 @@ try { window.__skBusy = function(){
     var upd={expected:R(c.expected),diff:R(diff),
       sumCash:R(c.cash),sumQr:R(c.qr),sumDebt:R(c.debt),nOrders:R(c.n),sumDiscount:R(c.disc),
       sumDebtPay:R(c.pay),sumDebtPayCk:R(c.payCk),sumExpense:R(c.exp),sumPayin:R(c.pin),
-      sumPayout:R(c.pout),sumRefundCash:R(c.refundCash),offlineCalc:false,
+      sumPayout:R(c.pout),sumRefundCash:R(c.refundCash),offlineCalc:false,chotOffline:0,chotChuaGui:0,
       recalcBy:ME().name,recalcAtMs:Date.now()};
     if(s.recalcAtMs==null){upd.expectedBefore=o1;upd.diffBefore=o2;}
     try{updateDoc(brDoc(s.branch||BR(),'shifts',id),upd).catch(function(e){say('Lỗi tính lại: '+ec(e));});
