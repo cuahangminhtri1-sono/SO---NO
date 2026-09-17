@@ -8613,6 +8613,7 @@ var M=window.SKMOD,C=M.core,F=M.fb;
 if(!M.reg('fnb',{ns:'fnb',name:'F&B — Bàn & Định lượng',ver:'1.0',flag:'fnb'}))return;
 
 var ON=false,TB=[],CUR=null,UNSUB=null;
+var BASE='[]';   /* [QR] ảnh chụp giỏ của bàn đang phục vụ mà MÁY NÀY đã biết — dùng để so ra phần khách gọi thêm */
 
 /* ---------- TIỆN ÍCH ---------- */
 function tcol(){return C.col('pos_tables');}
@@ -8672,26 +8673,81 @@ function bar(){
   b.innerHTML='🍽️ Đang phục vụ: '+C.esc(t.name||'')+'<button data-act="fnb-hold">💾 Giữ bàn</button>';
 }
 
+/* ═══ [QR] ĐỒNG BỘ MÓN KHÁCH GỌI THÊM VÀO GIỎ ĐANG PHỤC VỤ ═══
+   Bàn đang mở trên máy này giữ giỏ trong BỘ NHỚ. Khi nhân viên bấm "Nhận vào
+   bàn" một đơn QR mới (máy này hoặc máy khác), món chỉ được ghi vào bản trên
+   Firestore — giỏ trong bộ nhớ KHÔNG hề biết ⇒ thanh toán THIẾU TIỀN và món bị
+   xoá mất lúc đóng bàn. Ở đây so bản trên Firestore với bản máy này ĐÃ BIẾT
+   (BASE), rồi CHỈ CỘNG THÊM phần chênh vào giỏ — không bao giờ xoá hay sửa món
+   nhân viên vừa bấm tay. */
+function ckey(l){return (l&&l.key)||(((l&&l.id)||'')+'|'+((l&&l.unit)||''));}
+function gop(c){var m={},i,k;for(i=0;i<(c||[]).length;i++){k=ckey(c[i]);
+  if(!m[k])m[k]={l:c[i],q:0};m[k].q=Math.round((m[k].q+(Number(c[i].qty)||0))*1e6)/1e6;}return m;}
+function chenhLech(goc,sv){                                                  /* phần bản Firestore CÓ THÊM so với bản đã biết */
+  var a,b,k,d,r=[],nl;
+  try{a=gop(typeof goc==='string'?JSON.parse(goc||'[]'):(goc||[]));}catch(e){a={};}
+  b=gop(Array.isArray(sv)?sv:[]);
+  for(k in b){
+    d=Math.round((b[k].q-((a[k]&&a[k].q)||0))*1e6)/1e6;
+    if(!(d>0))continue;
+    nl=JSON.parse(JSON.stringify(b[k].l));nl.key=k;nl.qty=d;
+    nl.baseQty=Math.round(d*(Number(nl.ratio)||1)*1e6)/1e6;
+    r.push(nl);
+  }
+  return r;
+}
+function dongBo(t){
+  if(!CUR||!t||t.id!==CUR)return;
+  var sv=Array.isArray(t.cart)?t.cart:[];
+  var them=chenhLech(BASE,sv);
+  BASE=JSON.stringify(sv);
+  if(!them.length)return;
+  var c=C.cart().slice(),i,j,line,sl=0;
+  for(i=0;i<them.length;i++){
+    line=null;
+    for(j=0;j<c.length;j++)if(ckey(c[j])===them[i].key){line=c[j];break;}
+    if(line){line.qty=Math.round(((Number(line.qty)||0)+them[i].qty)*1e6)/1e6;
+             line.baseQty=Math.round(line.qty*(Number(line.ratio)||1)*1e6)/1e6;}
+    else c.push(them[i]);
+    sl=Math.round((sl+them[i].qty)*1e6)/1e6;
+  }
+  C.setCart(c);
+  try{C.toast('➕ Bàn '+(t.name||'')+' gọi thêm — đã cộng '+C.n(sl)+' món vào giỏ');}catch(e){}
+}
+
 /* ---------- MỞ / GIỮ BÀN ---------- */
 function open_(id){
   var t=TB.filter(function(x){return x.id===id;})[0];if(!t)return;
   if(CUR&&CUR!==id){C.toast('Bấm “Giữ bàn” trước khi đổi bàn');return;}
-  if(CUR===id){M.go('sell');bar();return;}                                   /* bấm lại CHÍNH bàn đang phục vụ: KHÔNG nạp lại giỏ (kẻo mất món vừa gọi) */
+  if(CUR===id){dongBo(t);M.go('sell');bar();return;}                                   /* bấm lại CHÍNH bàn đang phục vụ: KHÔNG nạp lại giỏ (kẻo mất món vừa gọi) */
   if(C.cart().length&&!confirm('Giỏ đang có hàng chưa thanh toán.\nMở bàn sẽ THAY giỏ hiện tại. Tiếp tục?'))return;
   CUR=id;
   C.setCart(JSON.parse(JSON.stringify(t.cart||[])));
+  BASE=JSON.stringify(t.cart||[]);                                         /* [QR] mốc so sánh: từ đây về sau món mới trên Firestore = khách gọi thêm */
   if(!t.openAt){t.openAt=Date.now();F.updateDoc(tdoc(id),{openAt:t.openAt})['catch'](function(){});}
   M.go('sell');bar();render();
 }
 async function hold(){
   if(!CUR)return;
   var c=C.cart();
-  try{await F.updateDoc(tdoc(CUR),{cart:JSON.parse(JSON.stringify(c)),savedAt:F.serverTimestamp()});}
-  catch(e){C.err(e,'Giữ bàn');return;}
-  C.setCart([]);CUR=null;bar();M.go('fnb');C.toast('✅ Đã giữ bàn');
+  var sao=JSON.parse(JSON.stringify(c)),cu=BASE;
+  BASE=JSON.stringify(sao);                                                  /* [QR] đặt mốc TRƯỚC khi ghi: bản ghi vọng về không bị cộng trùng */
+  try{await F.updateDoc(tdoc(CUR),{cart:sao,savedAt:F.serverTimestamp()});}
+  catch(e){BASE=cu;C.err(e,'Giữ bàn');return;}
+  C.setCart([]);CUR=null;BASE='[]';bar();M.go('fnb');C.toast('✅ Đã giữ bàn');
 }
-async function clearTable(id){
-  try{await F.updateDoc(tdoc(id),{cart:[],openAt:null});}catch(e){}
+async function clearTable(id,goc){
+  /* [QR] Đóng bàn sau khi thanh toán. Nếu ngay lúc bấm tính tiền có đơn QR vừa
+     được nhận vào bàn mà giỏ chưa kịp nhận, phần đó CHƯA được tính tiền ⇒ giữ
+     lại trên bàn, tuyệt đối không xoá trắng làm mất món của khách. */
+  var con=[];
+  try{if(typeof goc==='string'){var s=await F.getDoc(tdoc(id));con=chenhLech(goc,(s.exists()?(s.data()||{}):{}).cart);}}catch(e){con=[];}
+  try{
+    if(con.length){
+      await F.updateDoc(tdoc(id),{cart:con,openAt:Date.now()});
+      try{C.toast('⚠️ Bàn còn '+con.length+' món khách gọi thêm CHƯA tính tiền — đã giữ lại trên bàn');}catch(_){}
+    }else await F.updateDoc(tdoc(id),{cart:[],openAt:null});
+  }catch(e){}
 }
 
 /* ---------- QUẢN LÝ BÀN ---------- */
@@ -8831,11 +8887,12 @@ function nghe(){
   var cn=(C.branch&&C.branch())||'main';
   if(cn===SUBCN&&(UNSUB||SUBLOI))return;
   if(UNSUB){try{UNSUB();}catch(e){}UNSUB=null;}
-  if(CUR){CUR=null;bar();}          /* bàn đang phục vụ thuộc chi nhánh cũ → bỏ, tránh ghi nhầm */
+  if(CUR){CUR=null;BASE='[]';bar();}          /* bàn đang phục vụ thuộc chi nhánh cũ → bỏ, tránh ghi nhầm */
   SUBCN=cn;SUBLOI=false;TB=[];render();
   try{
     UNSUB=F.onSnapshot(tcol(),function(s){
       TB=s.docs.map(function(d){var o=d.data()||{};o.id=d.id;return o;});
+      if(CUR){var _t=TB.filter(function(x){return x.id===CUR;})[0];if(_t)dongBo(_t);}   /* [QR] món khách gọi thêm vừa nhận vào bàn → cộng ngay vào giỏ đang phục vụ */
       render();bar();
     },function(e){console.error('[fnb] mất kết nối sơ đồ bàn',e);UNSUB=null;SUBLOI=true;
       try{C.toast('⚠️ Mất kết nối sơ đồ bàn — đổi chi nhánh rồi quay lại để tải lại');}catch(_){}});
@@ -8861,7 +8918,7 @@ M.on('prod:form',function(c){
 M.on('order:saved',async function(c){
   if(!M.flag('fnb'))return;
   await bomDeduct(c.items);
-  if(CUR){var id=CUR;CUR=null;bar();await clearTable(id);}
+  if(CUR){var id=CUR,goc=BASE;CUR=null;BASE='[]';bar();await clearTable(id,goc);}
 });
 M.on('view:show',function(c){if(!M.flag('fnb'))return;nghe();if(c&&c.view==='sell')bar();});
 })();
