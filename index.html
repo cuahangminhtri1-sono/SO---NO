@@ -4655,8 +4655,20 @@ function skRenderBranches(){const box=skq('#sk-branch-list');if(!box)return;box.
   return '<div class="sk-row"><div class="sk-row-main" data-act="branch-switch" data-id="'+b.id+'">'
     +'<div class="sk-row-name">'+(b.id===skBranch?'✓ ':'')+((skStaff&&!skStfCoBr(skStaff,b.id)&&!skBrMoKhoaCa(b.id))?'🔒 ':'')+skNganhIconBr(b.id)+' '+escHtml(b.name)+'</div>'
     +'<div class="sk-row-sub">'+tn+' · '+(b.id===skBranch?'<b>Đang mở</b>':'Chạm để mở')+'</div>'
+    +'<div class="sk-row-sub" style="font-size:11px;color:#8a97a3">mã: <b>'+escHtml(b.id)+'</b> · kho thật: <span data-skkho="'+escHtml(b.id)+'">…</span></div>'
     +'</div><button class="sk-btn ghost sk-owner" data-act="branch-edit" data-id="'+b.id+'">✎</button></div>';
-}).join('');}
+}).join('');try{skDemKho();}catch(e){}}
+/* [CHẨN ĐOÁN] Đếm SỐ SẢN PHẨM THẬT trên máy chủ của TỪNG cửa hàng — CHỈ ĐỌC, không ghi gì. */
+async function skDemKho(){
+  var els=[];try{els=Array.prototype.slice.call(document.querySelectorAll('[data-skkho]'));}catch(e){}
+  if(!els.length)return;
+  for(var i=0;i<els.length;i++){
+    var el=els[i],id=el.getAttribute('data-skkho')||'';
+    if(!id)continue;
+    try{var sn=await getDocs(query(brCol(id,'products'),limit(50)));el.textContent=sn.size+' SP';el.style.color=sn.size?'#0a5f4a':'#c0392b';}
+    catch(e){el.textContent='LỖI ĐỌC '+((e&&e.code)||'?');el.style.color='#c0392b';}
+  }
+}
 function skSwitchBranch(id){if(skStaff&&!skStfCoBr(skStaff,id)&&!skBrMoKhoaCa(id)){toast('🔒 Bạn chỉ được bán ở: '+skStfBrTen(skStaff));skCloseModal('#sk-branch');return;}if(!skBranchAllowed(id)){skCloseModal('#sk-branch');skCnUpsell(true);return;}if(id===skBranch){skCloseModal('#sk-branch');return;}
   /* Khác NGÀNH thì phải tải lại trang: module ngành chỉ gắn tab được lúc khởi động, không gỡ ra được */
   var _a=skNganhBr(skBranch), _b=skNganhBr(id);
