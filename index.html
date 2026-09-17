@@ -17490,7 +17490,19 @@ window.AIB={ hoi:function(t){ try{ M.go('aib'); }catch(e){} setTimeout(function(
         }
       }
     }
-    if(k===cur()){ close(); go(); return; }
+    /* [VÁ] Ngành ĐANG MỞ phải suy từ MÃ cửa hàng SẼ MỞ, KHÔNG lấy theo cờ.
+       Cờ nạp lúc POS chưa khởi động (skBranch còn là 'main') nên cur() luôn trả ''
+       ⇒ bấm 🛒 đa năng bị thoát sớm, mở lại đúng cửa hàng ngành cũ (chung kho). */
+    var _maMo='', _ngMo=null, _mm=null;
+    try{ _maMo=localStorage.getItem(brKey(uid()))||''; }catch(e){}
+    if(!_maMo){ try{ _maMo=s.core.branch()||''; }catch(e){} }
+    if(_maMo){
+      _mm=/^main_(fnb|fs|rm|kg)$/.exec(_maMo)||/^cn_(fnb|fs|rm|kg)_[0-9]+$/.exec(_maMo);
+      if(_mm) _ngMo=_mm[1];
+      else if(_maMo==='main'||/^cn_[0-9]+$/.test(_maMo)) _ngMo='';
+    }
+    if(_ngMo===k){ close(); go(); return; }                 /* đã đúng cửa hàng của ngành này */
+    if(_ngMo===null&&k===cur()){ close(); go(); return; }   /* mã cũ không suy được: giữ y cách cũ */
     if(!laChu()){ say('🔒 Chỉ CHỦ shop mới đổi được ngành nghề'); close(); go(); return; }
     if(navigator.onLine===false){ msg='📴 Không có mạng — chưa đổi được ngành nghề. Bật mạng rồi chọn lại.'; draw(); return; }
     await apDung(k);
