@@ -4634,6 +4634,10 @@ function skAfterReady(){skLoadCn();skRenderBranchSel();skBranchSubs();if(skStaff
 function skBranchSubs(){
   if(skUnsubBP){try{skUnsubBP();}catch(e){}skUnsubBP=null;}if(skUnsubBO){try{skUnsubBO();}catch(e){}skUnsubBO=null;}if(skUnsubBR){try{skUnsubBR();}catch(e){}skUnsubBR=null;}
   skProducts=[];skOrders=[];skReturns=[];
+  /* [VÁ] Xoá luôn LƯỚI cũ trên màn hình. Trước chỉ xoá biến mà không vẽ lại:
+     cửa hàng mới đọc kho lỗi / chưa về là màn hình còn nguyên hàng của cửa
+     hàng trước ⇒ nhìn y như hai cửa hàng chung kho. */
+  try{skRenderGrid();}catch(e){} try{skRenderKho();}catch(e){}
   try{skUnsubBP=onSnapshot(bcol('products'),s=>{skProducts=s.docs.map(d=>Object.assign({id:d.id},d.data()));skRenderGrid();skRenderKho();skRenderNpPick();if(skView==='report')skRenderReport();},(e)=>skErr(e,'Đọc kho'));}catch(e){}
   try{skUnsubBO=onSnapshot(query(bcol('orders'),orderBy('createdAt','desc'),limit(300)),s=>{skOrders=s.docs.map(d=>Object.assign({id:d.id},d.data()));if(skView==='report')skRenderReport();},(e)=>skErr(e,'Đọc đơn hàng'));}catch(e){}
   try{skUnsubBR=onSnapshot(query(bcol('returns'),orderBy('at','desc'),limit(300)),s=>{skReturns=s.docs.map(d=>Object.assign({id:d.id},d.data()));if(skView==='report')skRenderReport();},()=>{});}catch(e){}
@@ -4655,20 +4659,9 @@ function skRenderBranches(){const box=skq('#sk-branch-list');if(!box)return;box.
   return '<div class="sk-row"><div class="sk-row-main" data-act="branch-switch" data-id="'+b.id+'">'
     +'<div class="sk-row-name">'+(b.id===skBranch?'✓ ':'')+((skStaff&&!skStfCoBr(skStaff,b.id)&&!skBrMoKhoaCa(b.id))?'🔒 ':'')+skNganhIconBr(b.id)+' '+escHtml(b.name)+'</div>'
     +'<div class="sk-row-sub">'+tn+' · '+(b.id===skBranch?'<b>Đang mở</b>':'Chạm để mở')+'</div>'
-    +'<div class="sk-row-sub" style="font-size:11px;color:#8a97a3">mã: <b>'+escHtml(b.id)+'</b> · kho thật: <span data-skkho="'+escHtml(b.id)+'">…</span></div>'
+    +'<div class="sk-row-sub" style="font-size:11px;color:#8a97a3">mã: <b>'+escHtml(b.id)+'</b></div>'
     +'</div><button class="sk-btn ghost sk-owner" data-act="branch-edit" data-id="'+b.id+'">✎</button></div>';
-}).join('');try{skDemKho();}catch(e){}}
-/* [CHẨN ĐOÁN] Đếm SỐ SẢN PHẨM THẬT trên máy chủ của TỪNG cửa hàng — CHỈ ĐỌC, không ghi gì. */
-async function skDemKho(){
-  var els=[];try{els=Array.prototype.slice.call(document.querySelectorAll('[data-skkho]'));}catch(e){}
-  if(!els.length)return;
-  for(var i=0;i<els.length;i++){
-    var el=els[i],id=el.getAttribute('data-skkho')||'';
-    if(!id)continue;
-    try{var sn=await getDocs(query(brCol(id,'products'),limit(50)));el.textContent=sn.size+' SP';el.style.color=sn.size?'#0a5f4a':'#c0392b';}
-    catch(e){el.textContent='LỖI ĐỌC '+((e&&e.code)||'?');el.style.color='#c0392b';}
-  }
-}
+}).join('');}
 function skSwitchBranch(id){if(skStaff&&!skStfCoBr(skStaff,id)&&!skBrMoKhoaCa(id)){toast('🔒 Bạn chỉ được bán ở: '+skStfBrTen(skStaff));skCloseModal('#sk-branch');return;}if(!skBranchAllowed(id)){skCloseModal('#sk-branch');skCnUpsell(true);return;}if(id===skBranch){skCloseModal('#sk-branch');return;}
   /* Khác NGÀNH thì phải tải lại trang: module ngành chỉ gắn tab được lúc khởi động, không gỡ ra được */
   var _a=skNganhBr(skBranch), _b=skNganhBr(id);
@@ -8248,12 +8241,25 @@ function soatTaiKhoan(){
 }
 
 /* ---------- GOM: lưu bản sao ---------- */
+/* [VÁ] Đã CHẮC chi nhánh chưa? Lúc trang vừa tải skBranch còn là 'main' mặc định,
+   đọc/ghi kho cứu hộ lúc đó là ghi nhầm khoá của cửa hàng khác. Chỉ tin khi đã có
+   listener kho của chi nhánh VÀ skBranch khớp cửa hàng máy đang nhớ. */
+function brSan(){
+  try{
+    if(!(typeof skUnsubBP!=='undefined' && skUnsubBP)) return false;
+    var u=uidNow(); if(!u) return false;
+    var b=(typeof skBranch!=='undefined'&&skBranch)?String(skBranch):'';
+    if(!b) return false;
+    var nho=''; try{ nho=localStorage.getItem('sk_br_'+u)||''; }catch(e){}
+    return nho ? (b===nho) : true;
+  }catch(e){ return false; }
+}
 function gom(){
   try{
     if(!uidNow()) return;                              /* chưa đăng nhập: không lưu, không nhớ gì */
     if(typeof customers!=='undefined' && customers && customers.length) luu('customers',customers);
     var b=(typeof skBranch!=='undefined'&&skBranch)?skBranch:'main';
-    if(typeof skProducts!=='undefined' && skProducts && skProducts.length) luu('sp:'+b,skProducts);
+    if(brSan() && typeof skProducts!=='undefined' && skProducts && skProducts.length) luu('sp2:'+b,skProducts);
     if(typeof skSuppliers!=='undefined' && skSuppliers && skSuppliers.length) luu('ncc',skSuppliers);
     if(typeof skBranches!=='undefined' && skBranches && skBranches.length) luu('cn',skBranches);
     if(typeof skShopBank!=='undefined' && skShopBank && skShopBank.account)
@@ -8286,10 +8292,11 @@ function dem(){
 function ve(){
   try{
     if(!uidNow()) return;                              /* chưa đăng nhập: TUYỆT ĐỐI không dựng lại gì */
-    var bk='sp:'+((typeof skBranch!=='undefined'&&skBranch)?skBranch:'main');
-    nap('customers'); nap('ncc'); nap('cn'); nap('shop'); nap(bk);
+    var _bs=brSan();   /* [VÁ] chưa chắc chi nhánh thì TUYỆT ĐỐI không đụng kho */
+    var bk='sp2:'+((typeof skBranch!=='undefined'&&skBranch)?skBranch:'main');   /* [VÁ] đổi tiền tố: bỏ hẳn khoá 'sp:' đã nhiễm sẵn trong máy */
+    nap('customers'); nap('ncc'); nap('cn'); nap('shop'); if(_bs) nap(bk);
 
-    var _cus=lay('customers'), _sp=lay(bk), _ncc=lay('ncc'), _cn=lay('cn'), _shop=lay('shop');
+    var _cus=lay('customers'), _sp=_bs?lay(bk):null, _ncc=lay('ncc'), _cn=lay('cn'), _shop=lay('shop');
 
     if(typeof customers!=='undefined' && !_svCus && customers.length===0 && Array.isArray(_cus) && _cus.length){
       customers=_cus.slice();
