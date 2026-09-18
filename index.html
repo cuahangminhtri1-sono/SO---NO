@@ -749,7 +749,7 @@ import { getFirestore, initializeFirestore, persistentLocalCache, persistentMult
 import { getStorage, ref as _sref, uploadBytes, getDownloadURL, deleteObject, listAll }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
 
-const APP_BUILD = "2026-09-11-THU14"; // ⬆️ ĐỔI MỖI LẦN DEPLOY (đặt TRÙNG tên cache trong sw.js) — hiện ở ⚙️ Cài đặt để biết máy đã chạy bản mới chưa
+const APP_BUILD = "2026-09-18-SPMA"; // ⬆️ ĐỔI MỖI LẦN DEPLOY (đặt TRÙNG tên cache trong sw.js) — hiện ở ⚙️ Cài đặt để biết máy đã chạy bản mới chưa
 const firebaseConfig = {
   apiKey: "AIzaSyA_kjQ-CdASRkf50Glz3kQajlkD5qGWC4k",
   authDomain: "so-no-cc57a.firebaseapp.com",
@@ -4640,9 +4640,27 @@ function skBranchSubs(){
      cửa hàng mới đọc kho lỗi / chưa về là màn hình còn nguyên hàng của cửa
      hàng trước ⇒ nhìn y như hai cửa hàng chung kho. */
   try{skRenderGrid();}catch(e){} try{skRenderKho();}catch(e){}
-  try{skUnsubBP=onSnapshot(bcol('products'),s=>{skProducts=s.docs.map(d=>Object.assign({id:d.id},d.data()));skRenderGrid();skRenderKho();skRenderNpPick();if(skView==='report')skRenderReport();},(e)=>skErr(e,'Đọc kho'));}catch(e){}
+  try{const _brSP=skBranch;skUnsubBP=onSnapshot(bcol('products'),s=>{skProducts=s.docs.map(d=>Object.assign({id:d.id},d.data()));skSpMayChu(_brSP,s);skRenderGrid();skRenderKho();skRenderNpPick();if(skView==='report')skRenderReport();},(e)=>skErr(e,'Đọc kho'));}catch(e){}
   try{skUnsubBO=onSnapshot(query(bcol('orders'),orderBy('createdAt','desc'),limit(300)),s=>{skOrders=s.docs.map(d=>Object.assign({id:d.id},d.data()));if(skView==='report')skRenderReport();},(e)=>skErr(e,'Đọc đơn hàng'));}catch(e){}
   try{skUnsubBR=onSnapshot(query(bcol('returns'),orderBy('at','desc'),limit(300)),s=>{skReturns=s.docs.map(d=>Object.assign({id:d.id},d.data()));if(skView==='report')skRenderReport();},()=>{});}catch(e){}
+}
+/* [VÁ SẢN PHẨM MA] Báo cho KHO CỨU HỘ OFFLINE biết lượt kho vừa về có CHẮC CHẮN đúng không.
+   Chắc chắn = máy chủ xác nhận (không đọc từ bộ đệm) HOẶC lượt này có sản phẩm bị xoá khỏi
+   danh sách (xoá trên máy này hay máy khác đều vậy). Nhờ đó kho cứu hộ ghi nhận được cả khi
+   kho đã RỖNG. Trước đây nó không bao giờ ghi rỗng, nên xoá sản phẩm CUỐI CÙNG của một cửa
+   hàng xong vài giây sau nó dựng lại bản cũ ⇒ "sản phẩm ma" xoá hoài không mất; bán món đó
+   thì máy chủ từ chối CẢ đơn (kèm dòng ghi nợ). Dùng chung mọi cửa hàng, mọi ngành.
+   Bọc kín try/catch: trục trặc gì cũng không cản kho hiển thị. */
+function skSpMayChu(br,s){
+  try{
+    var O=window.__SNOFF; if(!O||typeof O.datSP!=='function')return;
+    var chac=!!(s&&s.metadata&&s.metadata.fromCache===false);
+    if(!chac&&s&&typeof s.docChanges==='function'){
+      var dc=s.docChanges();
+      for(var i=0;i<dc.length;i++){ if(dc[i]&&dc[i].type==='removed'){ chac=true; break; } }
+    }
+    O.datSP(br,skProducts,chac);
+  }catch(e){}
 }
 
 /* ---- CHI NHÁNH ---- */
@@ -8221,6 +8239,27 @@ OFF.datKhach=function(arr){
     kvPut(kk,pv).catch(function(){});
   }catch(e){}
 };
+/* [VÁ SẢN PHẨM MA] Kho SẢN PHẨM cũng phải ghi nhận được lúc RỖNG — y như danh sách khách ở trên.
+   luu() không bao giờ ghi mảng rỗng, nên xoá sản phẩm CUỐI CÙNG của một cửa hàng xong bản cứu
+   hộ vẫn giữ danh sách cũ; ve() thấy kho trống liền dựng lại ⇒ máy chủ đã xoá mà màn hình vẫn
+   hiện, xoá hoài không mất. Listener kho (skSpMayChu) báo về từng lượt:
+     • còn hàng              -> bỏ cờ rỗng; việc lưu vẫn để gom() lo như cũ
+     • rỗng + chắc chắn đúng -> ghi RỖNG vào bản cứu hộ + cấm ve() dựng lại cửa hàng này
+     • rỗng mà chưa chắc     -> (đọc bộ đệm lúc mất mạng) để nguyên, ve() vẫn cứu như cũ */
+var _spRong={};                        /* khoá kk -> true: kho cửa hàng này RỖNG THẬT (trong phiên) */
+OFF.datSP=function(br,arr,chac){
+  try{
+    if(!br || !Array.isArray(arr)) return;
+    var kk=K('sp3:'+br); if(!kk) return;
+    if(arr.length){ _spRong[kk]=false; return; }
+    if(!chac) return;
+    _spRong[kk]=true;
+    _xin[kk]=1;                        /* chặn nap() đọc bản cũ trên đĩa ghi đè lại */
+    if(SIG[kk]==='[]') return;
+    SIG[kk]='[]'; M[kk]=[];
+    kvPut(kk,[]).catch(function(){});
+  }catch(e){}
+};
 function nap(k){                                        /* nạp 1 khoá từ đĩa (1 lần) */
   var kk=K(k); if(!kk) return;
   if(_xin[kk]) return; _xin[kk]=1;
@@ -8244,7 +8283,7 @@ function soatTaiKhoan(){
   var u=uidNow();
   if(u===_uidTruoc) return;
   _uidTruoc=u;
-  xoaSach(M); xoaSach(SIG); xoaSach(_xin);
+  xoaSach(M); xoaSach(SIG); xoaSach(_xin); xoaSach(_spRong);
   _daBao=false; OFF.unsafeFor=null; OFF.san=false; _svCus=false;
   if(u && _uidCuoi && u!==_uidCuoi) donDep();   /* đổi SANG TÀI KHOẢN KHÁC: xoá sạch dữ liệu cũ trên màn hình */
   if(u) _uidCuoi=u;
@@ -8278,7 +8317,7 @@ function gom(){
     if(!uidNow()) return;                              /* chưa đăng nhập: không lưu, không nhớ gì */
     if(typeof customers!=='undefined' && customers && customers.length) luu('customers',customers);
     var b=(typeof skBranch!=='undefined'&&skBranch)?skBranch:'main';
-    if(brSan() && typeof skProducts!=='undefined' && skProducts && skProducts.length) luu('sp2:'+b,skProducts);
+    if(brSan() && typeof skProducts!=='undefined' && skProducts && skProducts.length) luu('sp3:'+b,skProducts);   /* [VÁ SẢN PHẨM MA] tiền tố sp3 — xem ve() */
     if(typeof skSuppliers!=='undefined' && skSuppliers && skSuppliers.length) luu('ncc',skSuppliers);
     if(typeof skBranches!=='undefined' && skBranches && skBranches.length) luu('cn',skBranches);
     if(typeof skShopBank!=='undefined' && skShopBank && skShopBank.account)
@@ -8312,7 +8351,7 @@ function ve(){
   try{
     if(!uidNow()) return;                              /* chưa đăng nhập: TUYỆT ĐỐI không dựng lại gì */
     var _bs=brSan();   /* [VÁ] chưa chắc chi nhánh thì TUYỆT ĐỐI không đụng kho */
-    var bk='sp2:'+((typeof skBranch!=='undefined'&&skBranch)?skBranch:'main');   /* [VÁ] đổi tiền tố: bỏ hẳn khoá 'sp:' đã nhiễm sẵn trong máy */
+    var bk='sp3:'+((typeof skBranch!=='undefined'&&skBranch)?skBranch:'main');   /* [VÁ] đổi tiền tố: bỏ hẳn khoá 'sp:' đã nhiễm sẵn trong máy · [VÁ SẢN PHẨM MA] 'sp2:'→'sp3:' bỏ luôn bản cứu hộ cũ còn giữ sản phẩm ĐÃ XOÁ */
     nap('customers'); nap('ncc'); nap('cn'); nap('shop'); if(_bs) nap(bk);
 
     var _cus=lay('customers'), _sp=_bs?lay(bk):null, _ncc=lay('ncc'), _cn=lay('cn'), _shop=lay('shop');
@@ -8322,7 +8361,7 @@ function ve(){
       dem(); try{ window.renderList(); }catch(e){}
       baoMot('📴 Đang dùng BẢN LƯU TRONG MÁY — dữ liệu sẽ tự cập nhật khi có mạng.');
     }
-    if(typeof skProducts!=='undefined' && skProducts.length===0 && Array.isArray(_sp) && _sp.length){
+    if(typeof skProducts!=='undefined' && skProducts.length===0 && !_spRong[K(bk)] && Array.isArray(_sp) && _sp.length){   /* [VÁ SẢN PHẨM MA] kho đã RỖNG THẬT ⇒ không dựng lại */
       skProducts=_sp.slice();
       try{skRenderGrid();}catch(e){} try{skRenderKho();}catch(e){} try{skRenderNpPick();}catch(e){}
     }
@@ -18213,7 +18252,7 @@ if (window.__RMT_READY__) return; window.__RMT_READY__ = true;
 try{
 
 /* ĐỔI CHUỖI NÀY CHO TRÙNG APP_BUILD MỖI LẦN DEPLOY (chỉ để hiện ở bảng quản trị) */
-var BUILD = '2026-09-11-THU14';
+var BUILD = '2026-09-18-SPMA';
 var NHIP   = 6*3600*1000;          /* báo về tối đa 6 giờ 1 lần — khỏi tốn lượt ghi */
 var KEY_HB = 'rmt_hb_v1';
 var KEY_XEM= 'rmt_xem_v1';
