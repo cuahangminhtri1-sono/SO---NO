@@ -749,7 +749,7 @@ import { getFirestore, initializeFirestore, persistentLocalCache, persistentMult
 import { getStorage, ref as _sref, uploadBytes, getDownloadURL, deleteObject, listAll }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
 
-const APP_BUILD = "2026-09-19-QT3"; // ⬆️ ĐỔI MỖI LẦN DEPLOY (đặt TRÙNG tên cache trong sw.js) — hiện ở ⚙️ Cài đặt để biết máy đã chạy bản mới chưa
+const APP_BUILD = "2026-09-19-QT4"; // ⬆️ ĐỔI MỖI LẦN DEPLOY (đặt TRÙNG tên cache trong sw.js) — hiện ở ⚙️ Cài đặt để biết máy đã chạy bản mới chưa
 const firebaseConfig = {
   apiKey: "AIzaSyA_kjQ-CdASRkf50Glz3kQajlkD5qGWC4k",
   authDomain: "so-no-cc57a.firebaseapp.com",
@@ -1025,6 +1025,7 @@ function _admStat(L,a){
   function one(d,sfx){
     if(!d)return null;
     if(d.active===false)return{t:'🔒 Đã khoá'+sfx,c:'#c0392b'};
+    if(d.vinhVien===true)return{t:'✅ Vĩnh viễn'+sfx,c:'#0f7a3d'};   /* Rules: vinhVien:true là qua */
     if(d.paidUntil){
       var u=(d.paidUntil&&d.paidUntil.toDate)?d.paidUntil.toDate():new Date(d.paidUntil);
       if(isNaN(u))return null;
@@ -1032,7 +1033,7 @@ function _admStat(L,a){
       if(d.trial)return{t:'🎁 Dùng thử tới '+_dts(u)+sfx,c:'#a05a00'};
       return{t:'✅ Còn hạn tới '+_dts(u)+sfx,c:'#0f7a3d'};
     }
-    if(d.active===true)return{t:'✅ Đang dùng (vĩnh viễn)'+sfx,c:'#0f7a3d'};
+    if(d.active===true)return{t:'⚠️ Chưa đặt hạn — máy chủ đang CHẶN (bấm +tháng hoặc Vĩnh viễn)'+sfx,c:'#c0392b'};
     return null;
   }
   var r=one(L,'');if(r)return r;
@@ -1048,11 +1049,11 @@ function normReq(id,x){x=x||{};var uid=x.uid,app=x.app||'';
 function _pendingFor(uid,app){for(var i=0;i<_REQS.length;i++){var q=_REQS[i];
   if(q.uid===uid&&(q.app===app||(q.app===''&&app===MA_APP)))return q.reqId;}return '';}
 async function markReqDone(reqId){ if(!reqId)return;
-  try{ await _SET(_DOC('renewalRequests',reqId),{status:'done',ngStatus:'done',handledAt:_SRV()},{merge:true}); }catch(e){} }
+  try{ await _SET(_DOC('renewalRequests',reqId),{status:'done',ngStatus:'done',handledAt:_SRV(),ck:null},{merge:true}); }catch(e){} }
 window.adminGrantApp=async function(uid,months,app,reqId){
   if(_admBusy)return; _admBusy=true;
   try{
-    months=[1,3,6,12].indexOf(Number(months))>-1?Number(months):1;
+    months=Math.floor(Number(months)); if(!(months>=1&&months<=24))months=1;   /* [VÁ QT4] bản cũ ép mọi số tháng lạ về 1 */
     app=APP_IDS.indexOf(app)>-1?app:MA_APP;
     /* Gói Chi nhánh thêm tính tiền theo SỐ SUẤT (qty) — chỉ app Quản trị mới có ô nhập đó.
        Duyệt ở đây sẽ cấp thiếu suất, nên chặn hẳn cho khỏi cấp sai. */
@@ -1154,6 +1155,9 @@ window.adminActivate=async function(uid,days){
   try{
     const data={active:true,trial:false,trialUsed:true,updatedAt:_SRV(),updatedBy:'admin'};
     data.paidUntil = days>0 ? new Date(Date.now()+days*86400000) : null;
+    /* [VÁ QT4] Bản cũ chỉ ghi paidUntil:null — Rules chỉ công nhận vĩnh viễn khi vinhVien:true,
+       nên bấm "Vĩnh viễn" ở đây là KHOÁ NHẦM khách vừa trả tiền trọn đời. */
+    data.vinhVien = !(days>0);
     await _SET(licRef(uid,MA_APP),data,{merge:true});
     await markReqDone(_pendingFor(uid,MA_APP));
     try{ await _ADD(_COLL('payments'),{uid:uid,email:_EMAILS[uid]||'',app:MA_APP,months:0,amount:0,note:days>0?(days+' ngày'):'vĩnh viễn',at:_SRV(),src:'tay'}); }catch(e){}
@@ -1173,7 +1177,7 @@ window.adminLock=async function(uid){
 window.adminGrantMonths=function(uid,months){ return window.adminGrantApp(uid,months,MA_APP,''); };
 window.adminGrant=window.adminGrantMonths;
 window.adminDismissReq=async function(reqId){
-  try{ await _SET(_DOC('renewalRequests',reqId),{status:'done',handledAt:_SRV()},{merge:true}); toast('✅ Đã ẩn yêu cầu'); window.loadAdminList(); }
+  try{ await _SET(_DOC('renewalRequests',reqId),{status:'done',ngStatus:'done',handledAt:_SRV(),ck:null},{merge:true}); toast('✅ Đã ẩn yêu cầu'); window.loadAdminList(); }
   catch(e){console.error(e);toast('❌ Không ẩn được ['+_ec(e)+']'+_permHint(e));}
 };
 window.adminDismiss=window.adminDismissReq;
@@ -2070,6 +2074,12 @@ function buildRenew(){
   if(note)note.innerHTML=isPos
     ?'Gia hạn <b>gói Bán hàng (POS)</b>: chọn số tháng rồi quét QR. <b>Nội dung CK đã điền sẵn email của bạn kèm chữ POS</b> để chủ phần mềm mở đúng gói.'
     :'Gia hạn <b>Sổ Nợ</b>: chọn số tháng rồi quét QR. <b>Nội dung chuyển khoản chính là email của bạn</b> nên chủ phần mềm sẽ biết và kích hoạt đúng tài khoản.';
+  if(LA_NV){
+    /* [VÁ QT4] Trước đây máy nhân viên mở màn này là ghi đơn dưới UID NHÂN VIÊN và mã QR mang email nhân viên:
+       khách chuyển tiền xong, chủ phần mềm duyệt nhầm vào tài khoản nhân viên, cửa hàng vẫn bị khoá. */
+    box.innerHTML='<div style="background:#eef6ff;border:1px solid #bcd7f5;border-radius:10px;padding:14px;color:#1d4e89;font-size:.9em;line-height:1.6">📱 Đây là <b>máy nhân viên</b>.<br>Gia hạn phải làm trên máy của <b>chủ shop</b> (đăng nhập bằng email chủ shop) để tiền và hạn ghi đúng cửa hàng. Chuyển khoản từ máy này sẽ mang email nhân viên nên chủ phần mềm không biết là tiền của shop nào.<br><br>Cần hỗ trợ gọi <b>'+snHotTxt()+'</b>.</div>';
+    return;
+  }
   if(isPos&&unit<=0){
     box.innerHTML='<div style="background:#fff3cd;border:1px solid #ffe08a;border-radius:10px;padding:14px;color:#8a6d00;font-size:.9em;line-height:1.5">Chủ phần mềm chưa đặt <b>giá gói Bán hàng (POS)</b>.<br>Vui lòng liên hệ để nâng cấp. (Nếu bạn là chủ: 👑 Quản lý khách → 💳 Cấu hình nhận tiền → ô “Giá POS 1 tháng”.)</div>';
     return;
@@ -2094,7 +2104,9 @@ function buildRenew(){
       +'<div class="rn-line"><span>💰 Số tiền</span><b>'+fmt(total)+' <button class="rn-cp" onclick="copyText(\''+total+'\')">Copy</button></b></div>'
       +'<div class="rn-line"><span>📝 Nội dung</span><b style="word-break:break-all">'+escHtml(info)+' <button class="rn-cp" onclick="copyText(\''+jsStr(info)+'\')">Copy</button></b></div>'
     +'</div>'
-    +'<div class="rn-note">⚠️ Giữ <b>nguyên nội dung</b> khi chuyển khoản để chủ phần mềm mở đúng '+(isPos?'gói Bán hàng':'tài khoản')+'. Sau khi chuyển, '+(isPos?'gói Bán hàng':'tài khoản')+' sẽ được kích hoạt trong thời gian sớm nhất.</div>';
+    +'<div class="rn-note">⚠️ Giữ <b>nguyên nội dung</b> khi chuyển khoản để chủ phần mềm mở đúng '+(isPos?'gói Bán hàng':'tài khoản')+'. Sau khi chuyển, '+(isPos?'gói Bán hàng':'tài khoản')+' sẽ được kích hoạt trong thời gian sớm nhất.</div>'
+    +'<button type="button" onclick="snDaCK(\''+(isPos?'pos':'sono')+'\')" style="display:block;width:100%;margin-top:10px;border:none;border-radius:12px;padding:13px;font-weight:800;font-size:15px;background:#16a34a;color:#fff;cursor:pointer">✅ Tôi đã chuyển khoản</button>'
+    +'<div style="font-size:.78em;color:#6b7872;text-align:center;margin-top:6px;line-height:1.45">Bấm SAU KHI chuyển xong — chủ phần mềm thấy ngay và mở hạn nhanh hơn.</div>';
   if(isPos)logPosRequest(renewMonths,total); else logRenewRequest(renewMonths,total);
 }
 async function logRenewRequest(months,amount){
@@ -2106,6 +2118,96 @@ async function logRenewRequest(months,amount){
       {uid:u.uid,app:'sono',email:u.email||'',months,amount,noiDung:(u.email||''),requestedAt:serverTimestamp(),status:'pending',handledAt:null},{merge:true});
   }catch(e){console.warn('logRenewRequest',e&&e.code);}
 }
+/* [QT4] KHÁCH BÁO ĐÃ CHUYỂN KHOẢN — ghi cờ ck vào ĐÚNG đơn đang mở (kèm số tháng & số tiền lúc chuyển).
+   App Quản trị xếp đơn có ck lên đầu; duyệt / ẩn đơn là xoá cờ ⇒ lần mở màn thanh toán sau không mang cờ cũ.
+   Đơn KHÔNG có ck chỉ nghĩa là khách đã mở màn thanh toán — chủ phần mềm phải thấy tiền về mới mở hạn. */
+window.snDaCK=async function(kind){
+  try{
+    if(!auth.currentUser||isAdmin())return;
+    if(LA_NV){ toast('📱 Máy nhân viên không gửi được — nhờ chủ shop gia hạn trên máy chủ shop'); return; }
+    const u=auth.currentUser, isPos=(kind==='pos');
+    const unit=isPos?posRenewPrice():renewPrice(), total=giaGiaHan(unit,renewMonths);
+    if(!(total>0)){ toast('Chưa có giá gói — gọi '+snHotTxt()); return; }
+    const noi=isPos?((u.email||'')+' POS'):(u.email||'');
+    await setDoc(doc(db,'renewalRequests',isPos?(u.uid+'__'+MA_POS):u.uid),
+      {uid:u.uid,app:isPos?MA_POS:'sono',email:u.email||'',months:renewMonths,amount:total,noiDung:noi,
+       requestedAt:serverTimestamp(),status:'pending',ck:{luc:serverTimestamp(),thang:renewMonths,tien:total}},{merge:true});
+    toast('✅ Đã báo chủ phần mềm: bạn đã chuyển '+fmt(total)+'. Gói sẽ được mở sớm nhất.');
+  }catch(e){ console.warn('snDaCK',e&&e.code); toast('❌ Chưa gửi được — kiểm tra mạng rồi bấm lại'); }
+};
+/* [QT4] MÀN MUA GÓI DÙNG CHUNG — hiện dùng cho gói Đơn QR tại bàn. Trước đây gói này KHÔNG có đường mua
+   trong app: hết dùng thử là khách chỉ còn cách gọi điện ⇒ mất đơn âm thầm, bảng quản trị không thấy gì.
+   Giá: giá riêng của khách (accounts/{uid}.giaRieng) → ô giá của gói trong billing/info. Ô trống = CHƯA BÁN.
+   Ghi đơn renewalRequests/{uid}__{mã gói} y như các màn mua khác + nút "Tôi đã chuyển khoản". */
+const SN_GOI_O={sono_qr:'priceQr',sono_fnb:'priceFnb',sono_fs:'priceFs',sono_rm:'priceRm',sono_kg:'priceKg'};
+window.snMuaGoi=function(o){
+  o=o||{}; var app=String(o.app||''); if(!SN_GOI_O[app]||!auth.currentUser)return;
+  if(isAdmin()){ toast('👑 Tài khoản quản trị không cần mua gói'); return; }
+  var ten=String(o.ten||app), moTa=String(o.moTa||''), thang=1, cuoi='';
+  var el=document.getElementById('sn-mua'); if(el)el.remove();
+  el=document.createElement('div'); el.id='sn-mua';
+  el.style.cssText='position:fixed;inset:0;z-index:2147483200;background:rgba(15,30,25,.58);display:flex;align-items:safe center;justify-content:center;padding:16px;overflow:auto;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif';
+  document.body.appendChild(el);
+  function dong(){ try{ el.remove(); }catch(e){} }
+  function gia(){ var g=_GR?Number(_GR[app]):0; if(g>0)return Math.round(g); var v=Number((BILLING||{})[SN_GOI_O[app]]); return v>0?Math.round(v):0; }
+  function dongTT(nhan,giaTri,chep){ return '<div style="display:flex;justify-content:space-between;gap:10px;padding:8px 11px;border-top:1px solid #eef3f1;font-size:.9em"><span style="color:#5a6b64;flex:none">'+nhan+'</span><b style="word-break:break-all;text-align:right">'+giaTri
+    +(chep?' <button type="button" data-mg="cp" data-v="'+escHtml(chep)+'" style="border:none;background:#eaf3f0;color:#0a5f4a;border-radius:7px;padding:2px 8px;font-size:.85em;font-weight:700;cursor:pointer;margin-left:6px;font-family:inherit">Copy</button>':'')+'</b></div>'; }
+  async function ghi(daCK,baoRieng){
+    try{
+      if(!auth.currentUser)return;
+      if(LA_NV){ if(daCK||baoRieng)toast('📱 Máy nhân viên không mua gói được — nhờ chủ shop mua trên máy chủ shop'); return; }
+      var u=auth.currentUser, mail=u.email||'', unit=gia(), total=giaGiaHan(unit,thang);
+      if(!(total>0)){ if(daCK||baoRieng)toast('Gói chưa có giá — gọi '+snHotTxt()); return; }
+      var key=thang+'|'+total; if(!daCK&&!baoRieng&&key===cuoi)return; cuoi=key;
+      var d={uid:u.uid,app:app,email:mail,months:thang,amount:total,noiDung:(mail+' '+app),requestedAt:serverTimestamp(),status:'pending',handledAt:null};
+      if(daCK) d.ck={luc:serverTimestamp(),thang:thang,tien:total};
+      await setDoc(doc(db,'renewalRequests',u.uid+'__'+app),d,{merge:true});
+      if(daCK){ toast('✅ Đã báo chủ phần mềm: bạn đã chuyển '+fmt(total)+'. Gói sẽ được mở sớm nhất.'); dong(); }
+      else if(baoRieng){ toast('✅ Đã gửi yêu cầu. Chủ phần mềm sẽ duyệt sớm.'); dong(); }
+    }catch(e){ console.warn('snMuaGoi',e&&e.code); if(daCK||baoRieng)toast('❌ Chưa gửi được — kiểm tra mạng rồi bấm lại'); }
+  }
+  function ve(){
+    var unit=gia(), total=giaGiaHan(unit,thang), bank=renewBank(), mail=(auth.currentUser&&auth.currentUser.email)||'', noi=mail+' '+app, body='';
+    var hop='border-radius:10px;padding:12px;font-size:.9em;line-height:1.55;margin-bottom:8px;';
+    if(LA_NV) body='<div style="'+hop+'background:#eef6ff;border:1px solid #bcd7f5;color:#1d4e89">📱 Đây là <b>máy nhân viên</b>. Gói phải mua trên máy của <b>chủ shop</b> để tiền và hạn ghi đúng cửa hàng.</div>';
+    else if(!(unit>0)) body='<div style="'+hop+'background:#fff3cd;border:1px solid #ffe08a;color:#8a6d00">Chủ phần mềm chưa đặt giá gói này. Gọi <b>'+snHotTxt()+'</b> để được mở gói.</div>';
+    else if(!bank) body='<div style="'+hop+'background:#fff3cd;border:1px solid #ffe08a;color:#8a6d00">Chủ phần mềm chưa cấu hình tài khoản nhận tiền. Gọi <b>'+snHotTxt()+'</b> để được mở gói.</div>';
+    else{
+      var qr='https://img.vietqr.io/image/'+bank.bin+'-'+bank.account+'-compact2.png?amount='+total+'&addInfo='+encodeURIComponent(noi)+'&accountName='+encodeURIComponent(bank.accName||'');
+      var mB=[1,3,6,12].map(function(m){ var on=(m===thang);
+        return '<button type="button" data-mg="m" data-m="'+m+'" style="flex:1 1 40%;padding:9px;border-radius:10px;border:1px solid '+(on?'#0d7a5f':'#cbd5cf')+';background:'+(on?'#0d7a5f':'#f7faf9')+';color:'+(on?'#fff':'#243')+';font-weight:700;cursor:pointer;font-family:inherit">'+m+' tháng'+(thangTang(m)>0?' 🎁':'')+'</button>'; }).join('');
+      body='<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px">'+mB+'</div>'
+        +'<div style="font-size:15px;font-weight:800;margin:4px 0 6px">Tổng: <b style="color:#c0392b;font-size:19px">'+fmt(total)+'</b> <span style="font-size:12px;font-weight:600;color:#5a6b64">('+fmt(unit)+'/tháng)</span></div>'
+        +(thangTang(thang)>0?'<div style="background:#fff8e1;border:1px solid #ffe08a;border-radius:8px;padding:7px 10px;color:#8a5a00;font-size:.82em;font-weight:700;line-height:1.45;margin-bottom:8px">🎁 Gói năm: tặng '+thangTang(thang)+' tháng — chỉ trả tiền '+thangTinhTien(thang)+' tháng · Tiết kiệm '+fmt(unit*thang-total)+'</div>':'')
+        +'<div style="text-align:center;margin:8px 0"><img src="'+qr+'" alt="QR mua gói" style="width:190px;height:190px;object-fit:contain;border:1px solid #e3ece9;border-radius:12px;background:#fff" onerror="this.style.display=\'none\'"><div style="font-size:.8em;color:#5a6b64;margin-top:4px">Quét bằng app ngân hàng — số tiền &amp; nội dung điền sẵn</div></div>'
+        +'<div style="border:1px solid #e3ece9;border-radius:12px;overflow:hidden;margin-bottom:8px">'
+        +dongTT('🏦 Ngân hàng',escHtml(bank.bankName||''),'').replace('border-top:1px solid #eef3f1;','')
+        +dongTT('🔢 Số TK',escHtml(bank.account),String(bank.account))+dongTT('👤 Chủ TK',escHtml(bank.accName||''),'')
+        +dongTT('💰 Số tiền',fmt(total),String(total))+dongTT('📝 Nội dung',escHtml(noi),noi)+'</div>'
+        +'<div style="background:#fff7e6;font-size:.82em;color:#8a6d00;border-radius:8px;padding:8px 10px;line-height:1.45;margin-bottom:8px">⚠️ Giữ <b>nguyên nội dung</b> khi chuyển khoản để chủ phần mềm mở đúng gói.</div>'
+        +'<button type="button" data-mg="ck" style="width:100%;background:#16a34a;color:#fff;border:none;border-radius:12px;padding:13px;font-weight:800;font-size:15px;cursor:pointer;margin-bottom:8px;font-family:inherit">✅ Tôi đã chuyển khoản</button>'
+        +'<button type="button" data-mg="req" style="width:100%;background:#eef7f2;color:#0a5f4a;border:none;border-radius:10px;padding:11px;font-weight:800;cursor:pointer;margin-bottom:8px;font-family:inherit">📩 Chỉ gửi yêu cầu (chuyển khoản sau)</button>';
+    }
+    el.innerHTML='<div style="background:#fff;border-radius:18px;max-width:420px;width:100%;padding:18px;box-shadow:0 20px 60px rgba(0,0,0,.35);font-size:14px;color:#243">'
+      +'<div style="font-size:16px;font-weight:800;color:#0a5f4a;margin-bottom:4px;line-height:1.4">'+escHtml(ten)+'</div>'
+      +(moTa?'<div style="color:#5a6b64;font-size:.85em;line-height:1.5;margin-bottom:10px">'+escHtml(moTa)+'</div>':'')
+      +body
+      +'<a href="tel:'+snHotline()+'" style="display:flex;align-items:center;justify-content:center;gap:8px;background:#16a34a;color:#fff;border-radius:10px;padding:12px;font-weight:800;text-decoration:none;margin-bottom:8px">📞 Gọi hotline hỗ trợ: '+snHotTxt()+'</a>'
+      +'<button type="button" data-mg="x" style="width:100%;background:#e9eeec;border:none;border-radius:10px;padding:12px;font-weight:800;color:#334;cursor:pointer;font-family:inherit">Đóng</button></div>';
+    if(!LA_NV&&unit>0&&bank) ghi(false,false);   /* có QR thật mới ghi đơn — giống màn chi nhánh / gói ngành */
+  }
+  el.addEventListener('click',function(e){
+    if(e.target===el){ dong(); return; }
+    var b=(e.target&&e.target.closest)?e.target.closest('[data-mg]'):null; if(!b)return;
+    var a=b.getAttribute('data-mg');
+    if(a==='x'){ dong(); return; }
+    if(a==='m'){ thang=parseInt(b.getAttribute('data-m'),10)||1; ve(); return; }
+    if(a==='cp'){ try{ window.copyText(b.getAttribute('data-v')); }catch(_){} return; }
+    if(a==='ck'){ ghi(true,false); return; }
+    if(a==='req'){ ghi(false,true); return; }
+  },false);
+  ve();
+};
 async function logPosRequest(months,amount){
   try{
     if(!auth.currentUser||isAdmin())return;
@@ -4952,6 +5054,20 @@ function skCnCloseUpsell(){ var el=document.getElementById('cn-upsell'); if(el)e
    Quản trị không có đơn nào ⇒ tiền vào tài khoản mà không ai biết là của ai.
    Doc id uid__sono_cn để bảng quản trị đọc đúng mã app, số tháng và SỐ SUẤT (qty). */
 var _cnDonCuoi='';
+/* [QT4] Khách báo ĐÃ chuyển khoản mua chi nhánh — ghi cờ ck (kèm đúng số suất, số tháng, số tiền lúc chuyển) */
+async function snDaCKCn(qty,months,amount){
+  try{
+    if(!auth.currentUser||isAdmin())return;
+    if(LA_NV){ toast('📱 Máy nhân viên không gửi được — nhờ chủ shop báo trên máy chủ shop'); return; }
+    var sl=Math.min(50,Math.max(1,Number(qty)||1)), th=Number(months)||1, ti=Number(amount)||0, u=auth.currentUser, mail=u.email||'';
+    if(!(ti>0)){ toast('Chưa có giá chi nhánh — gọi '+snHotTxt()); return; }
+    await setDoc(doc(db,'renewalRequests',u.uid+'__'+skCnMa),
+      {uid:u.uid,app:skCnMa,email:mail,months:th,amount:ti,qty:sl,noiDung:(mail+' '+(CN_NOIDUNG[skCnMa]||'CN')+sl),
+       requestedAt:serverTimestamp(),status:'pending',ck:{luc:serverTimestamp(),thang:th,tien:ti,sl:sl}},{merge:true});
+    _cnDonCuoi=sl+'|'+th+'|'+ti;
+    toast('✅ Đã báo chủ phần mềm: bạn đã chuyển '+fmt(ti)+'. Chi nhánh sẽ được mở sớm nhất.');
+  }catch(e){ console.warn('snDaCKCn',e&&e.code); toast('❌ Chưa gửi được — kiểm tra mạng rồi bấm lại'); }
+}
 async function logCnRequest(qty,months,amount){
   try{
     if(!auth.currentUser||isAdmin()||LA_NV)return;
@@ -4999,7 +5115,8 @@ function skCnRenderUpsell(fromSwitch){
         +'<div class="cn-line"><span>💰 Số tiền</span><b>'+fmt(total)+' <button type="button" class="cn-cp" data-cp="'+total+'">Copy</button></b></div>'
         +'<div class="cn-line"><span>📝 Nội dung</span><b style="word-break:break-all">'+escHtml(info)+' <button type="button" class="cn-cp" data-cp="'+escHtml(info)+'">Copy</button></b></div>'
         +'</div>'
-        +'<div class="cn-note">⚠️ Giữ <b>nguyên nội dung</b> khi chuyển khoản để chủ phần mềm mở đúng số chi nhánh. Sau khi CK, chi nhánh sẽ được mở trong thời gian sớm nhất.</div>';
+        +'<div class="cn-note">⚠️ Giữ <b>nguyên nội dung</b> khi chuyển khoản để chủ phần mềm mở đúng số chi nhánh. Sau khi CK, chi nhánh sẽ được mở trong thời gian sớm nhất.</div>'
+        +'<button type="button" class="cn-ck" style="display:block;width:100%;border:none;border-radius:12px;padding:13px;font-weight:800;font-size:15px;background:#16a34a;color:#fff;cursor:pointer;margin-bottom:8px">✅ Tôi đã chuyển khoản</button>';
     }else{
       qrBlock='<div class="cn-warn">Chủ phần mềm chưa cấu hình tài khoản nhận tiền. Vui lòng liên hệ trực tiếp để mở thêm chi nhánh.</div>';
     }
@@ -5007,6 +5124,7 @@ function skCnRenderUpsell(fromSwitch){
       +'<div class="cn-row"><span>Số chi nhánh thêm muốn dùng</span>'
       +'<div class="cn-step"><button type="button" class="cn-dec">−</button><b id="cn-qty">'+_cnWantQty+'</b><button type="button" class="cn-inc">+</button></div></div>'
       +'<div class="cn-sub">Sau khi mở: dùng được <b>'+newMax+'</b> chi nhánh (1 chính + '+_cnWantQty+' thêm) · '+fmt(unit)+'/chi nhánh/tháng</div>'
+      +((skCnInfo&&skCnInfo.ok&&skCnInfo.until&&(skCnQty||0)>0&&_cnWantQty!==skCnQty)?'<div class="cn-sub" style="color:#0a5f4a">ℹ️ Gói đang còn hạn với <b>'+skCnQty+'</b> suất: thời gian còn lại được chia đều cho <b>'+_cnWantQty+'</b> suất, rồi cộng thêm số tháng bạn mua.</div>':'')
       +'<div class="cn-months">'+mBtns+'</div>'
       +'<div class="cn-total">Tổng: <b>'+fmt(total)+'</b></div>'
       +saveNote
@@ -5043,6 +5161,7 @@ function skCnRenderUpsell(fromSwitch){
   Array.prototype.forEach.call(el.querySelectorAll('.cn-m'),function(b){ b.onclick=function(){ _cnWantMonths=parseInt(b.getAttribute('data-cnm'),10)||1; skCnRenderUpsell(fromSwitch); }; });
   Array.prototype.forEach.call(el.querySelectorAll('.cn-cp'),function(b){ b.onclick=function(){ if(typeof copyText==='function')copyText(b.getAttribute('data-cp')); }; });
   var cl=q('.cn-close'); if(cl)cl.onclick=skCnCloseUpsell;
+  var ckb=q('.cn-ck'); if(ckb)ckb.onclick=function(){ snDaCKCn(_cnWantQty,_cnWantMonths,total); };
   if(unit>0&&bank) logCnRequest(_cnWantQty,_cnWantMonths,total);   /* có QR thật mới ghi đơn */
 }
 /* ═══════════ HẾT MODULE CHI NHÁNH THÊM ═══════════ */
@@ -18084,7 +18203,8 @@ window.AIB={ hoi:function(t){ try{ M.go('aib'); }catch(e){} setTimeout(function(
           +'<div class="m-line"><span>💰 Số tiền</span><b>'+vnd(total)+' <button type="button" class="m-cp" data-ngm="cp" data-v="'+total+'">Copy</button></b></div>'
           +'<div class="m-line"><span>📝 Nội dung</span><b style="word-break:break-all">'+esc(noi)+' <button type="button" class="m-cp" data-ngm="cp" data-v="'+esc(noi)+'">Copy</button></b></div>'
           +'</div>'
-          +'<div class="m-note">⚠️ Giữ <b>nguyên nội dung</b> khi chuyển khoản để chủ phần mềm mở đúng gói. Sau khi CK, gói sẽ được mở sớm nhất.</div>';
+          +'<div class="m-note">⚠️ Giữ <b>nguyên nội dung</b> khi chuyển khoản để chủ phần mềm mở đúng gói. Sau khi CK, gói sẽ được mở sớm nhất.</div>'
+          +'<button type="button" class="m-alt" data-ngm="ck" style="background:#16a34a;color:#fff">✅ Tôi đã chuyển khoản</button>';
       }else{
         qr='<div class="m-warn">Chủ phần mềm chưa cấu hình tài khoản nhận tiền. Vui lòng gọi hotline để mở gói.</div>';
       }
@@ -18109,6 +18229,7 @@ window.AIB={ hoi:function(t){ try{ M.go('aib'); }catch(e){} setTimeout(function(
         if(a==='x'){ closeUp(); return; }
         if(a==='m'){ upM=parseInt(b.getAttribute('data-m'),10)||1; drawUp(); return; }
         if(a==='cp'){ try{ if(typeof window.copyText==='function') window.copyText(b.getAttribute('data-v')); }catch(e2){} return; }
+        if(a==='ck'){ ghiDon(upK,upM,giaGH(priceOf(upK),upM),true,true); return; }
         if(a==='req'){ ghiDon(upK,upM,giaGH(priceOf(upK),upM),true); return; }
         if(a==='base'){ closeUp(); close(); return; }
       },false);
@@ -18116,7 +18237,7 @@ window.AIB={ hoi:function(t){ try{ M.go('aib'); }catch(e){} setTimeout(function(
     if(unit>0&&BANK) ghiDon(upK,upM,total,false);
   }
   var _donCuoi='';
-  async function ghiDon(k,months,amount,baoNguoiDung){
+  async function ghiDon(k,months,amount,baoNguoiDung,daCK){
     var f=FB(), u=uid(), m=mod(k);
     if(!f||!u||!m) return;
     if(!laChu()){ if(baoNguoiDung) say('🔒 Chỉ CHỦ shop mới gửi được yêu cầu'); return; }
@@ -18126,12 +18247,14 @@ window.AIB={ hoi:function(t){ try{ M.go('aib'); }catch(e){} setTimeout(function(
     var mail=window.__ngaEmail||'';
     var base={uid:u,app:m.lic,email:mail,months:Number(months)||1,amount:Number(amount)||0,
       noiDung:((mail?mail+' ':'')+m.lic),requestedAt:f.serverTimestamp(),handledAt:null};
+    /* [QT4] khách báo đã chuyển khoản ⇒ app Quản trị xếp đơn lên đầu, kèm đúng số tháng & số tiền lúc chuyển */
+    if(daCK) base.ck={luc:f.serverTimestamp(),thang:Number(months)||1,tien:Number(amount)||0};
     var ref=f.doc(f.db,'renewalRequests',u+'__'+m.lic);
     try{
       /* [VÁ F2] MỘT lần ghi: status + ngStatus cùng 'pending'. App Quản trị 3 duyệt/ẩn là đóng CẢ HAI cờ.
          Bản cũ ghi status:'done' trước — Rules luôn chối lần đó (khách không được tự đánh dấu 'done'). */
       await f.setDoc(ref,Object.assign({status:'pending',ngStatus:'pending'},base),{merge:true});
-      if(baoNguoiDung){ say('✅ Đã gửi yêu cầu. Chủ phần mềm sẽ duyệt sớm.'); closeUp(); }
+      if(baoNguoiDung){ say(daCK?'✅ Đã báo chủ phần mềm: bạn đã chuyển khoản. Gói sẽ được mở sớm nhất.':'✅ Đã gửi yêu cầu. Chủ phần mềm sẽ duyệt sớm.'); closeUp(); }
     }catch(e){ if(baoNguoiDung) say('❌ Gửi chưa được, thử lại'); }
   }
 
@@ -18205,7 +18328,7 @@ window.AIB={ hoi:function(t){ try{ M.go('aib'); }catch(e){} setTimeout(function(
         data.paidUntil=congThang(new Date(base),months); data.vinhVien=false;
       }else{ data.paidUntil=null; data.vinhVien=true; }
       await f.setDoc(f.doc(f.db,'accounts',u,'lic',lic),data,{merge:true});
-      try{ await f.setDoc(f.doc(f.db,'renewalRequests',u+'__'+lic),{status:'done',ngStatus:'done',handledAt:f.serverTimestamp()},{merge:true}); }catch(e){}
+      try{ await f.setDoc(f.doc(f.db,'renewalRequests',u+'__'+lic),{status:'done',ngStatus:'done',handledAt:f.serverTimestamp(),ck:null},{merge:true}); }catch(e){}
       try{ await f.setDoc(f.doc(f.db,'renewalRequests',u+'__'+lic),{status:'done',handledAt:f.serverTimestamp()},{merge:true}); }catch(e){}
       if(months>0){ try{ await f.addDoc(f.collection(f.db,'payments'),
         {uid:u,email:(ADM.mails&&ADM.mails[u])||'',app:lic,months:months,amount:giaGH(Number(PRICE[m.pf])||0,months),at:f.serverTimestamp(),src:'tay'}); }catch(e){} }
@@ -18332,7 +18455,7 @@ if (window.__RMT_READY__) return; window.__RMT_READY__ = true;
 try{
 
 /* ĐỔI CHUỖI NÀY CHO TRÙNG APP_BUILD MỖI LẦN DEPLOY (chỉ để hiện ở bảng quản trị) */
-var BUILD = '2026-09-19-QT3';
+var BUILD = '2026-09-19-QT4';
 var NHIP   = 6*3600*1000;          /* báo về tối đa 6 giờ 1 lần — khỏi tốn lượt ghi */
 var KEY_HB = 'rmt_hb_v1';
 var KEY_XEM= 'rmt_xem_v1';
@@ -18781,7 +18904,8 @@ function htmlChaoHang(){
              + '. Khách quét mã sẽ không gửi đơn được nữa.</div>' : '')
     + '<div class="qrd-row" style="justify-content:center">'
     + (daThu ? '' : '<button class="qrd-b green" data-act="qrd-thu">Dùng thử '+ngayThuQr()+' ngày miễn phí</button>')
-    + '<a class="qrd-b" href="tel:'+hotQr()+'" style="text-decoration:none">Gọi '+hotQr()+' để mở gói</a>'
+    + '<button class="qrd-b'+(daThu?' green':'')+'" data-act="qrd-mua">Mua gói · quét mã QR</button>'
+    + '<a class="qrd-b" href="tel:'+hotQr()+'" style="text-decoration:none">Gọi '+hotQr()+'</a>'
     + '</div></div>';
 }
 
@@ -19199,6 +19323,9 @@ M.act('qrd-doi',  function(){ doiMa(); });
 M.act('qrd-nhan', function(el,ds){ nhanDon(ds.id); });
 M.act('qrd-bo',   function(el,ds){ boDon(ds.id); });
 M.act('qrd-ten',  function(){ doiTen(); });
+M.act('qrd-mua',  function(){ try{ if(typeof window.snMuaGoi==='function') window.snMuaGoi({app:MA_GOI, ten:'📱 Gói Đơn QR tại bàn',
+  moTa:'Khách quét mã trên bàn tự gọi món, đơn gửi thẳng xuống máy tính tiền. Gói thuê riêng, tính phí theo tháng.'});
+  else noi('Gọi '+hotQr()+' để mở gói'); }catch(e){ noi('Gọi '+hotQr()+' để mở gói'); } });
 M.act('qrd-thu',  function(){ dungThu(); });
 
 /* ───────── GẮN VÀO LÕI ───────── */
