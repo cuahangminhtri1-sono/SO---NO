@@ -749,7 +749,7 @@ import { getFirestore, initializeFirestore, persistentLocalCache, persistentMult
 import { getStorage, ref as _sref, uploadBytes, getDownloadURL, deleteObject, listAll }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
 
-const APP_BUILD = "2026-09-18-SPMA"; // ⬆️ ĐỔI MỖI LẦN DEPLOY (đặt TRÙNG tên cache trong sw.js) — hiện ở ⚙️ Cài đặt để biết máy đã chạy bản mới chưa
+const APP_BUILD = "2026-09-19-QT3"; // ⬆️ ĐỔI MỖI LẦN DEPLOY (đặt TRÙNG tên cache trong sw.js) — hiện ở ⚙️ Cài đặt để biết máy đã chạy bản mới chưa
 const firebaseConfig = {
   apiKey: "AIzaSyA_kjQ-CdASRkf50Glz3kQajlkD5qGWC4k",
   authDomain: "so-no-cc57a.firebaseapp.com",
@@ -878,13 +878,14 @@ window.donKhoAnh=async function(){
 };
 
 // ===== CẤU HÌNH DÙNG THỬ & NHẬN TIỀN GIA HẠN =====
-const TRIAL_DAYS = 14;          // số ngày dùng thử miễn phí cho khách mới
-const POS_TRIAL_DAYS = 14;      // số ngày dùng thử miễn phí gói Bán hàng (POS)
+let TRIAL_DAYS = 14;            // số ngày dùng thử miễn phí cho khách mới (app Quản trị đổi được: billing/info.ngayThu)
+let POS_TRIAL_DAYS = 14;        // số ngày dùng thử miễn phí gói Bán hàng (POS) — theo cùng billing/info.ngayThu
 const RENEW_PRICE = 10000;      // giá mặc định 1 tháng (đồng) — có thể đổi trong 👑 Quản lý khách
 // (Tuỳ chọn) điền cứng tài khoản NHẬN TIỀN gia hạn của bạn vào đây nếu không muốn cấu hình trong app.
 // Nên để trống và dùng nút "💳 Cấu hình nhận tiền" trong 👑 Quản lý khách cho tiện.
 const RENEW_BANK = { bin:'', bankName:'', account:'', accName:'' };
 let BILLING = null;             // nạp từ Firestore billing/info nếu admin đã cấu hình
+let _GR = null;                 // GIÁ RIÊNG của tài khoản này — accounts/{uid}.giaRieng (chỉ app Quản trị ghi được)
 
 // ═════════ GIẤY PHÉP RIÊNG TỪNG APP (mỗi app một khoá) ═════════
 // Kho dữ liệu tên trần (products, orders, customers…) = app 'sono' theo Firestore Rules.
@@ -978,7 +979,7 @@ function loiChanNhap(){
   return 'Tài khoản đang DÙNG THỬ nên chưa nhập được dữ liệu.\n\n'
     +'Đây là cách chặn việc xoay vòng tài khoản để dùng thử vô hạn.\n\n'
     +'• Đã mua rồi mà vẫn báo lỗi này: kiểm tra mạng rồi thử lại.\n'
-    +'• Muốn mang dữ liệu cũ sang: gọi 0977 823 979.';
+    +'• Muốn mang dữ liệu cũ sang: gọi '+snHotTxt()+'.';
 }
 let LICMAP = {};              // admin: { uid: { sono:{...}, sono_pos:{...} } }
 
@@ -1002,6 +1003,7 @@ function _ms(ts){if(!ts)return 0;if(typeof ts==='number')return ts;if(ts.toMilli
 function _ec(e){return String((e&&(e.code||e.message))||'lỗi không rõ');}
 function _permHint(e){return (e&&e.code==='permission-denied')?' — Firestore Rules CHƯA cập nhật, hãy dán firestore.rules mới (xem Báo cáo).':'';}
 function priceFor(app){var B=BILLING||{};
+  {var _g=_GR?Number(_GR[app]):0; if(_g>0)return Math.round(_g);}   /* giá riêng do app Quản trị đặt cho đúng khách này */
   if(app==='sono')return (B.priceSono>0?B.priceSono:(B.pricePerMonth>0?B.pricePerMonth:10000));
   if(app==='sono_pos')return (B.pricePos>0?B.pricePos:(B.posPricePerMonth>0?B.posPricePerMonth:0));
   if(app==='sono_cn')return (B.priceCn>0?B.priceCn:(B.priceCnPerMonth>0?B.priceCnPerMonth:10000));
@@ -1046,7 +1048,7 @@ function normReq(id,x){x=x||{};var uid=x.uid,app=x.app||'';
 function _pendingFor(uid,app){for(var i=0;i<_REQS.length;i++){var q=_REQS[i];
   if(q.uid===uid&&(q.app===app||(q.app===''&&app===MA_APP)))return q.reqId;}return '';}
 async function markReqDone(reqId){ if(!reqId)return;
-  try{ await _SET(_DOC('renewalRequests',reqId),{status:'done',handledAt:_SRV()},{merge:true}); }catch(e){} }
+  try{ await _SET(_DOC('renewalRequests',reqId),{status:'done',ngStatus:'done',handledAt:_SRV()},{merge:true}); }catch(e){} }
 window.adminGrantApp=async function(uid,months,app,reqId){
   if(_admBusy)return; _admBusy=true;
   try{
@@ -1690,12 +1692,15 @@ window.snLaAdmin=function(){try{return !!isAdmin();}catch(e){return false;}};
 function _hanInfo(d){
   if(!d)return null;
   if(d.active===false)return{ok:false,reason:'locked'};
+  if(d.vinhVien===true)return{ok:true};   /* Rules: vinhVien:true là qua, bất kể ngày ghi kèm */
   if(d.paidUntil){
     const until=(d.paidUntil&&d.paidUntil.toDate)?d.paidUntil.toDate():new Date(d.paidUntil);
     if(!isNaN(until)&&until.getTime()<Date.now())return{ok:false,reason:'expired',until,trial:!!d.trial};
     return{ok:true,until,trial:!!d.trial};
   }
-  if(d.active===true)return{ok:true};   // paidUntil rỗng = admin cấp VĨNH VIỄN
+  /* [VÁ F5] Không ngày + không vinhVien: Rules CHẶN. Bản cũ coi là vĩnh viễn nên khách vào app trống trơn,
+     mọi thao tác bị chối mà không hiểu vì sao. Nay báo thẳng để khách gọi chủ phần mềm. */
+  if(d.active===true)return{ok:false,reason:'nohan'};
   return null;
 }
 async function checkAccount(uid){
@@ -1772,6 +1777,7 @@ if(!viewToken){
       UID=_ru.uid; LA_NV=_ru.nv;            /* nhân viên: UID = shop của chủ */
       try{document.body.classList.toggle('la-nv',!!LA_NV);}catch(_){}
       await loadBilling();
+      await napGiaRieng();                   /* giá riêng của shop (nếu app Quản trị có đặt) */
       let acc=await checkAccount(UID);       /* giấy phép thuộc SHOP, không thuộc người đăng nhập */
       // Khách mới (chưa có hồ sơ) -> tự động mở dùng thử miễn phí
       if(!LA_NV && !acc.ok && acc.reason==='pending' && !isAdmin() && navigator.onLine!==false){   /* offline: bỏ qua, lệnh ghi sẽ treo vĩnh viễn */
@@ -1821,7 +1827,59 @@ const REM_KEY='sono_rem_v1';
 // ── Tài khoản NHẬN TIỀN gia hạn (của chủ phần mềm) ──
 async function loadBilling(){
   try{const s=await getDoc(doc(db,'billing','info'));if(s.exists())BILLING=s.data();}catch(e){BILLING=null;}
+  try{apCauHinhTuXa();}catch(e){}
 }
+/* ═══ CẤU HÌNH TỪ XA — app Quản trị ghi vào billing/info, mọi máy khách theo ngay lần mở kế ═══
+   • ngayThu   : số ngày dùng thử (1–14; Rules chặn trên 16 ngày nên không bao giờ cho quá 14)
+   • kmGiaHan  : {số tháng mua: số tháng tặng}. CÓ trường này là thay TRỌN bảng (rỗng = tắt khuyến mãi)
+   • hotline   : số hỗ trợ hiện trên mọi màn
+   Thiếu / sai kiểu ⇒ giữ nguyên giá trị viết sẵn trong app, KHÔNG bao giờ vỡ. */
+function apCauHinhTuXa(){
+  var B=BILLING||{};
+  var n=Math.floor(Number(B.ngayThu));
+  if(n>=1&&n<=14){ TRIAL_DAYS=n; POS_TRIAL_DAYS=n; }
+  if(B.kmGiaHan&&typeof B.kmGiaHan==='object'&&!Array.isArray(B.kmGiaHan)){
+    var moi={},k;
+    for(k in B.kmGiaHan){ var m=Math.floor(Number(k)),g=Math.floor(Number(B.kmGiaHan[k])); if(m>=2&&m<=24&&g>=1&&g<m)moi[m]=g; }
+    Object.keys(KM_GIA_HAN).forEach(function(x){ delete KM_GIA_HAN[x]; });
+    Object.keys(moi).forEach(function(x){ KM_GIA_HAN[x]=moi[x]; });
+  }
+  apHotline();
+}
+async function napGiaRieng(){
+  try{ const a=await getDoc(doc(db,'accounts',UID)); const g=a.exists()?(a.data()||{}).giaRieng:null;
+       _GR=(g&&typeof g==='object'&&!Array.isArray(g))?g:null; }catch(e){ _GR=null; }
+}
+const HOT_GOC='0977823979';
+function snHotline(){ var h=String((BILLING&&BILLING.hotline)||'').replace(/[^0-9]/g,''); return /^0[0-9]{8,10}$/.test(h)?h:HOT_GOC; }
+function snHotTxt(){ var h=snHotline(); return h.length===10?(h.slice(0,4)+' '+h.slice(4,7)+' '+h.slice(7)):h; }
+let _hotObs=null;
+function _hotSua(root){
+  var moi=snHotline(); if(moi===HOT_GOC||!root)return;
+  var txt=snHotTxt(), doi=function(v){ return v.split('0977 823 979').join(txt).split(HOT_GOC).join(moi); };
+  try{
+    if(root.nodeType===3){ if(root.data.indexOf('0977')>=0)root.data=doi(root.data); return; }
+    if(root.nodeType!==1)return;
+    var sel='a[href^="tel:'+HOT_GOC+'"]';
+    if(root.matches&&root.matches(sel))root.setAttribute('href','tel:'+moi);
+    if(root.querySelectorAll)root.querySelectorAll(sel).forEach(function(a){ a.setAttribute('href','tel:'+moi); });
+    if((root.textContent||'').indexOf('0977')<0)return;
+    var w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT,null),x,ds=[];
+    while((x=w.nextNode())){ var p=x.parentNode&&x.parentNode.nodeName; if(p==='SCRIPT'||p==='STYLE'||p==='TEXTAREA')continue; if(x.data.indexOf('0977')>=0)ds.push(x); }
+    ds.forEach(function(t){ t.data=doi(t.data); });
+  }catch(e){}
+}
+function apHotline(){
+  if(snHotline()===HOT_GOC){ if(_hotObs){ _hotObs.disconnect(); _hotObs=null; } return; }
+  if(!document.body)return;
+  _hotSua(document.body);
+  if(!_hotObs&&window.MutationObserver){
+    _hotObs=new MutationObserver(function(ms){ for(var i=0;i<ms.length;i++){ var a=ms[i].addedNodes; for(var j=0;j<a.length;j++)_hotSua(a[j]); } });
+    _hotObs.observe(document.body,{childList:true,subtree:true});
+  }
+}
+window.SN_CFG={ ngayThu:function(){ return TRIAL_DAYS; }, km:function(){ return KM_GIA_HAN; },
+                hotline:function(){ return snHotline(); }, hotTxt:function(){ return snHotTxt(); } };
 function renewBank(){
   var _b=BILLING||{}; var bin=_b.bin||_b.bankBin;
   if(bin&&_b.account)return{bin:bin,bankName:_b.bankName||'',account:_b.account,accName:_b.accName||''};
@@ -1865,10 +1923,12 @@ function renderLocked(acc,user){
   let ic='🔒',tt='Cần kích hoạt tài khoản',mg='';
   if(acc.reason==='expired'){
     ic=acc.trial?'🎁':'⌛';
-    tt=acc.trial?'Đã hết 15 ngày dùng thử':'Tài khoản đã hết hạn';
+    tt=acc.trial?'Đã hết thời gian dùng thử':'Tài khoản đã hết hạn';
     mg=(acc.trial?'Cảm ơn bạn đã dùng thử Sổ Nợ! ':'')+'Tài khoản'+(acc.until?(' hết hạn ngày '+fmtDateRaw(acc.until)):'')+'. Hãy gia hạn để tiếp tục — chỉ '+fmt(renewPrice())+'/tháng.';
   }else if(acc.reason==='error'){
     ic='⚠️';tt='Không kiểm tra được tài khoản';mg='Mạng có thể bị gián đoạn. Vui lòng tải lại trang.';
+  }else if(acc.reason==='nohan'){
+    ic='⚙️';tt='Tài khoản chưa được đặt hạn';mg='Giấy phép'+(mail?(' của '+mail):'')+' chưa có ngày hết hạn nên máy chủ chưa mở. Gọi chủ phần mềm để được mở ngay, hoặc bấm Gia hạn.';
   }else if(acc.reason==='locked'){
     tt='Tài khoản đã bị khoá';mg='Tài khoản'+(mail?(' ('+mail+')'):'')+' hiện bị khoá. Vui lòng liên hệ chủ phần mềm.';
   }else{
@@ -1880,9 +1940,9 @@ function renderLocked(acc,user){
   if(actions){
     let btns='';
     if(acc.reason==='pending')btns+='<button class="lk-pay" onclick="startTrialNow()">🎁 Bắt đầu dùng thử '+TRIAL_DAYS+' ngày</button>';
-    else if(acc.reason==='expired')btns+='<button class="lk-pay" onclick="openRenew()">💳 Gia hạn ngay</button>';
+    else if(acc.reason==='expired'||acc.reason==='nohan')btns+='<button class="lk-pay" onclick="openRenew()">💳 Gia hạn ngay</button>';
     else if(acc.reason==='error')btns+='<button class="lk-pay" onclick="location.reload()">🔄 Tải lại trang</button>';
-    btns+='<a href="tel:0977823979" style="display:flex;align-items:center;justify-content:center;gap:8px;background:#16a34a;color:#fff;border-radius:10px;padding:13px;font-weight:800;text-decoration:none;font-size:15px;margin-top:8px">📞 Gọi hotline hỗ trợ: 0977 823 979</a>';
+    btns+='<a href="tel:'+snHotline()+'" style="display:flex;align-items:center;justify-content:center;gap:8px;background:#16a34a;color:#fff;border-radius:10px;padding:13px;font-weight:800;text-decoration:none;font-size:15px;margin-top:8px">📞 Gọi hotline hỗ trợ: '+snHotTxt()+'</a>';
     btns+='<button class="lk-btn" onclick="doLogout()">Đăng xuất</button>';
     actions.innerHTML=btns;
   }
@@ -1963,6 +2023,8 @@ function renewExpiryHtml(kind){
   if(info===undefined) return '<div class="rn-exp rn-exp-load">⏳ Đang xem hạn '+ten+'…</div>';
   if(!info) return '<div class="rn-exp rn-exp-none">🛒 '+ten+': chưa kích hoạt. Chọn số tháng để đăng ký/kích hoạt.</div>';
   if(info.admin) return '<div class="rn-exp rn-exp-ok">👑 '+ten+': tài khoản quản trị (không giới hạn).</div>';
+  if(info.reason==='locked') return '<div class="rn-exp rn-exp-bad">🔒 '+ten+' đang bị khoá. Liên hệ chủ phần mềm để mở.</div>';
+  if(info.reason==='nohan') return '<div class="rn-exp rn-exp-bad">⚠️ '+ten+' chưa được đặt hạn. Chọn số tháng để gia hạn — chủ phần mềm mở ngay khi nhận tiền.</div>';
   if(!info.until) return '<div class="rn-exp rn-exp-ok">✅ '+ten+': đang dùng (không thời hạn).</div>';
   const days=Math.ceil((info.until.getTime()-Date.now())/86400000);
   if(days<0) return '<div class="rn-exp rn-exp-bad">⛔ '+ten+' đã HẾT HẠN ngày <b>'+fmtDateRaw(info.until)+'</b>. Hãy gia hạn để dùng tiếp.</div>';
@@ -2001,7 +2063,9 @@ function buildRenew(){
   const unit=isPos?posRenewPrice():renewPrice();
   const total=giaGiaHan(unit,renewMonths);   // gói năm: tự trừ tháng tặng
   {var _ys=document.getElementById('rn-year-sub');
-   if(_ys)_ys.textContent = unit>0 ? ('chỉ '+fmt(giaGiaHan(unit,12))+' · tiết kiệm '+fmt(unit*thangTang(12))) : '';}
+   if(_ys)_ys.textContent = unit>0 ? ('chỉ '+fmt(giaGiaHan(unit,12))+(thangTang(12)>0?(' · tiết kiệm '+fmt(unit*thangTang(12))):'')) : '';
+   var _rb=document.querySelector('#rn-year-btn .rn-year-rib');
+   if(_rb)_rb.textContent = thangTang(12)>0 ? ('🎁 TẶNG '+thangTang(12)+' THÁNG') : '📅 GÓI NĂM';}
   const note=document.getElementById('rn-topnote');
   if(note)note.innerHTML=isPos
     ?'Gia hạn <b>gói Bán hàng (POS)</b>: chọn số tháng rồi quét QR. <b>Nội dung CK đã điền sẵn email của bạn kèm chữ POS</b> để chủ phần mềm mở đúng gói.'
@@ -4753,9 +4817,10 @@ function _cnLic(d){
   if(!d)return{ok:false,qty:0};
   var qty=Math.max(0,Math.floor(Number(d.qty)||0));
   if(d.active===false)return{ok:false,qty:qty,expired:true};
+  if(d.vinhVien===true)return{ok:true,forever:true,qty:qty};   /* Rules: vinhVien:true là qua */
   if(d.paidUntil){var u=d.paidUntil.toDate?d.paidUntil.toDate():new Date(d.paidUntil);
     if(!isNaN(u))return{ok:u.getTime()>=Date.now(),until:u,expired:u.getTime()<Date.now(),qty:qty};}
-  return{ok:true,forever:true,qty:qty};   // paidUntil rỗng = vĩnh viễn
+  return{ok:false,qty:qty,nohan:true};   /* [VÁ F5] không ngày + không vinhVien: Rules không tính suất */
 }
 function skBranchOrder(){
   return skBranches.slice().sort(function(a,b){
@@ -5161,10 +5226,21 @@ async function nvAccCreate(){
     try{await signOut(auth2);}catch(_){}
   }catch(e){
     const c=(e&&e.code)||'';
-    set(c==='auth/email-already-in-use'?'Email này đã được dùng. Hãy chọn email khác.'
-      :(c==='auth/weak-password'?'Mật khẩu quá yếu.'
-      :(c==='auth/invalid-email'?'Email không hợp lệ.':'Lỗi tạo tài khoản: '+c)),'#c0392b');
-    return;
+    let _layLai=false;
+    if(c==='auth/email-already-in-use'&&app2){
+      /* [VÁ F4] Lần trước đã TẠO được tài khoản nhưng LIÊN KẾT hỏng (mất mạng giữa chừng): đăng nhập ngầm
+         bằng đúng email + mật khẩu vừa nhập để lấy lại mã rồi liên kết tiếp. Sai mật khẩu ⇒ email của người khác ⇒ dừng.
+         (Rules mới còn chặn thêm: không gắn được tài khoản KHÁCH thật làm nhân viên.) */
+      try{ const au2=getAuth(app2); const cr2=await signInWithEmailAndPassword(au2,email,pass); nvUid=cr2.user.uid; _layLai=true;
+           try{await signOut(au2);}catch(_){} }catch(_){ _layLai=false; }
+    }
+    if(!_layLai){
+      set(c==='auth/email-already-in-use'?'Email này đã có tài khoản. Nếu là tài khoản nhân viên tạo dở lần trước, nhập ĐÚNG mật khẩu cũ rồi bấm Tạo lại; không thì chọn email khác.'
+        :(c==='auth/weak-password'?'Mật khẩu quá yếu.'
+        :(c==='auth/invalid-email'?'Email không hợp lệ.':'Lỗi tạo tài khoản: '+c)),'#c0392b');
+      return;
+    }
+    set('Đã tìm lại tài khoản tạo dở — đang liên kết…');
   }
   /* Tài khoản đã tạo xong. Giờ ghi 2 doc liên kết — nếu bước này hỏng phải báo rõ,
      vì tài khoản đã tồn tại mà chưa liên kết thì đăng nhập vào sẽ ra shop rỗng. */
@@ -5471,9 +5547,10 @@ async function skDiag(){
   function _posInfoLic(d){
     if(!d)return{ok:false};
     if(d.active===false)return{ok:false};
+    if(d.vinhVien===true)return{ok:true,forever:true};   /* Rules: vinhVien:true là qua */
     if(d.paidUntil){var uu=d.paidUntil.toDate?d.paidUntil.toDate():new Date(d.paidUntil);
       if(!isNaN(uu))return{ok:uu.getTime()>=Date.now(),until:uu,expired:uu.getTime()<Date.now(),trial:!!d.trial};}
-    return{ok:true,forever:true};   // paidUntil rỗng = vĩnh viễn
+    return{ok:false,nohan:true};   /* [VÁ F5] không ngày + không vinhVien: Rules chặn — trước đây app tưởng vĩnh viễn */
   }
 
   /* ---------- KHÁCH: cổng kiểm tra quyền trước khi mở POS ---------- */
@@ -5511,7 +5588,7 @@ async function skDiag(){
         _openReal();return;
       }catch(e){}
     }
-    try{if(!BILLING){var bs=await getDoc(doc(db,'billing','info'));if(bs.exists())BILLING=bs.data();}}catch(e){}
+    try{if(!BILLING){var bs=await getDoc(doc(db,'billing','info'));if(bs.exists()){BILLING=bs.data();try{apCauHinhTuXa();}catch(_){}}}}catch(e){}
     skShowPosUpsell(info||{ok:false});
   };
 
@@ -5747,7 +5824,7 @@ window.fullFileChosen=async(input)=>{
         'File này thuộc tài khoản KHÁC'+(obj.ownerEmail?' ('+obj.ownerEmail+')':'')+'.\n\n'
         +'Bạn đang đăng nhập bằng: '+((auth.currentUser&&auth.currentUser.email)||'—')+'\n\n'
         +'• Nếu chỉ ĐỔI MÁY: không cần file này. Đăng nhập đúng email cũ là dữ liệu tự về.\n'
-        +'• Nếu muốn CHUYỂN sang tài khoản mới: gọi 0977 823 979 để được cấp phép chuyển.');
+        +'• Nếu muốn CHUYỂN sang tài khoản mới: gọi '+snHotTxt()+' để được cấp phép chuyển.');
     }
     if(!_fUid){
       let _chan=false;
@@ -5755,7 +5832,7 @@ window.fullFileChosen=async(input)=>{
       if(_chan) throw new Error(
         'File sao lưu này thuộc phiên bản cũ, không ghi tài khoản chủ nên không xác minh được.\n\n'
         +'Hãy đăng nhập tài khoản cũ, xuất lại bản sao lưu mới, rồi phục hồi.\n'
-        +'Cần hỗ trợ: gọi 0977 823 979.');
+        +'Cần hỗ trợ: gọi '+snHotTxt()+'.');
     }
 
     _fullParsed=obj;const r=_fullCounts(obj);
@@ -12470,7 +12547,7 @@ Cần dùng cả hai thì mua cả hai gói.</li>
 <li>Kiểm tra lại số tiền hiện trên app ngân hàng → bấm chuyển.</li>
 <li>Chuyển xong, <b>nhắn tin cho chủ phần mềm</b> báo đã chuyển, rồi chờ được kích hoạt.</li>
 </ol>
-<div class="snai-ok">🎁 <b>Mua 12 tháng chỉ trả tiền 10 tháng</b> — được tặng 2 tháng. Mua theo năm là lợi nhất.</div>
+<div class="snai-ok">🎁 <b>Mua gói năm là lợi nhất</b> — được tặng thêm tháng (số tháng tặng hiện ngay trong màn Gia hạn).</div>
 <div class="snai-tip">💡 <b>Nội dung chuyển khoản chính là email của bạn</b> — app đã điền sẵn vào trong mã QR rồi, cứ quét là đúng, <b>không cần gõ thêm gì</b>. Chủ phần mềm nhìn email là biết kích hoạt đúng tài khoản nào.</div>
 <div class="snai-warn">⚠️ Nếu bạn tự gõ tay số tài khoản thay vì quét QR thì <b>nhớ ghi email của bạn vào phần nội dung</b>, nếu không sẽ không biết tiền đó của ai.</div>`},
 
@@ -17685,7 +17762,7 @@ window.AIB={ hoi:function(t){ try{ M.go('aib'); }catch(e){} setTimeout(function(
   var KEYS=MODS.map(function(x){return x.k;});
   var OPENKEY='nga_open_pos_v1';
   var real=null, installed=false, bypass=false, busy=false, ready=false, pre=false, mask=null, msg='';
-  var LIC={}, PRICE={}, BANK=null, loading=false;
+  var LIC={}, PRICE={}, BANK=null, loading=false, GR=null;
   var upK='', upM=1;
 
   function SK(){ return window.SKMOD||null; }
@@ -17717,19 +17794,20 @@ window.AIB={ hoi:function(t){ try{ M.go('aib'); }catch(e){} setTimeout(function(
   function dstr(d){ try{ return d.getDate()+'/'+(d.getMonth()+1)+'/'+d.getFullYear(); }catch(e){ return ''; } }
   function mod(k){ for(var i=0;i<MODS.length;i++) if(MODS[i].k===k) return MODS[i]; return null; }
   function nameOf(k){ var m=mod(k); return m?m.n:BASE.n; }
-  function priceOf(k){ var m=mod(k); if(!m) return 0; var v=Number(PRICE[m.pf]); return v>0?v:0; }
+  function priceOf(k){ var m=mod(k); if(!m) return 0; var r=GR?Number(GR[m.lic]):0; if(r>0) return Math.round(r); var v=Number(PRICE[m.pf]); return v>0?v:0; }
 
   /* ---------- Đọc giấy phép gói ngành ---------- */
   function licInfo(d){
     if(!d) return {has:false,ok:false,trialUsed:false};
     var tu=(d.trialUsed===true);
     if(d.active===false) return {has:true,ok:false,off:true,trialUsed:tu};
+    if(d.vinhVien===true) return {has:true,ok:true,forever:true,trialUsed:tu};   /* Rules: vinhVien:true là qua */
     if(d.paidUntil){
       var u=d.paidUntil.toDate?d.paidUntil.toDate():new Date(d.paidUntil);
       if(!isNaN(u)) return {has:true,ok:u.getTime()>=Date.now(),until:u,expired:u.getTime()<Date.now(),trial:!!d.trial,trialUsed:tu};
     }
-    if(d.vinhVien===true||d.active===true) return {has:true,ok:true,forever:true,trialUsed:tu};
-    return {has:true,ok:false,trialUsed:tu};
+    /* [VÁ F5] không ngày + không vinhVien: Rules chặn két ngành — không được báo là vĩnh viễn */
+    return {has:true,ok:false,trialUsed:tu,nohan:(d.active===true)};
   }
   function licOf(k){ if(laAdmin()) return {has:true,ok:true,forever:true,admin:true}; return LIC[k]||{has:false,ok:false,trialUsed:false}; }
   function conNgay(i){ if(!i||!i.until) return 0; return Math.max(0,Math.ceil((i.until.getTime()-Date.now())/86400000)); }
@@ -17745,9 +17823,16 @@ window.AIB={ hoi:function(t){ try{ M.go('aib'); }catch(e){} setTimeout(function(
                  f.getDoc(f.doc(f.db,'accounts',u)).catch(function(){return null;}) ];
       MODS.forEach(function(m){ jobs.push(f.getDoc(f.doc(f.db,'accounts',u,'lic',m.lic)).catch(function(){return null;})); });
       var r=await Promise.all(jobs);
-      try{ if(r[1]&&r[1].exists&&r[1].exists()){ var ac=r[1].data()||{}; if(ac.email) window.__ngaEmail=ac.email; } }catch(e){}
+      try{ if(r[1]&&r[1].exists&&r[1].exists()){ var ac=r[1].data()||{}; if(ac.email) window.__ngaEmail=ac.email;
+             GR=(ac.giaRieng&&typeof ac.giaRieng==='object'&&!Array.isArray(ac.giaRieng))?ac.giaRieng:null; } }catch(e){}
       if(r[0]&&r[0].exists&&r[0].exists()){
         var b=r[0].data()||{}; PRICE=b;
+        /* [QUẢN TRỊ ĐIỀU KHIỂN] ngày dùng thử · khuyến mãi · hotline — cùng nguồn billing/info với lõi app */
+        try{ var nt=Math.floor(Number(b.ngayThu)); if(MOD_TRIAL_DAYS>0 && nt>=1 && nt<=14) MOD_TRIAL_DAYS=nt; }catch(e){}
+        try{ if(b.kmGiaHan && typeof b.kmGiaHan==='object' && !Array.isArray(b.kmGiaHan)){ var km={};
+               for(var kk in b.kmGiaHan){ var mm=Math.floor(Number(kk)), gg=Math.floor(Number(b.kmGiaHan[kk])); if(mm>=2&&mm<=24&&gg>=1&&gg<mm) km[mm]=gg; }
+               KM=km; } }catch(e){}
+        try{ var hl=String(b.hotline||'').replace(/[^0-9]/g,''); if(/^0[0-9]{8,10}$/.test(hl)) HOTLINE=hl; }catch(e){}
         BANK={bin:(b.bin||b.bankBin||''),bankName:(b.bankName||''),account:(b.account||''),accName:(b.accName||'')};
         if(!BANK.bin||!BANK.account) BANK=null;
       }
@@ -18043,13 +18128,8 @@ window.AIB={ hoi:function(t){ try{ M.go('aib'); }catch(e){} setTimeout(function(
       noiDung:((mail?mail+' ':'')+m.lic),requestedAt:f.serverTimestamp(),handledAt:null};
     var ref=f.doc(f.db,'renewalRequests',u+'__'+m.lic);
     try{
-      /* status:'done' để bảng "đơn gia hạn" CŨ bỏ qua (khỏi duyệt nhầm thành Sổ Nợ);
-         ngStatus là cờ riêng của gói ngành, bảng 🧩 bên dưới đọc cờ này. */
-      await f.setDoc(ref,Object.assign({status:'done',ngStatus:'pending'},base),{merge:true});
-      if(baoNguoiDung){ say('✅ Đã gửi yêu cầu. Chủ phần mềm sẽ duyệt sớm.'); closeUp(); }
-      return;
-    }catch(e){}
-    try{   /* dự phòng: Rules chặn field lạ → ghi kiểu chuẩn */
+      /* [VÁ F2] MỘT lần ghi: status + ngStatus cùng 'pending'. App Quản trị 3 duyệt/ẩn là đóng CẢ HAI cờ.
+         Bản cũ ghi status:'done' trước — Rules luôn chối lần đó (khách không được tự đánh dấu 'done'). */
       await f.setDoc(ref,Object.assign({status:'pending',ngStatus:'pending'},base),{merge:true});
       if(baoNguoiDung){ say('✅ Đã gửi yêu cầu. Chủ phần mềm sẽ duyệt sớm.'); closeUp(); }
     }catch(e){ if(baoNguoiDung) say('❌ Gửi chưa được, thử lại'); }
@@ -18252,7 +18332,7 @@ if (window.__RMT_READY__) return; window.__RMT_READY__ = true;
 try{
 
 /* ĐỔI CHUỖI NÀY CHO TRÙNG APP_BUILD MỖI LẦN DEPLOY (chỉ để hiện ở bảng quản trị) */
-var BUILD = '2026-09-18-SPMA';
+var BUILD = '2026-09-19-QT3';
 var NHIP   = 6*3600*1000;          /* báo về tối đa 6 giờ 1 lần — khỏi tốn lượt ghi */
 var KEY_HB = 'rmt_hb_v1';
 var KEY_XEM= 'rmt_xem_v1';
@@ -18414,6 +18494,7 @@ try{
 
 /* Số ngày dùng thử gói CHI NHÁNH THÊM — để TRÙNG với TRIAL_DAYS/POS_TRIAL_DAYS/MOD_TRIAL_DAYS */
 var NGAY_THU = 14;
+function ngayThu(){ try{ var f=window.SN_CFG&&window.SN_CFG.ngayThu; var n=f?Math.floor(Number(f())):0; if(n>=1&&n<=14) return n; }catch(e){} return NGAY_THU; }
 
 function SK(){ return window.SKMOD||null; }
 function FB(){ var s=SK(); return (s&&s.fb)||null; }
@@ -18448,7 +18529,7 @@ async function moThuCn(el){
     /* ĐÃ có giấy phép (đang dùng thử / đã mua / đã hết hạn) ⇒ để nguyên màn MUA, không mở lại */
     if (d && d.exists && d.exists()){ dangMo=false; return; }
 
-    var until=new Date(Date.now()+NGAY_THU*86400000);
+    var until=new Date(Date.now()+ngayThu()*86400000);
     await f.setDoc(ref,{ trial:true, trialUsed:true, active:true, paidUntil:until,
                          startedAt:f.serverTimestamp(), qty:1 });
     try{ el.remove(); }catch(e){}
@@ -18456,10 +18537,10 @@ async function moThuCn(el){
     /* đang có hàng trong giỏ thì TUYỆT ĐỐI không tự tải lại — mất đơn là mất tiền thật */
     var gio=[]; try{ gio=SK().core.cart()||[]; }catch(e){ gio=[]; }
     if (!gio.length){
-      noi('🎁 Đã mở dùng thử Chi nhánh miễn phí '+NGAY_THU+' ngày — đang tải lại…');
+      noi('🎁 Đã mở dùng thử Chi nhánh miễn phí '+ngayThu()+' ngày — đang tải lại…');
       setTimeout(function(){ try{ location.reload(); }catch(e){} }, 900);
     }else{
-      try{ alert('🎁 Đã mở dùng thử Chi nhánh miễn phí '+NGAY_THU+' ngày.\n\n'
+      try{ alert('🎁 Đã mở dùng thử Chi nhánh miễn phí '+ngayThu()+' ngày.\n\n'
         +'Bạn đang có hàng trong giỏ nên app KHÔNG tự tải lại (tránh mất đơn).\n'
         +'Thanh toán xong, tải lại trang là thêm chi nhánh được.'); }catch(e){}
     }
@@ -18506,6 +18587,8 @@ if(!M.reg('qrdon',{ns:'qrd', name:'Đơn QR — Khách tự đặt tại bàn', 
 var MA_GOI    = 'sono_qr';
 var TRIAL_NGAY= 14;
 var HOTLINE   = '0977823979';
+function ngayThuQr(){ try{ var f=window.SN_CFG&&window.SN_CFG.ngayThu; var n=f?Math.floor(Number(f())):0; if(n>=1&&n<=14) return n; }catch(e){} return TRIAL_NGAY; }
+function hotQr(){ try{ var f=window.SN_CFG&&window.SN_CFG.hotline; return f?String(f()):HOTLINE; }catch(e){ return HOTLINE; } }
 var LINK_MENU = 'https://cuahangminhtri1-sono.github.io/SO---NO/menu.html';
 var QR_LIB    = 'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js';
 /* ════════════════════════════════════════════════ */
@@ -18697,8 +18780,8 @@ function htmlChaoHang(){
              + new Date(ms(LIC.paidUntil)).toLocaleDateString('vi-VN')
              + '. Khách quét mã sẽ không gửi đơn được nữa.</div>' : '')
     + '<div class="qrd-row" style="justify-content:center">'
-    + (daThu ? '' : '<button class="qrd-b green" data-act="qrd-thu">Dùng thử '+TRIAL_NGAY+' ngày miễn phí</button>')
-    + '<a class="qrd-b" href="tel:'+HOTLINE+'" style="text-decoration:none">Gọi '+HOTLINE+' để mở gói</a>'
+    + (daThu ? '' : '<button class="qrd-b green" data-act="qrd-thu">Dùng thử '+ngayThuQr()+' ngày miễn phí</button>')
+    + '<a class="qrd-b" href="tel:'+hotQr()+'" style="text-decoration:none">Gọi '+hotQr()+' để mở gói</a>'
     + '</div></div>';
 }
 
@@ -18997,20 +19080,20 @@ async function inMa(kieu){
 /* ───────── DÙNG THỬ ───────── */
 async function dungThu(){
   var u = uid(); if(!u) return;
-  if(!confirm('Mở dùng thử gói "Đơn QR tại bàn" '+TRIAL_NGAY+' ngày miễn phí?\n\nChỉ mở được MỘT LẦN duy nhất.')) return;
+  if(!confirm('Mở dùng thử gói "Đơn QR tại bàn" '+ngayThuQr()+' ngày miễn phí?\n\nChỉ mở được MỘT LẦN duy nhất.')) return;
   try{
     await F.setDoc(F.doc(F.db,'accounts',u,'lic',MA_GOI), {
       trial: true, trialUsed: true, active: true,
-      paidUntil: new Date(Date.now() + TRIAL_NGAY*86400000),
+      paidUntil: new Date(Date.now() + ngayThuQr()*86400000),
       startedAt: F.serverTimestamp()
     });
-    noi('✅ Đã mở dùng thử '+TRIAL_NGAY+' ngày');
+    noi('✅ Đã mở dùng thử '+ngayThuQr()+' ngày');
     await docLic();
     if(conHan(LIC)){ await docCfg(); ngheDon(); }   /* chạy được NGAY, không bắt tải lại trang */
     render();
   }catch(e){
     if(e && e.code === 'permission-denied')
-      alert('Tài khoản này đã dùng thử gói Đơn QR rồi.\nGọi '+HOTLINE+' để mở gói trả phí nhé.');
+      alert('Tài khoản này đã dùng thử gói Đơn QR rồi.\nGọi '+hotQr()+' để mở gói trả phí nhé.');
     else C.err ? C.err(e,'Dùng thử gói QR') : noi('Lỗi: '+((e&&e.code)||e));
   }
 }
