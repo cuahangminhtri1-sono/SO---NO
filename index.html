@@ -749,7 +749,7 @@ import { getFirestore, initializeFirestore, persistentLocalCache, persistentMult
 import { getStorage, ref as _sref, uploadBytes, getDownloadURL, deleteObject, listAll }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
 
-const APP_BUILD = "2026-09-19-QT4"; // ⬆️ ĐỔI MỖI LẦN DEPLOY (đặt TRÙNG tên cache trong sw.js) — hiện ở ⚙️ Cài đặt để biết máy đã chạy bản mới chưa
+const APP_BUILD = "2026-09-19-QT5"; // ⬆️ ĐỔI MỖI LẦN DEPLOY (đặt TRÙNG tên cache trong sw.js) — hiện ở ⚙️ Cài đặt để biết máy đã chạy bản mới chưa
 const firebaseConfig = {
   apiKey: "AIzaSyA_kjQ-CdASRkf50Glz3kQajlkD5qGWC4k",
   authDomain: "so-no-cc57a.firebaseapp.com",
@@ -1692,6 +1692,9 @@ const ADMIN_EMAIL='cuahangminhtri1@gmail.com';
 function isAdmin(){return auth.currentUser && (auth.currentUser.email||'').toLowerCase()===ADMIN_EMAIL;}
 /* [VÁ] Công bố ra ngoài để module khác KHÔNG phải đoán admin bằng cách nhìn nút trên màn hình. */
 window.snLaAdmin=function(){try{return !!isAdmin();}catch(e){return false;}};
+/* [QT5] Email ĐĂNG NHẬP — đúng email mà Firestore Rules so khớp khi ghi đơn gia hạn (VÁ LỖ R).
+   Module gói ngành trước đây lấy email trong hồ sơ accounts ⇒ lệch là đơn bị máy chủ chối. */
+window.snEmail=function(){try{return (auth.currentUser&&auth.currentUser.email)||'';}catch(e){return '';}};
 // Đọc 1 doc hạn (dùng chung cho lic/{app} MỚI và doc gốc CŨ)
 function _hanInfo(d){
   if(!d)return null;
@@ -18244,7 +18247,7 @@ window.AIB={ hoi:function(t){ try{ M.go('aib'); }catch(e){} setTimeout(function(
     var key=m.lic+'|'+months+'|'+amount;
     if(!baoNguoiDung && key===_donCuoi) return;
     _donCuoi=key;
-    var mail=window.__ngaEmail||'';
+    var mail=(typeof window.snEmail==='function'&&window.snEmail())||window.__ngaEmail||'';   /* [QT5] email đăng nhập trước */
     var base={uid:u,app:m.lic,email:mail,months:Number(months)||1,amount:Number(amount)||0,
       noiDung:((mail?mail+' ':'')+m.lic),requestedAt:f.serverTimestamp(),handledAt:null};
     /* [QT4] khách báo đã chuyển khoản ⇒ app Quản trị xếp đơn lên đầu, kèm đúng số tháng & số tiền lúc chuyển */
@@ -18455,7 +18458,7 @@ if (window.__RMT_READY__) return; window.__RMT_READY__ = true;
 try{
 
 /* ĐỔI CHUỖI NÀY CHO TRÙNG APP_BUILD MỖI LẦN DEPLOY (chỉ để hiện ở bảng quản trị) */
-var BUILD = '2026-09-19-QT4';
+var BUILD = '2026-09-19-QT5';
 var NHIP   = 6*3600*1000;          /* báo về tối đa 6 giờ 1 lần — khỏi tốn lượt ghi */
 var KEY_HB = 'rmt_hb_v1';
 var KEY_XEM= 'rmt_xem_v1';
