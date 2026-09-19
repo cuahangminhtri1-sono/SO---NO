@@ -749,7 +749,7 @@ import { getFirestore, initializeFirestore, persistentLocalCache, persistentMult
 import { getStorage, ref as _sref, uploadBytes, getDownloadURL, deleteObject, listAll }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
 
-const APP_BUILD = "2026-09-19-QT5"; // ⬆️ ĐỔI MỖI LẦN DEPLOY (đặt TRÙNG tên cache trong sw.js) — hiện ở ⚙️ Cài đặt để biết máy đã chạy bản mới chưa
+const APP_BUILD = "2026-09-19-CHUONG"; // ⬆️ ĐỔI MỖI LẦN DEPLOY (đặt TRÙNG tên cache trong sw.js) — hiện ở ⚙️ Cài đặt để biết máy đã chạy bản mới chưa
 const firebaseConfig = {
   apiKey: "AIzaSyA_kjQ-CdASRkf50Glz3kQajlkD5qGWC4k",
   authDomain: "so-no-cc57a.firebaseapp.com",
@@ -15572,7 +15572,7 @@ a:`<b class="snai-h">🔔 Nhận đơn khách gửi</b>
 <b>👉 Luồng chạy:</b> khách bấm gửi → máy tính tiền <b>kêu chuông</b> và đơn hiện trong tab <b>Đơn QR</b> → nhân viên xem rồi bấm <b>Nhận vào bàn</b>.
 <b>🪜 Nhân viên làm gì:</b>
 <ol>
-<li>Nghe chuông → mở tab <b>Đơn QR</b>.</li>
+<li>Nghe chuông → bấm <b>Xem đơn</b> trên khung báo đỏ (hoặc tự mở tab <b>Đơn QR</b>).</li>
 <li>Xem đơn: <b>tên bàn</b>, <b>danh sách món</b>, <b>ghi chú của khách</b>, <b>tạm tính theo giá kho</b>.</li>
 <li>Đúng rồi thì bấm <b>Nhận vào bàn</b> — món chạy thẳng vào bàn đó trong sơ đồ bàn.</li>
 <li>Khách gọi đùa, gọi nhầm thì bấm <b>Bỏ đơn</b> — món <b>KHÔNG vào bill</b>.</li>
@@ -15582,7 +15582,7 @@ a:`<b class="snai-h">🔔 Nhận đơn khách gửi</b>
 <div class="snai-ok">✅ <b>Bàn đó đang mở sẵn trên máy tính tiền thì món khách gọi thêm TỰ CỘNG vào giỏ đang phục vụ</b>, kèm dòng báo <i>"Bàn … gọi thêm — đã cộng … món vào giỏ"</i>. Không sợ tính thiếu tiền, không sợ mất món lúc đóng bàn.</div>
 <div class="snai-warn">⚠️ Báo <b>"món không còn trong kho"</b>: món đó đã bị xóa khỏi kho sau khi đẩy thực đơn lên. App <b>bỏ qua món đó</b> và liệt kê tên ra — nhớ <b>báo khách đổi món</b>.</div>
 <div class="snai-warn">⚠️ Báo <b>"bàn không còn trong sơ đồ"</b>: bàn đó đã bị xóa. Tạo lại bàn rồi bấm nhận lại.</div>
-<div class="snai-tip">🔕 Không nghe chuông: điện thoại đang để im lặng, hoặc tab Đơn QR chưa mở lần nào từ lúc mở app. Mở tab đó một lần là nó bắt đầu nghe.</div>`},
+<div class="snai-tip">🔕 Không nghe chuông: kiểm tra âm lượng <b>Phương tiện (Media)</b> của máy, iPhone thì tắt chế độ <b>Im lặng</b>. Mở app xong nhớ <b>chạm màn hình một lần</b> để bật tiếng (iPhone bắt buộc). App phải đang mở thì mới reo — máy để ở quầy nên bật <b>Giữ màn hình luôn sáng</b> trong tab <b>Đơn QR</b>.</div>`},
 
 {c:'qr',t:'Cập nhật thực đơn lên mã QR',k:'cap nhat thuc don len ma qr them mon moi doi gia khach khong thay mon',
 a:`<b class="snai-h">🔄 Cập nhật thực đơn</b>
@@ -18458,7 +18458,7 @@ if (window.__RMT_READY__) return; window.__RMT_READY__ = true;
 try{
 
 /* ĐỔI CHUỖI NÀY CHO TRÙNG APP_BUILD MỖI LẦN DEPLOY (chỉ để hiện ở bảng quản trị) */
-var BUILD = '2026-09-19-QT5';
+var BUILD = '2026-09-19-CHUONG';
 var NHIP   = 6*3600*1000;          /* báo về tối đa 6 giờ 1 lần — khỏi tốn lượt ghi */
 var KEY_HB = 'rmt_hb_v1';
 var KEY_XEM= 'rmt_xem_v1';
@@ -18721,6 +18721,9 @@ var QR_LIB    = 'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.mi
 
 var ON=false, LIC=null, TOKEN='', TENQUAN='', SHARE=null, DON=[], BAN=[], UNSUB=null;
 var soDonTruoc=0, dangLam=false, daHoi=false, CFGCN=null;  /* CFGCN = chi nhánh của cấu hình đang giữ trong bộ nhớ */
+/* [CHUÔNG v2] nghe đơn từ lúc mở app · reo theo TỪNG MÃ ĐƠN — xem khối CHUÔNG BÁO ĐƠN v2 bên dưới */
+var UID_NGHE=null, T_NOI=null, LOI_LIEN=0, DA_BOOT=false, QRCN={}, TENCN=null;
+var DA_NGHE={}, DA_NGHE_UID=null, BAO=[];
 
 /* ───────── tiện ích ───────── */
 function esc(s){ return C.esc ? C.esc(s) : String(s==null?'':s)
@@ -18743,24 +18746,403 @@ function conHan(l){
 }
 function sp(id){ var L=C.products(); for(var i=0;i<L.length;i++) if(L[i].id===id) return L[i]; return null; }
 
-/* Chuông báo đơn mới — không cần file âm thanh, không cần xin quyền */
-function chuong(){
-  try{
-    var A = window.AudioContext || window.webkitAudioContext; if(!A) return;
-    var c = new A();
-    [0, 0.18].forEach(function(d){
-      var o=c.createOscillator(), g=c.createGain();
-      o.type='sine'; o.frequency.value = d ? 1046 : 784;
-      g.gain.setValueAtTime(0.0001, c.currentTime+d);
-      g.gain.exponentialRampToValueAtTime(0.25, c.currentTime+d+0.02);
-      g.gain.exponentialRampToValueAtTime(0.0001, c.currentTime+d+0.15);
-      o.connect(g); g.connect(c.destination);
-      o.start(c.currentTime+d); o.stop(c.currentTime+d+0.17);
-    });
-    setTimeout(function(){ try{ c.close(); }catch(e){} }, 900);
-  }catch(e){}
-  try{ if(navigator.vibrate) navigator.vibrate([90,60,90]); }catch(e){}
+/* ═════════ CHUÔNG BÁO ĐƠN v2 ═════════
+   • Nghe đơn NGAY từ lúc mở app — không phải chờ vào 🛒 Bán hàng.
+   • Reo theo TỪNG MÃ ĐƠN (không đếm số đơn): 1 đơn vừa được nhận ở máy khác
+     đúng lúc có đơn mới tới thì đơn mới VẪN reo.
+   • Reo to, lặp lại + khung báo lớn tới khi có người bấm "Xem đơn" / "Đã nghe".
+     3 phút đầu 3 giây/lần, sau đó 20 giây/lần. Đơn được nhận/bỏ ở máy khác ⇒ tự thôi reo.
+   • MỘT bộ âm thanh dùng chung, mở khoá bằng lần chạm đầu tiên (iPhone bắt buộc;
+     Android / máy tính khi app vừa mở hoặc vừa tự cập nhật).
+   • Máy đang mở quán CÓ mã QR ⇒ chỉ reo đơn của quán đó (2 quán 2 máy không reo chéo).
+     Máy đang ở cửa hàng khác (VD tạp hoá) ⇒ reo đơn của mọi quán.
+   • Tuỳ chọn giữ màn hình luôn sáng — lưu riêng từng máy.
+   • Kênh nghe đơn lỗi ⇒ tự nối lại (4s → 8s → … tối đa 60s); gói hết hạn thì thôi.
+   ════════════════════════════════════════ */
+var AC=null, KHONG_AM=!(window.AudioContext||window.webkitAudioContext), AM_MO=false, CHO_MO=false, LAN_PHAT=0;
+var T_REO=null, REO_TU=0, BAO_HIEN=0, T_TD=null, TD_CU=null, T_XEM=null;
+var WL=null, WL_DANG=false, WL_TT='';
+var DANG_KHOI=false, DA_THU_UID=null, T_THU=0, DANG_TENCN=false, CN_XET=null;
+
+function amCtx(){
+  if(AC) return AC;
+  var A = window.AudioContext || window.webkitAudioContext;
+  if(!A){ KHONG_AM = true; return null; }
+  try{ AC = new A(); }catch(e){ AC = null; }
+  return AC;
 }
+/* resume() KHÔNG BAO GIỜ để lọt lỗi ra ngoài (bộ thu lỗi sẽ ghi thành lỗi thật) */
+function moAm(c){
+  try{ var p = c.resume(); if(p && typeof p.then === 'function') return p.then(function(){}, function(){}); }catch(e){}
+  return Promise.resolve();
+}
+/* 1 hồi chuông ~1 giây: ting-tang-ting-tang-TING.
+   1,3–2,1 kHz là dải loa điện thoại phát to, rõ nhất; pha sóng vuông cho tiếng gắt, dễ nghe giữa quán ồn.
+   Đỉnh 0,62 + 0,26 = 0,88 < 1 ⇒ không bị rè. */
+function phat(c){
+  var bay = Date.now(); if(bay - LAN_PHAT < 1200) return; LAN_PHAT = bay;
+  try{
+    var t = c.currentTime + 0.03;
+    [[1318.5,0],[1760,0.17],[1318.5,0.34],[1760,0.51],[2093,0.68]].forEach(function(x, i){
+      var dai = (i === 4) ? 0.34 : 0.14;
+      [['sine',0.62],['square',0.26]].forEach(function(k){
+        var o = c.createOscillator(), g = c.createGain();
+        o.type = k[0]; o.frequency.value = x[0];
+        g.gain.setValueAtTime(0.0001, t + x[1]);
+        g.gain.exponentialRampToValueAtTime(k[1], t + x[1] + 0.008);
+        g.gain.setValueAtTime(k[1], t + x[1] + dai * 0.55);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + x[1] + dai);
+        o.connect(g); g.connect(c.destination);
+        o.start(t + x[1]); o.stop(t + x[1] + dai + 0.02);
+      });
+    });
+  }catch(e){}
+}
+function rung(){ try{ if(navigator.vibrate) navigator.vibrate([280,120,280,120,280]); }catch(e){} }
+
+/* Reo 1 hồi — tự đánh thức bộ âm thanh; bị chặn thì hiện lời nhắc "chạm để bật" */
+function reo1(){
+  rung();
+  var c = amCtx(); if(!c){ hienKhoa(); return; }
+  if(c.state === 'running'){ if(!AM_MO){ AM_MO = true; hienKhoa(); } phat(c); return; }
+  if(CHO_MO) return;
+  CHO_MO = true; setTimeout(function(){ CHO_MO = false; }, 2000);
+  moAm(c);
+  setTimeout(function(){
+    if(c.state === 'running'){ if(!AM_MO){ AM_MO = true; hienKhoa(); } if(BAO.length) phat(c); }
+    else { AM_MO = false; hienKhoa(); }
+  }, 450);
+}
+/* Dò xem máy có cho phát tiếng chưa (lúc bắt đầu nghe đơn) */
+function thuAm(){
+  var c = amCtx(); if(!c){ hienKhoa(); return; }
+  if(c.state === 'running'){ AM_MO = true; hienKhoa(); return; }
+  moAm(c).then(function(){ if(c.state === 'running' && !AM_MO){ AM_MO = true; hienKhoa(); } });
+  setTimeout(function(){ if(c.state === 'running') AM_MO = true; hienKhoa(); }, 600);
+}
+/* Chạm bất kỳ đâu ⇒ mở khoá tiếng (chỉ khi đang nghe đơn và tiếng còn bị chặn) */
+function chamMo(){
+  if(!UID_NGHE || KHONG_AM) return;
+  if(AM_MO && !(BAO.length && AC && AC.state !== 'running')) return;
+  var c = amCtx(); if(!c) return;
+  moAm(c).then(function(){
+    if(c.state !== 'running') return;
+    AM_MO = true; hienKhoa();
+    if(BAO.length) phat(c);
+  });
+  /* iPhone đời cũ: phải phát 1 mẫu âm câm NGAY trong lần chạm mới chịu mở khoá */
+  try{ var b = c.createBuffer(1, 1, 22050), s = c.createBufferSource(); s.buffer = b; s.connect(c.destination); s.start(0); }catch(e){}
+}
+/* Nút "Thử chuông" / viên nhắc "Chạm để bật": luôn là thao tác chạm ⇒ mở khoá luôn */
+function chuong(){
+  var c = amCtx();
+  rung();
+  if(!c){ noi('⚠️ Máy này không phát được âm thanh — chỉ hiện khung báo trên màn hình'); return; }
+  moAm(c).then(function(){
+    if(c.state !== 'running'){ noi('🔕 Máy vẫn đang chặn tiếng — chạm thêm một lần nữa'); return; }
+    AM_MO = true; hienKhoa(); LAN_PHAT = 0; phat(c);
+  });
+  try{ var b = c.createBuffer(1, 1, 22050), s = c.createBufferSource(); s.buffer = b; s.connect(c.destination); s.start(0); }catch(e){}
+}
+
+/* ───────── vòng reo ───────── */
+function lapReo(){
+  if(T_REO){ clearTimeout(T_REO); T_REO = null; }
+  if(!BAO.length) return;
+  var cho = (Date.now() - REO_TU < 180000) ? 3000 : 20000;
+  T_REO = setTimeout(function(){ T_REO = null; if(!BAO.length) return; reo1(); lapReo(); }, cho);
+}
+function batReo(){ REO_TU = Date.now(); reo1(); lapReo(); nhayTD(true); }
+function tatReo(){
+  var dangReo = !!(T_REO || T_TD);
+  if(T_REO){ clearTimeout(T_REO); T_REO = null; }
+  nhayTD(false);
+  if(dangReo){ try{ if(navigator.vibrate) navigator.vibrate(0); }catch(e){} }
+}
+/* Tab trình duyệt (máy tính) nhấp nháy tiêu đề khi đang reo */
+function nhayTD(bat){
+  if(bat){
+    if(T_TD) return;
+    TD_CU = document.title; var k = 0;
+    T_TD = setInterval(function(){ k++; try{ document.title = (k % 2) ? '🔔 Có đơn mới!' : TD_CU; }catch(e){} }, 1000);
+  }else if(T_TD){
+    clearInterval(T_TD); T_TD = null;
+    try{ if(TD_CU != null) document.title = TD_CU; }catch(e){}
+    TD_CU = null;
+  }
+}
+
+/* ───────── đơn nào thuộc máy này ───────── */
+/* Cửa hàng của máy này. Chưa vào Bán hàng lần nào từ lúc mở app ⇒ lấy cửa hàng máy nhớ lần trước */
+function cnMay(){
+  if(!DA_BOOT){
+    try{ var u = uid(), nho = u ? (localStorage.getItem('sk_br_' + u) || '') : ''; if(nho) return nho; }catch(e){}
+  }
+  return chiNhanh();
+}
+function laQuanQR(cn){
+  if(CFGCN === cn && TOKEN) return true;
+  return QRCN[cn] === true;
+}
+function docQRCN(cn){
+  return new Promise(function(xong){
+    var u = uid();
+    if(!u || !cn || Object.prototype.hasOwnProperty.call(QRCN, cn)){ xong(); return; }
+    var ref;
+    try{ ref = (cn === 'main') ? F.doc(F.db,'users',u,'pos_meta','qr') : F.doc(F.db,'users',u,'branches',cn,'pos_meta','qr'); }
+    catch(e){ xong(); return; }
+    F.getDoc(ref).then(function(s){
+      if(uid() === u) QRCN[cn] = !!(s.exists() && (s.data() || {}).token);
+      xong();
+    }, function(){ xong(); });   /* không đọc được ⇒ coi như không phải quán QR ⇒ reo mọi đơn (thà reo dư, không sót) */
+  });
+}
+function thuocMay(d){
+  var cn = cnMay();
+  if((d.chiNhanh || 'main') === cn) return true;
+  return !laQuanQR(cn);
+}
+function xetCN(){
+  var cn = cnMay(); if(cn === CN_XET) return;
+  CN_XET = cn;
+  docQRCN(cn).then(function(){ xetBao(); veChuong(); });
+}
+function tenCN(id){
+  if(TENCN && TENCN[id]) return TENCN[id];
+  return id === 'main' ? 'Cửa hàng chính' : 'Cửa hàng khác';
+}
+function docTenCN(){
+  if(TENCN || DANG_TENCN) return;
+  var u = uid(); if(!u) return;
+  DANG_TENCN = true;
+  F.getDocs(F.collection(F.db,'users',u,'branches')).then(function(s){
+    var m = {};
+    s.forEach(function(d){ var o = d.data() || {}; m[d.id] = String(o.name || d.id).slice(0,40); });
+    TENCN = m; DANG_TENCN = false; veBao();
+  }, function(){ TENCN = {}; DANG_TENCN = false; });
+}
+
+/* ───────── đơn đã bấm "Đã nghe" trên MÁY NÀY (giữ qua lần mở app sau) ───────── */
+function napNghe(u){
+  if(DA_NGHE_UID === u) return;
+  DA_NGHE_UID = u; DA_NGHE = {};
+  try{ var o = JSON.parse(localStorage.getItem('qrd_nghe_' + u) || '{}'); if(o && typeof o === 'object') DA_NGHE = o; }catch(e){ DA_NGHE = {}; }
+}
+function luuNghe(){
+  var u = DA_NGHE_UID || uid(); if(!u) return;
+  var bay = Date.now(), gon = {}, dem = 0;
+  Object.keys(DA_NGHE).sort(function(a,b){ return (Number(DA_NGHE[b])||0) - (Number(DA_NGHE[a])||0); })
+    .forEach(function(k){
+      var t = Number(DA_NGHE[k]) || 0;
+      if(dem < 300 && bay - t < 3*86400000){ gon[k] = t; dem++; }   /* giữ tối đa 300 đơn trong 3 ngày */
+    });
+  DA_NGHE = gon;
+  try{ localStorage.setItem('qrd_nghe_' + u, JSON.stringify(gon)); }catch(e){}
+}
+
+/* ───────── quyết định reo ───────── */
+function xetBao(){
+  if(!UID_NGHE){ if(BAO.length){ BAO = []; tatReo(); veBao(); } hienKhoa(); return; }
+  var cu = {}; BAO.forEach(function(d){ cu[d.id] = 1; });
+  var ds = DON.filter(function(d){ return !DA_NGHE[d.id] && thuocMay(d); })
+              .sort(function(a,b){ return (b.tsClient||0) - (a.tsClient||0); });
+  var coMoi = ds.some(function(d){ return !cu[d.id]; });
+  BAO = ds;
+  if(!ds.length){ tatReo(); veBao(); hienKhoa(); return; }
+  var cn = cnMay();
+  if(ds.some(function(d){ return (d.chiNhanh || 'main') !== cn; })) docTenCN();
+  veBao(); hienKhoa();
+  if(coMoi) batReo();
+  else if(!T_REO) lapReo();
+}
+function daNghe(){
+  var bay = Date.now();
+  BAO.forEach(function(d){ DA_NGHE[d.id] = bay; });
+  luuNghe();
+  BAO = [];
+  tatReo(); veBao(); hienKhoa();
+}
+
+/* ───────── khung báo lớn ───────── */
+function veBao(){
+  var el = document.getElementById('qrd-bao');
+  if(!BAO.length){ if(el) el.remove(); return; }
+  if(!el){
+    el = document.createElement('div'); el.id = 'qrd-bao';
+    el.setAttribute('role','alertdialog'); el.setAttribute('aria-modal','true'); el.setAttribute('aria-labelledby','qrd-bao-t');
+    (document.body || document.documentElement).appendChild(el);
+    BAO_HIEN = Date.now();
+  }
+  var cn = cnMay(), n = BAO.length, h = '';
+  BAO.slice(0,3).forEach(function(d){
+    var it = Array.isArray(d.items) ? d.items : [];
+    var mon = it.slice(0,3).map(function(x){ return (Number(x && x.q) || 0) + '× ' + String((x && x.n) || 'Món'); }).join(', ')
+            + (it.length > 3 ? ', …' : '');
+    var phut = Math.max(0, Math.floor((Date.now() - (Number(d.tsClient) || Date.now())) / 60000));
+    var dcn = d.chiNhanh || 'main';
+    h += '<div class="qb-don">'
+       + '<div class="qb-ban"><b>Bàn ' + esc(d.banTen || d.banId || '?') + '</b><span>' + (phut ? phut + ' phút trước' : 'vừa xong') + '</span></div>'
+       + (dcn !== cn ? '<div class="qb-cn">' + esc(tenCN(dcn)) + '</div>' : '')
+       + '<div class="qb-mon">' + (it.length ? it.length + ' món: ' + esc(mon) : 'Đơn chưa có món') + '</div>'
+       + (d.ghiChu ? '<div class="qb-gc">Ghi chú: ' + esc(String(d.ghiChu).slice(0,90)) + '</div>' : '')
+       + '</div>';
+  });
+  if(n > 3) h += '<div class="qb-them">Còn ' + (n - 3) + ' đơn nữa trong tab Đơn QR</div>';
+  var khoa = !AM_MO && !KHONG_AM;
+  el.innerHTML = '<div class="qb-the">'
+    + '<div class="qb-hd"><span class="qb-ic" aria-hidden="true">🔔</span><b id="qrd-bao-t">' + (n > 1 ? n + ' đơn mới từ bàn' : 'Có đơn mới từ bàn') + '</b></div>'
+    + h
+    + (khoa ? '<div class="qb-khoa">🔕 Máy đang chặn tiếng. Chạm vào khung này để bật chuông.</div>' : '')
+    + '<button type="button" class="qb-xem" data-act="qrd-bao-xem">Xem đơn</button>'
+    + '<button type="button" class="qb-tat" data-act="qrd-bao-tat">Đã nghe, tắt chuông</button>'
+    + '</div>';
+}
+/* Viên nhắc nhỏ "Chạm để bật chuông" (khi chưa có đơn) + dòng nhắc trong khung báo.
+   Mở khoá xong KHÔNG rút phần tử ngay dưới ngón tay (tránh bấm trúng nút nằm bên dưới). */
+function hienKhoa(){
+  var khoa = !!(UID_NGHE && !AM_MO && !KHONG_AM);
+  var p = document.getElementById('qrd-khoa');
+  if(khoa && !BAO.length){
+    if(!p){
+      p = document.createElement('button'); p.type = 'button'; p.id = 'qrd-khoa';
+      p.setAttribute('data-act','qrd-khoa');
+      (document.body || document.documentElement).appendChild(p);
+    }
+    p.removeAttribute('data-xong'); p.textContent = '🔕 Chạm để bật chuông báo đơn';
+  }else if(p && !p.hasAttribute('data-xong')){
+    if(khoa || !UID_NGHE){ p.remove(); }
+    else{
+      p.setAttribute('data-xong','1'); p.textContent = '🔔 Đã bật chuông báo đơn';
+      setTimeout(function(){ if(p.parentNode && p.hasAttribute('data-xong')) p.remove(); }, 1600);
+    }
+  }
+  var h = document.querySelector('#qrd-bao .qb-khoa');
+  if(h){
+    if(khoa){ h.className = 'qb-khoa'; h.textContent = '🔕 Máy đang chặn tiếng. Chạm vào khung này để bật chuông.'; }
+    else{
+      /* giữ nguyên chiều cao dòng nhắc ⇒ 2 nút bên dưới không nhảy lên dưới ngón tay */
+      if(!/\bok\b/.test(h.className)){ try{ h.style.boxSizing = 'border-box'; h.style.minHeight = h.getBoundingClientRect().height + 'px'; }catch(e){} }
+      h.className = 'qb-khoa ok'; h.textContent = '🔔 Đã bật tiếng chuông.';
+    }
+  }
+  veChuong();
+}
+
+/* ───────── "Xem đơn" ⇒ tới thẳng tab Đơn QR ───────── */
+function dangMoPOS(){ var p = document.getElementById('pos-screen'); return !!(p && p.classList.contains('on')); }
+function coTabQR(){ return !!document.querySelector('#pos-screen .sk-tab[data-v="qrd"]'); }
+function denTabQR(){
+  try{ var gs = document.getElementById('sk-cart-sheet'); if(gs && gs.classList.contains('on') && C.closeCart) C.closeCart(); }catch(e){}
+  try{ M.go('qrd'); }catch(e){}
+}
+function xoaCoXem(){ try{ sessionStorage.removeItem('qrd_xem'); }catch(e){} }
+function choDenTab(){
+  if(T_XEM) clearInterval(T_XEM);
+  var bd = Date.now();
+  T_XEM = setInterval(function(){
+    var co = 0; try{ co = Number(sessionStorage.getItem('qrd_xem') || 0); }catch(e){}
+    if(!co || Date.now() - co > 120000 || Date.now() - bd > 120000){ clearInterval(T_XEM); T_XEM = null; xoaCoXem(); return; }
+    if(!dangMoPOS() || document.querySelector('#sk-gate.on')) return;   /* chờ mở xong Bán hàng + chọn xong người bán */
+    if(coTabQR()){ clearInterval(T_XEM); T_XEM = null; xoaCoXem(); denTabQR(); }
+  }, 400);
+}
+function xemDon(){
+  var cn = cnMay(), khac = '';
+  BAO.forEach(function(d){ var x = d.chiNhanh || 'main'; if(x !== cn && !khac) khac = x; });
+  daNghe();
+  if(dangMoPOS()){
+    if(!khac && coTabQR()){ denTabQR(); return; }
+    noi('Đơn này của "' + tenCN(khac || cn) + '". Đổi sang cửa hàng đó (🏪 ▾) để xem.');
+    return;
+  }
+  try{ sessionStorage.setItem('qrd_xem', String(Date.now())); }catch(e){}
+  try{ if(typeof window.openPOS === 'function') window.openPOS(); }catch(e){}
+  choDenTab();
+}
+
+/* ───────── giữ màn hình luôn sáng (riêng từng máy) ───────── */
+function sangBat(){ try{ return localStorage.getItem('qrd_sang') === '1'; }catch(e){ return false; } }
+function giuSang(){
+  if(!sangBat() || !UID_NGHE){ thaSang(); return; }
+  if(!navigator.wakeLock || typeof navigator.wakeLock.request !== 'function'){ WL_TT = 'khong'; veChuong(); return; }
+  if(document.visibilityState !== 'visible' || WL || WL_DANG) return;
+  WL_DANG = true;
+  var p;
+  try{ p = navigator.wakeLock.request('screen'); }catch(e){ WL_DANG = false; WL_TT = 'loi'; veChuong(); return; }
+  Promise.resolve(p).then(function(l){
+    WL_DANG = false;
+    if(!l) return;
+    if(!sangBat() || !UID_NGHE){ try{ var r = l.release(); if(r && r.catch) r.catch(function(){}); }catch(e){} return; }
+    WL = l; WL_TT = 'dang';
+    try{ l.addEventListener('release', function(){ if(WL === l){ WL = null; if(WL_TT === 'dang') WL_TT = ''; veChuong(); } }); }catch(e){}
+    veChuong();
+  }, function(){ WL_DANG = false; WL = null; WL_TT = 'loi'; veChuong(); });
+}
+function thaSang(){
+  if(WL){ var l = WL; WL = null; try{ var r = l.release(); if(r && r.catch) r.catch(function(){}); }catch(e){} }
+  if(WL_TT !== 'khong') WL_TT = '';
+  veChuong();
+}
+
+/* ───────── khung "Chuông báo đơn trên máy này" trong tab Đơn QR ───────── */
+function htmlChuongTrong(){
+  var tt;
+  if(!UID_NGHE) tt = '⚪ Chưa nghe đơn. Tắt hẳn app rồi mở lại.';
+  else if(T_NOI || !UNSUB) tt = '⏳ Đang nối lại kênh nhận đơn…';
+  else if(KHONG_AM) tt = '⚠️ Máy này không phát được chuông, chỉ hiện khung báo trên màn hình.';
+  else if(!AM_MO) tt = '🔕 Máy đang chặn tiếng. Chạm vào màn hình một lần để bật chuông.';
+  else tt = '🔔 Đang nghe đơn. Có đơn mới là reo liên tục tới khi có người bấm xem.';
+  var sang = sangBat(), st;
+  if(!sang) st = 'Đang tắt: màn hình tự tắt theo cài đặt của máy.';
+  else if(WL_TT === 'khong') st = 'Máy này không hỗ trợ giữ sáng. Vào Cài đặt của điện thoại, chỉnh thời gian tự tắt màn hình dài ra.';
+  else if(WL_TT === 'loi') st = 'Máy từ chối giữ sáng (thường do đang bật Tiết kiệm pin).';
+  else if(WL) st = 'Đang giữ sáng khi app mở trên màn hình.';
+  else st = 'Sẽ giữ sáng khi app mở trên màn hình.';
+  return '<div class="qrd-hd"><b>Chuông báo đơn trên máy này</b></div>'
+    + '<div class="qrd-st">' + tt + (laQuanQR(cnMay()) ? '<br>Máy đang mở quán này nên chỉ reo đơn của quán này.' : '') + '</div>'
+    + '<div class="qrd-row"><button class="qrd-b green" data-act="qrd-thuchuong">Thử chuông</button></div>'
+    + '<div class="qrd-hd" style="margin:12px 0 4px"><b>Giữ màn hình luôn sáng</b>'
+    + '<button class="qrd-sw' + (sang ? ' on' : '') + '" data-act="qrd-sang" aria-label="Giữ màn hình luôn sáng"></button></div>'
+    + '<div class="qrd-st">' + st + '</div>'
+    + '<div class="qrd-st" style="margin-top:8px">Chuông kêu theo âm lượng <b>Phương tiện (Media)</b> của máy. '
+    + 'App phải đang mở thì mới reo, nên để 1 máy ở quầy, cắm sạc. iPhone: tắt chế độ Im lặng.</div>';
+}
+function htmlChuong(){ return '<div class="qrd-box" id="qrd-chuong">' + htmlChuongTrong() + '</div>'; }
+function veChuong(){ try{ var b = document.getElementById('qrd-chuong'); if(b) b.innerHTML = htmlChuongTrong(); }catch(e){} }
+
+/* ───────── CSS khung báo (nằm NGOÀI #pos-screen để hiện cả ở màn Sổ nợ) ───────── */
+M.css('qrd-bao',
+  '#qrd-bao{position:fixed;inset:0;z-index:2147483300;background:rgba(9,22,17,.58);display:flex;align-items:flex-start;justify-content:center;'
++ 'padding:calc(14px + env(safe-area-inset-top,0px)) 12px calc(14px + env(safe-area-inset-bottom,0px));overflow-y:auto;-webkit-overflow-scrolling:touch;'
++ 'font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}'
++ '#qrd-bao .qb-the{width:100%;max-width:440px;box-sizing:border-box;background:#fff;color:#10231c;border-radius:18px;padding:16px 16px 14px;'
++ 'border:4px solid #e11d48;box-shadow:0 18px 50px rgba(0,0,0,.35);animation:qbNhay 1s steps(1,end) infinite}'
++ '#qrd-bao .qb-hd{display:flex;align-items:center;gap:10px;margin-bottom:8px}'
++ '#qrd-bao .qb-ic{font-size:30px;line-height:1;display:inline-block;transform-origin:50% 12%;animation:qbLac .9s ease-in-out infinite}'
++ '#qrd-bao .qb-hd b{font-size:21px;font-weight:800;line-height:1.25}'
++ '#qrd-bao .qb-don{border-top:1px solid #e6ece9;padding:10px 0}'
++ '#qrd-bao .qb-ban{display:flex;align-items:baseline;gap:10px}'
++ '#qrd-bao .qb-ban b{flex:1;min-width:0;font-size:25px;font-weight:800;color:#0a5f4a;line-height:1.2;overflow-wrap:anywhere}'
++ '#qrd-bao .qb-ban span{flex:none;font-size:12.5px;color:#66776f}'
++ '#qrd-bao .qb-cn{display:inline-block;margin-top:4px;font-size:12px;font-weight:700;color:#7a4b00;background:#fff3cd;border-radius:6px;padding:2px 8px}'
++ '#qrd-bao .qb-mon{font-size:14.5px;line-height:1.5;margin-top:4px;color:#26352f;overflow-wrap:anywhere}'
++ '#qrd-bao .qb-gc{font-size:13px;line-height:1.5;margin-top:4px;color:#856300;overflow-wrap:anywhere}'
++ '#qrd-bao .qb-them{font-size:13px;color:#51655f;padding:8px 0 2px;border-top:1px solid #e6ece9}'
++ '#qrd-bao .qb-khoa{margin:8px 0 0;background:#fff3cd;border:1px solid #f0cf6a;border-radius:10px;padding:9px 11px;font-size:13.5px;line-height:1.5;color:#7a4b00;font-weight:700}'
++ '#qrd-bao .qb-khoa.ok{background:#e8f6ee;border-color:#b5e0c6;color:#0a5f4a;display:flex;align-items:center}'
++ '#qrd-bao button{display:block;width:100%;border:none;border-radius:12px;font-family:inherit;cursor:pointer;margin-top:10px;-webkit-tap-highlight-color:transparent}'
++ '#qrd-bao .qb-xem{background:#16a34a;color:#fff;font-size:18px;font-weight:800;padding:15px 12px}'
++ '#qrd-bao .qb-tat{background:#eef1f0;color:#34443f;font-size:15px;font-weight:700;padding:12px}'
++ '#qrd-bao button:focus-visible{outline:3px solid #0a5f4a;outline-offset:2px}'
++ '@keyframes qbNhay{0%{border-color:#e11d48}50%{border-color:#f59e0b}}'
++ '@keyframes qbLac{0%,100%{transform:rotate(0)}20%{transform:rotate(16deg)}40%{transform:rotate(-14deg)}60%{transform:rotate(9deg)}80%{transform:rotate(-6deg)}}'
++ '@media (prefers-reduced-motion:reduce){#qrd-bao .qb-the,#qrd-bao .qb-ic{animation:none}}'
++ '#qrd-khoa{position:fixed;left:50%;top:calc(10px + env(safe-area-inset-top,0px));transform:translateX(-50%);z-index:2147483300;'
++ 'background:#fff3cd;color:#7a4b00;border:1px solid #f0c75e;border-radius:999px;padding:9px 16px;'
++ 'font:700 13px/1.2 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;box-shadow:0 6px 18px rgba(0,0,0,.18);cursor:pointer;'
++ 'max-width:calc(100% - 24px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;-webkit-tap-highlight-color:transparent}'
++ '#qrd-khoa[data-xong]{background:#e8f6ee;color:#0a5f4a;border-color:#b5e0c6}'
++ '#qrd-khoa:focus-visible{outline:3px solid #0a5f4a;outline-offset:2px}');
 
 /* ───────── CSS ───────── */
 M.css('qrd','\
@@ -18892,6 +19274,7 @@ function render(){
          + '</div></div>';
     });
   }
+  h += htmlChuong();          /* [CHUÔNG v2] khung chuông của máy này */
   box.innerHTML = h;
 }
 
@@ -19276,30 +19659,95 @@ async function docCfg(){
   }catch(e){ SHARE = null; }
 }
 
+/* Đọc gói sono_qr: true = còn hạn · false = không có / hết hạn / không có quyền · null = chưa đọc được (mất mạng…) */
+async function kiemLic(){
+  var u = uid(); if(!u) return false;
+  try{
+    var s = await F.getDoc(F.doc(F.db,'accounts',u,'lic',MA_GOI));
+    LIC = s.exists() ? s.data() : null;
+    return conHan(LIC);
+  }catch(e){
+    if(e && e.code === 'permission-denied') return false;
+    return null;
+  }
+}
+
 function ngheDon(){
   var u = uid(); if(!u || UNSUB) return;
+  if(UID_NGHE && UID_NGHE !== u) dungNghe();
+  UID_NGHE = u; napNghe(u);
+  if(T_NOI){ clearTimeout(T_NOI); T_NOI = null; }
+  var huy = null;
   try{
-    UNSUB = F.onSnapshot(
+    huy = F.onSnapshot(
       F.query(F.collection(F.db,'qr_don'), F.where('ownerUid','==',u), F.limit(50)),
       function(s){
+        if(huy && UNSUB !== huy) return;                /* kênh cũ đã được thay — bỏ qua */
+        LOI_LIEN = 0;
         DON = s.docs.map(function(d){ var o=d.data()||{}; o.id=d.id; return o; })
                     .filter(function(o){ return o.tt === 'cho'; });
         var n = DON.filter(function(d){ return (d.chiNhanh||'main') === chiNhanh(); }).length;
-        if(n > soDonTruoc){
-          chuong();
-          noi('🔔 Có ' + (n - soDonTruoc) + ' đơn mới từ bàn');
-        }
         soDonTruoc = n;
         capNhatHuy(n);
+        try{ xetBao(); }catch(e){ console.error('[qrd] chuông báo đơn', e); }   /* reo theo TỪNG MÃ ĐƠN */
         render();
       },
       function(e){
         console.error('[qrd] mất kết nối đơn QR', e);
-        noi('⚠️ Mất kết nối đơn QR — mở lại tab "Đơn QR" để nối lại');
-        try{ UNSUB(); }catch(_){}
-        UNSUB = null;
+        try{ if(huy) huy(); }catch(_){}
+        if(UNSUB === huy){ UNSUB = null; henNoiLai(); }   /* tự nối lại, không bắt ai mở tab */
       });
-  }catch(e){ console.warn('[qrd] không nghe được đơn QR', e); }
+    UNSUB = huy;
+  }catch(e){ console.warn('[qrd] không nghe được đơn QR', e); UNSUB = null; henNoiLai(); }
+  thuAm(); giuSang(); veChuong();
+}
+
+/* Kênh lỗi ⇒ chờ 4s, 8s, 16s, 32s rồi cứ 60s thử lại. Gói hết hạn ⇒ thôi hẳn. */
+function henNoiLai(){
+  if(T_NOI || !UID_NGHE) return;
+  LOI_LIEN++;
+  var cho = Math.min(60000, 4000 * Math.pow(2, Math.min(LOI_LIEN - 1, 4)));
+  veChuong();
+  T_NOI = setTimeout(function(){
+    T_NOI = null;
+    var u = uid();
+    if(!u || u !== UID_NGHE){ dungNghe(); return; }
+    kiemLic().then(function(ok){
+      if(uid() !== u || UID_NGHE !== u || UNSUB) return;
+      if(ok === false){ dungNghe(); DA_THU_UID = u; render(); return; }
+      if(ok === null){ henNoiLai(); return; }            /* chưa đọc được gói ⇒ hẹn lần sau */
+      ngheDon();
+    });
+  }, cho);
+}
+
+/* Thôi nghe hẳn (đăng xuất / đổi tài khoản / gói hết hạn) */
+function dungNghe(){
+  if(UNSUB){ try{ UNSUB(); }catch(e){} UNSUB = null; }
+  if(T_NOI){ clearTimeout(T_NOI); T_NOI = null; }
+  UID_NGHE = null; LOI_LIEN = 0;
+  DON = []; BAO = []; soDonTruoc = 0; QRCN = {}; TENCN = null; CN_XET = null;
+  tatReo(); veBao(); hienKhoa(); thaSang();
+  try{ capNhatHuy(0); }catch(e){}
+  veChuong();
+}
+
+/* Mở app xong (đã qua màn đăng nhập, sổ không bị khoá) là nghe đơn ngay */
+function appMo(){ var a = document.getElementById('app'); return !!(a && a.style.display === 'block'); }
+function canh(){
+  var u = uid();
+  if(UID_NGHE && u !== UID_NGHE) dungNghe();
+  if(!u){ DA_THU_UID = null; return; }
+  if(UID_NGHE || DANG_KHOI || DA_THU_UID === u) return;
+  if(Date.now() < T_THU || !appMo()) return;
+  DANG_KHOI = true;
+  kiemLic().then(function(ok){
+    if(uid() !== u) return;
+    if(ok === false){ DA_THU_UID = u; return; }          /* không có gói Đơn QR ⇒ không đọc lại nữa */
+    if(ok === null){ T_THU = Date.now() + 20000; return; }
+    var cn = cnMay(); CN_XET = cn;
+    return docQRCN(cn).then(function(){ if(uid() === u && !UID_NGHE) ngheDon(); });
+  }).catch(function(){}).then(function(){ DANG_KHOI = false; });
 }
 
 /* Chấm đỏ trên nút tab khi có đơn chờ */
@@ -19365,6 +19813,61 @@ M.on('view:show', function(c){
     setTimeout(function(){ daHoi = false; }, 4000);
   }
 });
+
+/* ───────── [CHUÔNG v2] GẮN THÊM — 2 hook cũ ở trên giữ nguyên ───────── */
+M.act('qrd-bao-xem',   function(){ if(Date.now() - BAO_HIEN < 700) return; xemDon(); });   /* chống bấm trúng ngay lúc khung vừa bật lên */
+M.act('qrd-bao-tat',   function(){ if(Date.now() - BAO_HIEN < 700) return; daNghe(); noi('🔕 Đã tắt chuông. Đơn vẫn nằm trong tab Đơn QR.'); });
+M.act('qrd-thuchuong', function(){ chuong(); });
+M.act('qrd-khoa',      function(){ chuong(); });
+M.act('qrd-sang',      function(){
+  var moi = !sangBat();
+  try{ localStorage.setItem('qrd_sang', moi ? '1' : '0'); }catch(e){}
+  if(moi) giuSang(); else thaSang();
+  veChuong();
+  noi(moi ? '☀️ Máy này sẽ giữ màn hình sáng khi mở app' : 'Đã tắt giữ màn hình sáng');
+});
+
+M.on('boot', function(){
+  DA_BOOT = true;                                   /* từ đây cửa hàng của máy = cửa hàng đang mở trong Bán hàng */
+  try{ capNhatHuy(DON.filter(function(d){ return (d.chiNhanh||'main') === chiNhanh(); }).length); }catch(e){}
+  xetCN();
+});
+M.on('view:show', function(){
+  try{ capNhatHuy(DON.filter(function(d){ return (d.chiNhanh||'main') === chiNhanh(); }).length); }catch(e){}
+  xetCN();
+});
+
+['pointerup','touchend','click','keydown','mousedown'].forEach(function(n){
+  try{ document.addEventListener(n, chamMo, {capture:true, passive:true}); }catch(e){}
+});
+document.addEventListener('visibilitychange', function(){
+  if(document.visibilityState !== 'visible') return;
+  giuSang();
+  if(AC && AM_MO && AC.state !== 'running'){
+    moAm(AC);
+    setTimeout(function(){ if(AC && AC.state !== 'running') AM_MO = false; hienKhoa(); }, 600);
+  }
+  if(BAO.length) reo1();
+  canh();
+});
+
+/* Đang reo thì báo "đang bận" cho bộ tự cập nhật — khỏi tự tải lại trang giữa lúc reo */
+try{
+  var _banCu = window.__skBusy;
+  window.__skBusy = function(){
+    if(BAO.length) return true;
+    return (typeof _banCu === 'function') ? _banCu.apply(this, arguments) : false;
+  };
+}catch(e){}
+
+/* Bấm "Xem đơn" xong trang tự tải lại (đổi cửa hàng) ⇒ mở tiếp tab Đơn QR */
+try{
+  var _cx = Number(sessionStorage.getItem('qrd_xem') || 0);
+  if(_cx && Date.now() - _cx < 120000) choDenTab(); else if(_cx) xoaCoXem();
+}catch(e){}
+
+setTimeout(canh, 700);
+setInterval(canh, 2500);
 
 }catch(e){ console.error('[qrd] module Đơn QR lỗi khởi động', e); }
 })();
