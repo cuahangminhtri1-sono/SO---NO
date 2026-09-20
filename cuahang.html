@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1">
+<meta name="theme-color" content="#0d7a5f">
+<meta name="robots" content="noindex,nofollow">
+<title>Đặt hàng online</title>
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     CỬA HÀNG ONLINE — trang khách mở từ link (Zalo / Facebook / mã QR dán quầy)
+     Link: cuahang.html?t=<mã cửa hàng>
+     • Chỉ đọc ĐÚNG 1 doc shares_qr/{mã} (kieu:'online') — tên + hàng + cài đặt.
+     • Gửi đơn vào qr_don (kieu:'online'), máy bán hàng reo chuông, nhân viên
+       bấm "Nhận đơn" mới thành đơn. Giá luôn tính lại theo kho lúc nhận.
+     • Khách xem lại được trạng thái ĐÚNG đơn của mình (Rules: khachUid).
+     • Trang QR tại bàn (menu.html) là file riêng — không dính gì tới file này.
+     ═══════════════════════════════════════════════════════════════════════════ -->
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{background:#eef3f1;color:#15302a;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:15px;line-height:1.5;padding-bottom:96px}
+button{font-family:inherit;cursor:pointer}
+:focus-visible{outline:3px solid #16a34a;outline-offset:2px}
+
+/* ── ĐẦU TRANG ── */
+#top{position:sticky;top:0;z-index:50;background:#0d7a5f;color:#fff;padding:calc(12px + env(safe-area-inset-top,0px)) 14px 10px;box-shadow:0 2px 12px rgba(8,40,30,.22)}
+#quan{font-size:18px;font-weight:800;line-height:1.3;margin:0 0 6px;word-break:break-word}
+#tt{display:flex;flex-wrap:wrap;gap:6px}
+.chip{display:inline-block;background:rgba(255,255,255,.16);color:#fff;border-radius:999px;padding:3px 10px;font-size:12.5px;font-weight:700;text-decoration:none;white-space:nowrap}
+.chip.ok{background:#e8fff1;color:#0a6b3a}
+.chip.off{background:#fff1e6;color:#9a4b00}
+#tim{width:100%;margin-top:10px;border:none;border-radius:11px;padding:11px 13px;font-size:16px;font-family:inherit;background:#fff;color:#15302a}
+#nhom{display:none;gap:7px;overflow-x:auto;margin:10px -14px 0;padding:0 14px 2px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+#nhom::-webkit-scrollbar{display:none}
+#nhom button{flex:none;border:none;background:rgba(255,255,255,.16);color:#fff;border-radius:999px;padding:6px 13px;font-size:13px;font-weight:700;white-space:nowrap}
+#nhom button.on{background:#fff;color:#0d7a5f}
+
+/* ── THÔNG BÁO ── */
+#bao{padding:56px 26px;text-align:center;color:#43635b}
+#bao .ic{font-size:44px;line-height:1;margin-bottom:14px}
+#bao h2{font-size:17px;font-weight:800;color:#15302a;margin:0 0 8px}
+#bao p{margin:0 0 18px;font-size:14px;line-height:1.65}
+.btn-lai{border:none;background:#0d7a5f;color:#fff;border-radius:12px;padding:13px 26px;font-size:15px;font-weight:800}
+#offline{display:none;background:#fff3cd;color:#7a5c00;font-size:12.5px;padding:8px 14px;text-align:center;font-weight:700}
+#loi{display:none;padding:10px 12px 0}
+.canh{background:#fff8e6;border:1px solid #f3d98d;border-radius:11px;padding:10px 12px;font-size:13px;color:#7a5a00;line-height:1.6;margin-bottom:8px;overflow-wrap:anywhere}
+.canh.do{background:#fdeeee;border-color:#f3c4c4;color:#9b2c2c;font-weight:700}
+#donCu{display:none;align-items:center;gap:10px;margin:10px 12px 0;background:#fff;border:1px solid #cfe3db;border-radius:12px;padding:10px 12px;font-size:13.5px;cursor:pointer}
+#donCu span{flex:1;min-width:0}
+#donCu b{color:#0d7a5f;font-weight:800}
+
+/* ── DANH SÁCH HÀNG ── */
+#ds{padding:12px 12px 4px}
+.nhom{font-size:12.5px;font-weight:800;color:#3f7a68;letter-spacing:.3px;margin:16px 4px 8px}
+.nhom:first-child{margin-top:4px}
+.mon{display:flex;align-items:center;gap:11px;background:#fff;border-radius:14px;padding:11px 12px;margin-bottom:8px}
+.mon.het{opacity:.62}
+.mon-a{width:56px;height:56px;border-radius:10px;object-fit:cover;flex:none;background:#e4ece9}
+.mon-t{flex:1;min-width:0}
+.mon-t b{display:block;font-size:14.5px;font-weight:700;line-height:1.35;word-break:break-word}
+.mon-t span{display:block;font-size:14px;font-weight:800;color:#0d7a5f;margin-top:3px}
+.mon-t i{font-style:normal;font-size:11.5px;color:#8d9d97}
+.dv{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px}
+.dv button{border:1px solid #cfe0da;background:#fff;color:#3c554e;border-radius:8px;padding:3px 9px;font-size:12px;font-weight:700}
+.dv button.on{background:#0d7a5f;border-color:#0d7a5f;color:#fff}
+.bac{font-size:11.5px;color:#9a6a00;background:#fff6e0;border-radius:7px;padding:3px 7px;margin-top:6px;display:inline-block;line-height:1.5}
+.het-t{flex:none;font-size:12px;font-weight:800;color:#9b2c2c;background:#fdeeee;border-radius:999px;padding:4px 10px}
+.them{flex:none;border:none;background:#0d7a5f;color:#fff;width:40px;height:40px;border-radius:50%;font-size:23px;font-weight:700;line-height:1;display:flex;align-items:center;justify-content:center}
+.them:active{transform:scale(.92)}
+.dem{flex:none;display:flex;align-items:center;gap:8px}
+.dem button{border:none;background:#e6f2ee;color:#0d7a5f;width:34px;height:34px;border-radius:50%;font-size:19px;font-weight:800;line-height:1}
+.dem b{min-width:26px;text-align:center;font-size:16px;font-weight:800;border-bottom:1px dashed #9fc3b6;cursor:pointer}
+.trong{text-align:center;color:#8d9d97;padding:30px 16px;font-size:14px}
+
+/* ── THANH GIỎ ── */
+#thanh{position:fixed;left:0;right:0;bottom:0;z-index:60;padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px));background:#eef3f1;box-shadow:0 -6px 20px rgba(8,40,30,.13);display:none}
+#thanh.on{display:block}
+#xem{width:100%;border:none;background:#0d7a5f;color:#fff;border-radius:14px;padding:15px 16px;font-size:15.5px;font-weight:800;display:flex;align-items:center;justify-content:space-between;gap:10px}
+#xem em{font-style:normal;background:rgba(255,255,255,.2);border-radius:999px;padding:2px 10px;font-size:13.5px}
+
+/* ── KHAY ĐẶT HÀNG ── */
+#khay{position:fixed;inset:0;z-index:80;background:rgba(8,26,20,.55);display:none;align-items:flex-end;justify-content:center}
+#khay.on{display:flex}
+#khay .sheet{width:100%;max-width:520px;background:#f5f8f7;border-radius:20px 20px 0 0;padding:12px 14px calc(16px + env(safe-area-inset-bottom,0px));max-height:92vh;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.grip{width:42px;height:4px;border-radius:4px;background:#cfdad6;margin:2px auto 12px}
+.sheet h3{font-size:16.5px;font-weight:800;margin:0 0 12px;padding:0 2px}
+.dong{background:#fff;border-radius:13px;padding:11px 12px;margin-bottom:8px}
+.dong-h{display:flex;align-items:center;gap:10px}
+.dong-h>b{flex:1;min-width:0;font-size:14px;font-weight:700;word-break:break-word}
+.dong-h>b i{font-style:normal;font-weight:600;color:#6b8078;font-size:12.5px}
+.dong-h .gia{font-size:14px;font-weight:800;color:#0d7a5f;white-space:nowrap}
+.ghi{width:100%;margin-top:9px;border:1px solid #dce5e2;border-radius:9px;padding:8px 10px;font-size:16px;font-family:inherit;background:#fbfdfc}
+#tong{display:flex;align-items:center;justify-content:space-between;font-size:16px;font-weight:800;padding:10px 4px 2px}
+#tong b{font-size:21px;color:#c0392b}
+.tamtinh{font-size:12px;color:#6b8078;padding:0 4px 10px}
+.f{display:block;font-size:12.5px;font-weight:700;color:#4a6a61;margin-bottom:9px}
+.f input,.f textarea{display:block;width:100%;margin-top:5px;border:1px solid #dce5e2;border-radius:11px;padding:11px;font-size:16px;font-family:inherit;background:#fff;color:#15302a}
+.f textarea{resize:vertical;min-height:62px}
+.chon{display:flex;gap:8px;margin-bottom:10px}
+.chon button{flex:1;border:1.5px solid #cfe0da;background:#fff;color:#3c554e;border-radius:11px;padding:11px 8px;font-size:14px;font-weight:800}
+.chon button.on{border-color:#0d7a5f;background:#e8f5f0;color:#0a5f4a}
+#note{width:100%;border:1px solid #dce5e2;border-radius:11px;padding:11px;font-size:16px;font-family:inherit;margin-bottom:9px;background:#fff}
+#gui{width:100%;border:none;background:#16a34a;color:#fff;border-radius:13px;padding:15px;font-size:16px;font-weight:800}
+#gui:disabled{background:#a9c3b8}
+#dong-khay{width:100%;border:none;background:#e6ebe9;color:#3c554e;border-radius:13px;padding:13px;font-size:14.5px;font-weight:800;margin-top:8px}
+#cho-gui{display:none;text-align:center;font-size:12.5px;color:#7a5a00;margin-top:8px}
+
+/* ── ĐÃ GỬI / TRẠNG THÁI ĐƠN ── */
+#xong{position:fixed;inset:0;z-index:90;background:#f5f8f7;display:none;overflow-y:auto;-webkit-overflow-scrolling:touch}
+#xong.on{display:block}
+#xong .wrap{max-width:440px;margin:0 auto;padding:calc(34px + env(safe-area-inset-top,0px)) 22px calc(30px + env(safe-area-inset-bottom,0px));text-align:center}
+#xong .tick{width:72px;height:72px;border-radius:50%;background:#16a34a;color:#fff;font-size:38px;display:flex;align-items:center;justify-content:center;margin:0 auto 16px}
+#xong h2{font-size:20px;font-weight:800;margin:0 0 4px}
+#xong-ma{font-size:14px;color:#4a6a61;margin-bottom:16px}
+#xong-tt{background:#fff;border-radius:14px;padding:14px;font-size:14.5px;line-height:1.6;margin-bottom:14px;text-align:left}
+#xong-tt .dong1{font-weight:800;font-size:15.5px;margin-bottom:4px}
+.ck{background:#fff;border:1px solid #cfe3db;border-radius:14px;padding:14px;margin-bottom:14px;font-size:13.5px;line-height:1.6;text-align:center}
+.ck img{display:block;width:100%;max-width:260px;margin:8px auto;border-radius:10px}
+.ck .nho{font-size:12px;color:#6b8078;margin-top:6px}
+#xong .nut{display:block;width:100%;border:none;border-radius:13px;padding:14px;font-size:15.5px;font-weight:800;margin-top:8px;text-decoration:none;text-align:center}
+#xong .nut.xanh{background:#0d7a5f;color:#fff}
+#xong .nut.nhat{background:#e6ebe9;color:#3c554e}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+
+<div id="top" style="display:none">
+  <h1 id="quan">&nbsp;</h1>
+  <div id="tt"></div>
+  <input id="tim" type="search" placeholder="Tìm hàng…" autocomplete="off" enterkeyhint="search">
+  <div id="nhom"></div>
+</div>
+<div id="offline">Đang xem danh sách hàng đã lưu — mạng yếu</div>
+<div id="donCu" role="button" tabindex="0"></div>
+<div id="loi"></div>
+
+<div id="bao"><div class="ic">⏳</div><h2>Đang mở cửa hàng…</h2><p>Chờ một chút nhé.</p></div>
+<div id="ds"></div>
+
+<div id="thanh">
+  <button id="xem" type="button">
+    <span>Xem giỏ &amp; đặt hàng</span>
+    <em id="xem-sl">0 món</em>
+    <span id="xem-tien">0đ</span>
+  </button>
+</div>
+
+<div id="khay">
+  <div class="sheet">
+    <div class="grip"></div>
+    <h3>Giỏ hàng của bạn</h3>
+    <div id="gio"></div>
+    <div id="tong"><span>Tạm tính</span><b>0đ</b></div>
+    <div class="tamtinh">Giá tạm tính — cửa hàng xác nhận lại khi nhận đơn.</div>
+
+    <label class="f">Tên người nhận<input id="f-ten" type="text" maxlength="60" autocomplete="name" placeholder="VD: Chị Lan"></label>
+    <label class="f">Số điện thoại<input id="f-sdt" type="tel" inputmode="tel" maxlength="15" autocomplete="tel" placeholder="VD: 0909123456"></label>
+    <div class="chon" id="f-giao"></div>
+    <label class="f" id="f-dc-w">Địa chỉ giao hàng<textarea id="f-dc" maxlength="200" autocomplete="street-address" placeholder="Số nhà, đường, phường/xã…"></textarea></label>
+    <div class="chon" id="f-tt"></div>
+    <input id="note" type="text" maxlength="300" placeholder="Ghi chú cho cửa hàng (giờ giao, lưu ý…)">
+    <button id="gui" type="button">Đặt hàng</button>
+    <div id="cho-gui">Mạng hơi chậm — đơn vẫn đang gửi, bạn đừng tắt trang nhé.</div>
+    <button id="dong-khay" type="button">Chọn thêm hàng</button>
+  </div>
+</div>
+
+<div id="xong">
+  <div class="wrap">
+    <div class="tick" id="xong-ic">✓</div>
+    <h2 id="xong-h">Đã gửi đơn</h2>
+    <div id="xong-ma"></div>
+    <div id="xong-tt"></div>
+    <div id="xong-ck"></div>
+    <div id="xong-goi"></div>
+    <button class="nut xanh" id="them-nua" type="button">Xem hàng, đặt thêm</button>
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp }
+  from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import { getAuth, signInAnonymously }
+  from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+import { getFirestore, doc, getDoc, setDoc, collection, onSnapshot, serverTimestamp }
+  from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+
+/* ═════════ CẤU HÌNH ═════════ */
+const CFG = {
+  apiKey: "AIzaSyA_kjQ-CdASRkf50Glz3kQajlkD5qGWC4k",
+  authDomain: "so-no-cc57a.firebaseapp.com",
+  projectId: "so-no-cc57a",
+  storageBucket: "so-no-cc57a.firebasestorage.app",
+  messagingSenderId: "571694791559",
+  appId: "1:571694791559:web:8e409728a520e2d370b122"
+};
+const CHO_GUI_LAI = 15000;          // chặn bấm gửi liên tục (mili-giây)
+const TOI_DA_DONG = 40;             // khớp Rules: tối đa 40 dòng hàng mỗi đơn
+const NHO_DON = 3 * 86400000;       // nhớ & theo dõi đơn gần nhất trong 3 ngày
+
+/* ═════════ TIỆN ÍCH ═════════ */
+const $  = s => document.querySelector(s);
+const esc = s => String(s==null?'':s)
+  .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+const vnd = n => Math.round(Number(n)||0).toLocaleString('vi-VN') + 'đ';
+const kdau = s => String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+  .replace(/đ/g,'d').replace(/Đ/g,'D').toLowerCase();
+const lt = x => Math.round((Number(x)||0) * 1000) / 1000;          // làm tròn 3 số lẻ (cân ký)
+const soDep = x => String(lt(x)).replace('.', ',');                 // 2.5 → "2,5"
+const maDon = id => 'DH-' + String(id||'').slice(-6).toUpperCase();
+const LS = {
+  get(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } },
+  set(k,v){ try{ localStorage.setItem(k, v); }catch(e){} },
+  del(k){ try{ localStorage.removeItem(k); }catch(e){} }
+};
+function docJSON(k, macDinh){ try{ const v = JSON.parse(LS.get(k) || 'null'); return v == null ? macDinh : v; }catch(e){ return macDinh; } }
+
+function bao(ic, tieuDe, noiDung, choThuLai){
+  $('#top').style.display='none'; $('#ds').innerHTML=''; $('#thanh').classList.remove('on');
+  $('#loi').style.display='none';
+  $('#bao').style.display='block';
+  $('#bao').innerHTML = '<div class="ic">'+ic+'</div><h2>'+esc(tieuDe)+'</h2><p>'+esc(noiDung)+'</p>'
+    + (choThuLai ? '<button class="btn-lai" type="button" id="thu-lai">Thử lại</button>' : '');
+  const b=$('#thu-lai'); if(b) b.onclick=()=>location.reload();
+}
+
+/* ═════════ ĐỌC ĐỊA CHỈ ═════════ */
+const P   = new URLSearchParams(location.search);
+const TK  = (P.get('t')||'').trim().slice(0, 80);
+const KGIO  = 'olgio_'  + TK;
+const KMENU = 'olmenu_' + TK;
+const KLAST = 'ollast_' + TK;
+const KDON  = 'oldon_'  + TK;
+const KKH   = 'olkhach_v1';           // tên / SĐT / địa chỉ của khách — dùng lại cho lần sau
+
+let SHOP=null, MENU=[], MAP={}, GIO=[], NHOM='', DVC={}, dangGui=false;
+let GIAO='giao', TTOAN='tm', DON_XEM=null, TT_DON='', UNSUB=null, daNapKH=false;
+let db=null, auth=null;
+
+/* ═════════ CÀI ĐẶT CỬA HÀNG ═════════ */
+function cfg(){ return (SHOP && SHOP.cfg && typeof SHOP.cfg === 'object') ? SHOP.cfg : {}; }
+function coGiao(){ const c = cfg(); return c.giao !== false || c.lay === false; }
+function coLay(){  const c = cfg(); return c.lay  !== false || c.giao === false; }
+function coCK(){ const b = SHOP && SHOP.bank; return !!(cfg().ck === true && b && b.bin && b.account); }
+function sdtShop(){ return String(cfg().sdt || '').replace(/[^0-9+]/g, '').slice(0, 15); }
+/* Giờ Việt Nam (UTC+7, không đổi giờ mùa) — máy khách đặt múi giờ nào cũng đúng */
+function phutVN(){ const d = new Date(Date.now() + 7*3600000); return d.getUTCHours()*60 + d.getUTCMinutes(); }
+function phutCua(s){
+  const m = /^(\d{1,2}):(\d{2})$/.exec(String(s||'')); if(!m) return null;
+  const h = Number(m[1]), p = Number(m[2]); return (h < 24 && p < 60) ? h*60 + p : null;
+}
+function coGio(){ const tu = phutCua(cfg().tu), den = phutCua(cfg().den); return tu !== null && den !== null && tu !== den; }
+function trongGio(){
+  if(!coGio()) return true;
+  const tu = phutCua(cfg().tu), den = phutCua(cfg().den), n = phutVN();
+  return tu < den ? (n >= tu && n < den) : (n >= tu || n < den);      /* qua nửa đêm: 18:00 → 02:00 */
+}
+function dangNhan(){ return !!(SHOP && SHOP.nhanDon === true) && trongGio(); }
+function lyDoDong(){
+  if(!SHOP || SHOP.nhanDon !== true) return 'Cửa hàng đang tạm ngưng nhận đơn online.';
+  if(!trongGio()) return 'Ngoài giờ nhận đơn — cửa hàng nhận đơn từ ' + cfg().tu + ' đến ' + cfg().den + '.';
+  return '';
+}
+
+/* ═════════ ĐƠN VỊ · GIÁ BẬC ═════════ */
+function dvDS(m){
+  const ds = [{ n: String(m.u || ''), r: 1, p: Number(m.p) || 0 }];
+  (Array.isArray(m.d) ? m.d : []).forEach(x => {
+    if(x && x.n) ds.push({ n: String(x.n), r: Number(x.r) > 0 ? Number(x.r) : 1, p: Number(x.p) || 0 });
+  });
+  return ds;
+}
+function dvChon(m){ const ds = dvDS(m); return ds.find(x => x.n === DVC[m.i]) || ds[0]; }
+function bacDS(m){
+  return (Array.isArray(m.t) ? m.t : [])
+    .filter(x => x && Number(x.m) > 0 && Number(x.p) > 0)
+    .map(x => ({ m: Number(x.m), p: Number(x.p) }))
+    .sort((a, b) => a.m - b.m);
+}
+/* Giá 1 đơn vị của dòng giỏ. Bậc giá tính theo TỔNG số lượng quy về đơn vị gốc
+   của món đó, và chỉ áp cho dòng bán theo đơn vị gốc (bậc ghi theo đơn vị gốc). */
+function giaDong(l){
+  const m = MAP[l.i]; if(!m) return Number(l.p) || 0;
+  const ds = dvDS(m), u = ds.find(x => x.n === l.u);
+  let gia = u ? u.p : (Number(l.p) || 0);
+  if(u && u.r === 1){
+    const bac = bacDS(m);
+    if(bac.length){
+      let tong = 0;
+      GIO.forEach(x => { if(x.i === l.i){ const ux = ds.find(y => y.n === x.u); tong += (Number(x.q) || 0) * (ux ? ux.r : 1); } });
+      bac.forEach(b => { if(tong >= b.m) gia = b.p; });
+    }
+  }
+  return gia;
+}
+function tongTien(){ return Math.round(GIO.reduce((s, l) => s + giaDong(l) * (Number(l.q) || 0), 0)); }
+
+/* ═════════ GIỎ (giữ lại khi lỡ tắt trình duyệt) ═════════ */
+function napGio(){ const v = docJSON(KGIO, []); GIO = Array.isArray(v) ? v : []; }
+function luuGio(){ LS.set(KGIO, JSON.stringify(GIO)); }
+function locGio(){
+  /* Hàng đã bỏ khỏi link / hết hàng / đơn vị không còn ⇒ bỏ khỏi giỏ cũ */
+  GIO = GIO.filter(l => {
+    const m = l && MAP[l.i]; if(!m || m.h) return false;
+    const u = dvDS(m).find(x => x.n === l.u); if(!u) return false;
+    if(!(lt(l.q) > 0)) return false;
+    l.k = l.i + '|' + u.n; l.n = m.n; l.p = u.p; l.q = Math.min(lt(l.q), 99999); l.g = String(l.g || '').slice(0, 80);
+    DVC[l.i] = u.n;                         /* danh sách hiện đúng đơn vị đang có trong giỏ */
+    return true;
+  }).slice(0, TOI_DA_DONG);
+  luuGio();
+}
+function them(i){
+  const m = MAP[i]; if(!m || m.h) return;
+  const u = dvChon(m), k = i + '|' + u.n;
+  const l = GIO.find(x => x.k === k);
+  if(l){ l.q = Math.min(lt(l.q + 1), 99999); }
+  else{
+    if(GIO.length >= TOI_DA_DONG){ alert('Mỗi đơn tối đa ' + TOI_DA_DONG + ' mặt hàng. Bạn đặt đơn này trước, rồi đặt tiếp đơn sau nhé.'); return; }
+    GIO.push({ k: k, i: m.i, n: m.n, u: u.n, p: u.p, q: 1, g: '' });
+  }
+  doiGio();
+}
+function cong(k){ const l = GIO.find(x => x.k === k); if(!l) return; l.q = Math.min(lt(l.q + 1), 99999); doiGio(); }
+function bot(k){
+  const j = GIO.findIndex(x => x.k === k); if(j < 0) return;
+  const q = lt(GIO[j].q - 1);
+  if(q <= 0) GIO.splice(j, 1); else GIO[j].q = q;
+  doiGio();
+}
+function nhapSL(k){
+  const l = GIO.find(x => x.k === k); if(!l) return;
+  const v = prompt('Số lượng ' + l.n + (l.u ? ' (' + l.u + ')' : '') + ':', soDep(l.q));
+  if(v === null) return;
+  const q = lt(parseFloat(String(v).replace(/\s/g, '').replace(',', '.')));
+  if(!(q > 0)) GIO.splice(GIO.indexOf(l), 1);
+  else l.q = Math.min(q, 99999);
+  doiGio();
+}
+function doiGio(){ luuGio(); veDS(); veThanh(); if($('#khay').classList.contains('on')) veGio(); }
+
+/* ═════════ VẼ ═════════ */
+function veTop(){
+  const c = cfg();
+  $('#quan').textContent = SHOP.quan || 'Cửa hàng';
+  document.title = (SHOP.quan || 'Cửa hàng') + ' — Đặt hàng online';
+  const chips = [];
+  if(dangNhan()) chips.push('<span class="chip ok">● Đang nhận đơn' + (coGio() ? ' · ' + esc(c.tu) + '–' + esc(c.den) : '') + '</span>');
+  else chips.push('<span class="chip off">● ' + (SHOP.nhanDon !== true ? 'Tạm ngưng nhận đơn' : 'Ngoài giờ · ' + esc(c.tu) + '–' + esc(c.den)) + '</span>');
+  if(coGiao()) chips.push('<span class="chip">🛵 Giao tận nơi</span>');
+  if(coLay())  chips.push('<span class="chip">🏪 Đến lấy</span>');
+  const sdt = sdtShop();
+  if(sdt) chips.push('<a class="chip" href="tel:' + esc(sdt) + '">📞 ' + esc(sdt) + '</a>');
+  $('#tt').innerHTML = chips.join('');
+  const dong = lyDoDong(), loi = String(c.loi || '').trim();
+  $('#loi').innerHTML = (dong ? '<div class="canh do">' + esc(dong) + ' Bạn vẫn xem hàng được.</div>' : '')
+                      + (loi ? '<div class="canh">📣 ' + esc(loi) + '</div>' : '');
+  $('#loi').style.display = (dong || loi) ? 'block' : 'none';
+}
+function veNhom(){
+  const ds = [];
+  MENU.forEach(m => { const g = m.c || 'Khác'; if(ds.indexOf(g) < 0) ds.push(g); });
+  if(ds.length < 2){ NHOM = ''; $('#nhom').style.display = 'none'; return; }
+  if(NHOM && ds.indexOf(NHOM) < 0) NHOM = '';
+  $('#nhom').innerHTML = '<button type="button" data-nhom="" class="' + (NHOM ? '' : 'on') + '">Tất cả</button>'
+    + ds.map(g => '<button type="button" data-nhom="' + esc(g) + '" class="' + (g === NHOM ? 'on' : '') + '">' + esc(g) + '</button>').join('');
+  $('#nhom').style.display = 'flex';
+}
+function theMon(m){
+  const ds = dvDS(m), u = dvChon(m), k = m.i + '|' + u.n;
+  const l = GIO.find(x => x.k === k), q = l ? l.q : 0, bac = bacDS(m);
+  let h = '<div class="mon' + (m.h ? ' het' : '') + '">'
+    + (m.a && String(m.a).slice(0, 8) === 'https://' ? '<img class="mon-a" src="' + esc(m.a) + '" alt="" loading="lazy" onerror="this.remove()">' : '')
+    + '<div class="mon-t"><b>' + esc(m.n) + '</b><span>' + vnd(u.p) + (u.n ? ' <i>/ ' + esc(u.n) + '</i>' : '') + '</span>';
+  if(ds.length > 1 && !m.h){
+    h += '<div class="dv">' + ds.map(x => '<button type="button" class="' + (x.n === u.n ? 'on' : '') + '" data-dv="' + esc(m.i) + '" data-dvn="' + esc(x.n) + '">' + esc(x.n || 'lẻ') + '</button>').join('') + '</div>';
+  }
+  if(bac.length && !m.h) h += '<div class="bac">' + bac.map(b => 'Từ ' + soDep(b.m) + ' ' + esc(m.u || '') + ': ' + vnd(b.p)).join(' · ') + '</div>';
+  h += '</div>';
+  if(m.h) h += '<span class="het-t">Tạm hết</span>';
+  else if(q > 0) h += '<div class="dem"><button type="button" data-bot="' + esc(k) + '" aria-label="Bớt">−</button><b data-sl="' + esc(k) + '" title="Bấm để gõ số lượng">' + soDep(q) + '</b><button type="button" data-cong="' + esc(k) + '" aria-label="Thêm">+</button></div>';
+  else h += '<button class="them" type="button" data-them="' + esc(m.i) + '" aria-label="Thêm ' + esc(m.n) + '">+</button>';
+  return h + '</div>';
+}
+function veDS(){
+  const tu = kdau(($('#tim').value || '').trim());
+  let ds = MENU;
+  if(NHOM) ds = ds.filter(m => (m.c || 'Khác') === NHOM);
+  if(tu) ds = ds.filter(m => kdau(m.n).includes(tu));
+  if(!ds.length){
+    $('#ds').innerHTML = '<div class="trong">' + (MENU.length ? 'Không có hàng nào khớp.' : 'Cửa hàng chưa đưa hàng nào lên.') + '</div>';
+    return;
+  }
+  const nhom = [], theo = {};
+  ds.forEach(m => { const g = m.c || 'Khác'; if(!theo[g]){ theo[g] = []; nhom.push(g); } theo[g].push(m); });
+  let h = '';
+  nhom.forEach(g => {
+    if(!NHOM) h += '<div class="nhom">' + esc(g) + '</div>';
+    theo[g].forEach(m => { h += theMon(m); });
+  });
+  $('#ds').innerHTML = h;
+}
+function veThanh(){
+  const n = GIO.length;
+  $('#thanh').classList.toggle('on', n > 0);
+  $('#xem-sl').textContent = n + ' món';
+  $('#xem-tien').textContent = vnd(tongTien());
+}
+function veChon(){
+  const g = [];
+  if(coGiao()) g.push('<button type="button" data-giao="giao" class="' + (GIAO === 'giao' ? 'on' : '') + '">🛵 Giao tận nơi</button>');
+  if(coLay())  g.push('<button type="button" data-giao="lay" class="'  + (GIAO === 'lay'  ? 'on' : '') + '">🏪 Tôi đến lấy</button>');
+  $('#f-giao').innerHTML = g.join('');
+  $('#f-dc-w').style.display = GIAO === 'giao' ? 'block' : 'none';
+  if(coCK()){
+    $('#f-tt').innerHTML = '<button type="button" data-tt="tm" class="' + (TTOAN === 'tm' ? 'on' : '') + '">💵 Tiền mặt khi nhận</button>'
+                         + '<button type="button" data-tt="ck" class="' + (TTOAN === 'ck' ? 'on' : '') + '">💳 Chuyển khoản</button>';
+    $('#f-tt').style.display = 'flex';
+  }else{ $('#f-tt').innerHTML = ''; $('#f-tt').style.display = 'none'; }
+}
+function veGio(){
+  if(!GIO.length){ dongKhay(); return; }
+  const dong = lyDoDong();
+  $('#gio').innerHTML = (dong ? '<div class="canh do">' + esc(dong) + '</div>' : '') + GIO.map(l =>
+      '<div class="dong"><div class="dong-h">'
+    + '<b>' + esc(l.n) + (l.u ? ' <i>· ' + esc(l.u) + '</i>' : '') + '</b>'
+    + '<div class="dem"><button type="button" data-bot="' + esc(l.k) + '">−</button><b data-sl="' + esc(l.k) + '">' + soDep(l.q) + '</b><button type="button" data-cong="' + esc(l.k) + '">+</button></div>'
+    + '<span class="gia">' + vnd(giaDong(l) * (Number(l.q) || 0)) + '</span></div>'
+    + '<input class="ghi" type="text" maxlength="80" placeholder="Ghi chú món này…" data-ghi="' + esc(l.k) + '" value="' + esc(l.g || '') + '">'
+    + '</div>').join('');
+  $('#tong b').textContent = vnd(tongTien());
+  veChon();
+}
+function moKhay(){
+  const kh = docJSON(KKH, {}) || {};
+  if(!$('#f-ten').value && kh.ten) $('#f-ten').value = String(kh.ten).slice(0, 60);
+  if(!$('#f-sdt').value && kh.sdt) $('#f-sdt').value = String(kh.sdt).slice(0, 15);
+  if(!$('#f-dc').value && kh.dc)   $('#f-dc').value  = String(kh.dc).slice(0, 200);
+  if(!daNapKH){ daNapKH = true; if(kh.giao === 'lay' || kh.giao === 'giao') GIAO = kh.giao; }   /* chỉ lấy lựa chọn cũ lần đầu mở giỏ */
+  if(GIAO === 'giao' && !coGiao()) GIAO = 'lay';
+  if(GIAO === 'lay'  && !coLay())  GIAO = 'giao';
+  if(!coCK()) TTOAN = 'tm';
+  veGio(); $('#khay').classList.add('on');
+}
+function dongKhay(){ $('#khay').classList.remove('on'); }
+
+/* ═════════ TRẠNG THÁI ĐƠN ĐÃ GỬI ═════════ */
+function ckHtml(info){
+  const b = SHOP && SHOP.bank; if(!b || !b.bin || !b.account) return '';
+  const bin = String(b.bin).replace(/[^0-9]/g, ''), acc = String(b.account).replace(/[^0-9A-Za-z]/g, '');
+  if(!bin || !acc) return '';
+  const nd = 'DH ' + String(info.id).slice(-6).toUpperCase();
+  const url = 'https://img.vietqr.io/image/' + bin + '-' + acc + '-compact2.png?amount=' + Math.round(Number(info.tong) || 0)
+            + '&addInfo=' + encodeURIComponent(nd) + '&accountName=' + encodeURIComponent(String(b.accName || ''));
+  return '<div class="ck"><b>Chuyển khoản ' + vnd(info.tong) + '</b>'
+    + '<img src="' + esc(url) + '" alt="Mã chuyển khoản" onerror="this.remove()">'
+    + '<div>Nội dung chuyển khoản: <b>' + esc(nd) + '</b></div>'
+    + '<div>' + esc(b.bankName || '') + ' · ' + esc(acc) + (b.accName ? ' · ' + esc(b.accName) : '') + '</div>'
+    + '<div class="nho">Số tiền tạm tính theo giá trên link — nếu cửa hàng báo số khác, chuyển theo số cửa hàng báo.</div></div>';
+}
+function veTT(){
+  if(!DON_XEM) return;
+  const info = DON_XEM, ck = info.ttoan === 'ck';
+  let ic = '⏳', d1 = 'Đang chờ cửa hàng xác nhận…', d2 = 'Giữ trang này mở để xem cửa hàng trả lời.', mauIc = '#b9791a';
+  if(TT_DON === 'nhan'){
+    ic = '✓'; mauIc = '#16a34a'; d1 = 'Cửa hàng đã nhận đơn';
+    d2 = info.giao === 'lay' ? 'Bạn ghé cửa hàng lấy hàng nhé.' : 'Cửa hàng sẽ giao tới địa chỉ của bạn.';
+  }else if(TT_DON === 'huy'){
+    ic = '✕'; mauIc = '#c0392b'; d1 = 'Cửa hàng chưa nhận được đơn này';
+    d2 = 'Bạn gọi cửa hàng để hỏi thêm nhé.';
+  }else if(TT_DON === 'mat'){
+    ic = '•'; mauIc = '#8d9d97'; d1 = 'Đơn đã quá thời gian theo dõi'; d2 = 'Bạn cần hỏi thêm thì gọi cửa hàng nhé.';
+  }else if(TT_DON === 'loi'){
+    d2 = 'Chưa xem được trạng thái — mạng yếu. Mở lại trang sau ít phút nhé.';
+  }else if(ck && coCK()){
+    d2 += ' Mã chuyển khoản sẽ hiện khi cửa hàng nhận đơn.';
+  }
+  $('#xong-ic').textContent = ic;
+  $('#xong-ic').style.background = mauIc;
+  $('#xong-ma').textContent = 'Mã đơn ' + maDon(info.id) + ' · ' + vnd(info.tong);
+  $('#xong-tt').innerHTML = '<div class="dong1">' + esc(d1) + '</div><div>' + esc(d2) + '</div>';
+  $('#xong-ck').innerHTML = (TT_DON === 'nhan' && ck && coCK()) ? ckHtml(info) : '';
+  const sdt = sdtShop();
+  $('#xong-goi').innerHTML = sdt ? '<a class="nut nhat" href="tel:' + esc(sdt) + '">📞 Gọi cửa hàng ' + esc(sdt) + '</a>' : '';
+}
+function veDonCu(){
+  const el = $('#donCu'); if(!el) return;
+  if(!DON_XEM || TT_DON === 'mat'){ el.style.display = 'none'; return; }
+  const txt = { cho: '⏳ đang chờ xác nhận', nhan: '✅ cửa hàng đã nhận', huy: '✕ cửa hàng chưa nhận', loi: 'chưa xem được trạng thái' }[TT_DON] || '⏳ đang chờ xác nhận';
+  el.innerHTML = '<span>Đơn ' + esc(maDon(DON_XEM.id)) + ' · ' + esc(txt) + '</span><b>Xem</b>';
+  el.style.display = 'flex';
+}
+function ngheDon(id){
+  if(!db || !id) return;
+  if(UNSUB && UNSUB.__id === id) return;
+  try{ if(UNSUB) UNSUB(); }catch(e){}
+  UNSUB = null; TT_DON = 'cho';
+  try{
+    const un = onSnapshot(doc(db, 'qr_don', id), s => {
+      TT_DON = s.exists() ? String((s.data() || {}).tt || 'cho') : 'mat';
+      if(TT_DON === 'mat' && DON_XEM && DON_XEM.id === id) LS.del(KDON);
+      veTT(); veDonCu();
+    }, () => { TT_DON = 'loi'; veTT(); veDonCu(); });
+    un.__id = id; UNSUB = un;
+  }catch(e){ TT_DON = 'loi'; }
+}
+function moXong(info, moi){
+  DON_XEM = info;
+  $('#xong-h').textContent = moi ? 'Đã gửi đơn' : 'Đơn gần nhất của bạn';
+  if(moi) TT_DON = 'cho';
+  veTT(); $('#xong').classList.add('on');
+  ngheDon(info.id);
+}
+
+/* ═════════ BẤM ═════════ */
+document.addEventListener('click', e => {
+  const t = e.target.closest('[data-them],[data-cong],[data-bot],[data-sl],[data-dv],[data-nhom],[data-giao],[data-tt]');
+  if(!t) return;
+  const d = t.dataset;
+  if(d.them !== undefined) them(d.them);
+  else if(d.cong !== undefined) cong(d.cong);
+  else if(d.bot !== undefined) bot(d.bot);
+  else if(d.sl !== undefined) nhapSL(d.sl);
+  else if(d.dv !== undefined){ DVC[d.dv] = d.dvn || ''; veDS(); }
+  else if(d.nhom !== undefined){ NHOM = d.nhom; veNhom(); veDS(); try{ window.scrollTo(0, 0); }catch(_){} }
+  else if(d.giao !== undefined){ GIAO = d.giao === 'lay' ? 'lay' : 'giao'; veChon(); }
+  else if(d.tt !== undefined){ TTOAN = d.tt === 'ck' ? 'ck' : 'tm'; veChon(); }
+});
+document.addEventListener('input', e => {
+  const t = e.target.closest('[data-ghi]'); if(!t) return;
+  const l = GIO.find(x => x.k === t.dataset.ghi); if(l){ l.g = t.value.slice(0, 80); luuGio(); }
+});
+$('#tim').addEventListener('input', veDS);
+$('#xem').onclick = moKhay;
+$('#dong-khay').onclick = dongKhay;
+$('#khay').onclick = e => { if(e.target.id === 'khay') dongKhay(); };
+$('#them-nua').onclick = () => { $('#xong').classList.remove('on'); };
+$('#donCu').onclick = () => { if(DON_XEM) moXong(DON_XEM, false); };
+$('#donCu').onkeydown = e => { if((e.key === 'Enter' || e.key === ' ') && DON_XEM){ e.preventDefault(); moXong(DON_XEM, false); } };
+
+/* ═════════ KHỞI ĐỘNG ═════════ */
+function napShop(d){
+  SHOP = d;
+  MENU = (Array.isArray(d.menu) ? d.menu : []).filter(m => m && m.i && m.n).map(m => {
+    m.i = String(m.i); m.n = String(m.n); return m;
+  });
+  MAP = {}; MENU.forEach(m => { MAP[m.i] = m; });
+}
+async function chay(){
+  if(!TK){
+    bao('🔎', 'Link cửa hàng chưa đúng', 'Bạn mở lại đúng link cửa hàng gửi, hoặc hỏi cửa hàng link mới nhé.');
+    return;
+  }
+  napGio();
+
+  let app;
+  try{
+    app  = initializeApp(CFG);
+    db   = getFirestore(app);
+    auth = getAuth(app);
+  }catch(e){
+    bao('📶', 'Chưa mở được cửa hàng', 'Mạng đang chập chờn. Bạn bấm thử lại giúp nhé.', true);
+    return;
+  }
+
+  /* Đăng nhập vô danh — khách không phải tạo tài khoản gì cả */
+  try{ await signInAnonymously(auth); }
+  catch(e){
+    bao('📶', 'Chưa mở được cửa hàng', 'Mạng đang chập chờn. Bạn bấm thử lại giúp nhé.', true);
+    return;
+  }
+
+  /* Đọc cửa hàng — chỉ 1 lượt đọc */
+  let d = null, coMang = true;
+  try{
+    const s = await getDoc(doc(db, 'shares_qr', TK));
+    d = s.exists() ? s.data() : null;
+  }catch(e){ d = null; coMang = false; }
+
+  if(d && d.kieu !== 'online'){
+    bao('🔎', 'Link cửa hàng chưa đúng', 'Đây không phải link đặt hàng online. Bạn hỏi cửa hàng link mới nhé.');
+    return;
+  }
+  if(!d){
+    const cache = coMang ? null : docJSON(KMENU, null);
+    if(cache && Array.isArray(cache.menu) && cache.menu.length){
+      d = cache; $('#offline').style.display = 'block';
+    }else if(!coMang){
+      bao('📶', 'Chưa mở được cửa hàng', 'Mạng đang chập chờn. Bạn bấm thử lại giúp nhé.', true);
+      return;
+    }else{
+      LS.del(KMENU);
+      bao('🔎', 'Link này không còn dùng được', 'Cửa hàng đã đổi link mới. Bạn hỏi cửa hàng link mới nhé.');
+      return;
+    }
+  }else{
+    LS.set(KMENU, JSON.stringify({ kieu: 'online', quan: d.quan, ownerUid: d.ownerUid, chiNhanh: d.chiNhanh,
+      nhanDon: d.nhanDon, cfg: d.cfg || null, bank: d.bank || null, menu: d.menu || [] }));
+  }
+
+  napShop(d);
+  locGio();
+
+  $('#bao').style.display = 'none';
+  $('#top').style.display = 'block';
+  veTop(); veNhom(); veDS(); veThanh();
+  setInterval(() => { try{ if(SHOP) veTop(); }catch(e){} }, 60000);   /* qua giờ nhận đơn thì tự đổi nhãn */
+
+  /* Đơn gần nhất (trong 3 ngày) — khách mở lại link là xem được cửa hàng đã nhận chưa */
+  const cu = docJSON(KDON, null);
+  if(cu && cu.id && (Date.now() - (Number(cu.ts) || 0)) < NHO_DON){
+    DON_XEM = cu; TT_DON = 'cho'; veDonCu(); ngheDon(cu.id);
+  }else if(cu){ LS.del(KDON); }
+}
+
+/* ═════════ GỬI ĐƠN ═════════ */
+function chuanSdt(v){
+  let s = String(v || '').replace(/[^0-9+]/g, '');
+  if(s.indexOf('+84') === 0) s = '0' + s.slice(3);
+  else if(/^84[0-9]{9,10}$/.test(s)) s = '0' + s.slice(2);
+  return s.replace(/\+/g, '');
+}
+$('#gui').onclick = async () => {
+  if(dangGui || !GIO.length || !SHOP) return;
+
+  const dong = lyDoDong();
+  if(dong){ alert(dong + ' Bạn đặt lại sau hoặc gọi cửa hàng nhé.'); return; }
+
+  const ten = String($('#f-ten').value || '').trim().replace(/\s+/g, ' ').slice(0, 60);
+  const sdt = chuanSdt($('#f-sdt').value);
+  const dc  = String($('#f-dc').value || '').trim().replace(/\s+/g, ' ').slice(0, 200);
+  if(!ten){ alert('Bạn ghi tên người nhận giúp nhé.'); $('#f-ten').focus(); return; }
+  if(!/^0[0-9]{9,10}$/.test(sdt)){ alert('Số điện thoại chưa đúng (10 số, bắt đầu bằng 0).'); $('#f-sdt').focus(); return; }
+  if(GIAO === 'giao' && !coGiao()) GIAO = 'lay';
+  if(GIAO === 'lay'  && !coLay())  GIAO = 'giao';
+  if(GIAO === 'giao' && dc.length < 5){ alert('Bạn ghi địa chỉ giao hàng giúp nhé.'); $('#f-dc').focus(); return; }
+  const ttoan = (TTOAN === 'ck' && coCK()) ? 'ck' : 'tm';
+
+  let truoc = 0; try{ truoc = Number(LS.get(KLAST)) || 0; }catch(e){}
+  const con = CHO_GUI_LAI - (Date.now() - truoc);
+  if(con > 0){ alert('Đơn vừa gửi xong rồi. Chờ ' + Math.ceil(con / 1000) + ' giây nữa hãy gửi tiếp nhé.'); return; }
+  try{ if(navigator.onLine === false){ alert('Máy đang mất mạng. Bạn bật mạng rồi bấm đặt hàng lại nhé — giỏ hàng vẫn còn nguyên.'); return; } }catch(e){}
+
+  const don = {
+    token:    TK,
+    ownerUid: String(SHOP.ownerUid || ''),
+    chiNhanh: String(SHOP.chiNhanh || 'main'),
+    kieu:     'online',
+    items:    GIO.slice(0, TOI_DA_DONG).map(l => ({
+                i: String(l.i), n: String(l.n).slice(0, 80),
+                p: Number(giaDong(l)) || 0, q: lt(l.q) || 1,
+                u: String(l.u || '').slice(0, 20), g: String(l.g || '').slice(0, 80)
+              })),
+    tong:     Math.min(Math.max(tongTien(), 0), 500000000),
+    ghiChu:   String($('#note').value || '').slice(0, 300),
+    khach:    ten,
+    sdt:      sdt,
+    diaChi:   GIAO === 'giao' ? dc : '',
+    giao:     GIAO,
+    ttoan:    ttoan,
+    khachUid: String((auth && auth.currentUser && auth.currentUser.uid) || ''),
+    tt:       'cho',
+    taoLuc:   serverTimestamp(),
+    tsClient: Date.now()
+  };
+  if(!don.khachUid){ alert('Chưa kết nối được — bạn tải lại trang rồi đặt lại nhé. Giỏ hàng vẫn còn nguyên.'); return; }
+
+  dangGui = true;
+  $('#gui').disabled = true;
+  $('#gui').textContent = 'Đang gửi…';
+  const hen = setTimeout(() => { $('#cho-gui').style.display = 'block'; }, 12000);
+
+  try{
+    const ref = doc(collection(db, 'qr_don'));
+    await setDoc(ref, don);
+    LS.set(KLAST, String(Date.now()));
+    LS.set(KKH, JSON.stringify({ ten: ten, sdt: sdt, dc: dc || (docJSON(KKH, {}) || {}).dc || '', giao: GIAO }));
+    const info = { id: ref.id, ts: Date.now(), tong: don.tong, ttoan: ttoan, giao: GIAO };
+    LS.set(KDON, JSON.stringify(info));
+    GIO = []; luuGio(); $('#note').value = '';
+    veDS(); veThanh(); dongKhay();
+    moXong(info, true);
+    veDonCu();
+  }catch(e){
+    const ma = (e && e.code) || '';
+    if(ma === 'permission-denied'){
+      alert('Cửa hàng vừa tạm ngưng nhận đơn online. Bạn gọi cửa hàng giúp nhé — giỏ hàng vẫn còn nguyên.');
+      try{
+        const s = await getDoc(doc(db, 'shares_qr', TK));
+        if(s.exists()){ const d2 = s.data(); if(d2 && d2.kieu === 'online'){ napShop(d2); veTop(); } }
+      }catch(_){}
+    }else{
+      alert('Chưa gửi được — mạng đang chập chờn. Giỏ hàng vẫn còn nguyên, bạn bấm đặt hàng lại nhé.');
+    }
+  }finally{
+    clearTimeout(hen);
+    $('#cho-gui').style.display = 'none';
+    dangGui = false;
+    $('#gui').disabled = false;
+    $('#gui').textContent = 'Đặt hàng';
+  }
+};
+
+chay();
+</script>
+</body>
+</html>
