@@ -749,7 +749,7 @@ import { getFirestore, initializeFirestore, persistentLocalCache, persistentMult
 import { getStorage, ref as _sref, uploadBytes, getDownloadURL, deleteObject, listAll }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
 
-const APP_BUILD = "2026-09-19-CHUONG"; // ⬆️ ĐỔI MỖI LẦN DEPLOY (đặt TRÙNG tên cache trong sw.js) — hiện ở ⚙️ Cài đặt để biết máy đã chạy bản mới chưa
+const APP_BUILD = "2026-09-20-ONLINE"; // ⬆️ ĐỔI MỖI LẦN DEPLOY (đặt TRÙNG tên cache trong sw.js) — hiện ở ⚙️ Cài đặt để biết máy đã chạy bản mới chưa
 const firebaseConfig = {
   apiKey: "AIzaSyA_kjQ-CdASRkf50Glz3kQajlkD5qGWC4k",
   authDomain: "so-no-cc57a.firebaseapp.com",
@@ -9997,12 +9997,20 @@ M.on('cart:render',function(c){
   c.cart.forEach(function(i){tot[i.id]=(tot[i.id]||0)+(i.baseQty!=null?i.baseQty:(i.qty||0));});   /* bậc tính theo ĐƠN VỊ GỐC — đúng như dòng mô tả "mua từ N <đơn vị gốc>" */
   c.cart.forEach(function(i){
     var p=prod(i.id);if(!tiers(p))return;
-    var base=p.price||0;
-    if(i.ratio&&i.ratio>1){
-      var u=(p.units||[]).filter(function(x){return x.name===i.unit;})[0];
-      base=(u&&u.price)||base;
+    /* [SỬA 2026-09-20] Bậc giá ghi theo ĐƠN VỊ GỐC (VD giá 1 kg) ⇒ CHỈ áp cho dòng bán theo
+       đơn vị gốc. Dòng bán theo bao / thùng / lạng (tỉ lệ khác 1) giữ giá riêng của đơn vị đó —
+       trước đây bị gán giá 1 kg cho cả 1 bao. Dòng nào lỡ bị gán sai trong phiên này (giá do
+       bậc gán, chưa sửa tay) thì trả về đúng giá đơn vị như lúc thêm vào giỏ. */
+    var r=Number(i.ratio)||1;
+    if(r!==1){
+      if(i._kgSet!==undefined&&i._kgSet===i.price){
+        var u=(p.units||[]).filter(function(x){return x&&x.name===i.unit;})[0];
+        i.price=(u&&u.price!=null&&u.price!=='')?Number(u.price):(p.price||0)*r;   /* y hệt skUnitOpts của lõi */
+        delete i._kgSet;
+      }
+      return;
     }
-    var np=priceFor(p,tot[i.id],base);
+    var np=priceFor(p,tot[i.id],p.price||0);
     if(np>0&&(i._kgSet===undefined||i._kgSet===i.price)){i.price=np;i._kgSet=np;}   /* CHỈ áp bậc khi giá CHƯA bị sửa tay (nút ✎ / Hỏi giá) */
   });
 });
@@ -18458,7 +18466,7 @@ if (window.__RMT_READY__) return; window.__RMT_READY__ = true;
 try{
 
 /* ĐỔI CHUỖI NÀY CHO TRÙNG APP_BUILD MỖI LẦN DEPLOY (chỉ để hiện ở bảng quản trị) */
-var BUILD = '2026-09-19-CHUONG';
+var BUILD = '2026-09-20-ONLINE';
 var NHIP   = 6*3600*1000;          /* báo về tối đa 6 giờ 1 lần — khỏi tốn lượt ghi */
 var KEY_HB = 'rmt_hb_v1';
 var KEY_XEM= 'rmt_xem_v1';
@@ -18701,6 +18709,9 @@ setInterval(function(){
      • Giá luôn lấy theo GIÁ TRONG KHO lúc nhận đơn, không lấy giá khách gửi lên.
      • Món đã xoá khỏi kho thì bỏ qua, báo rõ cho nhân viên — không bao giờ
        nhét id lạ vào giỏ (sẽ làm hỏng bước trừ tồn lúc thanh toán).
+     • [BÁN ONLINE 2026-09-20] Nâng thành "Gói Bán online" (vẫn mã sono_qr): thêm
+       CỬA HÀNG ONLINE cho mọi ngành — xem khối [ONLINE]. Tab hiện cho Đa năng ·
+       F&B · Cân ký/Bán sỉ (F&B vẫn tên "Đơn QR"). Phần QR tại bàn giữ nguyên.
      ═══════════════════════════════════════════════════════════════════════════ -->
 <script type="module">
 (function(){
@@ -18716,6 +18727,7 @@ var HOTLINE   = '0977823979';
 function ngayThuQr(){ try{ var f=window.SN_CFG&&window.SN_CFG.ngayThu; var n=f?Math.floor(Number(f())):0; if(n>=1&&n<=14) return n; }catch(e){} return TRIAL_NGAY; }
 function hotQr(){ try{ var f=window.SN_CFG&&window.SN_CFG.hotline; return f?String(f()):HOTLINE; }catch(e){ return HOTLINE; } }
 var LINK_MENU = 'https://cuahangminhtri1-sono.github.io/SO---NO/menu.html';
+var LINK_SHOP = 'https://cuahangminhtri1-sono.github.io/SO---NO/cuahang.html';   /* [ONLINE] trang cửa hàng online */
 var QR_LIB    = 'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js';
 /* ════════════════════════════════════════════════ */
 
@@ -18881,7 +18893,7 @@ function cnMay(){
   return chiNhanh();
 }
 function laQuanQR(cn){
-  if(CFGCN === cn && TOKEN) return true;
+  if(CFGCN === cn && (TOKEN || OTK)) return true;             /* [ONLINE] có link online cũng tính */
   return QRCN[cn] === true;
 }
 function docQRCN(cn){
@@ -18892,7 +18904,7 @@ function docQRCN(cn){
     try{ ref = (cn === 'main') ? F.doc(F.db,'users',u,'pos_meta','qr') : F.doc(F.db,'users',u,'branches',cn,'pos_meta','qr'); }
     catch(e){ xong(); return; }
     F.getDoc(ref).then(function(s){
-      if(uid() === u) QRCN[cn] = !!(s.exists() && (s.data() || {}).token);
+      if(uid() === u) QRCN[cn] = !!(s.exists() && ((s.data() || {}).token || (s.data() || {}).onl));   /* [ONLINE] */
       xong();
     }, function(){ xong(); });   /* không đọc được ⇒ coi như không phải quán QR ⇒ reo mọi đơn (thà reo dư, không sót) */
   });
@@ -18973,7 +18985,7 @@ function veBao(){
     (document.body || document.documentElement).appendChild(el);
     BAO_HIEN = Date.now();
   }
-  var cn = cnMay(), n = BAO.length, h = '';
+  var cn = cnMay(), n = BAO.length, h = '', tuBan = BAO.some(laDonOnl) ? '' : ' từ bàn';   /* [ONLINE] */
   BAO.slice(0,3).forEach(function(d){
     var it = Array.isArray(d.items) ? d.items : [];
     var mon = it.slice(0,3).map(function(x){ return (Number(x && x.q) || 0) + '× ' + String((x && x.n) || 'Món'); }).join(', ')
@@ -18981,16 +18993,16 @@ function veBao(){
     var phut = Math.max(0, Math.floor((Date.now() - (Number(d.tsClient) || Date.now())) / 60000));
     var dcn = d.chiNhanh || 'main';
     h += '<div class="qb-don">'
-       + '<div class="qb-ban"><b>Bàn ' + esc(d.banTen || d.banId || '?') + '</b><span>' + (phut ? phut + ' phút trước' : 'vừa xong') + '</span></div>'
+       + '<div class="qb-ban"><b>' + (laDonOnl(d) ? '🌐 ' + esc(d.khach || 'Khách online') : 'Bàn ' + esc(d.banTen || d.banId || '?')) + '</b><span>' + (phut ? phut + ' phút trước' : 'vừa xong') + '</span></div>'
        + (dcn !== cn ? '<div class="qb-cn">' + esc(tenCN(dcn)) + '</div>' : '')
        + '<div class="qb-mon">' + (it.length ? it.length + ' món: ' + esc(mon) : 'Đơn chưa có món') + '</div>'
        + (d.ghiChu ? '<div class="qb-gc">Ghi chú: ' + esc(String(d.ghiChu).slice(0,90)) + '</div>' : '')
        + '</div>';
   });
-  if(n > 3) h += '<div class="qb-them">Còn ' + (n - 3) + ' đơn nữa trong tab Đơn QR</div>';
+  if(n > 3) h += '<div class="qb-them">Còn ' + (n - 3) + ' đơn nữa trong tab ' + tenTab() + '</div>';
   var khoa = !AM_MO && !KHONG_AM;
   el.innerHTML = '<div class="qb-the">'
-    + '<div class="qb-hd"><span class="qb-ic" aria-hidden="true">🔔</span><b id="qrd-bao-t">' + (n > 1 ? n + ' đơn mới từ bàn' : 'Có đơn mới từ bàn') + '</b></div>'
+    + '<div class="qb-hd"><span class="qb-ic" aria-hidden="true">🔔</span><b id="qrd-bao-t">' + (n > 1 ? n + ' đơn mới' + tuBan : 'Có đơn mới' + tuBan) + '</b></div>'
     + h
     + (khoa ? '<div class="qb-khoa">🔕 Máy đang chặn tiếng. Chạm vào khung này để bật chuông.</div>' : '')
     + '<button type="button" class="qb-xem" data-act="qrd-bao-xem">Xem đơn</button>'
@@ -19227,11 +19239,13 @@ function render(){
   var box = document.getElementById('qrd-w'); if(!box) return;
 
   if(!conHan(LIC)){ box.innerHTML = htmlChaoHang(); return; }
-  if(!TOKEN){ box.innerHTML = htmlChuaBat(); return; }
+  var hOnl = htmlOnl();                                              /* [ONLINE] cửa hàng online của cửa hàng đang mở */
+  if(!laFnb()){ box.innerHTML = hOnl + htmlChuong(); return; }      /* [ONLINE] ngành không có sơ đồ bàn: chỉ phần bán online */
+  if(!TOKEN){ box.innerHTML = htmlChuaBat() + hOnl + htmlChuong(); return; }
 
   var nhan = !!(SHARE && SHARE.nhanDon);
   var cnHienTai = chiNhanh();
-  var list = DON.filter(function(d){ return (d.chiNhanh||'main') === cnHienTai; })
+  var list = DON.filter(function(d){ return !laDonOnl(d) && (d.chiNhanh||'main') === cnHienTai; })   /* [ONLINE] đơn online vẽ riêng */
                 .sort(function(a,b){ return (a.tsClient||0)-(b.tsClient||0); });
 
   var h = '<div class="qrd-box">'
@@ -19274,6 +19288,7 @@ function render(){
          + '</div></div>';
     });
   }
+  h += hOnl;                  /* [ONLINE] */
   h += htmlChuong();          /* [CHUÔNG v2] khung chuông của máy này */
   box.innerHTML = h;
 }
@@ -19281,18 +19296,23 @@ function render(){
 function htmlChaoHang(){
   var het = LIC && ms(LIC.paidUntil) > 0 && ms(LIC.paidUntil) <= Date.now();
   var daThu = !!(LIC && LIC.trialUsed);
-  return '<div class="qrd-box qrd-sell"><div class="ic">📱</div>'
-    + '<h4>Khách tự gọi món bằng mã QR trên bàn</h4>'
-    + '<p>Dán một mã QR lên mỗi bàn. Khách quét là thấy thực đơn, tự bấm chọn rồi gửi thẳng xuống máy tính tiền — '
-    + 'nhân viên chỉ bấm nhận. Đỡ hẳn một người chạy bàn ghi giấy.</p>'
+  var fnb = laFnb();                           /* [ONLINE] gói chung: Bán online (+ mã QR dán bàn cho quán ăn) */
+  return '<div class="qrd-box qrd-sell"><div class="ic">🌐</div>'
+    + '<h4>Bán online — khách tự đặt hàng qua link</h4>'
+    + '<p>Mỗi cửa hàng có 1 link riêng để dán lên Zalo, Facebook hoặc in mã QR dán quầy. '
+    + 'Khách mở link là xem hàng, đặt giao tận nơi hoặc đến lấy — đơn gửi thẳng về máy bán hàng kèm chuông báo, bấm nhận là thành đơn giữ mang tên khách.'
+    + (fnb ? ' Quán ăn có thêm <b>mã QR dán bàn</b>: khách ngồi bàn tự gọi món, nhân viên chỉ bấm nhận.' : '')
+    + '</p>'
     + (het ? '<div class="qrd-warn">Gói đã hết hạn ngày '
              + new Date(ms(LIC.paidUntil)).toLocaleDateString('vi-VN')
-             + '. Khách quét mã sẽ không gửi đơn được nữa.</div>' : '')
-    + '<div class="qrd-row" style="justify-content:center">'
-    + (daThu ? '' : '<button class="qrd-b green" data-act="qrd-thu">Dùng thử '+ngayThuQr()+' ngày miễn phí</button>')
-    + '<button class="qrd-b'+(daThu?' green':'')+'" data-act="qrd-mua">Mua gói · quét mã QR</button>'
-    + '<a class="qrd-b" href="tel:'+hotQr()+'" style="text-decoration:none">Gọi '+hotQr()+'</a>'
-    + '</div></div>';
+             + '. Khách sẽ không gửi đơn được nữa.</div>' : '')
+    + (laMayNV() ? '<div class="qrd-warn">📱 Đây là máy nhân viên — nhờ chủ shop mở gói trên máy chủ shop.</div>'
+       : '<div class="qrd-row" style="justify-content:center">'
+       + (daThu ? '' : '<button class="qrd-b green" data-act="qrd-thu">Dùng thử '+ngayThuQr()+' ngày miễn phí</button>')
+       + '<button class="qrd-b'+(daThu?' green':'')+'" data-act="qrd-mua">Mua gói · quét mã QR</button>'
+       + '<a class="qrd-b" href="tel:'+hotQr()+'" style="text-decoration:none">Gọi '+hotQr()+'</a>'
+       + '</div>')
+    + '</div>';
 }
 
 function htmlChuaBat(){
@@ -19590,7 +19610,8 @@ async function inMa(kieu){
 /* ───────── DÙNG THỬ ───────── */
 async function dungThu(){
   var u = uid(); if(!u) return;
-  if(!confirm('Mở dùng thử gói "Đơn QR tại bàn" '+ngayThuQr()+' ngày miễn phí?\n\nChỉ mở được MỘT LẦN duy nhất.')) return;
+  if(laMayNV()){ noi('📱 Máy nhân viên không mở dùng thử được — nhờ chủ shop mở trên máy chủ shop'); return; }   /* [ONLINE] */
+  if(!confirm('Mở dùng thử gói "Bán online" '+ngayThuQr()+' ngày miễn phí?\n\nChỉ mở được MỘT LẦN duy nhất.')) return;
   try{
     await F.setDoc(F.doc(F.db,'accounts',u,'lic',MA_GOI), {
       trial: true, trialUsed: true, active: true,
@@ -19603,7 +19624,7 @@ async function dungThu(){
     render();
   }catch(e){
     if(e && e.code === 'permission-denied')
-      alert('Tài khoản này đã dùng thử gói Đơn QR rồi.\nGọi '+hotQr()+' để mở gói trả phí nhé.');
+      alert('Tài khoản này đã dùng thử gói Bán online rồi.\nGọi '+hotQr()+' để mở gói trả phí nhé.');
     else C.err ? C.err(e,'Dùng thử gói QR') : noi('Lỗi: '+((e&&e.code)||e));
   }
 }
@@ -19644,12 +19665,15 @@ async function doiTen(){
 }
 
 async function docCfg(){
+  var _cnO = chiNhanh(), _dO = null;                        /* [ONLINE] */
   try{
     var s = await F.getDoc(C.doc('pos_meta','qr'));
     var d = (s.exists() && s.data()) || {};
     TOKEN   = d.token || '';
     TENQUAN = d.quan  || '';
+    _dO = d;                                                 /* [ONLINE] */
   }catch(e){ TOKEN = ''; }
+  try{ onlNap(_dO, _cnO); await docOShare(); }catch(e){}    /* [ONLINE] cửa hàng online nằm chung doc cấu hình */
   if(!TENQUAN) await docTenQuan();
   if(!TOKEN){ SHARE = null; return; }
   try{
@@ -19675,17 +19699,18 @@ async function kiemLic(){
 function ngheDon(){
   var u = uid(); if(!u || UNSUB) return;
   if(UID_NGHE && UID_NGHE !== u) dungNghe();
-  UID_NGHE = u; napNghe(u);
+  UID_NGHE = u; napNghe(u); napChan(u);                    /* [ONLINE] danh sách số bị chặn */
   if(T_NOI){ clearTimeout(T_NOI); T_NOI = null; }
   var huy = null;
   try{
     huy = F.onSnapshot(
-      F.query(F.collection(F.db,'qr_don'), F.where('ownerUid','==',u), F.limit(50)),
+      F.query(F.collection(F.db,'qr_don'), F.where('ownerUid','==',u), F.where('tt','==','cho'), F.limit(100)),   /* [ONLINE] chỉ đơn ĐANG CHỜ — đơn đã xử lý nằm lại cho khách xem, không được chiếm chỗ */
       function(s){
         if(huy && UNSUB !== huy) return;                /* kênh cũ đã được thay — bỏ qua */
         LOI_LIEN = 0;
         DON = s.docs.map(function(d){ var o=d.data()||{}; o.id=d.id; return o; })
                     .filter(function(o){ return o.tt === 'cho'; });
+        DON = onlLoc(DON);                               /* [ONLINE] đơn của số đã chặn: tự báo "không nhận", không reo */
         var n = DON.filter(function(d){ return (d.chiNhanh||'main') === chiNhanh(); }).length;
         soDonTruoc = n;
         capNhatHuy(n);
@@ -19766,6 +19791,816 @@ function capNhatHuy(n){
   }catch(e){}
 }
 
+/* ═════════════════════════════════════════════════════════════════════════
+   [ONLINE] BÁN ONLINE — CỬA HÀNG ONLINE CHO MỌI NGÀNH (Đợt 1 · 2026-09-20)
+   • Mỗi cửa hàng (chi nhánh) có 1 LINK riêng: cuahang.html?t=<mã>. Khách mở link
+     (Zalo / Facebook / mã QR dán quầy) → xem hàng → đặt giao tận nơi / đến lấy.
+   • Dùng CHUNG gói sono_qr (tên hiển thị mới: Gói Bán online) và CHUNG kênh đơn
+     qr_don + chuông v2 với QR tại bàn. Đơn online mang kieu:'online'.
+   • Link online là doc shares_qr RIÊNG (kieu:'online'), tách khỏi mã dán bàn:
+     đổi link / tắt nhận đơn online KHÔNG làm chết mã QR trên bàn.
+   • Bấm "Nhận đơn" ⇒ đơn thành ĐƠN GIỮ mang tên khách (🗂️ Đơn giữ). Giao xong mở
+     ra thanh toán như bán tại quầy (tiền mặt / CK / ghi nợ) ⇒ trừ kho, ca, sổ nợ,
+     hoá đơn online dùng lại nguyên — không thêm logic tiền nào.
+   • Giá luôn lấy theo GIÁ TRONG KHO lúc nhận, không lấy giá khách gửi lên.
+   • BÁN ÂM KHO: KHÔNG BAO GIỜ chặn đơn theo tồn kho (hàng về chưa kịp nhập máy vẫn
+     bán được). Món hết thật thì chủ bấm "Tạm hết" từng món.
+   • Đợt 1 mở cho: Bán hàng đa năng · Nhà hàng/Quán ăn/Cafe · Cân ký/Bán sỉ.
+     Thời trang (size/màu) và Karaoke/Spa (phòng) mở ở đợt sau.
+   ═════════════════════════════════════════════════════════════════════════ */
+var OTK='', OSHARE=null, OCFG=null, OAN={}, OHET={}, O_SIG='', O_LAN=0, O_CANH='', O_LOI=false;
+var O_CN=null, O_CN_LUC=0, O_BANK=null, O_BANK_UID=null, oLam=false, oNhan=false, O_QR='';
+var CHAN={}, CHAN_UID=null, DA_HUY={}, TAM_AN=null, TAM_HET=null, CHON_TIM='';
+var MAX_ONL=1000, TRAN_BYTE=750000;            /* doc Firestore tối đa 1 MB ⇒ giữ dưới ~750 KB */
+var OCFG0={ tu:'', den:'', giao:true, lay:true, ck:false, sdt:'', loi:'' };
+
+function laMayNV(){ try{ return !!(document.body && document.body.classList.contains('la-nv')); }catch(e){ return false; } }
+function laFnb(){ try{ return M.flag('fnb'); }catch(e){ return false; } }
+function tenTab(){ return laFnb() ? 'Đơn QR' : 'Bán online'; }
+function laDonOnl(d){ return !!(d && d.kieu === 'online'); }
+function maDon(id){ return 'DH-' + String(id || '').slice(-6).toUpperCase(); }
+function linkOnl(){ return OTK ? (LINK_SHOP + '?t=' + encodeURIComponent(OTK)) : ''; }
+function lamTron(x){ return Math.round((Number(x) || 0) * 1e6) / 1e6; }
+function soVN(x){ return String(lamTron(x)).replace('.', ','); }
+function kdauO(s){ return String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').toLowerCase(); }
+function loiO(e, ctx){ if(C.err) C.err(e, ctx); else noi('Lỗi: ' + ((e && e.code) || e)); }
+function chuanGio(s){
+  var m = /^(\d{1,2})[:hH.](\d{2})$/.exec(String(s || '').trim()); if(!m) return '';
+  var h = Number(m[1]), p = Number(m[2]); if(h > 23 || p > 59) return '';
+  return (h < 10 ? '0' : '') + h + ':' + m[2];
+}
+
+/* ───────── cấu hình riêng của cửa hàng online (nằm chung doc pos_meta/qr) ───────── */
+function chuanCfg(o){
+  o = (o && typeof o === 'object') ? o : {};
+  var r = {}, k, tu = chuanGio(o.tu), den = chuanGio(o.den);
+  for(k in OCFG0) r[k] = OCFG0[k];
+  if(tu && den && tu !== den){ r.tu = tu; r.den = den; }
+  if(typeof o.giao === 'boolean') r.giao = o.giao;
+  if(typeof o.lay === 'boolean') r.lay = o.lay;
+  if(!r.giao && !r.lay){ r.giao = true; r.lay = true; }
+  r.ck  = (o.ck === true);
+  r.sdt = String(o.sdt || '').replace(/[^0-9+]/g, '').slice(0, 15);
+  r.loi = String(o.loi || '').slice(0, 200);
+  return r;
+}
+function dsSet(a){ var s = {}; (Array.isArray(a) ? a : []).forEach(function(x){ if(x) s[String(x)] = 1; }); return s; }
+function onlNap(d, cn){
+  if(!d || typeof d !== 'object') return;
+  if(cn !== undefined && cn !== chiNhanh()) return;          /* đọc xong thì máy đã đổi cửa hàng ⇒ bỏ kết quả */
+  OTK  = (typeof d.onl === 'string') ? d.onl.slice(0, 80) : '';
+  OCFG = chuanCfg(d.oCfg);
+  OAN  = dsSet(d.oAn);
+  OHET = dsSet(d.oHet);
+  if(O_CN !== chiNhanh()){ O_CN = chiNhanh(); O_CN_LUC = Date.now(); }
+}
+async function docCfgOnl(){
+  var cn = chiNhanh();
+  try{
+    var s = await F.getDoc(C.doc('pos_meta', 'qr'));
+    if(cn !== chiNhanh()) return false;
+    onlNap(s.exists() ? (s.data() || {}) : {}, cn);
+    return true;
+  }catch(e){ return false; }
+}
+async function docOShare(){
+  O_LOI = false;
+  if(!OTK){ OSHARE = null; O_SIG = ''; return; }
+  var tk = OTK, cn = O_CN;
+  try{
+    var q = await F.getDoc(F.doc(F.db, 'shares_qr', tk));
+    if(tk !== OTK || cn !== O_CN) return;                  /* đã đổi link / đổi cửa hàng trong lúc chờ */
+    OSHARE = q.exists() ? (q.data() || null) : null;
+    if(OSHARE && (OSHARE.kieu !== 'online' || (OSHARE.chiNhanh && OSHARE.chiNhanh !== cn))){ OSHARE = null; OTK = ''; }
+  }catch(e){ if(tk === OTK){ OSHARE = null; O_LOI = true; } }
+  O_SIG = OSHARE ? sigOnl(goiCua(OSHARE)) : '';
+}
+async function docBank(ep){
+  var u = uid(); if(!u) return null;
+  if(!ep && O_BANK_UID === u) return O_BANK;
+  try{
+    var s = await F.getDoc(F.doc(F.db, 'users', u, 'meta', 'shopSettings'));
+    var d = s.exists() ? (s.data() || {}) : {};
+    var bin = String(d.bankBin || '').replace(/[^0-9]/g, '').slice(0, 10);
+    var acc = String(d.account || '').replace(/[^0-9A-Za-z]/g, '').slice(0, 30);
+    O_BANK = (bin && acc) ? { bin: bin, account: acc, accName: String(d.accName || '').slice(0, 60), bankName: String(d.bankName || '').slice(0, 60) } : null;
+    O_BANK_UID = u;
+  }catch(e){
+    if(e && e.code === 'permission-denied'){ O_BANK = null; O_BANK_UID = u; }   /* chỉ mua POS: không đọc được 'meta' */
+  }
+  return O_BANK;
+}
+
+/* ───────── đơn vị · bậc giá · hàng đưa lên link ───────── */
+/* Như skUnitOpts của lõi; riêng giá đơn vị ≤ 0 (bỏ trống) thì lấy giá gốc × tỉ lệ cho khỏi hiện 0đ */
+function donViDS(p){
+  var goc = Number(p.price) || 0;
+  var ds = [{ name: String(p.baseUnit || 'cái').slice(0, 20), ratio: 1, price: goc }];
+  (Array.isArray(p.units) ? p.units : []).forEach(function(u){
+    if(!u || !u.name) return;
+    var r = Number(u.ratio); if(!(r > 0)) r = 1;
+    var g = Number(u.price);
+    ds.push({ name: String(u.name).slice(0, 20), ratio: r, price: (g > 0) ? g : goc * r });
+  });
+  return ds;
+}
+function donViCua(p, ten){
+  var ds = donViDS(p);
+  if(ten === undefined || ten === null || ten === '') return ds[0];
+  var t = String(ten).slice(0, 20);
+  for(var i = 0; i < ds.length; i++) if(ds[i].name === t) return ds[i];
+  return null;                                              /* đơn vị đã đổi tên / bị xoá ⇒ không đoán bừa */
+}
+function bacGia(p){
+  if(!p || !M.flag('kg')) return null;
+  var t = null;
+  try{ if(window.SKNG){ window.SKNG.mo('kg'); t = window.SKNG.layDS('kg', 't', p.id, p.kgTier); } }catch(e){ t = null; }
+  if(!window.SKNG) t = (p.kgTier && p.kgTier.length) ? p.kgTier : null;
+  return (t && t.length) ? t : null;
+}
+function giaBac(t, q, goc){
+  var pr = goc;
+  t.slice().sort(function(a, b){ return (Number(a && a.min) || 0) - (Number(b && b.min) || 0); })
+   .forEach(function(x){ if(x && q >= (Number(x.min) || 0) && Number(x.price) > 0) pr = Number(x.price); });
+  return pr;
+}
+function kt(x){ var s = JSON.stringify(x); try{ return new TextEncoder().encode(s).length; }catch(e){ return unescape(encodeURIComponent(s)).length; } }
+function dungMenuOnl(){
+  var P = C.products() || [], menu = [], bo = 0, boAnh = 0, i, j;
+  for(i = 0; i < P.length; i++){
+    var p = P[i];
+    if(!p || !p.id || !p.name) continue;
+    if(p.qrAn === true || OAN[p.id]) continue;
+    if(menu.length >= MAX_ONL){ bo++; continue; }
+    var m = { i: String(p.id), n: String(p.name).slice(0, 80), p: Number(p.price) || 0,
+              u: String(p.baseUnit || 'cái').slice(0, 20), c: String(p.category || 'Khác').slice(0, 40) };
+    if(p.image && String(p.image).slice(0, 8) === 'https://') m.a = String(p.image).slice(0, 500);
+    if(OHET[p.id]) m.h = 1;                    /* CHỈ "Tạm hết" do chủ bấm — không xét tồn kho (cho bán âm) */
+    var dv = donViDS(p);
+    if(dv.length > 1) m.d = dv.slice(1, 6).map(function(u){ return { n: u.name, r: u.ratio, p: u.price }; });
+    var t = bacGia(p);
+    if(t){
+      var tt = t.filter(function(x){ return x && Number(x.min) > 0 && Number(x.price) > 0; })
+                .map(function(x){ return { m: Number(x.min), p: Number(x.price) }; })
+                .sort(function(a, b){ return a.m - b.m; }).slice(0, 10);
+      if(tt.length) m.t = tt;
+    }
+    menu.push(m);
+  }
+  /* Quá nặng thì bớt ảnh các món cuối trước, còn quá nữa mới bớt món */
+  var sz = menu.map(function(x){ return kt(x) + 1; }), tong = 2;
+  for(j = 0; j < sz.length; j++) tong += sz[j];
+  for(j = menu.length - 1; j >= 0 && tong > TRAN_BYTE; j--){
+    if(menu[j].a){ var cu = sz[j]; delete menu[j].a; sz[j] = kt(menu[j]) + 1; tong += sz[j] - cu; boAnh++; }
+  }
+  while(menu.length && tong > TRAN_BYTE){ tong -= sz.pop(); menu.pop(); bo++; }
+  return { menu: menu, bo: bo, boAnh: boAnh };
+}
+function cfgCongKhai(){
+  var c = OCFG || chuanCfg(null);
+  return { tu: c.tu, den: c.den, giao: c.giao, lay: c.lay, ck: !!(c.ck && O_BANK), sdt: c.sdt, loi: c.loi };
+}
+function goiOnl(){
+  var r = dungMenuOnl(), c = OCFG || chuanCfg(null);
+  return { goi: { quan: String(TENQUAN || 'Cửa hàng').slice(0, 80), menu: r.menu, cfg: cfgCongKhai(),
+                  bank: (c.ck && O_BANK) ? O_BANK : null },
+           bo: r.bo, boAnh: r.boAnh };
+}
+function goiCua(s){ return { quan: s.quan || '', menu: s.menu || [], cfg: s.cfg || null, bank: s.bank || null }; }
+/* JSON có sắp khoá ⇒ so sánh ổn định với dữ liệu Firestore trả về (Firestore không giữ thứ tự khoá) */
+function chuan(v){
+  if(v === null || v === undefined || typeof v !== 'object') return JSON.stringify(v === undefined ? null : v);
+  if(Array.isArray(v)) return '[' + v.map(chuan).join(',') + ']';
+  return '{' + Object.keys(v).filter(function(k){ return v[k] !== undefined; }).sort()
+    .map(function(k){ return JSON.stringify(k) + ':' + chuan(v[k]); }).join(',') + '}';
+}
+function sigOnl(g){ return chuan(g); }
+
+/* ───────── đưa hàng lên link ───────── */
+async function ghiOnl(goi, batNhan){
+  var u = uid(); if(!u || !OTK) throw new Error('Chưa sẵn sàng');
+  var data = { ownerUid: u, chiNhanh: O_CN || chiNhanh(), kieu: 'online', quan: goi.quan, menu: goi.menu,
+               cfg: goi.cfg, bank: goi.bank, capNhat: F.serverTimestamp() };
+  if(batNhan !== undefined) data.nhanDon = !!batNhan;       /* tự cập nhật KHÔNG đụng công tắc nhận đơn */
+  await F.setDoc(F.doc(F.db, 'shares_qr', OTK), data, { merge: true });
+  var moi = {}, k;
+  if(OSHARE) for(k in OSHARE) moi[k] = OSHARE[k];
+  for(k in data) moi[k] = data[k];
+  if(moi.nhanDon === undefined) moi.nhanDon = false;
+  OSHARE = moi; O_SIG = sigOnl(goi); O_LAN = Date.now();
+}
+async function dayOnl(moi, im){
+  if(oLam) return false; oLam = true;
+  var cu = OTK, shCu = OSHARE, sigCu = O_SIG, ok = false;
+  try{
+    if(laMayNV()){ noi('📱 Máy nhân viên không chỉnh được cửa hàng online — nhờ chủ shop làm trên máy chủ shop'); return false; }
+    if(!uid()){ noi('Chưa đăng nhập'); return false; }
+    if(!conHan(LIC)){ noi('⚠️ Gói Bán online chưa mở hoặc đã hết hạn'); return false; }
+    if(!(C.products() || []).length){ noi('⚠️ Kho chưa có hàng nào để đưa lên link'); return false; }
+    if(!(await docCfgOnl())){ noi('⚠️ Chưa đọc được cài đặt (mạng yếu?) — bấm lại sau ít giây'); return false; }
+    cu = OTK;
+    if(OTK){ await docOShare(); if(O_LOI){ noi('⚠️ Chưa đọc được link hiện tại (mạng yếu?) — bấm lại sau ít giây'); return false; } }
+    shCu = OSHARE; sigCu = O_SIG;
+    if(!TENQUAN) await docTenQuan();
+    if(OCFG && OCFG.ck) await docBank(true);
+    if(moi || !OTK) OTK = taoToken();
+    var g = goiOnl();
+    if(!g.goi.menu.length){ OTK = cu; noi('⚠️ Chưa có món nào hiện online — bấm "Chọn hàng hiện online"'); return false; }
+    var taoMoi = (OTK !== cu) || !OSHARE;
+    if(OTK !== cu) OSHARE = null;
+    await ghiOnl(g.goi, taoMoi ? true : undefined);
+    if(OTK !== cu) await F.setDoc(C.doc('pos_meta', 'qr'), { onl: OTK }, { merge: true });
+    if(moi && cu && cu !== OTK){ try{ await F.deleteDoc(F.doc(F.db, 'shares_qr', cu)); }catch(e){} }
+    O_CANH = ''; ok = true;
+    if(!im){
+      var them = [];
+      if(g.bo) them.push('bỏ bớt ' + g.bo + ' món (tối đa ' + MAX_ONL + ')');
+      if(g.boAnh) them.push('bỏ ảnh ' + g.boAnh + ' món cho nhẹ');
+      if(OCFG && OCFG.ck && !O_BANK) them.push('chưa có tài khoản ngân hàng nên chưa hiện mã chuyển khoản');
+      noi('✅ ' + (taoMoi ? 'Đã tạo link cửa hàng' : 'Đã cập nhật lên link') + ' (' + g.goi.menu.length + ' món)' + (them.length ? ' — ' + them.join(', ') : ''));
+    }
+  }catch(e){
+    OTK = cu; OSHARE = shCu; O_SIG = sigCu;
+    loiO(e, 'Cửa hàng online');
+  }finally{ oLam = false; try{ render(); }catch(_){} }
+  return ok;
+}
+/* Tự đưa giá / hàng mới lên link khi kho đổi. Chỉ máy CHỦ (nhân viên không ghi được link),
+   chỉ khi màn hình đang mở, tối đa 1 lần / phút, và KHÔNG bao giờ đụng công tắc nhận đơn.
+   Chốt chặn: cửa hàng vừa đổi < 15 giây ⇒ chưa làm (kho có thể chưa về kịp); số món tụt
+   hơn nửa ⇒ không tự làm mà báo chủ bấm xác nhận (tránh xoá sạch link vì kho nạp dở). */
+async function tuDongOnl(){
+  if(oLam || !OTK || !OSHARE || !OCFG || O_LOI) return;
+  if(!conHan(LIC) || laMayNV() || !uid() || O_CN !== chiNhanh()) return;
+  if(Date.now() - O_CN_LUC < 15000 || Date.now() - O_LAN < 60000) return;
+  try{ if(document.visibilityState && document.visibilityState !== 'visible') return; }catch(e){}
+  var P = C.products(); if(!P || !P.length) return;
+  if(OCFG.ck && O_BANK_UID !== uid()){ await docBank(); if(O_BANK_UID !== uid()) return; }
+  var g1 = goiOnl();
+  if(!g1.goi.menu.length || sigOnl(g1.goi) === O_SIG) return;
+  if(oLam) return;
+  O_LAN = Date.now(); oLam = true;
+  var cn = chiNhanh(), doi = false;
+  try{
+    if(!(await docCfgOnl()) || cn !== chiNhanh() || O_CN !== cn || !OTK) return;
+    await docOShare();
+    if(!OSHARE || O_LOI || cn !== chiNhanh()) return;
+    if(OCFG.ck && O_BANK_UID !== uid()) return;
+    var g = goiOnl();
+    if(!g.goi.menu.length || sigOnl(g.goi) === O_SIG) return;        /* máy khác đã cập nhật đúng như vậy rồi */
+    var nCu = (OSHARE.menu || []).length, nMoi = g.goi.menu.length;
+    if(nCu >= 10 && nMoi < nCu * 0.5){
+      var canh = 'Kho đang ít hàng hơn hẳn so với trên link (' + nMoi + '/' + nCu + ' món) nên app KHÔNG tự cập nhật. Kiểm tra lại kho rồi bấm "Cập nhật hàng lên link".';
+      if(O_CANH !== canh){ O_CANH = canh; doi = true; }
+      return;
+    }
+    await ghiOnl(g.goi);
+    O_CANH = ''; doi = true;
+  }catch(e){ /* im lặng — lần sau thử lại */ }
+  finally{ oLam = false; if(doi){ try{ render(); }catch(_){} } }
+}
+async function batTatOnl(){
+  if(laMayNV()){ noi('📱 Máy nhân viên không bật/tắt được — nhờ chủ shop'); return; }
+  if(!OTK || !OSHARE){ await dayOnl(false); return; }
+  if(oLam) return;
+  var moi = !(OSHARE.nhanDon === true);
+  oLam = true;
+  try{
+    await F.setDoc(F.doc(F.db, 'shares_qr', OTK), { ownerUid: uid(), nhanDon: moi, capNhat: F.serverTimestamp() }, { merge: true });
+    OSHARE.nhanDon = moi;
+    noi(moi ? '✅ Đã bật nhận đơn online' : '⏸️ Đã tắt — khách mở link chỉ xem được hàng, không đặt được');
+  }catch(e){ loiO(e, 'Bật/tắt nhận đơn online'); }
+  finally{ oLam = false; render(); }
+}
+async function doiLinkOnl(){
+  if(laMayNV()){ noi('📱 Máy nhân viên không đổi được link — nhờ chủ shop'); return; }
+  if(!confirm('ĐỔI LINK sẽ làm link cũ (đã gửi khách, mã QR cửa hàng đã in) NGƯNG ngay.\nBạn phải gửi lại link mới và in lại mã QR cửa hàng.'
+      + (TOKEN ? '\nMã QR dán bàn KHÔNG bị ảnh hưởng.' : '') + '\n\nChỉ nên làm khi bị người lạ đặt phá.\n\nTiếp tục?')) return;
+  if(await dayOnl(true, true)) noi('✅ Đã đổi link — gửi link mới cho khách, in lại mã QR cửa hàng');
+}
+async function doiTenOnl(){
+  if(laMayNV()){ noi('📱 Máy nhân viên không đổi được — nhờ chủ shop'); return; }
+  var t = prompt('Tên cửa hàng hiện cho khách:', TENQUAN || '');
+  if(t === null) return;
+  TENQUAN = String(t).trim().slice(0, 80) || 'Cửa hàng';
+  try{
+    await F.setDoc(C.doc('pos_meta', 'qr'), { quan: TENQUAN }, { merge: true });
+    if(TOKEN) await F.setDoc(F.doc(F.db, 'shares_qr', TOKEN), { ownerUid: uid(), quan: TENQUAN, capNhat: F.serverTimestamp() }, { merge: true });
+    if(SHARE) SHARE.quan = TENQUAN;
+    if(OTK && OSHARE) await dayOnl(false, true);
+    noi('✅ Đã đổi tên cửa hàng');
+    render();
+  }catch(e){ loiO(e, 'Đổi tên cửa hàng'); }
+}
+
+/* ───────── gửi link · mã QR cửa hàng ───────── */
+async function copyOnl(){
+  var l = linkOnl(); if(!l){ noi('Chưa có link'); return; }
+  try{ await navigator.clipboard.writeText(l); noi('✅ Đã sao chép link — dán vào Zalo / Facebook'); return; }catch(e){}
+  try{ prompt('Sao chép link cửa hàng:', l); }catch(e){}
+}
+async function guiOnl(){
+  var l = linkOnl(); if(!l){ noi('Chưa có link'); return; }
+  if(navigator.share){
+    try{ await navigator.share({ title: TENQUAN || 'Cửa hàng', text: 'Đặt hàng online tại ' + (TENQUAN || 'cửa hàng') + ':', url: l }); return; }
+    catch(e){ if(e && e.name === 'AbortError') return; }
+  }
+  copyOnl();
+}
+function modalO(id){
+  var el = document.getElementById(id);
+  if(!el){
+    el = document.createElement('div'); el.id = id; el.className = 'sk-modal';
+    el.innerHTML = '<div class="sk-card"></div>';
+    (document.getElementById('pos-screen') || document.body).appendChild(el);
+  }
+  return el;
+}
+function vuaChu(g, chu, co, rongMax, dam){
+  var c = co;
+  do{ g.font = (dam || '800') + ' ' + c + 'px system-ui,-apple-system,"Segoe UI",Roboto,sans-serif'; c -= 2; }
+  while(g.measureText(chu).width > rongMax && c > 14);
+}
+async function qrOnl(){
+  if(!OTK || !OSHARE){ noi('Chưa có link — bấm "Tạo link cửa hàng" trước'); return; }
+  try{ await napQR(); }catch(e){ noi('⚠️ Cần mạng để tạo mã QR — bật mạng rồi bấm lại'); return; }
+  var kho = document.createElement('div'); kho.style.cssText = 'position:fixed;left:-9999px;top:0';
+  document.body.appendChild(kho);
+  var src = '';
+  try{
+    new window.QRCode(kho, { text: linkOnl(), width: 520, height: 520, correctLevel: window.QRCode.CorrectLevel.M });
+    await new Promise(function(r){ setTimeout(r, 80); });
+    var nguon = kho.querySelector('canvas') || kho.querySelector('img');
+    if(!nguon) throw new Error('qr');
+    var W = 640, H = 820, cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+    var g = cv.getContext('2d'), ten = String(TENQUAN || 'Cửa hàng');
+    g.fillStyle = '#ffffff'; g.fillRect(0, 0, W, H);
+    g.fillStyle = '#0d7a5f'; g.fillRect(0, 0, W, 112);
+    g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillStyle = '#ffffff'; vuaChu(g, ten, 38, W - 60); g.fillText(ten, W / 2, 58);
+    g.drawImage(nguon, 60, 140, 520, 520);
+    g.fillStyle = '#15302a'; vuaChu(g, 'Quét mã để đặt hàng online', 32, W - 60); g.fillText('Quét mã để đặt hàng online', W / 2, 712);
+    g.fillStyle = '#51655f'; vuaChu(g, 'Mở camera điện thoại rồi hướng vào mã', 22, W - 60, '500'); g.fillText('Mở camera điện thoại rồi hướng vào mã', W / 2, 760);
+    src = cv.toDataURL('image/png');
+  }catch(e){ noi('⚠️ Không tạo được mã QR'); return; }
+  finally{ kho.remove(); }
+  O_QR = src;
+  var el = modalO('qrd-oqr-m');
+  el.querySelector('.sk-card').innerHTML = '<h3>🔳 Mã QR cửa hàng online</h3>'
+    + '<img src="' + src + '" alt="Mã QR cửa hàng" style="display:block;width:100%;max-width:300px;margin:0 auto 10px;border-radius:12px;border:1px solid #e4e8ec">'
+    + '<div class="sk-mut" style="font-size:12px;text-align:center;margin-bottom:6px">Lưu ảnh để in dán quầy, dán lên xe giao hàng, hoặc đăng Facebook / Zalo.</div>'
+    + '<div class="sk-card-acts"><button class="sk-btn ghost" data-act="qrd-mdong" data-target="#qrd-oqr-m">Đóng</button><span style="flex:1"></span>'
+    + '<button class="sk-btn" data-act="qrd-oqr-share">Chia sẻ ảnh</button>'
+    + '<a class="sk-btn green" href="' + src + '" download="ma-qr-cua-hang.png" style="text-decoration:none">Lưu ảnh</a></div>';
+  C.modal('#qrd-oqr-m');
+}
+function anhBlob(u){
+  var p = String(u).split(','), bin = atob(p[1] || ''), n = bin.length, a = new Uint8Array(n);
+  for(var i = 0; i < n; i++) a[i] = bin.charCodeAt(i);
+  return new Blob([a], { type: 'image/png' });
+}
+function chiaAnhQR(){
+  if(!O_QR) return;
+  try{
+    var f = new File([anhBlob(O_QR)], 'ma-qr-cua-hang.png', { type: 'image/png' });
+    if(navigator.canShare && navigator.canShare({ files: [f] })){
+      navigator.share({ files: [f], title: TENQUAN || 'Cửa hàng', text: 'Đặt hàng online: ' + linkOnl() })
+        .catch(function(e){ if(!(e && e.name === 'AbortError')) noi('Chưa chia sẻ được — bấm "Lưu ảnh" rồi gửi ảnh đã lưu'); });
+      return;
+    }
+  }catch(e){}
+  noi('Máy này chưa chia sẻ ảnh được — bấm "Lưu ảnh" rồi gửi ảnh đã lưu');
+}
+
+/* ───────── cài đặt cửa hàng online ───────── */
+function htmlChanDS(){
+  var ds = Object.keys(CHAN).sort();
+  return '<div class="qrd-f"><b>Số điện thoại đã chặn</b>'
+    + (ds.length ? ds.map(function(s){ return '<div class="qrd-chan"><span>' + esc(s) + '</span><button type="button" class="qrd-b grey" data-act="qrd-bochan" data-sdt="' + esc(s) + '">Bỏ chặn</button></div>'; }).join('')
+                 : '<div class="qrd-st">Chưa chặn số nào. Gặp khách đặt ảo / bom hàng thì bấm "Chặn số này" ngay trên đơn.</div>')
+    + '</div>';
+}
+async function cfgOnl(){
+  if(laMayNV()){ noi('📱 Máy nhân viên không chỉnh được — nhờ chủ shop'); return; }
+  if(!OTK || !OSHARE){ noi('Chưa có link — bấm "Tạo link cửa hàng" trước'); return; }
+  await docBank(true);
+  napChan(uid());
+  var c = OCFG || chuanCfg(null), coGio = !!(c.tu && c.den);
+  var el = modalO('qrd-ocfg-m');
+  el.querySelector('.sk-card').innerHTML = '<h3>⚙️ Cài đặt cửa hàng online</h3>'
+    + '<div class="qrd-f"><b>Giờ nhận đơn</b>'
+    +   '<label class="qrd-ck"><input type="radio" name="qrd-gio" value="0"' + (coGio ? '' : ' checked') + '> Cả ngày</label>'
+    +   '<label class="qrd-ck"><input type="radio" name="qrd-gio" value="1"' + (coGio ? ' checked' : '') + '> Từ <input type="time" id="qrd-tu" value="' + esc(c.tu || '07:00') + '"> đến <input type="time" id="qrd-den" value="' + esc(c.den || '21:00') + '"></label>'
+    +   '<div class="qrd-st">Ngoài giờ, khách vẫn xem được hàng nhưng không đặt được.</div></div>'
+    + '<div class="qrd-f"><b>Cách nhận hàng</b>'
+    +   '<label class="qrd-ck"><input type="checkbox" id="qrd-giao"' + (c.giao ? ' checked' : '') + '> 🛵 Giao tận nơi</label>'
+    +   '<label class="qrd-ck"><input type="checkbox" id="qrd-lay"' + (c.lay ? ' checked' : '') + '> 🏪 Khách đến lấy</label></div>'
+    + '<div class="qrd-f"><b>Thanh toán</b>'
+    +   '<label class="qrd-ck"><input type="checkbox" id="qrd-ck"' + ((c.ck && O_BANK) ? ' checked' : '') + (O_BANK ? '' : ' disabled') + '> 💳 Cho khách chuyển khoản (hiện mã VietQR khi bạn nhận đơn)</label>'
+    +   (O_BANK ? '<div class="qrd-st">Nhận vào: <b>' + esc(O_BANK.bankName || O_BANK.bin) + ' · ' + esc(O_BANK.account) + '</b>' + (O_BANK.accName ? ' · ' + esc(O_BANK.accName) : '') + '</div>'
+              : '<div class="qrd-st">Chưa có tài khoản ngân hàng của shop — cài trong ⚙️ Cài đặt của Sổ nợ trước.</div>')
+    + '</div>'
+    + '<label class="sk-fld">SĐT cửa hàng (khách bấm gọi được)<input id="qrd-sdt" class="sk-inp" inputmode="tel" maxlength="15" value="' + esc(c.sdt) + '" placeholder="VD: 0909123456"></label>'
+    + '<label class="sk-fld">Lời nhắn cho khách (tuỳ chọn)<textarea id="qrd-loi" class="sk-inp" rows="2" maxlength="200" placeholder="VD: Giao trong 3km, phí ship 15.000đ">' + esc(c.loi) + '</textarea></label>'
+    + '<div id="qrd-chan-ds">' + htmlChanDS() + '</div>'
+    + '<div class="sk-card-acts"><button class="sk-btn ghost" data-act="qrd-mdong" data-target="#qrd-ocfg-m">Hủy</button><span style="flex:1"></span>'
+    + '<button class="sk-btn green" data-act="qrd-ocfg-luu">Lưu &amp; cập nhật link</button></div>';
+  C.modal('#qrd-ocfg-m');
+}
+async function luuCfgOnl(){
+  var el = document.getElementById('qrd-ocfg-m'); if(!el) return;
+  var q = function(s){ return el.querySelector(s); };
+  var r = el.querySelector('input[name="qrd-gio"]:checked');
+  var coGio = !!(r && r.value === '1');
+  var tu = coGio ? chuanGio((q('#qrd-tu') || {}).value) : '', den = coGio ? chuanGio((q('#qrd-den') || {}).value) : '';
+  if(coGio && (!tu || !den || tu === den)){ noi('⚠️ Giờ nhận đơn chưa đúng (giờ mở phải khác giờ đóng)'); return; }
+  var giao = !!(q('#qrd-giao') && q('#qrd-giao').checked), lay = !!(q('#qrd-lay') && q('#qrd-lay').checked);
+  if(!giao && !lay){ noi('⚠️ Chọn ít nhất 1 cách nhận hàng'); return; }
+  var sdt = String((q('#qrd-sdt') || {}).value || '').replace(/[^0-9+]/g, '');
+  if(sdt && !/^(0|\+84)[0-9]{8,10}$/.test(sdt)){ noi('⚠️ SĐT cửa hàng chưa đúng'); return; }
+  var moi = chuanCfg({ tu: tu, den: den, giao: giao, lay: lay,
+                       ck: !!(O_BANK && q('#qrd-ck') && q('#qrd-ck').checked),
+                       sdt: sdt, loi: String((q('#qrd-loi') || {}).value || '').trim() });
+  try{
+    await F.setDoc(C.doc('pos_meta', 'qr'), { oCfg: moi }, { merge: true });
+    OCFG = moi;
+    C.closeModal('#qrd-ocfg-m');
+    if(await dayOnl(false, true)) noi('✅ Đã lưu cài đặt và cập nhật link');
+  }catch(e){ loiO(e, 'Lưu cài đặt cửa hàng online'); }
+}
+
+/* ───────── chọn hàng hiện online · "Tạm hết" từng món ───────── */
+function chonOnl(){
+  if(laMayNV()){ noi('📱 Máy nhân viên không chỉnh được — nhờ chủ shop'); return; }
+  if(!OTK || !OSHARE){ noi('Chưa có link — bấm "Tạo link cửa hàng" trước'); return; }
+  TAM_AN = {}; TAM_HET = {}; CHON_TIM = '';
+  var k; for(k in OAN) TAM_AN[k] = 1; for(k in OHET) TAM_HET[k] = 1;
+  var el = modalO('qrd-ochon-m');
+  el.querySelector('.sk-card').innerHTML = '<h3>🧺 Chọn hàng hiện online</h3>'
+    + '<input id="qrd-ochon-tim" class="sk-inp" placeholder="Tìm hàng…" autocomplete="off" style="margin-bottom:8px">'
+    + '<div class="qrd-st" id="qrd-ochon-dem" style="margin-bottom:6px"></div>'
+    + '<div id="qrd-ochon-ds" class="qrd-chon"></div>'
+    + '<div class="sk-card-acts"><button class="sk-btn ghost" data-act="qrd-mdong" data-target="#qrd-ochon-m">Hủy</button><span style="flex:1"></span>'
+    + '<button class="sk-btn green" data-act="qrd-ochon-luu">Lưu &amp; cập nhật link</button></div>';
+  if(!el.__qrdNghe){
+    el.__qrdNghe = 1;
+    el.addEventListener('input', function(e){ if(e.target && e.target.id === 'qrd-ochon-tim'){ CHON_TIM = e.target.value || ''; veChon(); } });
+    el.addEventListener('change', function(e){
+      var t = e.target; if(!t || !t.getAttribute) return;
+      var id = t.getAttribute('data-oan'); if(id === null || !TAM_AN) return;
+      if(t.checked) delete TAM_AN[id]; else TAM_AN[id] = 1;
+      veChonDem();
+    });
+  }
+  veChon(); C.modal('#qrd-ochon-m');
+}
+function spChon(){
+  var tu = kdauO(String(CHON_TIM || '').trim());
+  return (C.products() || []).filter(function(p){ return p && p.id && p.name && p.qrAn !== true && (!tu || kdauO(p.name).indexOf(tu) >= 0); });
+}
+function veChonDem(){
+  var d = document.getElementById('qrd-ochon-dem'); if(!d || !TAM_AN) return;
+  var P = (C.products() || []).filter(function(p){ return p && p.id && p.name && p.qrAn !== true; });
+  var hien = P.filter(function(p){ return !TAM_AN[p.id]; }).length;
+  var het = P.filter(function(p){ return !TAM_AN[p.id] && TAM_HET[p.id]; }).length;
+  d.innerHTML = 'Hiện <b>' + hien + '/' + P.length + '</b> món' + (het ? ' · <b>' + het + '</b> món đang "Tạm hết"' : '') + '. Bỏ tick = ẩn khỏi link.';
+}
+function veChon(){
+  var box = document.getElementById('qrd-ochon-ds'); if(!box || !TAM_AN) return;
+  var P = spChon();
+  if(!P.length){ box.innerHTML = '<div class="qrd-none" style="padding:20px 6px">Không có hàng nào khớp.</div>'; veChonDem(); return; }
+  var nhom = [], theo = {};
+  P.forEach(function(p){ var g = String(p.category || 'Khác').slice(0, 40); if(!theo[g]){ theo[g] = []; nhom.push(g); } theo[g].push(p); });
+  var h = '';
+  nhom.forEach(function(g){
+    h += '<div class="qrd-cn"><span>' + esc(g) + '</span>'
+       + '<button type="button" data-act="qrd-onhom" data-nhom="' + esc(g) + '" data-bat="1">Hiện cả nhóm</button>'
+       + '<button type="button" data-act="qrd-onhom" data-nhom="' + esc(g) + '" data-bat="0">Ẩn cả nhóm</button></div>';
+    theo[g].forEach(function(p){
+      var an = !!TAM_AN[p.id], het = !!TAM_HET[p.id];
+      h += '<div class="qrd-cr"><label><input type="checkbox" data-oan="' + esc(p.id) + '"' + (an ? '' : ' checked') + '>'
+         + '<span>' + esc(p.name) + '</span><i>' + tien(p.price) + '</i></label>'
+         + '<button type="button" class="qrd-het' + (het ? ' on' : '') + '" data-act="qrd-ohet" data-id="' + esc(p.id) + '">' + (het ? 'Tạm hết' : 'Còn hàng') + '</button></div>';
+    });
+  });
+  box.innerHTML = h;
+  veChonDem();
+}
+function nhomChon(ten, bat){
+  if(!TAM_AN) return;
+  spChon().forEach(function(p){ if(String(p.category || 'Khác').slice(0, 40) === ten){ if(bat) delete TAM_AN[p.id]; else TAM_AN[p.id] = 1; } });
+  veChon();
+}
+function hetChon(id){
+  if(!TAM_HET || !id) return;
+  if(TAM_HET[id]) delete TAM_HET[id]; else TAM_HET[id] = 1;
+  var box = document.getElementById('qrd-ochon-ds');
+  var bs = box ? box.querySelectorAll('.qrd-het') : [];
+  for(var i = 0; i < bs.length; i++){
+    if(bs[i].getAttribute('data-id') !== id) continue;
+    bs[i].classList.toggle('on', !!TAM_HET[id]); bs[i].textContent = TAM_HET[id] ? 'Tạm hết' : 'Còn hàng';
+  }
+  veChonDem();
+}
+async function luuChon(){
+  if(!TAM_AN || !TAM_HET) return;
+  var co = {}; (C.products() || []).forEach(function(p){ if(p && p.id) co[p.id] = 1; });
+  var an = Object.keys(TAM_AN).filter(function(id){ return co[id]; });          /* dọn id của món đã xoá khỏi kho */
+  var het = Object.keys(TAM_HET).filter(function(id){ return co[id]; });
+  try{
+    await F.setDoc(C.doc('pos_meta', 'qr'), { oAn: an, oHet: het }, { merge: true });
+    OAN = dsSet(an); OHET = dsSet(het);
+    C.closeModal('#qrd-ochon-m');
+    if(await dayOnl(false, true)) noi('✅ Đã lưu — link đang hiện ' + ((OSHARE && OSHARE.menu && OSHARE.menu.length) || 0) + ' món');
+  }catch(e){ loiO(e, 'Lưu hàng hiện online'); }
+}
+
+/* ───────── đơn online: xem · nhận · không nhận · chặn số ───────── */
+function tinhDonOnl(d){
+  var its = Array.isArray(d.items) ? d.items : [], tongGoc = {}, dong = [], tong = 0;
+  its.forEach(function(it){
+    var p = sp(it && it.i), dv = p ? donViCua(p, it.u) : null, q = lamTron(it && it.q);
+    if(p && dv && q > 0) tongGoc[p.id] = (tongGoc[p.id] || 0) + q * dv.ratio;
+  });
+  its.forEach(function(it){
+    it = it || {};
+    var p = sp(it.i), dv = p ? donViCua(p, it.u) : null, q = lamTron(it.q);
+    var mat = !p || !dv || !(q > 0), gia = 0;
+    if(!mat){
+      gia = dv.price;
+      if(dv.ratio === 1){ var t = bacGia(p); if(t) gia = giaBac(t, tongGoc[p.id] || 0, Number(p.price) || 0); }   /* bậc giá chỉ cho đơn vị gốc */
+      tong += gia * q;
+    }
+    dong.push({ ten: p ? String(p.name) : String(it.n || 'Món'), q: q, dv: dv ? dv.name : String(it.u || ''), gia: gia, mat: mat,
+                lyDo: !p ? 'không còn trong kho' : (!dv ? 'đơn vị "' + String(it.u || '') + '" không còn' : ''), g: String(it.g || '') });
+  });
+  return { dong: dong, tong: Math.round(tong) };
+}
+function theDonOnl(d){
+  var phut = Math.max(0, Math.floor((Date.now() - (Number(d.tsClient) || Date.now())) / 60000));
+  var r = tinhDonOnl(d), ck = d.ttoan === 'ck';
+  var h = '<div class="qrd-d qrd-don-onl"><div class="qrd-d-h"><b>🌐 ' + esc(d.khach || 'Khách online') + '</b>'
+    + '<span>' + esc(maDon(d.id)) + ' · ' + (phut ? phut + ' phút trước' : 'vừa xong') + '</span></div>';
+  if(d.sdt) h += '<div class="qrd-kh"><a href="tel:' + esc(d.sdt) + '">📞 ' + esc(d.sdt) + '</a><a href="https://zalo.me/' + esc(d.sdt) + '" target="_blank" rel="noopener">💬 Zalo</a></div>';
+  h += '<div class="qrd-gc2">' + (d.giao === 'giao' ? '🛵 Giao tới: <b>' + esc(d.diaChi || '') + '</b>' : '🏪 Khách đến lấy') + '</div>'
+     + '<div class="qrd-gc2">' + (ck ? '💳 Khách chọn <b>chuyển khoản</b> — nội dung: <b>' + esc(maDon(d.id).replace('-', ' ')) + '</b>' : '💵 Trả tiền mặt khi nhận hàng') + '</div>';
+  r.dong.forEach(function(l){
+    h += '<div class="qrd-li' + (l.mat ? ' mat' : '') + '"><i>' + soVN(l.q) + '×</i>'
+       + '<u>' + esc(l.ten) + (l.dv ? ' <small>(' + esc(l.dv) + ')</small>' : '') + (l.mat ? ' (' + esc(l.lyDo) + ')' : '')
+       + (l.g ? '<em>· ' + esc(l.g) + '</em>' : '') + '</u>'
+       + '<s>' + (l.mat ? '—' : tien(Math.round(l.gia * l.q))) + '</s></div>';
+  });
+  if(d.ghiChu) h += '<div class="qrd-gc">Ghi chú: ' + esc(d.ghiChu) + '</div>';
+  h += '<div class="qrd-t"><span>Tạm tính theo giá kho</span><b>' + tien(r.tong) + '</b></div>'
+     + '<div class="qrd-row">'
+     + '<button class="qrd-b green" data-act="qrd-onhan" data-id="' + esc(d.id) + '">Nhận đơn</button>'
+     + '<button class="qrd-b grey" data-act="qrd-onbo" data-id="' + esc(d.id) + '">Không nhận</button>'
+     + (d.sdt ? '<button class="qrd-b red" data-act="qrd-onchan" data-id="' + esc(d.id) + '">Chặn số này</button>' : '')
+     + '</div></div>';
+  return h;
+}
+function gioTxtO(c){ return (c.tu && c.den) ? ('nhận đơn ' + c.tu + '–' + c.den) : 'nhận đơn cả ngày'; }
+function cachTxtO(c){ return (c.giao && c.lay) ? 'giao tận nơi + đến lấy' : (c.giao ? 'chỉ giao tận nơi' : 'chỉ đến lấy'); }
+function htmlDonOnl(){
+  var cn = chiNhanh();
+  var list = DON.filter(function(d){ return laDonOnl(d) && (d.chiNhanh || 'main') === cn; })
+                .sort(function(a, b){ return (a.tsClient || 0) - (b.tsClient || 0); });
+  if(!list.length) return (OTK && OSHARE) ? '<div class="qrd-none">Chưa có đơn online nào đang chờ.<br>Khách đặt qua link sẽ hiện ở đây kèm chuông báo.</div>' : '';
+  var h = ''; list.forEach(function(d){ h += theDonOnl(d); });
+  return h;
+}
+function htmlOnl(){
+  var nv = laMayNV(), h = '<div class="qrd-box qrd-onl"><div class="qrd-hd"><b>🌐 Cửa hàng online</b>';
+  if(!OTK || !OSHARE){
+    h += '</div>';
+    if(OTK && O_LOI) return htmlDonOnl() + h + '<div class="qrd-st">Chưa đọc được cửa hàng online (mạng yếu?).</div><div class="qrd-row"><button class="qrd-b" data-act="qrd-onap">Thử lại</button></div></div>';
+    return htmlDonOnl() + h + '<div class="qrd-st">Tạo 1 link cho cửa hàng này để dán lên Zalo, Facebook hoặc in mã QR dán quầy. Khách mở link là xem hàng và đặt <b>giao tận nơi</b> hoặc <b>đến lấy</b>. Đơn về đây kèm chuông báo, bấm nhận là thành đơn giữ mang tên khách.</div>'
+      + (nv ? '<div class="qrd-warn" style="margin:9px 0 0">📱 Chỉ máy chủ shop tạo được link.</div>'
+            : '<div class="qrd-row"><button class="qrd-b green" data-act="qrd-otao">Tạo link cửa hàng</button></div>')
+      + '</div>';
+  }
+  var nhan = OSHARE.nhanDon === true, c = OCFG || chuanCfg(null);
+  h += (nv ? '' : '<button class="qrd-sw' + (nhan ? ' on' : '') + '" data-act="qrd-osw" aria-label="Bật tắt nhận đơn online"></button>') + '</div>'
+    + '<div class="qrd-st">Tên hiện cho khách: <b>' + esc(OSHARE.quan || TENQUAN || 'Cửa hàng') + '</b><br>'
+    + (nhan ? 'Đang <b>nhận đơn</b> online.' : 'Đang <b>tắt</b> — khách mở link chỉ xem được hàng, không đặt được.')
+    + '<br>Trên link: <b>' + ((OSHARE.menu && OSHARE.menu.length) || 0) + ' món</b> · ' + esc(gioTxtO(c)) + ' · ' + esc(cachTxtO(c))
+    + ((c.ck && O_BANK) ? ' · nhận chuyển khoản' : '') + '</div>'
+    + '<div class="qrd-lnk">' + esc(linkOnl()) + '</div>'
+    + (O_CANH ? '<div class="qrd-warn" style="margin:9px 0 0">' + esc(O_CANH) + '</div>' : '')
+    + '<div class="qrd-row">'
+    + '<button class="qrd-b green" data-act="qrd-ocopy">Sao chép link</button>'
+    + '<button class="qrd-b" data-act="qrd-oshare">Gửi link</button>'
+    + '<button class="qrd-b" data-act="qrd-oqr">Mã QR cửa hàng</button></div>';
+  if(nv) h += '<div class="qrd-st" style="margin-top:8px">📱 Máy nhân viên: nhận / không nhận đơn được; chỉnh hàng, cài đặt thì nhờ chủ shop.</div>';
+  else h += '<div class="qrd-row">'
+    + '<button class="qrd-b" data-act="qrd-oday">Cập nhật hàng lên link</button>'
+    + '<button class="qrd-b" data-act="qrd-ochon">Chọn hàng hiện online</button>'
+    + '<button class="qrd-b" data-act="qrd-ocfg">Cài đặt</button>'
+    + '<button class="qrd-b" data-act="qrd-oten">Đổi tên</button>'
+    + '<button class="qrd-b red" data-act="qrd-odoi">Đổi link</button></div>'
+    + '<div class="qrd-st" style="margin-top:8px">Giá và hàng tự cập nhật lên link khoảng 1 phút sau khi bạn sửa kho, miễn máy chủ shop đang mở app. Món hết thật thì vào "Chọn hàng hiện online" bấm "Tạm hết".</div>';
+  return htmlDonOnl() + h + '</div>';            /* đơn đang chờ lên TRƯỚC, khung cài đặt xuống dưới */
+}
+/* Chờ máy chủ tối đa 5 giây khi có mạng; mất mạng thì coi như đã xếp hàng chờ gửi */
+function choGhi(p){
+  var off = false, tre = false;
+  try{ off = navigator.onLine === false; }catch(e){}
+  p.catch(function(e){ if(tre || off) noi('⚠️ Chưa lưu được lên máy chủ: ' + ((e && e.code) || e)); });
+  if(off) return Promise.resolve('off');
+  return Promise.race([ p.then(function(){ return 'ok'; }),
+                        new Promise(function(r){ setTimeout(function(){ tre = true; r('cham'); }, 5000); }) ]);
+}
+async function nhanOnl(id){
+  if(oNhan) return; oNhan = true;
+  try{
+    var d = DON.find(function(x){ return x.id === id; });
+    if(!d || !laDonOnl(d)){ noi('Đơn không còn'); return; }
+    if((d.chiNhanh || 'main') !== chiNhanh()){ noi('Đơn này của cửa hàng khác — đổi sang cửa hàng đó để nhận'); return; }
+    var lines = [], mat = [];
+    (d.items || []).forEach(function(it){
+      it = it || {};
+      var p = sp(it.i), q = lamTron(it.q);
+      if(!p){ mat.push(String(it.n || 'Món') + ' (không còn trong kho)'); return; }      /* KHÔNG nhét id lạ vào giỏ */
+      var dv = donViCua(p, it.u);
+      if(!dv){ mat.push(String(p.name) + ' (đơn vị "' + String(it.u || '') + '" không còn)'); return; }
+      if(!(q > 0)) return;
+      var gc = String(it.g || '').trim().slice(0, 60);
+      var key = p.id + '|' + dv.name + (gc ? '|' + gc : '');
+      var line = null;
+      for(var i = 0; i < lines.length; i++) if(lines[i].key === key){ line = lines[i]; break; }
+      if(line){ line.qty = lamTron(line.qty + q); line.baseQty = lamTron(line.qty * line.ratio); }
+      else lines.push({ key: key, id: p.id, name: String(p.name) + (gc ? ' (' + gc + ')' : ''), unit: dv.name, ratio: dv.ratio,
+                        price: dv.price, cost: (Number(p.cost) || 0) * dv.ratio, qty: q, baseQty: lamTron(q * dv.ratio) });
+    });
+    if(!lines.length){
+      oNhan = false;
+      if(confirm('Đơn của ' + (d.khach || 'khách') + ' không còn món nào trong kho.\n\nBáo khách "không nhận" đơn này?')) await boOnl(id, true);
+      return;
+    }
+    var st = null; try{ st = C.staff(); }catch(e){}
+    var ma = maDon(d.id);
+    var ghi = [ma, d.giao === 'giao' ? ('Giao: ' + String(d.diaChi || '')) : 'Khách đến lấy',
+               d.sdt ? ('SĐT ' + d.sdt) : '', d.ttoan === 'ck' ? ('Khách chuyển khoản, nội dung ' + ma.replace('-', ' ')) : '',
+               d.ghiChu ? ('Ghi chú: ' + String(d.ghiChu)) : ''].filter(Boolean).join(' · ').slice(0, 300);
+    /* Ghi ĐƠN GIỮ + đánh dấu đơn đã nhận trong CÙNG 1 lượt: hoặc cả hai, hoặc không gì.
+       Máy khác đã nhận trước ⇒ Rules chối cả lượt ⇒ không sinh 2 đơn giữ. */
+    var b = F.writeBatch(F.db);
+    b.set(F.doc(C.col('pos_held')), {
+      who: ('🌐 ' + String(d.khach || 'Khách online') + (d.sdt ? ' · ' + d.sdt : '')).slice(0, 80),
+      whoId: '', cart: lines, discount: 0, note: ghi,
+      byId: st ? (st.id || '') : '', byName: st ? (st.name || 'Chủ') : 'Chủ',
+      createdAtMs: Date.now(), at: F.serverTimestamp() });
+    b.update(F.doc(F.db, 'qr_don', id), { tt: 'nhan', xuLy: F.serverTimestamp() });
+    var kq = await choGhi(b.commit());
+    noi('✅ Đã nhận đơn ' + ma + ' của ' + (d.khach || 'khách') + ' — nằm trong 🗂️ Đơn giữ' + (kq === 'off' ? ' (máy đang mất mạng, có mạng sẽ tự gửi)' : ''));
+    if(mat.length) alert('Những món sau KHÔNG đưa vào đơn:\n\n• ' + mat.join('\n• ') + '\n\nGọi khách báo đổi món giúp nhé.');
+  }catch(e){
+    if(e && e.code === 'permission-denied') noi('⚠️ Đơn này vừa được máy khác xử lý rồi');
+    else loiO(e, 'Nhận đơn online');
+  }finally{ oNhan = false; }
+}
+async function boOnl(id, im){
+  var d = DON.find(function(x){ return x.id === id; });
+  if(!im && !confirm('Không nhận đơn ' + maDon(id) + ' của ' + ((d && d.khach) || 'khách') + '?\nKhách sẽ thấy "Cửa hàng chưa nhận được đơn này".')) return;
+  try{
+    await choGhi(F.updateDoc(F.doc(F.db, 'qr_don', id), { tt: 'huy', xuLy: F.serverTimestamp() }));
+    if(!im) noi('Đã báo khách: cửa hàng không nhận đơn này');
+  }catch(e){
+    if(e && e.code === 'permission-denied') noi('⚠️ Đơn này vừa được máy khác xử lý rồi');
+    else loiO(e, 'Không nhận đơn online');
+  }
+}
+async function chanOnl(id){
+  var d = DON.find(function(x){ return x.id === id; }), u = uid();
+  if(!d || !d.sdt || !u) return;
+  if(!confirm('Chặn số ' + d.sdt + '?\n\nĐơn này sẽ bị báo "không nhận". Mọi đơn sau này từ số này tự bị từ chối, không reo chuông.\nBỏ chặn được trong ⚙️ Cài đặt cửa hàng online.')) return;
+  try{
+    var ref = F.doc(F.db, 'users', u, 'pos_meta', 'qr_chan');
+    var s = await F.getDoc(ref);
+    var ds = (s.exists() && Array.isArray((s.data() || {}).ds)) ? s.data().ds.slice() : [];
+    if(ds.indexOf(d.sdt) < 0) ds.push(d.sdt);
+    await F.setDoc(ref, { ds: ds.slice(-500) }, { merge: true });
+    CHAN[d.sdt] = 1;
+  }catch(e){ loiO(e, 'Chặn số điện thoại'); return; }
+  await boOnl(id, true);
+  noi('🚫 Đã chặn ' + d.sdt);
+}
+async function boChan(sdt){
+  var u = uid(); if(!u || !sdt) return;
+  try{
+    var ref = F.doc(F.db, 'users', u, 'pos_meta', 'qr_chan');
+    var s = await F.getDoc(ref);
+    var ds = (s.exists() && Array.isArray((s.data() || {}).ds)) ? s.data().ds : [];
+    await F.setDoc(ref, { ds: ds.filter(function(x){ return x !== sdt; }) }, { merge: true });
+    delete CHAN[sdt];
+    var box = document.getElementById('qrd-chan-ds'); if(box) box.innerHTML = htmlChanDS();
+    noi('Đã bỏ chặn ' + sdt);
+  }catch(e){ loiO(e, 'Bỏ chặn số điện thoại'); }
+}
+/* Số bị chặn dùng chung MỌI cửa hàng của tài khoản: users/{uid}/pos_meta/qr_chan */
+function napChan(u){
+  if(!u || CHAN_UID === u) return;
+  CHAN_UID = u; CHAN = {};
+  try{
+    F.getDoc(F.doc(F.db, 'users', u, 'pos_meta', 'qr_chan')).then(function(s){
+      if(CHAN_UID !== u) return;
+      var ds = (s.exists() && Array.isArray((s.data() || {}).ds)) ? s.data().ds : [], m = {};
+      ds.forEach(function(x){ if(x) m[String(x)] = 1; });
+      CHAN = m;
+      var truoc = DON.length; DON = onlLoc(DON);
+      if(DON.length !== truoc){
+        try{ xetBao(); }catch(e){}
+        try{ capNhatHuy(DON.filter(function(d){ return (d.chiNhanh || 'main') === chiNhanh(); }).length); }catch(e){}
+        render();
+      }
+      var box = document.getElementById('qrd-chan-ds'); if(box) box.innerHTML = htmlChanDS();
+    }, function(){ if(CHAN_UID === u) CHAN_UID = null; });
+  }catch(e){ CHAN_UID = null; }
+}
+/* Đơn online của số đã chặn: tự báo "không nhận" (1 lần mỗi đơn), không reo, không hiện */
+function onlLoc(ds){
+  if(!ds || !ds.length) return ds || [];
+  return ds.filter(function(d){
+    if(!laDonOnl(d) || !d.sdt || !CHAN[String(d.sdt)]) return true;
+    if(!DA_HUY[d.id]){
+      DA_HUY[d.id] = 1;
+      try{ F.updateDoc(F.doc(F.db, 'qr_don', d.id), { tt: 'huy', xuLy: F.serverTimestamp() }).catch(function(){}); }catch(e){}
+    }
+    return false;
+  });
+}
+/* Đơn online đã nhận / không nhận được giữ 3 ngày cho khách xem lại, rồi máy chủ shop dọn */
+async function donDepOnl(){
+  var u = uid(); if(!u || laMayNV() || !conHan(LIC)) return;
+  var k = 'qrd_dep_' + u, truoc = 0;
+  try{ truoc = Number(localStorage.getItem(k)) || 0; }catch(e){}
+  if(Date.now() - truoc < 86400000) return;
+  try{ localStorage.setItem(k, String(Date.now())); }catch(e){}
+  var han = Date.now() - 3 * 86400000, loai = ['nhan', 'huy'];
+  for(var i = 0; i < loai.length; i++){
+    try{
+      var s = await F.getDocs(F.query(F.collection(F.db, 'qr_don'), F.where('ownerUid', '==', u), F.where('tt', '==', loai[i]), F.limit(100)));
+      var b = F.writeBatch(F.db), n = 0;
+      s.forEach(function(d){ var o = d.data() || {}, t = ms(o.taoLuc) || Number(o.tsClient) || 0; if(t && t < han){ b.delete(d.ref); n++; } });
+      if(n) await b.commit();
+    }catch(e){}
+  }
+}
+
+M.css('qrd-onl','\
+#pos-screen .qrd-lnk{margin-top:9px;background:#f3f7f5;border:1px dashed #b8d8cc;border-radius:9px;padding:8px 10px;font-size:12px;color:#0a5f4a;word-break:break-all;-webkit-user-select:all;user-select:all}\
+#pos-screen .qrd-d.qrd-don-onl{border-left-color:#1f6feb}\
+#pos-screen .qrd-kh{display:flex;gap:14px;flex-wrap:wrap;margin:-2px 0 6px}\
+#pos-screen .qrd-kh a{font-size:13px;font-weight:700;color:#1f6feb;text-decoration:none}\
+#pos-screen .qrd-gc2{font-size:12.5px;color:#3d4f49;line-height:1.55;margin-bottom:4px;overflow-wrap:anywhere}\
+#pos-screen .qrd-li small{font-size:11px;color:#7d8d87}\
+#pos-screen .qrd-f{border:1px solid #e4e8ec;border-radius:11px;padding:10px 11px;margin-bottom:10px}\
+#pos-screen .qrd-f>b{display:block;font-size:13px;color:#243b53;margin-bottom:6px}\
+#pos-screen .qrd-ck{display:flex;align-items:center;gap:8px;font-size:13.5px;padding:5px 0;flex-wrap:wrap;cursor:pointer}\
+#pos-screen .qrd-ck input[type=checkbox],#pos-screen .qrd-ck input[type=radio]{width:18px;height:18px;flex:none;margin:0}\
+#pos-screen .qrd-ck input[type=time]{border:1px solid #dfe6e9;border-radius:8px;padding:5px 6px;font-family:inherit;font-size:14px}\
+#pos-screen .qrd-chon{max-height:55vh;overflow-y:auto;-webkit-overflow-scrolling:touch;margin-bottom:6px}\
+#pos-screen .qrd-cn{display:flex;align-items:center;gap:6px;margin:12px 0 4px;font-size:12.5px;font-weight:800;color:#3f7a68}\
+#pos-screen .qrd-cn span{flex:1;min-width:0}\
+#pos-screen .qrd-cn button{border:none;background:#eef7f3;color:#0a5f4a;border-radius:7px;padding:5px 8px;font-size:11.5px;font-weight:700;font-family:inherit;cursor:pointer}\
+#pos-screen .qrd-cr{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #f0f3f2}\
+#pos-screen .qrd-cr label{flex:1;min-width:0;display:flex;align-items:center;gap:9px;font-size:13.5px;cursor:pointer}\
+#pos-screen .qrd-cr label input{width:19px;height:19px;flex:none;margin:0}\
+#pos-screen .qrd-cr label span{flex:1;min-width:0;overflow-wrap:anywhere}\
+#pos-screen .qrd-cr i{font-style:normal;font-size:12px;color:#6b7872;white-space:nowrap}\
+#pos-screen .qrd-het{flex:none;border:1px solid #e4e8ec;background:#fff;color:#51655f;border-radius:8px;padding:5px 8px;font-size:11.5px;font-weight:700;font-family:inherit;cursor:pointer;min-width:74px}\
+#pos-screen .qrd-het.on{background:#fdecec;border-color:#f3c4c4;color:#b02a2a}\
+#pos-screen .qrd-chan{display:flex;align-items:center;gap:8px;font-size:13px;padding:3px 0}\
+#pos-screen .qrd-chan span{flex:1}\
+');
+
+M.act('qrd-otao',      function(){ dayOnl(false); });
+M.act('qrd-oday',      function(){ dayOnl(false); });
+M.act('qrd-osw',       function(){ batTatOnl(); });
+M.act('qrd-odoi',      function(){ doiLinkOnl(); });
+M.act('qrd-oten',      function(){ doiTenOnl(); });
+M.act('qrd-ocopy',     function(){ copyOnl(); });
+M.act('qrd-oshare',    function(){ guiOnl(); });
+M.act('qrd-oqr',       function(){ qrOnl(); });
+M.act('qrd-oqr-share', function(){ chiaAnhQR(); });
+M.act('qrd-ocfg',      function(){ cfgOnl(); });
+M.act('qrd-ocfg-luu',  function(){ luuCfgOnl(); });
+M.act('qrd-ochon',     function(){ chonOnl(); });
+M.act('qrd-ochon-luu', function(){ luuChon(); });
+M.act('qrd-onhom',     function(el, ds){ nhomChon(ds.nhom || '', ds.bat === '1'); });
+M.act('qrd-ohet',      function(el, ds){ hetChon(ds.id || ''); });
+M.act('qrd-onhan',     function(el, ds){ nhanOnl(ds.id); });
+M.act('qrd-onbo',      function(el, ds){ boOnl(ds.id); });
+M.act('qrd-onchan',    function(el, ds){ chanOnl(ds.id); });
+M.act('qrd-bochan',    function(el, ds){ boChan(ds.sdt || ''); });
+M.act('qrd-onap',      function(){ docCfg().then(render).catch(function(){}); });
+M.act('qrd-mdong',     function(el, ds){ try{ if(ds.target) C.closeModal(ds.target); }catch(e){} });
+
+setInterval(function(){ try{ tuDongOnl().catch(function(){}); }catch(e){} }, 30000);
+setTimeout(function(){ try{ donDepOnl().catch(function(){}); }catch(e){} }, 25000);
+setInterval(function(){ try{ donDepOnl().catch(function(){}); }catch(e){} }, 600000);
+/* ═════════ HẾT KHỐI [ONLINE] ═════════ */
+
 /* ───────── HÀNH ĐỘNG ───────── */
 M.act('qrd-sw',   function(){ batTat(); });
 M.act('qrd-day',  function(){ dayThucDon(true); });
@@ -19774,18 +20609,21 @@ M.act('qrd-doi',  function(){ doiMa(); });
 M.act('qrd-nhan', function(el,ds){ nhanDon(ds.id); });
 M.act('qrd-bo',   function(el,ds){ boDon(ds.id); });
 M.act('qrd-ten',  function(){ doiTen(); });
-M.act('qrd-mua',  function(){ try{ if(typeof window.snMuaGoi==='function') window.snMuaGoi({app:MA_GOI, ten:'📱 Gói Đơn QR tại bàn',
-  moTa:'Khách quét mã trên bàn tự gọi món, đơn gửi thẳng xuống máy tính tiền. Gói thuê riêng, tính phí theo tháng.'});
+M.act('qrd-mua',  function(){ try{ if(typeof window.snMuaGoi==='function') window.snMuaGoi({app:MA_GOI, ten:'🌐 Gói Bán online',
+  moTa:'Mỗi cửa hàng 1 link đặt hàng online (quán ăn có thêm mã QR dán bàn). Đơn gửi thẳng về máy bán hàng, có chuông báo. Gói thuê riêng, tính phí theo tháng.'});
   else noi('Gọi '+hotQr()+' để mở gói'); }catch(e){ noi('Gọi '+hotQr()+' để mở gói'); } });
 M.act('qrd-thu',  function(){ dungThu(); });
 
 /* ───────── GẮN VÀO LÕI ───────── */
 M.on('boot', async function(){
   if(ON) return;
-  if(!M.flag('fnb')) return;            /* chỉ quán F&B mới thấy tab này */
+  /* [ONLINE] Đợt 1: tab hiện cho Đa năng · F&B · Cân ký/Bán sỉ. Thời trang & Karaoke/Spa mở ở đợt sau.
+     Quán F&B luôn giữ tab như cũ (kể cả tài khoản cũ bật nhiều cờ một lúc). */
+  if(!M.flag('fnb') && (M.flag('fs') || M.flag('rm'))) return;
   ON = true;
+  var _fnb = laFnb();
 
-  M.tab({ id:'qrd', label:'Đơn QR', title:'Đơn khách gửi từ bàn', after:'fnb',
+  M.tab({ id:'qrd', label:(_fnb ? 'Đơn QR' : 'Bán online'), title:(_fnb ? 'Đơn khách tự đặt (bàn + online)' : 'Bán online — đơn khách đặt qua link'), after:(_fnb ? 'fnb' : 'sell'),
     icon:'<svg viewBox="0 0 24 24"><path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h2v2h-2zM18 14h2v2h-2zM14 18h2v2h-2zM18 18h2v2h-2z"/></svg>',
     render: render,
     body:'<div id="qrd-w" class="qrd-w"><div class="qrd-none">Đang tải…</div></div>' });
@@ -19803,6 +20641,7 @@ M.on('view:show', function(c){
      nếu không sẽ mang mã của chi nhánh cũ sang ghi đè cho chi nhánh mới. */
   if(CFGCN !== chiNhanh()){
     CFGCN = chiNhanh(); TOKEN=''; SHARE=null; TENQUAN=''; soDonTruoc=0;
+    OTK=''; OSHARE=null; OCFG=null; OAN={}; OHET={}; O_SIG=''; O_CANH=''; O_LOI=false; O_CN=null;   /* [ONLINE] */
     try{ capNhatHuy(0); }catch(e){}
     if(conHan(LIC)) docCfg().then(render).catch(function(){}); else render();
     return;
@@ -19816,7 +20655,7 @@ M.on('view:show', function(c){
 
 /* ───────── [CHUÔNG v2] GẮN THÊM — 2 hook cũ ở trên giữ nguyên ───────── */
 M.act('qrd-bao-xem',   function(){ if(Date.now() - BAO_HIEN < 700) return; xemDon(); });   /* chống bấm trúng ngay lúc khung vừa bật lên */
-M.act('qrd-bao-tat',   function(){ if(Date.now() - BAO_HIEN < 700) return; daNghe(); noi('🔕 Đã tắt chuông. Đơn vẫn nằm trong tab Đơn QR.'); });
+M.act('qrd-bao-tat',   function(){ if(Date.now() - BAO_HIEN < 700) return; daNghe(); noi('🔕 Đã tắt chuông. Đơn vẫn nằm trong tab ' + tenTab() + '.'); });
 M.act('qrd-thuchuong', function(){ chuong(); });
 M.act('qrd-khoa',      function(){ chuong(); });
 M.act('qrd-sang',      function(){
