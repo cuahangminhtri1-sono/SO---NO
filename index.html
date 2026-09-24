@@ -749,7 +749,7 @@ import { getFirestore, initializeFirestore, persistentLocalCache, persistentMult
 import { getStorage, ref as _sref, uploadBytes, getDownloadURL, deleteObject, listAll }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
 
-const APP_BUILD = "2026-09-24-ONLINE2"; // ⬆️ ĐỔI MỖI LẦN DEPLOY (đặt TRÙNG tên cache trong sw.js) — hiện ở ⚙️ Cài đặt để biết máy đã chạy bản mới chưa
+const APP_BUILD = "2026-09-24-ANHSP"; // ⬆️ ĐỔI MỖI LẦN DEPLOY (đặt TRÙNG tên cache trong sw.js) — hiện ở ⚙️ Cài đặt để biết máy đã chạy bản mới chưa
 const firebaseConfig = {
   apiKey: "AIzaSyA_kjQ-CdASRkf50Glz3kQajlkD5qGWC4k",
   authDomain: "so-no-cc57a.firebaseapp.com",
@@ -860,6 +860,7 @@ window.donKhoAnh=async function(){
     try{
       const root=await listAll(_sref(stg,'u/'+UID+'/att'));
       for(const pf of (root.prefixes||[])){
+        if(pf.name==='_sanpham')continue;   /* [ẢNH SP] thư mục ảnh sản phẩm (không phải khách) — KHÔNG dọn */
         if(!okCust.has(pf.name)){await stgWipe(pf.fullPath);xThuMuc++;continue;}
         const inn=await listAll(pf);
         for(const it of (inn.items||[])){ if(!okPath.has(it.fullPath)){try{await deleteObject(it);xFile++;}catch(e){}} }
@@ -13598,23 +13599,20 @@ a:`<b class="snai-h">🏷️ In tem mã vạch</b>
 <div class="snai-warn">⚠️ <b>Sản phẩm phải có Mã vạch HOẶC SKU thì mới in tem được.</b> Chưa có thì vào <b>✎ Sửa</b> điền vào trước. Nếu hàng không có mã sẵn, bạn có thể tự đặt mã bất kỳ, ví dụ <code>SP001</code>, <code>SP002</code>.</div>
 <div class="snai-warn">⚠️ <b>Lần in đầu tiên cần có mạng</b> để app tải bộ tạo hình mã vạch về. Từ lần thứ hai trở đi thì không cần nữa.</div>`},
 
-{c:'kho',t:'Ảnh minh họa cho sản phẩm',k:'anh san pham hinh anh minh hoa link anh hien hinh o o san pham',
+{c:'kho',t:'Ảnh minh họa cho sản phẩm',k:'anh san pham hinh anh minh hoa chup anh chon anh dinh kem anh gan anh them anh doi anh bo anh link anh hien hinh o san pham anh phong anh mon',
 a:`<b class="snai-h">🖼️ Ảnh sản phẩm</b>
-<b>👉 Cái này để làm gì:</b> gắn hình vào ô sản phẩm ở tab Bán, để <b>nhìn hình bấm cho nhanh</b> thay vì đọc chữ. Rất hợp với quán ăn, cà phê, và với nhân viên mới chưa thuộc hàng.
-<b>🪜 Làm từng bước:</b>
+<b>👉 Cái này để làm gì:</b> gắn <b>ảnh thật</b> cho sản phẩm. Ảnh hiện trên ô sản phẩm ở tab <b>Bán</b> để nhìn hình bấm cho nhanh, và hiện cho khách xem trên <b>link bán online</b> / <b>thực đơn QR</b>. Dùng được cho <b>cả 5 ngành</b>: hàng đa năng, món ăn – đồ uống, quần áo – mỹ phẩm, phòng karaoke / spa / nhà nghỉ, hàng cân ký – bán sỉ.
+<b>🪜 Cách nhanh nhất:</b>
 <ol>
-<li>Vào tab <b>Kho</b> → chạm vào sản phẩm → bấm <b>✎ Sửa</b>.</li>
-<li>Kéo tìm ô ghi <b>Ảnh (link, tuỳ chọn)</b>.</li>
-<li><b>Dán một đường link ảnh</b> vào ô đó. Link phải <b>bắt đầu bằng</b> <code>https://</code>.
-<div class="snai-tip">💡 <b>Lấy link ảnh ở đâu?</b> Tìm ảnh trên mạng → bấm giữ vào ảnh → chọn <b>Sao chép địa chỉ hình ảnh</b> → quay lại app, bấm giữ vào ô rồi chọn <b>Dán</b>.</div></li>
-<li>Bấm <b>Lưu</b>.</li>
+<li>Vào tab <b>Kho</b> → chạm vào sản phẩm → bấm <b>📷 Thêm ảnh</b> (có ảnh rồi thì nút ghi <b>📷 Đổi ảnh</b>).</li>
+<li>Chụp ảnh hoặc chọn ảnh có sẵn trong máy → app tự thu nhỏ, tải lên và <b>tự lưu luôn</b>.</li>
 </ol>
-<div class="snai-ok">✅ <b>Biết là làm đúng khi:</b> qua tab <b>Bán</b>, ô sản phẩm đó hiện hình lên thay vì chỉ có chữ.</div>
-<div class="snai-tip">💡 <b>Nên hay không nên dùng ảnh?</b>
-<ul>
-<li><b>NÊN</b> — quán ăn, cà phê, trà sữa, shop thời trang: nhìn hình gọi món nhanh hơn nhiều.</li>
-<li><b>KHÔNG NÊN</b> — tạp hóa có hàng trăm mặt hàng: để trống cho app nhẹ và mở nhanh hơn.</li>
-</ul></div>`},
+<b>🪜 Khi đang Thêm / Sửa sản phẩm:</b> ngay dưới ô <b>Tên</b> có khung <b>Ảnh sản phẩm</b> → bấm <b>📷 Chụp ảnh</b> hoặc <b>🖼️ Chọn ảnh</b> → đợi hiện chữ <b>✅ Đã tải ảnh</b> → bấm <b>Lưu</b>. Lỡ bấm Lưu khi ảnh còn đang tải thì app tự đợi tải xong rồi mới lưu.
+<b>🛏️ Phòng karaoke / spa / nhà nghỉ:</b> tab <b>Phòng</b> → <b>🛏️ Quản lý phòng</b> → bấm ô <b>📷</b> ở đầu dòng phòng.
+<div class="snai-ok">✅ <b>Biết là làm đúng khi:</b> sản phẩm có ảnh nhỏ ở danh sách Kho, và ô sản phẩm ở tab Bán hiện hình.</div>
+<div class="snai-warn">⚠️ <b>Tải ảnh cần có mạng.</b> Bán hàng offline vẫn bình thường — có mạng rồi gắn ảnh sau.</div>
+<div class="snai-tip">💡 Có sẵn link ảnh trên mạng thì bấm <b>🔗 Dán link</b> trong khung ảnh. Muốn gỡ ảnh thì bấm <b>🗑 Bỏ ảnh</b> rồi <b>Lưu</b>.</div>
+<div class="snai-tip">💡 Link bán online tự cập nhật ảnh khi máy chủ shop đang mở app (muốn lên ngay thì bấm <b>Cập nhật hàng lên link</b>). Thực đơn QR tại bàn thì bấm <b>Cập nhật thực đơn lên mã</b>.</div>`},
 
 {c:'kho',t:'Chuyển kho sang chi nhánh khác',k:'chuyen kho chi nhanh khac dieu chuyen hang qua cua hang khac transfer',
 a:`<b class="snai-h">🔄 Chuyển kho giữa chi nhánh</b>
@@ -18466,7 +18464,7 @@ if (window.__RMT_READY__) return; window.__RMT_READY__ = true;
 try{
 
 /* ĐỔI CHUỖI NÀY CHO TRÙNG APP_BUILD MỖI LẦN DEPLOY (chỉ để hiện ở bảng quản trị) */
-var BUILD = '2026-09-24-ONLINE2';
+var BUILD = '2026-09-24-ANHSP';
 var NHIP   = 6*3600*1000;          /* báo về tối đa 6 giờ 1 lần — khỏi tốn lượt ghi */
 var KEY_HB = 'rmt_hb_v1';
 var KEY_XEM= 'rmt_xem_v1';
@@ -21354,5 +21352,557 @@ setInterval(canh, 2500);
 })();
 </script>
 <!-- ═══════════ HẾT MODULE ĐƠN QR ═══════════ -->
+<!-- ═══════════════ ẢNH SẢN PHẨM — CẢ 5 NGÀNH (drop-in · namespace asp-) ═══════════════
+     • Chụp / chọn ảnh → app tự thu nhỏ (cạnh dài ≤ 800px, ≤ 200KB) → tải lên kho ảnh
+       → ghi LINK vào đúng ô "image" sẵn có của sản phẩm. Không thêm trường mới ⇒ lưới Bán,
+       link bán online, thực đơn QR vốn đã đọc ô này nên tự hiện ảnh.
+     • Kho ảnh: u/{uid}/att/_sanpham/… nằm gọn trong luật 'att' đang chạy (tài khoản thật,
+       ảnh < 1MB) ⇒ KHÔNG phải sửa Rules Storage lẫn Rules Firestore.
+     • Gắn ở: bảng Thêm/Sửa sản phẩm · chi tiết sản phẩm (📷 Thêm/Đổi ảnh) · Quản lý phòng
+       (📷 đầu mỗi dòng) · ảnh nhỏ trong danh sách Kho.
+     • Ảnh tải lên mà KHÔNG lưu (Hủy / đổi ảnh khác) ⇒ tự xoá khỏi kho, không để mồ côi.
+       Ảnh ĐÃ lưu thì không xoá (link online, thực đơn QR, bản sao lưu còn dùng tới).
+     • Không sửa code cũ. Chỉ kèm 1 dòng ở công cụ 🧹 Dọn kho ảnh để nó bỏ qua _sanpham.
+     ════════════════════════════════════════════════════════════════════════════════════ -->
+<script type="module">
+import { getApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getStorage, ref as aspRef, uploadBytesResumable, getDownloadURL, deleteObject }
+  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
+(function(){
+if(window.__ASP_READY__) return; window.__ASP_READY__ = true;
+
+var _lan = 0;
+(function cho(){
+  try{ if(window.SKMOD && window.SKMOD.core && window.SKMOD.fb){ chay(window.SKMOD); return; } }catch(e){}
+  if(++_lan < 80) setTimeout(cho, 400);
+})();
+
+function chay(M){
+try{
+var C = M.core, F = M.fb;
+if(!M.reg('anhsp', { ns:'asp', name:'Ảnh sản phẩm — cả 5 ngành', ver:'1.0' })) return;
+
+/* ═════════ CẤU HÌNH ═════════ */
+var THU_MUC = '_sanpham';          /* PHẢI TRÙNG dòng bỏ qua trong công cụ 🧹 Dọn kho ảnh */
+var CANH    = 800;                 /* cạnh dài tối đa của ảnh (px) */
+var TRAN    = 200 * 1024;          /* mỗi ảnh ≤ 200KB — luật kho ảnh cho tới 1MB */
+var HAN     = 90000;               /* quá 90 giây chưa tải xong ⇒ dừng, báo mạng yếu */
+/* ═══════════════════════════ */
+
+/* S = phiên mở bảng SP · JOB = ảnh đang tải trong bảng · CHO = ảnh đã tải, chờ bấm Lưu
+   OBJ = ảnh xem trước tại máy · QJOB = ảnh đang tải bằng nút 📷 nhanh */
+var S = 0, PID = null, JOB = null, CHO = null, OBJ = null, DOI_LUU = false, QJOB = null, QPID = null;
+
+/* ───────── tiện ích ───────── */
+function $(id){ return document.getElementById(id); }
+function noi(m){ try{ C.toast(m); }catch(e){} }
+function sp(id){ var L = C.products() || []; for(var i = 0; i < L.length; i++) if(L[i] && L[i].id === id) return L[i]; return null; }
+function anh(s){ s = String(s == null ? '' : s).trim(); return /^(https?:\/\/|data:image\/)/i.test(s) ? s : ''; }
+function kb(n){ return Math.max(1, Math.round((Number(n) || 0) / 1024)) + ' KB'; }
+function hot(){ try{ var f = window.SN_CFG && window.SN_CFG.hotline; return f ? String(f()) : '0977823979'; }catch(e){ return '0977823979'; } }
+function chuDau(t){ var a = []; try{ a = Array.from(String(t == null ? '' : t).trim()); }catch(e){ a = []; } return a.length ? String(a[0]).toUpperCase() : '•'; }
+function coQuyen(){ var ps = $('pos-screen'); return !(ps && ps.classList.contains('no-invedit')); }
+function formMo(){ var f = $('sk-prod'); return !!(f && f.classList.contains('on')); }
+function giaTri(){ var i = $('sk-pf-img'); return i ? String(i.value || '').trim() : ''; }
+function datGT(v){ var i = $('sk-pf-img'); if(i) i.value = v || ''; }
+function rid(n){
+  n = n || 18; var B = 'abcdefghijklmnopqrstuvwxyz0123456789', o = '';
+  try{
+    var c = window.crypto || window.msCrypto;
+    if(c && c.getRandomValues){
+      var v = 0;
+      while(o.length < n && v < 20){
+        var a = new Uint8Array(n * 2); c.getRandomValues(a); v++;
+        for(var i = 0; i < a.length && o.length < n; i++) if(a[i] < 252) o += B.charAt(a[i] % 36);
+      }
+    }
+  }catch(e){}
+  while(o.length < n) o += B.charAt(Math.floor(Math.random() * 36));
+  return o;
+}
+function kho(){
+  var app = null;
+  try{ app = getApp(); }catch(e){ app = null; }
+  if(!app){
+    var a = []; try{ a = getApps() || []; }catch(e2){ a = []; }
+    for(var i = 0; i < a.length; i++) if(a[i] && a[i].name !== 'errlog' && a[i].name !== 'pub'){ app = a[i]; break; }
+  }
+  return app ? getStorage(app) : getStorage();
+}
+function xoa(p){ if(!p) return; try{ deleteObject(aspRef(kho(), p))['catch'](function(){}); }catch(e){} }
+
+/* ───────── THU NHỎ ẢNH (chạy ngay trong máy) ───────── */
+function docAnh(file){
+  return new Promise(function(res, rej){
+    var loi = function(){ rej(new Error('Không đọc được ảnh này (định dạng lạ). Chọn ảnh JPG hoặc PNG.')); };
+    var quaFR = function(){
+      try{
+        var fr = new FileReader();
+        fr.onload = function(){ var i2 = new Image(); i2.onload = function(){ res(i2); }; i2.onerror = loi; i2.src = fr.result; };
+        fr.onerror = loi; fr.readAsDataURL(file);
+      }catch(e){ loi(); }
+    };
+    var u = null; try{ u = URL.createObjectURL(file); }catch(e){ u = null; }
+    if(!u){ quaFR(); return; }
+    var im = new Image();
+    im.onload = function(){ try{ URL.revokeObjectURL(u); }catch(e){} res(im); };
+    im.onerror = function(){ try{ URL.revokeObjectURL(u); }catch(e){} quaFR(); };
+    im.src = u;
+  });
+}
+function raBlob(cv, q){
+  return new Promise(function(res, rej){
+    var quaD = function(){
+      try{
+        var d = cv.toDataURL('image/jpeg', q), b = atob(d.split(',')[1] || ''), a = new Uint8Array(b.length);
+        for(var i = 0; i < b.length; i++) a[i] = b.charCodeAt(i);
+        res(new Blob([a], { type:'image/jpeg' }));
+      }catch(e){ rej(new Error('Máy không tạo được ảnh thu nhỏ.')); }
+    };
+    try{ if(cv.toBlob){ cv.toBlob(function(b){ if(b && b.size) res(b); else quaD(); }, 'image/jpeg', q); return; } }catch(e){}
+    quaD();
+  });
+}
+async function nen(file){
+  var im = await docAnh(file);
+  var w0 = im.naturalWidth || im.width, h0 = im.naturalHeight || im.height;
+  if(!(w0 > 0 && h0 > 0)) throw new Error('Ảnh bị lỗi — chọn ảnh khác.');
+  var dim = CANH, q = 0.82, out = null;
+  for(var lan = 0; lan < 7; lan++){
+    var k = Math.min(1, dim / Math.max(w0, h0));
+    var w = Math.max(1, Math.round(w0 * k)), h = Math.max(1, Math.round(h0 * k));
+    var cv = document.createElement('canvas'); cv.width = w; cv.height = h;
+    var cx = cv.getContext('2d');
+    if(!cx) throw new Error('Máy không xử lý được ảnh.');
+    cx.fillStyle = '#ffffff'; cx.fillRect(0, 0, w, h);            /* ảnh PNG nền trong suốt ⇒ nền trắng */
+    try{ cx.imageSmoothingEnabled = true; cx.imageSmoothingQuality = 'high'; }catch(e){}
+    cx.drawImage(im, 0, 0, w, h);
+    out = await raBlob(cv, q);
+    cv.width = 0; cv.height = 0;                                    /* trả bộ nhớ ngay cho máy yếu */
+    if(out.size <= TRAN) return out;
+    if(q > 0.6) q = Math.round((q - 0.11) * 100) / 100; else { dim = Math.round(dim * 0.8); q = 0.72; }
+  }
+  if(out && out.size < 900 * 1024) return out;                      /* vẫn dưới trần 1MB của kho ảnh */
+  throw new Error('Ảnh quá nặng, không thu nhỏ được — chọn ảnh khác.');
+}
+
+/* ───────── TẢI LÊN KHO ẢNH ───────── */
+function taiLen(blob, job, moi){
+  return new Promise(function(res, rej){
+    var uid = C.uid();
+    if(!uid){ rej(new Error('Chưa đăng nhập.')); return; }
+    var path = 'u/' + uid + '/att/' + THU_MUC + '/' + rid(18) + '.jpg';
+    var r, task, xong = false, t = null;
+    try{
+      r = aspRef(kho(), path);
+      task = uploadBytesResumable(r, blob, { contentType:'image/jpeg', cacheControl:'public,max-age=31536000',
+                                            customMetadata:{ shopUid:String(uid), cust:THU_MUC } });
+    }catch(e){ rej(e); return; }
+    job.task = task;
+    var het = function(){ xong = true; if(t) clearTimeout(t); };
+    t = setTimeout(function(){ if(xong) return; job.tre = true; try{ task.cancel(); }catch(e){} }, HAN);
+    task.on('state_changed', function(s){
+      try{ job.pc = s && s.totalBytes ? Math.round(s.bytesTransferred * 100 / s.totalBytes) : 0; if(moi) moi(); }catch(e){}
+    }, function(e){ het(); rej(e); }, function(){
+      het();
+      getDownloadURL(r).then(function(u){ res({ p:path, u:u }); },
+        function(e){ try{ deleteObject(r)['catch'](function(){}); }catch(e2){} rej(e); });
+    });
+  });
+}
+function loiTai(e, job){
+  var ma = String((e && e.code) || '');
+  if(job && job.tre) return '📶 Mạng yếu — tải ảnh quá lâu nên đã dừng. Thử lại khi mạng khoẻ hơn.';
+  if(navigator.onLine === false || ma === 'storage/retry-limit-exceeded') return '📶 Mất mạng giữa chừng — chưa tải được ảnh. Có mạng rồi thử lại.';
+  if(ma === 'storage/unauthorized' || ma === 'storage/unauthenticated') return '🔒 Máy chủ chưa cho tải ảnh lên — gọi ' + hot() + ' để được hỗ trợ.';
+  if(ma === 'storage/quota-exceeded') return '⚠️ Kho ảnh đã đầy — gọi ' + hot() + '.';
+  if(ma === 'storage/canceled') return 'Đã dừng tải ảnh.';
+  if(!ma && e && e.message) return '⚠️ ' + e.message;
+  return '⚠️ Chưa tải được ảnh' + (ma ? (' (' + ma + ')') : '') + ' — thử lại.';
+}
+
+/* ───────── XEM ẢNH TO ───────── */
+function xem(src){
+  if(!src) return;
+  var o = document.createElement('div'); o.className = 'asp-xem';
+  o.innerHTML = '<img alt=""><button type="button" aria-label="Đóng">✕</button>';
+  o.querySelector('img').setAttribute('src', src);
+  o.addEventListener('click', function(){ if(o.parentNode) o.parentNode.removeChild(o); });
+  document.body.appendChild(o);
+}
+
+/* ═════════ 1) KHUNG ẢNH TRONG BẢNG THÊM / SỬA SẢN PHẨM ═════════ */
+var HTML_KHUNG =
+   '<div class="asp-lb">Ảnh sản phẩm (tuỳ chọn)</div>'
+ + '<div class="asp-row">'
+ +   '<button type="button" class="asp-pv" id="asp-pv" data-act="asp-pv" aria-label="Ảnh sản phẩm">'
+ +     '<span class="asp-pv0">📷<small>Chưa có ảnh</small></span><img id="asp-pv-img" alt=""><span class="asp-pc" id="asp-pc"></span>'
+ +   '</button>'
+ +   '<div class="asp-ctl">'
+ +     '<div class="asp-btns"><button type="button" class="asp-b g" data-act="asp-cam">📷 Chụp ảnh</button>'
+ +       '<button type="button" class="asp-b" data-act="asp-lib">🖼️ Chọn ảnh</button></div>'
+ +     '<div class="asp-btns"><button type="button" class="asp-b s" data-act="asp-link">🔗 Dán link</button>'
+ +       '<button type="button" class="asp-b s r" data-act="asp-bo" id="asp-bo">🗑 Bỏ ảnh</button></div>'
+ +     '<div class="asp-st" id="asp-st"></div>'
+ +   '</div>'
+ + '</div>'
+ + '<input type="file" accept="image/*" capture="environment" id="asp-in-cam" class="asp-in" tabindex="-1" aria-hidden="true">'
+ + '<input type="file" accept="image/*" id="asp-in-lib" class="asp-in" tabindex="-1" aria-hidden="true">';
+
+function khung(){
+  var f = $('sk-prod'); if(!f) return null;
+  var box = $('asp-box'); if(box) return box;
+  var card = f.querySelector('.sk-card'); if(!card) return null;
+  box = document.createElement('div'); box.id = 'asp-box'; box.className = 'asp-box';
+  box.innerHTML = HTML_KHUNG;
+  var ten = $('sk-pf-name'), lb = (ten && ten.closest) ? ten.closest('label') : null;
+  if(lb && lb.parentNode === card) card.insertBefore(box, lb.nextSibling);
+  else { var h = card.querySelector('h3'); card.insertBefore(box, h ? h.nextSibling : card.firstChild); }
+  var o = $('sk-pf-img'), olb = (o && o.closest) ? o.closest('label') : null;
+  if(olb) olb.classList.add('asp-an');                               /* ô dán link cũ: ẩn đi, giữ nguyên để Lưu đọc */
+  var img = $('asp-pv-img');
+  img.addEventListener('error', function(){ if(img.getAttribute('src')){ var pv = $('asp-pv'); if(pv) pv.classList.add('hong'); } });
+  img.addEventListener('load', function(){ var pv = $('asp-pv'); if(pv) pv.classList.remove('hong'); });
+  $('asp-in-cam').addEventListener('change', function(){ chonFile(this); });
+  $('asp-in-lib').addEventListener('change', function(){ chonFile(this); });
+  return box;
+}
+function tt(txt, kieu){ var s = $('asp-st'); if(!s) return; s.textContent = txt || ''; s.className = 'asp-st' + (kieu ? (' ' + kieu) : ''); }
+function boObj(){ if(OBJ){ try{ URL.revokeObjectURL(OBJ); }catch(e){} OBJ = null; } }
+function ve(){
+  if(!khung()) return;
+  var raw = giaTri(), src = OBJ || anh(raw);
+  var pv = $('asp-pv'), img = $('asp-pv-img'), bo = $('asp-bo'), pc = $('asp-pc');
+  if(src){
+    if(img.getAttribute('src') !== src){ pv.classList.remove('hong'); img.setAttribute('src', src); }
+    pv.classList.add('co');
+  }else{
+    if(img.getAttribute('src')) img.removeAttribute('src');
+    pv.classList.remove('co'); pv.classList.remove('hong');
+  }
+  pv.classList.toggle('dang', !!JOB);
+  pc.textContent = JOB ? ((JOB.pc > 0 && JOB.pc < 100) ? (JOB.pc + '%') : '⏳') : '';
+  bo.style.display = (raw || JOB) ? '' : 'none';
+  bo.textContent = JOB ? '✕ Dừng tải' : '🗑 Bỏ ảnh';
+}
+function dung(){ var j = JOB; JOB = null; if(j){ j.huy = true; try{ if(j.task) j.task.cancel(); }catch(e){} } }
+function ket(){                                                     /* kết thúc 1 phiên bảng SP */
+  dung();
+  var c = CHO; CHO = null;
+  if(c && !c.luu) xoa(c.p);                                         /* đã tải mà KHÔNG lưu ⇒ xoá, khỏi mồ côi */
+  boObj();
+}
+
+async function chonFile(inp){
+  var f = inp && inp.files && inp.files[0];
+  try{ inp.value = ''; }catch(e){}
+  if(!f) return;
+  if(f.type && !/^image\//i.test(f.type)){ tt('⚠️ Chỉ nhận tệp ảnh (JPG, PNG…).', 'loi'); return; }
+  if(navigator.onLine === false){ tt('📶 Cần có mạng để tải ảnh lên. Bán hàng offline vẫn bình thường — có mạng rồi gắn ảnh sau.', 'loi'); return; }
+  if(!C.uid()){ tt('⚠️ Chưa đăng nhập.', 'loi'); return; }
+  dung(); boObj();
+  var job = { s:S, huy:false, tre:false, loi:false, task:null, pc:0 };
+  job.p = new Promise(function(r){ job.xong = r; });
+  JOB = job; tt('⏳ Đang thu nhỏ ảnh…', ''); ve();
+  try{
+    var b;
+    try{ b = await nen(f); }
+    catch(e){ if(JOB !== job) return; job.loi = true; JOB = null; tt('⚠️ ' + ((e && e.message) || 'Không đọc được ảnh.'), 'loi'); ve(); return; }
+    if(JOB !== job) return;
+    try{ OBJ = URL.createObjectURL(b); }catch(e){ OBJ = null; }
+    tt('⏳ Đang tải ảnh lên… (' + kb(b.size) + ')', ''); ve();
+    var kq;
+    try{ kq = await taiLen(b, job, function(){ if(JOB === job) ve(); }); }
+    catch(e){ if(JOB !== job) return; job.loi = true; JOB = null; boObj(); tt(loiTai(e, job), 'loi'); ve(); return; }
+    if(JOB !== job || job.s !== S){ xoa(kq.p); return; }             /* đã dừng / đã đóng bảng ⇒ bỏ file vừa lên */
+    JOB = null; boObj();
+    var cu = CHO; CHO = { p:kq.p, u:kq.u, luu:false };
+    if(cu && !cu.luu) xoa(cu.p);                                      /* đổi ảnh khác trước khi Lưu ⇒ bỏ ảnh trước */
+    datGT(kq.u);
+    tt('✅ Đã tải ảnh (' + kb(b.size) + ') — bấm Lưu để gắn vào sản phẩm.', 'ok');
+    ve();
+  }finally{ try{ job.xong(); }catch(e){} }
+}
+
+M.on('prod:form', function(c){
+  try{
+    ket();
+    S++; PID = (c && c.id) || null;
+    if(!khung()) return;
+    tt(giaTri() ? '' : 'Chụp hoặc chọn ảnh — app tự thu nhỏ cho nhẹ. Khách xem link online cũng thấy ảnh này.', '');
+    ve();
+  }catch(e){ console.error('[asp] mở bảng SP', e); }
+});
+
+/* Bấm Lưu lúc ảnh còn đang tải ⇒ ĐỢI tải xong rồi tự lưu (không lưu thiếu ảnh, không lưu 2 lần) */
+M.on('prod:save', async function(x){
+  if(DOI_LUU){ x.cancel = true; x.reason = '⏳ Đang đợi ảnh tải xong để lưu…'; return; }
+  if(JOB){
+    var job = JOB, nut = null, chu = '';
+    try{ nut = $('sk-prod').querySelector('[data-act="prod-save"]'); }catch(e){ nut = null; }
+    DOI_LUU = true;
+    if(nut){ chu = nut.textContent; nut.textContent = '⏳ Đợi ảnh…'; }
+    tt('⏳ Ảnh đang tải lên — xong sẽ tự lưu sản phẩm.', '');
+    try{ await job.p; }catch(e){}
+    DOI_LUU = false;
+    if(nut && chu) nut.textContent = chu;
+    if(job.loi || job.huy || !formMo()){
+      x.cancel = true;
+      x.reason = job.loi ? '⚠️ Ảnh chưa tải được nên CHƯA lưu — xem dòng báo dưới khung ảnh' : '';
+      return;
+    }
+  }
+  var c = CHO, ten = $('sk-pf-name');
+  if(c && !c.luu && giaTri() === c.u && ten && String(ten.value || '').trim()) c.luu = true;
+});
+
+/* Nút Hủy của bảng SP ⇒ dừng tải + xoá ảnh vừa tải mà chưa lưu */
+document.addEventListener('click', function(e){
+  var el = (e.target && e.target.closest) ? e.target.closest('[data-act="modal-close"]') : null;
+  if(!el || el.getAttribute('data-target') !== '#sk-prod') return;
+  ket(); tt('', '');
+}, false);
+
+/* Nút ngành trong bảng SP (🧾 Công thức · 👕 Biến thể · ⚖️ Bậc giá) vốn ĐÓNG bảng mà không lưu:
+   ảnh còn đang tải ⇒ chặn lại; ảnh đã tải xong ⇒ lưu riêng ảnh vào SP trước, khỏi mất công chụp lại. */
+document.addEventListener('click', function(e){
+  var el = (e.target && e.target.closest) ? e.target.closest('[data-act]') : null; if(!el) return;
+  var a = el.getAttribute('data-act');
+  if(a !== 'fnb-bom' && a !== 'fs-var' && a !== 'kg-tier') return;
+  if(!formMo()) return;
+  if(JOB || DOI_LUU){
+    e.preventDefault(); e.stopImmediatePropagation();
+    tt('⏳ Ảnh đang tải lên — đợi xong rồi bấm tiếp.', '');
+    try{ var bx = $('asp-box'); if(bx && bx.scrollIntoView) bx.scrollIntoView({ block:'nearest' }); }catch(er){}
+    noi('⏳ Ảnh đang tải lên — đợi xong rồi bấm tiếp');
+    return;
+  }
+  var c = CHO;
+  if(c && !c.luu && PID && el.getAttribute('data-id') === PID && giaTri() === c.u){
+    c.luu = true;
+    try{
+      F.updateDoc(C.doc('products', PID), { image:c.u })['catch'](function(er){
+        c.luu = false; alert('⚠️ Chưa lưu được ảnh vào sản phẩm: ' + ((er && (er.code || er.message)) || er));
+      });
+      noi('📷 Đã lưu ảnh cho sản phẩm');
+      try{ C.dirty(); }catch(er){}
+    }catch(er){ c.luu = false; }
+  }
+}, true);
+
+M.act('asp-cam', function(){ if(DOI_LUU) return; var i = $('asp-in-cam'); if(i) i.click(); });
+M.act('asp-lib', function(){ if(DOI_LUU) return; var i = $('asp-in-lib'); if(i) i.click(); });
+M.act('asp-pv', function(){
+  var pv = $('asp-pv'), s = OBJ || anh(giaTri());
+  if(s && pv && !pv.classList.contains('hong')){ xem(s); return; }
+  if(!JOB && !DOI_LUU){ var i = $('asp-in-lib'); if(i) i.click(); }
+});
+M.act('asp-bo', function(){
+  if(JOB){ dung(); boObj(); tt('Đã dừng tải ảnh.', ''); ve(); return; }
+  var c = CHO; CHO = null; if(c && !c.luu) xoa(c.p);
+  datGT(''); tt('Đã bỏ ảnh — bấm Lưu để cập nhật.', ''); ve();
+});
+M.act('asp-link', function(){
+  if(JOB || DOI_LUU){ tt('⏳ Ảnh đang tải lên — đợi xong đã.', ''); return; }
+  C.num('🔗 Dán link ảnh (bắt đầu bằng https://)', anh(giaTri()), function(t){
+    t = String(t == null ? '' : t).trim(); if(!t) return;
+    if(!/^https:\/\/\S+$/i.test(t)){ tt('⚠️ Link ảnh phải bắt đầu bằng https:// — chưa đổi ảnh.', 'loi'); return; }
+    var c = CHO; CHO = null; if(c && !c.luu) xoa(c.p);
+    datGT(t.slice(0, 2000)); tt('✅ Đã gắn link ảnh — bấm Lưu để giữ.', 'ok'); ve();
+  }, { text:true });
+});
+M.act('asp-xem', function(el){ xem(el.getAttribute('data-src') || el.getAttribute('src') || ''); });
+
+/* ═════════ 2) NÚT 📷 NHANH — chi tiết sản phẩm + Quản lý phòng (chọn xong là tự lưu) ═════════ */
+var qin = document.createElement('input');
+qin.type = 'file'; qin.accept = 'image/*'; qin.id = 'asp-in-q'; qin.className = 'asp-in'; qin.tabIndex = -1;
+qin.setAttribute('aria-hidden', 'true');
+($('pos-screen') || document.body).appendChild(qin);
+qin.addEventListener('change', function(){ nhanh(this); });
+
+M.act('asp-nhanh', function(el){
+  var pid = el.getAttribute('data-id'); if(!pid) return;
+  if(!coQuyen()){ alert('🔒 Tài khoản này không có quyền sửa sản phẩm.'); return; }
+  if(QJOB){ noi('⏳ Đang tải ảnh khác — đợi xong đã'); return; }
+  if(navigator.onLine === false){ alert('📶 Cần có mạng để tải ảnh lên.\nBán hàng offline vẫn bình thường — có mạng rồi gắn ảnh sau.'); return; }
+  if(!C.uid()){ alert('Chưa đăng nhập.'); return; }
+  QPID = pid; qin.click();
+});
+async function nhanh(inp){
+  var f = inp && inp.files && inp.files[0];
+  try{ inp.value = ''; }catch(e){}
+  var pid = QPID; QPID = null;
+  if(!f || !pid || QJOB) return;
+  if(f.type && !/^image\//i.test(f.type)){ alert('⚠️ Chỉ nhận tệp ảnh (JPG, PNG…).'); return; }
+  var p = sp(pid);
+  if(!p){ alert('⚠️ Không còn thấy sản phẩm này — mở lại rồi thử.'); return; }
+  var job = { huy:false, tre:false, loi:false, task:null, pc:0, pid:pid };
+  QJOB = job; veCT(); veRM();
+  var kq;
+  try{ var b = await nen(f); kq = await taiLen(b, job, null); }
+  catch(e){ QJOB = null; veCT(); veRM(); alert(loiTai(e, job)); return; }
+  QJOB = null;
+  try{
+    F.updateDoc(C.doc('products', pid), { image:kq.u })['catch'](function(er){
+      xoa(kq.p); veCT(); veRM();
+      alert('⚠️ Chưa lưu được ảnh vào sản phẩm: ' + ((er && (er.code || er.message)) || er));
+    });
+  }catch(er){ xoa(kq.p); veCT(); veRM(); alert('⚠️ Chưa lưu được ảnh: ' + ((er && (er.code || er.message)) || er)); return; }
+  veCT(pid, kq.u); veRM(pid, kq.u);
+  try{ C.dirty(); }catch(er){}
+  noi('✅ Đã gắn ảnh cho ' + (p.name || 'sản phẩm'));
+}
+
+/* Chi tiết sản phẩm (tab Kho → chạm SP): ảnh lớn + nút 📷 Thêm / Đổi ảnh */
+function veCT(pidMoi, urlMoi){
+  var b = $('sk-detail-body'); if(!b) return;
+  var nut = b.querySelector('[data-act="prod-edit"][data-id]'); if(!nut) return;
+  var pid = nut.getAttribute('data-id'), p = sp(pid);
+  var s = (pidMoi && pid === pidMoi && urlMoi) ? urlMoi : (p ? anh(p.image) : '');
+  var cu = null, k;
+  for(k = 0; k < b.children.length; k++) if(b.children[k].classList && b.children[k].classList.contains('asp-dt')){ cu = b.children[k]; break; }
+  if(s){
+    if(!cu){ cu = document.createElement('div'); cu.className = 'asp-dt'; b.insertBefore(cu, b.firstChild); }
+    var im = cu.querySelector('img');
+    if(!im){ im = document.createElement('img'); im.alt = ''; im.setAttribute('data-act', 'asp-xem'); cu.appendChild(im); }
+    if(im.getAttribute('src') !== s){ cu.style.display = ''; im.setAttribute('src', s); }
+    im.setAttribute('data-src', s);
+  }else if(cu && cu.parentNode){ cu.parentNode.removeChild(cu); }
+  var acts = b.querySelector('.sk-dt-acts');
+  if(acts){
+    var q = acts.querySelector('.asp-nhanh');
+    if(!q){ q = document.createElement('button'); q.type = 'button'; q.className = 'sk-btn outline asp-nhanh'; q.setAttribute('data-act', 'asp-nhanh'); acts.appendChild(q); }
+    q.setAttribute('data-id', pid);
+    q.textContent = (QJOB && QJOB.pid === pid) ? '⏳ Đang tải ảnh…' : (s ? '📷 Đổi ảnh' : '📷 Thêm ảnh');
+  }
+}
+/* Quản lý phòng (Karaoke · Spa · Nhà nghỉ): ô 📷 đầu mỗi dòng phòng */
+function veRM(pidMoi, urlMoi){
+  var L = $('rm-mgr-list'); if(!L) return;
+  var ins = L.querySelectorAll('[data-rm-n]');
+  for(var i = 0; i < ins.length; i++){
+    var inp = ins[i], row = inp.parentNode, pid = inp.getAttribute('data-rm-n');
+    if(!row || !pid) continue;
+    var p = sp(pid), s = (pidMoi && pid === pidMoi && urlMoi) ? urlMoi : (p ? anh(p.image) : '');
+    var b = null, k;
+    for(k = 0; k < row.children.length; k++) if(row.children[k].classList && row.children[k].classList.contains('asp-rm')){ b = row.children[k]; break; }
+    if(!b){
+      b = document.createElement('button'); b.type = 'button'; b.className = 'asp-rm asp-nhanh';
+      b.setAttribute('data-act', 'asp-nhanh'); b.setAttribute('data-id', pid); b.title = 'Ảnh phòng';
+      row.insertBefore(b, row.firstChild);
+    }
+    if(QJOB && QJOB.pid === pid){ b.classList.remove('co'); b.textContent = '⏳'; continue; }
+    if(s){
+      var im = b.querySelector('img');
+      if(!im){ b.textContent = ''; im = document.createElement('img'); im.alt = ''; b.appendChild(im); }
+      if(im.getAttribute('src') !== s) im.setAttribute('src', s);
+      b.classList.add('co');
+    }else{ b.classList.remove('co'); b.textContent = '📷'; }
+  }
+}
+document.addEventListener('click', function(e){
+  var el = (e.target && e.target.closest) ? e.target.closest('[data-act="rm-mgr"]') : null;
+  if(el) setTimeout(function(){ try{ veRM(); }catch(er){} }, 0);
+}, false);
+
+/* ═════════ 3) ẢNH NHỎ Ở DANH SÁCH KHO (chỉ khi cửa hàng có dùng ảnh) ═════════ */
+function veKho(){
+  var box = $('sk-kholist'); if(!box) return;
+  var rows = box.querySelectorAll('.sk-row[data-id]'); if(!rows.length) return;
+  var L = C.products() || [], m = {}, co = false, i;
+  for(i = 0; i < L.length; i++) if(L[i] && L[i].id) m[L[i].id] = L[i];
+  for(i = 0; i < rows.length; i++){ var p0 = m[rows[i].getAttribute('data-id')]; if(p0 && anh(p0.image)){ co = true; break; } }
+  if(!co) return;                                                   /* shop không dùng ảnh ⇒ danh sách y như cũ */
+  for(i = 0; i < rows.length; i++){
+    var r = rows[i]; if(r.querySelector('.asp-th')) continue;
+    var p = m[r.getAttribute('data-id')], s = p ? anh(p.image) : '', el;
+    if(s){ el = document.createElement('img'); el.className = 'asp-th'; el.alt = ''; el.setAttribute('loading', 'lazy'); el.setAttribute('decoding', 'async'); el.setAttribute('src', s); }
+    else { el = document.createElement('span'); el.className = 'asp-th asp-th0'; el.textContent = chuDau(p && p.name); }
+    r.insertBefore(el, r.firstChild);
+  }
+}
+
+/* Ảnh hỏng / mất mạng ⇒ ẩn gọn, không hiện hình vỡ */
+document.addEventListener('error', function(e){
+  var t = e.target; if(!t || t.tagName !== 'IMG' || !t.classList) return;
+  try{
+    if(t.classList.contains('sk-tile-img')){ t.style.display = 'none'; return; }
+    if(t.classList.contains('asp-th')){
+      var row = t.parentNode, nm = row && row.querySelector ? row.querySelector('.sk-row-name') : null;
+      var s = document.createElement('span'); s.className = 'asp-th asp-th0'; s.textContent = chuDau(nm ? nm.textContent : '');
+      if(row) row.replaceChild(s, t); return;
+    }
+    var pa = t.parentNode;
+    if(pa && pa.classList && pa.classList.contains('asp-rm')){ pa.classList.remove('co'); pa.textContent = '📷'; return; }
+    if(pa && pa.classList && pa.classList.contains('asp-dt')){ pa.style.display = 'none'; }
+  }catch(er){}
+}, true);
+
+/* Đang tải ảnh ⇒ báo "bận" cho bộ tự cập nhật, khỏi tự tải lại trang giữa chừng */
+try{
+  var _banCu = window.__skBusy;
+  window.__skBusy = function(){
+    if(JOB || QJOB || DOI_LUU) return true;
+    return (typeof _banCu === 'function') ? _banCu.apply(this, arguments) : false;
+  };
+}catch(e){}
+
+/* ───────── GIAO DIỆN ───────── */
+M.css('asp', [
+'#pos-screen .asp-an{display:none!important}',
+'.asp-in{position:absolute!important;left:-9999px!important;top:0!important;width:1px!important;height:1px!important;opacity:0!important;pointer-events:none!important}',
+'#pos-screen .asp-box{margin:0 0 12px}',
+'#pos-screen .asp-lb{font-size:12.5px;font-weight:600;color:#6b7872;margin-bottom:6px}',
+'#pos-screen .asp-row{display:flex;gap:10px;align-items:flex-start}',
+'#pos-screen .asp-pv{position:relative;flex:none;width:96px;height:96px;border-radius:13px;border:1.5px dashed #bcd2c8;background:#f4f9f6;padding:0;overflow:hidden;display:flex;align-items:center;justify-content:center;color:#6f877c}',
+'#pos-screen .asp-pv.co{border:1px solid #d6e2dc;background:#fff}',
+'#pos-screen .asp-pv0{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:26px;line-height:1}',
+'#pos-screen .asp-pv0 small{font-size:10.5px;font-weight:700;color:#7d9189}',
+'#pos-screen .asp-pv img{position:absolute;left:0;top:0;width:100%;height:100%;object-fit:cover;display:none}',
+'#pos-screen .asp-pv.co img{display:block}',
+'#pos-screen .asp-pv.co .asp-pv0{visibility:hidden}',
+'#pos-screen .asp-pv.hong img{display:none}',
+'#pos-screen .asp-pv.hong .asp-pv0{visibility:visible}',
+'#pos-screen .asp-pc{position:absolute;left:0;top:0;right:0;bottom:0;display:none;align-items:center;justify-content:center;background:rgba(8,40,30,.5);color:#fff;font-weight:800;font-size:15px}',
+'#pos-screen .asp-pv.dang .asp-pc{display:flex}',
+'#pos-screen .asp-ctl{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px}',
+'#pos-screen .asp-btns{display:grid;grid-template-columns:1fr 1fr;gap:6px}',
+'#pos-screen .asp-b{min-width:0;border:1px solid #cfe0d9;background:#fff;color:#0a5f4a;border-radius:10px;padding:10px 4px;font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
+'#pos-screen .asp-b.g{background:#0d7a5f;border-color:#0d7a5f;color:#fff}',
+'#pos-screen .asp-b.s{padding:7px 4px;font-size:12px;font-weight:600;color:#44564f}',
+'#pos-screen .asp-b.r{color:#c0392b;border-color:#f0cfca}',
+'#pos-screen .asp-st{font-size:11.5px;color:#6b7872;line-height:1.45}',
+'#pos-screen .asp-st:empty{display:none}',
+'#pos-screen .asp-st.ok{color:#0a5f4a;font-weight:700}',
+'#pos-screen .asp-st.loi{color:#c0392b;font-weight:700}',
+'#pos-screen .asp-th{flex:none;width:42px;height:42px;border-radius:9px;object-fit:cover;background:#eef3f0}',
+'#pos-screen .asp-th0{display:flex;align-items:center;justify-content:center;font-weight:800;font-size:16px;color:#9db1a8}',
+'#pos-screen .asp-dt{margin:0 0 10px;border-radius:12px;overflow:hidden;background:#f4f7f5;border:1px solid #e3ece8}',
+'#pos-screen .asp-dt img{display:block;width:100%;max-height:220px;object-fit:contain;cursor:zoom-in}',
+'#pos-screen .asp-rm{flex:none;width:38px;height:38px;border-radius:9px;border:1.5px dashed #bcd2c8;background:#f4f9f6;padding:0;overflow:hidden;font-size:17px;line-height:1;color:#0a5f4a}',
+'#pos-screen .asp-rm.co{border:1px solid #d6e2dc;background:#fff}',
+'#pos-screen .asp-rm img{display:block;width:100%;height:100%;object-fit:cover}',
+'#pos-screen.no-invedit .asp-nhanh{display:none!important}',
+'.asp-xem{position:fixed;left:0;top:0;right:0;bottom:0;z-index:2147482000;background:rgba(0,0,0,.92);display:flex;align-items:center;justify-content:center;padding:calc(58px + env(safe-area-inset-top,0px)) 12px calc(20px + env(safe-area-inset-bottom,0px))}',
+'.asp-xem img{max-width:100%;max-height:100%;object-fit:contain;border-radius:8px}',
+'.asp-xem button{position:absolute;top:calc(10px + env(safe-area-inset-top,0px));right:12px;width:42px;height:42px;border-radius:50%;border:none;background:rgba(255,255,255,.2);color:#fff;font-size:19px;font-family:inherit;cursor:pointer}'
+].join('\n'));
+
+/* ───────── GẮN VÀO MÀN HÌNH CÓ SẴN ───────── */
+try{
+  var kl = $('sk-kholist');
+  if(kl && window.MutationObserver) new MutationObserver(function(){ try{ veKho(); }catch(e){} }).observe(kl, { childList:true });
+  veKho();
+}catch(e){}
+try{
+  var dtb = $('sk-detail-body');
+  if(dtb && window.MutationObserver) new MutationObserver(function(){ try{ veCT(); }catch(e){} }).observe(dtb, { childList:true });
+}catch(e){}
+
+}catch(e){ console.error('[asp] module Ảnh sản phẩm lỗi khởi động', e); }
+}
+})();
+</script>
+<!-- ═══════════════ HẾT: ẢNH SẢN PHẨM ═══════════════ -->
 </body>
 </html>
