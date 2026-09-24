@@ -749,7 +749,7 @@ import { getFirestore, initializeFirestore, persistentLocalCache, persistentMult
 import { getStorage, ref as _sref, uploadBytes, getDownloadURL, deleteObject, listAll }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
 
-const APP_BUILD = "2026-09-20-ONLINE"; // ⬆️ ĐỔI MỖI LẦN DEPLOY (đặt TRÙNG tên cache trong sw.js) — hiện ở ⚙️ Cài đặt để biết máy đã chạy bản mới chưa
+const APP_BUILD = "2026-09-24-ONLINE2"; // ⬆️ ĐỔI MỖI LẦN DEPLOY (đặt TRÙNG tên cache trong sw.js) — hiện ở ⚙️ Cài đặt để biết máy đã chạy bản mới chưa
 const firebaseConfig = {
   apiKey: "AIzaSyA_kjQ-CdASRkf50Glz3kQajlkD5qGWC4k",
   authDomain: "so-no-cc57a.firebaseapp.com",
@@ -18466,7 +18466,7 @@ if (window.__RMT_READY__) return; window.__RMT_READY__ = true;
 try{
 
 /* ĐỔI CHUỖI NÀY CHO TRÙNG APP_BUILD MỖI LẦN DEPLOY (chỉ để hiện ở bảng quản trị) */
-var BUILD = '2026-09-20-ONLINE';
+var BUILD = '2026-09-24-ONLINE2';
 var NHIP   = 6*3600*1000;          /* báo về tối đa 6 giờ 1 lần — khỏi tốn lượt ghi */
 var KEY_HB = 'rmt_hb_v1';
 var KEY_XEM= 'rmt_xem_v1';
@@ -18712,6 +18712,8 @@ setInterval(function(){
      • [BÁN ONLINE 2026-09-20] Nâng thành "Gói Bán online" (vẫn mã sono_qr): thêm
        CỬA HÀNG ONLINE cho mọi ngành — xem khối [ONLINE]. Tab hiện cho Đa năng ·
        F&B · Cân ký/Bán sỉ (F&B vẫn tên "Đơn QR"). Phần QR tại bàn giữ nguyên.
+     • [ĐỢT 2 · 2026-09-24] Mở nốt Thời trang · Mỹ phẩm (khách chọn size/màu) và
+       Karaoke · Spa · Nhà nghỉ (khách đặt phòng / đặt lịch) — xem khối [ĐỢT 2].
      ═══════════════════════════════════════════════════════════════════════════ -->
 <script type="module">
 (function(){
@@ -18988,14 +18990,14 @@ function veBao(){
   var cn = cnMay(), n = BAO.length, h = '', tuBan = BAO.some(laDonOnl) ? '' : ' từ bàn';   /* [ONLINE] */
   BAO.slice(0,3).forEach(function(d){
     var it = Array.isArray(d.items) ? d.items : [];
-    var mon = it.slice(0,3).map(function(x){ return (Number(x && x.q) || 0) + '× ' + String((x && x.n) || 'Món'); }).join(', ')
+    var mon = it.slice(0,3).map(function(x){ return (Number(x && x.q) || 0) + '× ' + String((x && x.n) || 'Món') + (x && x.v ? ' (' + tenBT(x.v) + ')' : ''); }).join(', ')   /* [ĐỢT 2] size/màu */
             + (it.length > 3 ? ', …' : '');
     var phut = Math.max(0, Math.floor((Date.now() - (Number(d.tsClient) || Date.now())) / 60000));
     var dcn = d.chiNhanh || 'main';
     h += '<div class="qb-don">'
-       + '<div class="qb-ban"><b>' + (laDonOnl(d) ? '🌐 ' + esc(d.khach || 'Khách online') : 'Bàn ' + esc(d.banTen || d.banId || '?')) + '</b><span>' + (phut ? phut + ' phút trước' : 'vừa xong') + '</span></div>'
+       + '<div class="qb-ban"><b>' + (laDonOnl(d) ? (laLich(d) ? '📅 ' : '🌐 ') + esc(d.khach || 'Khách online') : 'Bàn ' + esc(d.banTen || d.banId || '?')) + '</b><span>' + (phut ? phut + ' phút trước' : 'vừa xong') + '</span></div>'
        + (dcn !== cn ? '<div class="qb-cn">' + esc(tenCN(dcn)) + '</div>' : '')
-       + '<div class="qb-mon">' + (it.length ? it.length + ' món: ' + esc(mon) : 'Đơn chưa có món') + '</div>'
+       + '<div class="qb-mon">' + (laLich(d) ? esc(monBaoLich(d)) : (it.length ? it.length + ' món: ' + esc(mon) : 'Đơn chưa có món')) + '</div>'   /* [ĐỢT 2] */
        + (d.ghiChu ? '<div class="qb-gc">Ghi chú: ' + esc(String(d.ghiChu).slice(0,90)) + '</div>' : '')
        + '</div>';
   });
@@ -19302,6 +19304,8 @@ function htmlChaoHang(){
     + '<p>Mỗi cửa hàng có 1 link riêng để dán lên Zalo, Facebook hoặc in mã QR dán quầy. '
     + 'Khách mở link là xem hàng, đặt giao tận nơi hoặc đến lấy — đơn gửi thẳng về máy bán hàng kèm chuông báo, bấm nhận là thành đơn giữ mang tên khách.'
     + (fnb ? ' Quán ăn có thêm <b>mã QR dán bàn</b>: khách ngồi bàn tự gọi món, nhân viên chỉ bấm nhận.' : '')
+    + (laRm() ? ' Karaoke · Spa · Nhà nghỉ: khách <b>đặt phòng / đặt lịch</b> trước qua link, lịch hiện ngay trên thẻ phòng.' : '')   /* [ĐỢT 2] */
+    + (laFs() ? ' Thời trang · Mỹ phẩm: khách chọn đúng <b>size, màu</b>; nhận đơn là trừ đúng tồn từng size/màu.' : '')
     + '</p>'
     + (het ? '<div class="qrd-warn">Gói đã hết hạn ngày '
              + new Date(ms(LIC.paidUntil)).toLocaleDateString('vi-VN')
@@ -19806,7 +19810,8 @@ function capNhatHuy(n){
    • BÁN ÂM KHO: KHÔNG BAO GIỜ chặn đơn theo tồn kho (hàng về chưa kịp nhập máy vẫn
      bán được). Món hết thật thì chủ bấm "Tạm hết" từng món.
    • Đợt 1 mở cho: Bán hàng đa năng · Nhà hàng/Quán ăn/Cafe · Cân ký/Bán sỉ.
-     Thời trang (size/màu) và Karaoke/Spa (phòng) mở ở đợt sau.
+     Đợt 2 (2026-09-24) mở nốt Thời trang (size/màu) và Karaoke/Spa/Nhà nghỉ
+     (đặt phòng / đặt lịch) — xem khối [ĐỢT 2] cuối khối này.
    ═════════════════════════════════════════════════════════════════════════ */
 var OTK='', OSHARE=null, OCFG=null, OAN={}, OHET={}, O_SIG='', O_LAN=0, O_CANH='', O_LOI=false;
 var O_CN=null, O_CN_LUC=0, O_BANK=null, O_BANK_UID=null, oLam=false, oNhan=false, O_QR='';
@@ -19852,6 +19857,7 @@ function onlNap(d, cn){
   OCFG = chuanCfg(d.oCfg);
   OAN  = dsSet(d.oAn);
   OHET = dsSet(d.oHet);
+  OHETV = dsSet(d.oHetV);                                  /* [ĐỢT 2] size/màu "Tạm hết" */
   if(O_CN !== chiNhanh()){ O_CN = chiNhanh(); O_CN_LUC = Date.now(); }
 }
 async function docCfgOnl(){
@@ -19926,16 +19932,24 @@ function giaBac(t, q, goc){
 }
 function kt(x){ var s = JSON.stringify(x); try{ return new TextEncoder().encode(s).length; }catch(e){ return unescape(encodeURIComponent(s)).length; } }
 function dungMenuOnl(){
-  var P = C.products() || [], menu = [], bo = 0, boAnh = 0, i, j;
+  var P = C.products() || [], menu = [], phong = [], bo = 0, boAnh = 0, i, j;
+  var fs = laFs(), rm = laRm();                              /* [ĐỢT 2] */
   for(i = 0; i < P.length; i++){
     var p = P[i];
     if(!p || !p.id || !p.name) continue;
     if(p.qrAn === true || OAN[p.id]) continue;
+    if(rm){                                                   /* [ĐỢT 2] phòng ⇒ mục ĐẶT PHÒNG, KHÔNG bán như hàng */
+      var ph = rmCua(p);
+      if(ph){ if(phong.length < MAX_PHONG) phong.push(phongLink(p, ph)); continue; }
+      if(laSpPhong(p)) continue;
+    }
     if(menu.length >= MAX_ONL){ bo++; continue; }
     var m = { i: String(p.id), n: String(p.name).slice(0, 80), p: Number(p.price) || 0,
               u: String(p.baseUnit || 'cái').slice(0, 20), c: String(p.category || 'Khác').slice(0, 40) };
     if(p.image && String(p.image).slice(0, 8) === 'https://') m.a = String(p.image).slice(0, 500);
     if(OHET[p.id]) m.h = 1;                    /* CHỈ "Tạm hết" do chủ bấm — không xét tồn kho (cho bán âm) */
+    var vs = fs ? bienThe(p) : null;                          /* [ĐỢT 2] size/màu: khách bắt buộc chọn, không bán theo đơn vị */
+    if(vs){ m.v = btLink(p, vs); menu.push(m); continue; }
     var dv = donViDS(p);
     if(dv.length > 1) m.d = dv.slice(1, 6).map(function(u){ return { n: u.name, r: u.ratio, p: u.price }; });
     var t = bacGia(p);
@@ -19948,13 +19962,13 @@ function dungMenuOnl(){
     menu.push(m);
   }
   /* Quá nặng thì bớt ảnh các món cuối trước, còn quá nữa mới bớt món */
-  var sz = menu.map(function(x){ return kt(x) + 1; }), tong = 2;
+  var sz = menu.map(function(x){ return kt(x) + 1; }), tong = 2 + (phong.length ? kt(phong) : 0);   /* [ĐỢT 2] phòng cũng tính vào trần */
   for(j = 0; j < sz.length; j++) tong += sz[j];
   for(j = menu.length - 1; j >= 0 && tong > TRAN_BYTE; j--){
     if(menu[j].a){ var cu = sz[j]; delete menu[j].a; sz[j] = kt(menu[j]) + 1; tong += sz[j] - cu; boAnh++; }
   }
   while(menu.length && tong > TRAN_BYTE){ tong -= sz.pop(); menu.pop(); bo++; }
-  return { menu: menu, bo: bo, boAnh: boAnh };
+  return { menu: menu, phong: phong, bo: bo, boAnh: boAnh };
 }
 function cfgCongKhai(){
   var c = OCFG || chuanCfg(null);
@@ -19962,11 +19976,18 @@ function cfgCongKhai(){
 }
 function goiOnl(){
   var r = dungMenuOnl(), c = OCFG || chuanCfg(null);
-  return { goi: { quan: String(TENQUAN || 'Cửa hàng').slice(0, 80), menu: r.menu, cfg: cfgCongKhai(),
-                  bank: (c.ck && O_BANK) ? O_BANK : null },
-           bo: r.bo, boAnh: r.boAnh };
+  var g = { quan: String(TENQUAN || 'Cửa hàng').slice(0, 80), menu: r.menu, cfg: cfgCongKhai(),
+            bank: (c.ck && O_BANK) ? O_BANK : null };
+  if(laRm()) g.phong = r.phong;                              /* [ĐỢT 2] mục đặt phòng */
+  if(nganhOnl()) g.nganh = nganhOnl();                       /* [ĐỢT 2] 'fs' | 'rm' — trang khách đổi cách hiện */
+  return { goi: g, bo: r.bo, boAnh: r.boAnh };
 }
-function goiCua(s){ return { quan: s.quan || '', menu: s.menu || [], cfg: s.cfg || null, bank: s.bank || null }; }
+function goiCua(s){
+  var g = { quan: s.quan || '', menu: s.menu || [], cfg: s.cfg || null, bank: s.bank || null };
+  if(s.phong !== undefined) g.phong = s.phong || [];         /* [ĐỢT 2] */
+  if(s.nganh) g.nganh = s.nganh;
+  return g;
+}
 /* JSON có sắp khoá ⇒ so sánh ổn định với dữ liệu Firestore trả về (Firestore không giữ thứ tự khoá) */
 function chuan(v){
   if(v === null || v === undefined || typeof v !== 'object') return JSON.stringify(v === undefined ? null : v);
@@ -19981,6 +20002,8 @@ async function ghiOnl(goi, batNhan){
   var u = uid(); if(!u || !OTK) throw new Error('Chưa sẵn sàng');
   var data = { ownerUid: u, chiNhanh: O_CN || chiNhanh(), kieu: 'online', quan: goi.quan, menu: goi.menu,
                cfg: goi.cfg, bank: goi.bank, capNhat: F.serverTimestamp() };
+  if(goi.phong !== undefined) data.phong = goi.phong;       /* [ĐỢT 2] */
+  if(goi.nganh) data.nganh = goi.nganh;
   if(batNhan !== undefined) data.nhanDon = !!batNhan;       /* tự cập nhật KHÔNG đụng công tắc nhận đơn */
   await F.setDoc(F.doc(F.db, 'shares_qr', OTK), data, { merge: true });
   var moi = {}, k;
@@ -19997,6 +20020,7 @@ async function dayOnl(moi, im){
     if(!uid()){ noi('Chưa đăng nhập'); return false; }
     if(!conHan(LIC)){ noi('⚠️ Gói Bán online chưa mở hoặc đã hết hạn'); return false; }
     if(!(C.products() || []).length){ noi('⚠️ Kho chưa có hàng nào để đưa lên link'); return false; }
+    if(!ngSanSang()){ noi('⏳ Đang tải ' + tenKetNg() + ' của cửa hàng — chờ vài giây rồi bấm lại'); return false; }   /* [ĐỢT 2] */
     if(!(await docCfgOnl())){ noi('⚠️ Chưa đọc được cài đặt (mạng yếu?) — bấm lại sau ít giây'); return false; }
     cu = OTK;
     if(OTK){ await docOShare(); if(O_LOI){ noi('⚠️ Chưa đọc được link hiện tại (mạng yếu?) — bấm lại sau ít giây'); return false; } }
@@ -20005,7 +20029,7 @@ async function dayOnl(moi, im){
     if(OCFG && OCFG.ck) await docBank(true);
     if(moi || !OTK) OTK = taoToken();
     var g = goiOnl();
-    if(!g.goi.menu.length){ OTK = cu; noi('⚠️ Chưa có món nào hiện online — bấm "Chọn hàng hiện online"'); return false; }
+    if(!demOnl(g.goi)){ OTK = cu; noi('⚠️ Chưa có ' + (laRm() ? 'phòng / món' : 'món') + ' nào hiện online — bấm "Chọn hàng hiện online"'); return false; }
     var taoMoi = (OTK !== cu) || !OSHARE;
     if(OTK !== cu) OSHARE = null;
     await ghiOnl(g.goi, taoMoi ? true : undefined);
@@ -20017,7 +20041,7 @@ async function dayOnl(moi, im){
       if(g.bo) them.push('bỏ bớt ' + g.bo + ' món (tối đa ' + MAX_ONL + ')');
       if(g.boAnh) them.push('bỏ ảnh ' + g.boAnh + ' món cho nhẹ');
       if(OCFG && OCFG.ck && !O_BANK) them.push('chưa có tài khoản ngân hàng nên chưa hiện mã chuyển khoản');
-      noi('✅ ' + (taoMoi ? 'Đã tạo link cửa hàng' : 'Đã cập nhật lên link') + ' (' + g.goi.menu.length + ' món)' + (them.length ? ' — ' + them.join(', ') : ''));
+      noi('✅ ' + (taoMoi ? 'Đã tạo link cửa hàng' : 'Đã cập nhật lên link') + ' (' + demTxt(g.goi) + ')' + (them.length ? ' — ' + them.join(', ') : ''));
     }
   }catch(e){
     OTK = cu; OSHARE = shCu; O_SIG = sigCu;
@@ -20035,9 +20059,10 @@ async function tuDongOnl(){
   if(Date.now() - O_CN_LUC < 15000 || Date.now() - O_LAN < 60000) return;
   try{ if(document.visibilityState && document.visibilityState !== 'visible') return; }catch(e){}
   var P = C.products(); if(!P || !P.length) return;
+  if(!ngSanSang()) return;                                   /* [ĐỢT 2] két ngành chưa về ⇒ chưa đưa */
   if(OCFG.ck && O_BANK_UID !== uid()){ await docBank(); if(O_BANK_UID !== uid()) return; }
   var g1 = goiOnl();
-  if(!g1.goi.menu.length || sigOnl(g1.goi) === O_SIG) return;
+  if(!demOnl(g1.goi) || sigOnl(g1.goi) === O_SIG) return;
   if(oLam) return;
   O_LAN = Date.now(); oLam = true;
   var cn = chiNhanh(), doi = false;
@@ -20046,9 +20071,10 @@ async function tuDongOnl(){
     await docOShare();
     if(!OSHARE || O_LOI || cn !== chiNhanh()) return;
     if(OCFG.ck && O_BANK_UID !== uid()) return;
+    if(!ngSanSang()) return;                                 /* [ĐỢT 2] */
     var g = goiOnl();
-    if(!g.goi.menu.length || sigOnl(g.goi) === O_SIG) return;        /* máy khác đã cập nhật đúng như vậy rồi */
-    var nCu = (OSHARE.menu || []).length, nMoi = g.goi.menu.length;
+    if(!demOnl(g.goi) || sigOnl(g.goi) === O_SIG) return;            /* máy khác đã cập nhật đúng như vậy rồi */
+    var nCu = demOnl(OSHARE), nMoi = demOnl(g.goi);
     if(nCu >= 10 && nMoi < nCu * 0.5){
       var canh = 'Kho đang ít hàng hơn hẳn so với trên link (' + nMoi + '/' + nCu + ' món) nên app KHÔNG tự cập nhật. Kiểm tra lại kho rồi bấm "Cập nhật hàng lên link".';
       if(O_CANH !== canh){ O_CANH = canh; doi = true; }
@@ -20235,6 +20261,7 @@ function chonOnl(){
   if(!OTK || !OSHARE){ noi('Chưa có link — bấm "Tạo link cửa hàng" trước'); return; }
   TAM_AN = {}; TAM_HET = {}; CHON_TIM = '';
   var k; for(k in OAN) TAM_AN[k] = 1; for(k in OHET) TAM_HET[k] = 1;
+  TAM_HETV = {}; for(k in OHETV) TAM_HETV[k] = 1;            /* [ĐỢT 2] */
   var el = modalO('qrd-ochon-m');
   el.querySelector('.sk-card').innerHTML = '<h3>🧺 Chọn hàng hiện online</h3>'
     + '<input id="qrd-ochon-tim" class="sk-inp" placeholder="Tìm hàng…" autocomplete="off" style="margin-bottom:8px">'
@@ -20263,7 +20290,8 @@ function veChonDem(){
   var P = (C.products() || []).filter(function(p){ return p && p.id && p.name && p.qrAn !== true; });
   var hien = P.filter(function(p){ return !TAM_AN[p.id]; }).length;
   var het = P.filter(function(p){ return !TAM_AN[p.id] && TAM_HET[p.id]; }).length;
-  d.innerHTML = 'Hiện <b>' + hien + '/' + P.length + '</b> món' + (het ? ' · <b>' + het + '</b> món đang "Tạm hết"' : '') + '. Bỏ tick = ẩn khỏi link.';
+  var nv = TAM_HETV ? Object.keys(TAM_HETV).length : 0;     /* [ĐỢT 2] */
+  d.innerHTML = 'Hiện <b>' + hien + '/' + P.length + '</b> món' + (het ? ' · <b>' + het + '</b> món đang "Tạm hết"' : '') + (nv ? ' · <b>' + nv + '</b> size/màu tạm hết' : '') + '. Bỏ tick = ẩn khỏi link.';
 }
 function veChon(){
   var box = document.getElementById('qrd-ochon-ds'); if(!box || !TAM_AN) return;
@@ -20277,10 +20305,11 @@ function veChon(){
        + '<button type="button" data-act="qrd-onhom" data-nhom="' + esc(g) + '" data-bat="1">Hiện cả nhóm</button>'
        + '<button type="button" data-act="qrd-onhom" data-nhom="' + esc(g) + '" data-bat="0">Ẩn cả nhóm</button></div>';
     theo[g].forEach(function(p){
-      var an = !!TAM_AN[p.id], het = !!TAM_HET[p.id];
+      var an = !!TAM_AN[p.id], het = !!TAM_HET[p.id], ph = rmCua(p);          /* [ĐỢT 2] phòng */
       h += '<div class="qrd-cr"><label><input type="checkbox" data-oan="' + esc(p.id) + '"' + (an ? '' : ' checked') + '>'
-         + '<span>' + esc(p.name) + '</span><i>' + tien(p.price) + '</i></label>'
-         + '<button type="button" class="qrd-het' + (het ? ' on' : '') + '" data-act="qrd-ohet" data-id="' + esc(p.id) + '">' + (het ? 'Tạm hết' : 'Còn hàng') + '</button></div>';
+         + '<span>' + (ph ? '🛏️ ' : '') + esc(p.name) + '</span><i>' + tien(ph ? ph.rate : p.price) + (ph ? '/giờ' : '') + '</i></label>'
+         + '<button type="button" class="qrd-het' + (het ? ' on' : '') + '" data-act="qrd-ohet" data-id="' + esc(p.id) + '">' + txtHetChon(het, !!ph) + '</button></div>'
+         + htmlBTChon(p);                                                      /* [ĐỢT 2] "Tạm hết" riêng từng size/màu */
     });
   });
   box.innerHTML = h;
@@ -20298,7 +20327,7 @@ function hetChon(id){
   var bs = box ? box.querySelectorAll('.qrd-het') : [];
   for(var i = 0; i < bs.length; i++){
     if(bs[i].getAttribute('data-id') !== id) continue;
-    bs[i].classList.toggle('on', !!TAM_HET[id]); bs[i].textContent = TAM_HET[id] ? 'Tạm hết' : 'Còn hàng';
+    bs[i].classList.toggle('on', !!TAM_HET[id]); bs[i].textContent = txtHetChon(!!TAM_HET[id], !!rmCua(sp(id)));   /* [ĐỢT 2] */
   }
   veChonDem();
 }
@@ -20307,11 +20336,13 @@ async function luuChon(){
   var co = {}; (C.products() || []).forEach(function(p){ if(p && p.id) co[p.id] = 1; });
   var an = Object.keys(TAM_AN).filter(function(id){ return co[id]; });          /* dọn id của món đã xoá khỏi kho */
   var het = Object.keys(TAM_HET).filter(function(id){ return co[id]; });
+  var ghi = { oAn: an, oHet: het }, hetV = null;                                 /* [ĐỢT 2] size/màu tạm hết */
+  if(laFs() || Object.keys(OHETV).length){ hetV = locHetV(TAM_HETV, co); ghi.oHetV = hetV; }
   try{
-    await F.setDoc(C.doc('pos_meta', 'qr'), { oAn: an, oHet: het }, { merge: true });
-    OAN = dsSet(an); OHET = dsSet(het);
+    await F.setDoc(C.doc('pos_meta', 'qr'), ghi, { merge: true });
+    OAN = dsSet(an); OHET = dsSet(het); if(hetV) OHETV = dsSet(hetV);
     C.closeModal('#qrd-ochon-m');
-    if(await dayOnl(false, true)) noi('✅ Đã lưu — link đang hiện ' + ((OSHARE && OSHARE.menu && OSHARE.menu.length) || 0) + ' món');
+    if(await dayOnl(false, true)) noi('✅ Đã lưu — link đang hiện ' + demTxt(OSHARE));
   }catch(e){ loiO(e, 'Lưu hàng hiện online'); }
 }
 
@@ -20324,6 +20355,8 @@ function tinhDonOnl(d){
   });
   its.forEach(function(it){
     it = it || {};
+    var dac = dongDac(it);                                   /* [ĐỢT 2] phòng · size/màu */
+    if(dac){ if(!dac.mat) tong += dac.gia * dac.q; dong.push(dac); return; }
     var p = sp(it.i), dv = p ? donViCua(p, it.u) : null, q = lamTron(it.q);
     var mat = !p || !dv || !(q > 0), gia = 0;
     if(!mat){
@@ -20338,22 +20371,22 @@ function tinhDonOnl(d){
 }
 function theDonOnl(d){
   var phut = Math.max(0, Math.floor((Date.now() - (Number(d.tsClient) || Date.now())) / 60000));
-  var r = tinhDonOnl(d), ck = d.ttoan === 'ck';
-  var h = '<div class="qrd-d qrd-don-onl"><div class="qrd-d-h"><b>🌐 ' + esc(d.khach || 'Khách online') + '</b>'
+  var r = tinhDonOnl(d), ck = d.ttoan === 'ck', lich = laRm() && (laLich(d) || coPhong(d));   /* [ĐỢT 2] đặt phòng / đặt lịch */
+  var h = '<div class="qrd-d qrd-don-onl' + (lich ? ' qrd-don-lich' : '') + '"><div class="qrd-d-h"><b>' + (lich ? '📅 ' : '🌐 ') + esc(d.khach || 'Khách online') + '</b>'
     + '<span>' + esc(maDon(d.id)) + ' · ' + (phut ? phut + ' phút trước' : 'vừa xong') + '</span></div>';
   if(d.sdt) h += '<div class="qrd-kh"><a href="tel:' + esc(d.sdt) + '">📞 ' + esc(d.sdt) + '</a><a href="https://zalo.me/' + esc(d.sdt) + '" target="_blank" rel="noopener">💬 Zalo</a></div>';
-  h += '<div class="qrd-gc2">' + (d.giao === 'giao' ? '🛵 Giao tới: <b>' + esc(d.diaChi || '') + '</b>' : '🏪 Khách đến lấy') + '</div>'
-     + '<div class="qrd-gc2">' + (ck ? '💳 Khách chọn <b>chuyển khoản</b> — nội dung: <b>' + esc(maDon(d.id).replace('-', ' ')) + '</b>' : '💵 Trả tiền mặt khi nhận hàng') + '</div>';
+  h += (lich ? htmlHenDon(d) : '<div class="qrd-gc2">' + (d.giao === 'giao' ? '🛵 Giao tới: <b>' + esc(d.diaChi || '') + '</b>' : '🏪 Khách đến lấy') + '</div>')
+     + '<div class="qrd-gc2">' + (ck ? '💳 Khách chọn <b>chuyển khoản</b> — nội dung: <b>' + esc(maDon(d.id).replace('-', ' ')) + '</b>' : (lich ? '💵 Trả tại quán' : '💵 Trả tiền mặt khi nhận hàng')) + '</div>';
   r.dong.forEach(function(l){
-    h += '<div class="qrd-li' + (l.mat ? ' mat' : '') + '"><i>' + soVN(l.q) + '×</i>'
-       + '<u>' + esc(l.ten) + (l.dv ? ' <small>(' + esc(l.dv) + ')</small>' : '') + (l.mat ? ' (' + esc(l.lyDo) + ')' : '')
+    h += '<div class="qrd-li' + (l.mat ? ' mat' : '') + '"><i>' + (l.phong ? '🛏️' : soVN(l.q) + '×') + '</i>'          /* [ĐỢT 2] phòng: số giờ ghi sau tên */
+       + '<u>' + esc(l.ten) + (l.phong ? ' <small>(' + soVN(l.q) + ' giờ)</small>' : (l.dv ? ' <small>(' + esc(l.dv) + ')</small>' : '')) + (l.mat ? ' (' + esc(l.lyDo) + ')' : '')
        + (l.g ? '<em>· ' + esc(l.g) + '</em>' : '') + '</u>'
        + '<s>' + (l.mat ? '—' : tien(Math.round(l.gia * l.q))) + '</s></div>';
   });
   if(d.ghiChu) h += '<div class="qrd-gc">Ghi chú: ' + esc(d.ghiChu) + '</div>';
   h += '<div class="qrd-t"><span>Tạm tính theo giá kho</span><b>' + tien(r.tong) + '</b></div>'
      + '<div class="qrd-row">'
-     + '<button class="qrd-b green" data-act="qrd-onhan" data-id="' + esc(d.id) + '">Nhận đơn</button>'
+     + '<button class="qrd-b green" data-act="qrd-onhan" data-id="' + esc(d.id) + '">' + (lich ? 'Nhận lịch' : 'Nhận đơn') + '</button>'
      + '<button class="qrd-b grey" data-act="qrd-onbo" data-id="' + esc(d.id) + '">Không nhận</button>'
      + (d.sdt ? '<button class="qrd-b red" data-act="qrd-onchan" data-id="' + esc(d.id) + '">Chặn số này</button>' : '')
      + '</div></div>';
@@ -20373,8 +20406,8 @@ function htmlOnl(){
   var nv = laMayNV(), h = '<div class="qrd-box qrd-onl"><div class="qrd-hd"><b>🌐 Cửa hàng online</b>';
   if(!OTK || !OSHARE){
     h += '</div>';
-    if(OTK && O_LOI) return htmlDonOnl() + h + '<div class="qrd-st">Chưa đọc được cửa hàng online (mạng yếu?).</div><div class="qrd-row"><button class="qrd-b" data-act="qrd-onap">Thử lại</button></div></div>';
-    return htmlDonOnl() + h + '<div class="qrd-st">Tạo 1 link cho cửa hàng này để dán lên Zalo, Facebook hoặc in mã QR dán quầy. Khách mở link là xem hàng và đặt <b>giao tận nơi</b> hoặc <b>đến lấy</b>. Đơn về đây kèm chuông báo, bấm nhận là thành đơn giữ mang tên khách.</div>'
+    if(OTK && O_LOI) return htmlDonOnl() + htmlLich() + h + '<div class="qrd-st">Chưa đọc được cửa hàng online (mạng yếu?).</div><div class="qrd-row"><button class="qrd-b" data-act="qrd-onap">Thử lại</button></div></div>';
+    return htmlDonOnl() + htmlLich() + h + '<div class="qrd-st">' + moTaLink() + '</div>'      /* [ĐỢT 2] */
       + (nv ? '<div class="qrd-warn" style="margin:9px 0 0">📱 Chỉ máy chủ shop tạo được link.</div>'
             : '<div class="qrd-row"><button class="qrd-b green" data-act="qrd-otao">Tạo link cửa hàng</button></div>')
       + '</div>';
@@ -20383,7 +20416,7 @@ function htmlOnl(){
   h += (nv ? '' : '<button class="qrd-sw' + (nhan ? ' on' : '') + '" data-act="qrd-osw" aria-label="Bật tắt nhận đơn online"></button>') + '</div>'
     + '<div class="qrd-st">Tên hiện cho khách: <b>' + esc(OSHARE.quan || TENQUAN || 'Cửa hàng') + '</b><br>'
     + (nhan ? 'Đang <b>nhận đơn</b> online.' : 'Đang <b>tắt</b> — khách mở link chỉ xem được hàng, không đặt được.')
-    + '<br>Trên link: <b>' + ((OSHARE.menu && OSHARE.menu.length) || 0) + ' món</b> · ' + esc(gioTxtO(c)) + ' · ' + esc(cachTxtO(c))
+    + '<br>Trên link: <b>' + demTxt(OSHARE) + '</b> · ' + esc(gioTxtO(c)) + ' · ' + esc(cachTxtO(c))
     + ((c.ck && O_BANK) ? ' · nhận chuyển khoản' : '') + '</div>'
     + '<div class="qrd-lnk">' + esc(linkOnl()) + '</div>'
     + (O_CANH ? '<div class="qrd-warn" style="margin:9px 0 0">' + esc(O_CANH) + '</div>' : '')
@@ -20398,8 +20431,9 @@ function htmlOnl(){
     + '<button class="qrd-b" data-act="qrd-ocfg">Cài đặt</button>'
     + '<button class="qrd-b" data-act="qrd-oten">Đổi tên</button>'
     + '<button class="qrd-b red" data-act="qrd-odoi">Đổi link</button></div>'
-    + '<div class="qrd-st" style="margin-top:8px">Giá và hàng tự cập nhật lên link khoảng 1 phút sau khi bạn sửa kho, miễn máy chủ shop đang mở app. Món hết thật thì vào "Chọn hàng hiện online" bấm "Tạm hết".</div>';
-  return htmlDonOnl() + h + '</div>';            /* đơn đang chờ lên TRƯỚC, khung cài đặt xuống dưới */
+    + '<div class="qrd-st" style="margin-top:8px">Giá và hàng tự cập nhật lên link khoảng 1 phút sau khi bạn sửa kho, miễn máy chủ shop đang mở app. Món hết thật thì vào "Chọn hàng hiện online" bấm "Tạm hết".'
+    + (laFs() ? ' Hết riêng 1 size/màu thì bấm vào đúng size/màu đó.' : '') + (laRm() ? ' Phòng cần ngưng nhận đặt thì bấm "Nhận đặt" ở phòng đó.' : '') + '</div>';   /* [ĐỢT 2] */
+  return htmlDonOnl() + htmlLich() + h + '</div>';            /* đơn đang chờ lên TRƯỚC, lịch đặt phòng, khung cài đặt xuống dưới */
 }
 /* Chờ máy chủ tối đa 5 giây khi có mạng; mất mạng thì coi như đã xếp hàng chờ gửi */
 function choGhi(p){
@@ -20416,11 +20450,19 @@ async function nhanOnl(id){
     var d = DON.find(function(x){ return x.id === id; });
     if(!d || !laDonOnl(d)){ noi('Đơn không còn'); return; }
     if((d.chiNhanh || 'main') !== chiNhanh()){ noi('Đơn này của cửa hàng khác — đổi sang cửa hàng đó để nhận'); return; }
+    if(laRm()){                                                                          /* [ĐỢT 2] Karaoke · Spa · Nhà nghỉ */
+      var _t = ketNg('rm');
+      if(_t !== 'ok'){ noi(_t === 'khoa' ? '🔒 Gói Karaoke · Spa · Nhà nghỉ đã hết hạn' : '⏳ Đang tải dữ liệu phòng — chờ vài giây rồi bấm lại'); return; }
+      if(laLich(d) || coPhong(d)){ await nhanLich(d); return; }                           /* đặt phòng / đặt lịch ⇒ KHÔNG thành đơn giữ */
+    }
+    if(laFs()){ var _f = ketNg('fs'); if(_f === 'cho' || _f === 'loi'){ noi('⏳ Đang tải size/màu — chờ vài giây rồi bấm Nhận lại'); return; } }   /* [ĐỢT 2] */
     var lines = [], mat = [];
     (d.items || []).forEach(function(it){
       it = it || {};
       var p = sp(it.i), q = lamTron(it.q);
       if(!p){ mat.push(String(it.n || 'Món') + ' (không còn trong kho)'); return; }      /* KHÔNG nhét id lạ vào giỏ */
+      var bt = dongBTNhan(p, it, q);                                                     /* [ĐỢT 2] hàng có size/màu */
+      if(bt){ if(bt.mat) mat.push(bt.mat); else if(bt.line) gopDong(lines, bt.line); return; }
       var dv = donViCua(p, it.u);
       if(!dv){ mat.push(String(p.name) + ' (đơn vị "' + String(it.u || '') + '" không còn)'); return; }
       if(!(q > 0)) return;
@@ -20536,12 +20578,12 @@ async function donDepOnl(){
   try{ truoc = Number(localStorage.getItem(k)) || 0; }catch(e){}
   if(Date.now() - truoc < 86400000) return;
   try{ localStorage.setItem(k, String(Date.now())); }catch(e){}
-  var han = Date.now() - 3 * 86400000, loai = ['nhan', 'huy'];
+  var han = Date.now() - 3 * 86400000, loai = ['nhan', 'huy', 'xong', 'bo', 'lich'];   /* [ĐỢT 2] thêm trạng thái của lịch đặt */
   for(var i = 0; i < loai.length; i++){
     try{
       var s = await F.getDocs(F.query(F.collection(F.db, 'qr_don'), F.where('ownerUid', '==', u), F.where('tt', '==', loai[i]), F.limit(100)));
       var b = F.writeBatch(F.db), n = 0;
-      s.forEach(function(d){ var o = d.data() || {}, t = ms(o.taoLuc) || Number(o.tsClient) || 0; if(t && t < han){ b.delete(d.ref); n++; } });
+      s.forEach(function(d){ var o = d.data() || {}; if(nenXoa(o, loai[i], han)){ b.delete(d.ref); n++; } });   /* [ĐỢT 2] */
       if(n) await b.commit();
     }catch(e){}
   }
@@ -20599,6 +20641,607 @@ M.act('qrd-mdong',     function(el, ds){ try{ if(ds.target) C.closeModal(ds.targ
 setInterval(function(){ try{ tuDongOnl().catch(function(){}); }catch(e){} }, 30000);
 setTimeout(function(){ try{ donDepOnl().catch(function(){}); }catch(e){} }, 25000);
 setInterval(function(){ try{ donDepOnl().catch(function(){}); }catch(e){} }, 600000);
+/* ═════════════════════════════════════════════════════════════════════════
+   [ĐỢT 2] BÁN ONLINE CHO THỜI TRANG · MỸ PHẨM VÀ KARAOKE · SPA · NHÀ NGHỈ (2026-09-24)
+   THỜI TRANG (két pos_fs): hàng có size/màu ⇒ link đưa kèm size/màu, khách bắt buộc
+     chọn đủ size + màu. Nhận đơn ⇒ đơn giữ với dòng hàng Y HỆT bán tại quầy (đơn vị =
+     mã "size|màu", tỉ lệ 1, giá = giá size/màu hoặc giá món) ⇒ thanh toán xong module
+     Thời trang tự trừ đúng tồn TỪNG size/màu, tồn tổng vẫn khớp.
+     Vẫn cho bán âm: KHÔNG chặn theo tồn. Size/màu hết thật thì chủ bấm vào đúng
+     size/màu đó trong "Chọn hàng hiện online" (lưu ở pos_meta/qr.oHetV).
+   KARAOKE · SPA · NHÀ NGHỈ (két pos_rm): phòng KHÔNG bán như hàng. Link có mục PHÒNG
+     để khách ĐẶT PHÒNG / ĐẶT LỊCH: ngày, giờ đến, số giờ dự kiến, đặt kèm đồ/dịch vụ.
+     Nhận lịch ⇒ đơn sang trạng thái 'lich' (chưa phát sinh tiền, không thành đơn giữ)
+     ⇒ hiện ở "📅 Lịch đặt phòng" + trên thẻ phòng ở tab Phòng.
+     "Khách đến · mở phòng" ⇒ mở phòng y như bấm tay, đồ đặt trước vào thẳng phòng;
+     tính giờ + thanh toán vẫn là luồng Phòng cũ. Vòng đời: cho → lich → xong | bo.
+     Giờ hẹn nằm trong từng dòng hàng (field h), đổi giờ ⇒ field henMoi. Rules chỉ soi
+     số dòng hàng, không soi bên trong ⇒ KHÔNG phải sửa Rules.
+   Két ngành chưa tải xong ⇒ không đưa hàng lên link, không nhận đơn có size/màu, không
+     nhận lịch — đưa thiếu size/màu hay đưa phòng lên như hàng là sai tiền.
+   ═════════════════════════════════════════════════════════════════════════ */
+var OHETV = {}, TAM_HETV = null, MAX_BT = 80, MAX_PHONG = 200;
+var LICH = [], LICH_UNSUB = null, LICH_KEY = '', LICH_LOI = 0, T_LICH = null, lichLam = false, OB_RM = null, LICH_VE = 0;
+var THU_VN = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
+
+function laFs(){ try{ return M.flag('fs'); }catch(e){ return false; } }
+function laRm(){ try{ return M.flag('rm'); }catch(e){ return false; } }
+function nganhOnl(){ return laRm() ? 'rm' : (laFs() ? 'fs' : ''); }
+/* Trạng thái két ngành: 'ok' · 'cho' (đang tải) · 'loi' (mạng) · 'khoa' (hết hạn gói ngành) */
+function ketNg(ns){ try{ if(window.SKNG){ window.SKNG.mo(ns); return window.SKNG.tt(ns); } }catch(e){} return 'ok'; }
+function ngSanSang(){ return !(laFs() && ketNg('fs') !== 'ok') && !(laRm() && ketNg('rm') !== 'ok'); }
+function tenKetNg(){ return laRm() ? 'dữ liệu phòng' : 'size/màu'; }
+
+/* ───────── size / màu ───────── */
+function bienThe(p){
+  if(!p || !laFs()) return null;
+  var v = null;
+  try{
+    if(window.SKNG){ window.SKNG.mo('fs'); v = window.SKNG.layDS('fs', 'v', p.id, p.fsVar); }
+    else v = (p.fsVar && p.fsVar.length) ? p.fsVar : null;
+  }catch(e){ v = null; }
+  if(!Array.isArray(v)) return null;
+  v = v.filter(function(x){ return x && x.k != null && String(x.k) !== ''; });
+  return v.length ? v : null;
+}
+function btCua(p, k){
+  var vs = bienThe(p) || [], kk = String(k), i;
+  for(i = 0; i < vs.length; i++) if(String(vs[i].k) === kk) return vs[i];
+  return null;
+}
+function giaBT(p, v){ return Number(v && v.price) || Number(p && p.price) || 0; }     /* y hệt bán tại quầy: v.price || p.price || 0 */
+function tenBT(k){ return String(k == null ? '' : k).replace('|', ' · '); }
+function btLink(p, vs){
+  var goc = Number(p.price) || 0;
+  return vs.slice(0, MAX_BT).map(function(v){
+    var k = String(v.k), x = { s: String(v.s == null ? '' : v.s).slice(0, 60), c: String(v.c == null ? '' : v.c).slice(0, 60) };
+    if(k !== x.s + '|' + x.c) x.k = k.slice(0, 130);                  /* mã lạ (dữ liệu cũ) ⇒ gửi kèm mã gốc */
+    var g = giaBT(p, v); if(g !== goc) x.p = g;
+    if(OHETV[p.id + '|' + k]) x.h = 1;                                /* CHỈ "Tạm hết" do chủ bấm — không xét tồn */
+    return x;
+  });
+}
+
+/* ───────── phòng ───────── */
+function rmCua(p){
+  if(!p || !laRm()) return null;
+  var r = null;
+  try{
+    if(window.SKNG){ window.SKNG.mo('rm'); r = window.SKNG.layRM(p); }
+    else if(p.rmRate > 0 || p.rmOpenAt > 0) r = { rate: p.rmRate || 0, min: (p.rmMin == null ? 60 : p.rmMin), openAt: p.rmOpenAt || 0, cart: p.rmCart || [] };
+  }catch(e){ r = null; }
+  return (r && Number(r.rate) > 0) ? r : null;
+}
+/* Sản phẩm tạo bằng "➕ Thêm phòng": nhóm "Phòng", đơn vị "giờ" — két chưa có giá giờ
+   thì vẫn KHÔNG được đưa lên link như hàng thường. */
+function laSpPhong(p){ return !!(p && String(p.category || '') === 'Phòng' && String(p.baseUnit || '') === 'giờ'); }
+function phutTT(r){ var m = Number(r && r.min); return (r && r.min != null && m >= 0) ? m : 60; }   /* phút tính tiền tối thiểu */
+function gioTT(r){ return Math.max(1, Math.ceil(phutTT(r) / 60)); }                                 /* giờ đặt tối thiểu */
+function phongLink(p, r){
+  var x = { i: String(p.id), n: String(p.name).slice(0, 80), p: Number(r.rate) || 0, m: phutTT(r) };
+  if(p.image && String(p.image).slice(0, 8) === 'https://') x.a = String(p.image).slice(0, 500);
+  if(OHET[p.id]) x.h = 1;                                            /* "Tạm ngưng" nhận đặt phòng này */
+  return x;
+}
+function demOnl(g){ return ((g && g.menu) || []).length + ((g && g.phong) || []).length; }
+function demTxt(s){
+  var n = ((s && s.menu) || []).length, ph = ((s && s.phong) || []).length;
+  return n + ' món' + ((laRm() || ph) ? ' · ' + ph + ' phòng' : '');
+}
+function moTaLink(){
+  if(laRm()) return 'Tạo 1 link cho cửa hàng này để dán lên Zalo, Facebook hoặc in mã QR dán quầy. Khách mở link là xem phòng và <b>đặt phòng / đặt lịch</b> trước (chọn ngày, giờ đến, số giờ), đặt kèm đồ hoặc dịch vụ được. Lịch về đây kèm chuông báo, bấm nhận là lịch hiện ngay trên thẻ phòng.';
+  return 'Tạo 1 link cho cửa hàng này để dán lên Zalo, Facebook hoặc in mã QR dán quầy. Khách mở link là xem hàng và đặt <b>giao tận nơi</b> hoặc <b>đến lấy</b>. Đơn về đây kèm chuông báo, bấm nhận là thành đơn giữ mang tên khách.'
+    + (laFs() ? ' Hàng có size/màu thì khách phải chọn đúng size, màu.' : '');
+}
+
+/* ───────── giờ Việt Nam (UTC+7 — máy đặt múi giờ nào cũng hiện đúng) ───────── */
+function vnG(ms){ var d = new Date(Number(ms) + 7 * 3600000); return { y: d.getUTCFullYear(), mo: d.getUTCMonth() + 1, d: d.getUTCDate(), h: d.getUTCHours(), mi: d.getUTCMinutes(), w: d.getUTCDay() }; }
+function so2(n){ return (n < 10 ? '0' : '') + n; }
+function ngayVN(ms){ var g = vnG(ms); return g.y * 10000 + g.mo * 100 + g.d; }
+function txtNgay(ms){
+  var g = vnG(ms), n = ngayVN(ms), bay = Date.now();
+  if(n === ngayVN(bay)) return 'hôm nay';
+  if(n === ngayVN(bay + 86400000)) return 'ngày mai';
+  if(n === ngayVN(bay - 86400000)) return 'hôm qua';
+  return THU_VN[g.w] + ' ' + so2(g.d) + '/' + so2(g.mo);
+}
+function txtHen(ms){ if(!(ms > 0)) return 'chưa hẹn giờ'; var g = vnG(ms); return so2(g.h) + ':' + so2(g.mi) + ' ' + txtNgay(ms); }
+function txtHenNgan(ms){ var g = vnG(ms); return so2(g.h) + ':' + so2(g.mi) + (ngayVN(ms) === ngayVN(Date.now()) ? '' : ' ' + so2(g.d) + '/' + so2(g.mo)); }
+function conBao(ms){
+  if(!(ms > 0)) return '';
+  var p = Math.round((ms - Date.now()) / 60000), a = Math.abs(p);
+  if(a < 1) return 'đúng giờ';
+  var t = a >= 1440 ? Math.floor(a / 1440) + ' ngày' : a >= 60 ? Math.floor(a / 60) + ' giờ' + (a % 60 ? ' ' + (a % 60) + ' phút' : '') : a + ' phút';
+  return (p > 0 ? 'còn ' : 'trễ ') + t;
+}
+
+/* ───────── đơn đặt lịch ───────── */
+function henCua(d){
+  if(!d) return 0;
+  var h = Number(d.henMoi) || 0; if(h > 0) return h;
+  var its = Array.isArray(d.items) ? d.items : [], i;
+  for(i = 0; i < its.length; i++){ var x = Number(its[i] && its[i].h) || 0; if(x > 0) return x; }
+  return 0;
+}
+function laLich(d){
+  if(!d || !laDonOnl(d)) return false;
+  if(d.tt === 'lich' || henCua(d) > 0) return true;
+  return (Array.isArray(d.items) ? d.items : []).some(function(it){ return !!(it && it.r); });
+}
+/* Có dòng trỏ vào PHÒNG (kể cả từ trang khách cũ còn trong bộ nhớ đệm) ⇒ coi là đặt lịch */
+function coPhong(d){
+  return (Array.isArray(d && d.items) ? d.items : []).some(function(it){ var p = sp(it && it.i); return !!(p && (rmCua(p) || laSpPhong(p))); });
+}
+function phongIdCua(d){
+  var its = Array.isArray(d && d.items) ? d.items : [], i;
+  for(i = 0; i < its.length; i++) if(its[i] && its[i].r && its[i].i) return String(its[i].i);
+  return '';
+}
+function gioCua(d){
+  var its = Array.isArray(d && d.items) ? d.items : [], i;
+  for(i = 0; i < its.length; i++) if(its[i] && its[i].r) return lamTron(its[i].q) || 1;
+  return 1;
+}
+function gopDong(lines, l){
+  for(var i = 0; i < lines.length; i++) if(lines[i].key === l.key){
+    lines[i].qty = lamTron((Number(lines[i].qty) || 0) + l.qty);
+    lines[i].baseQty = lamTron(lines[i].qty * (Number(lines[i].ratio) || 1));
+    return;
+  }
+  lines.push(l);
+}
+/* Tách 1 lịch: phòng (giá giờ theo kho) + món đặt trước (giá theo kho, y như Nhận đơn) */
+function lichCua(d){
+  var its = Array.isArray(d && d.items) ? d.items : [], phong = null, lines = [], mat = [];
+  its.forEach(function(it){
+    it = it || {};
+    var p = sp(it.i), r = p ? rmCua(p) : null, q = lamTron(it.q);
+    if(it.r || r || laSpPhong(p)){
+      if(!p || !r){ mat.push(String(it.n || (p && p.name) || 'Phòng') + ' (phòng không còn)'); return; }
+      if(phong){ mat.push(String(p.name) + ' (mỗi lịch chỉ 1 phòng)'); return; }
+      if(!(q > 0)) q = gioTT(r);
+      phong = { id: p.id, name: String(p.name), rate: Number(r.rate) || 0, gio: q };
+      return;
+    }
+    if(!p){ mat.push(String(it.n || 'Món') + ' (không còn trong kho)'); return; }      /* KHÔNG nhét id lạ vào phòng */
+    var dv = donViCua(p, it.u);
+    if(!dv){ mat.push(String(p.name) + ' (đơn vị "' + String(it.u || '') + '" không còn)'); return; }
+    if(!(q > 0)) return;
+    var gc = String(it.g || '').trim().slice(0, 60);
+    gopDong(lines, { key: p.id + '|' + dv.name + (gc ? '|' + gc : ''), id: p.id, name: String(p.name) + (gc ? ' (' + gc + ')' : ''),
+                     unit: dv.name, ratio: dv.ratio, price: dv.price, cost: (Number(p.cost) || 0) * dv.ratio, qty: q, baseQty: lamTron(q * dv.ratio) });
+  });
+  return { phong: phong, lines: lines, mat: mat };
+}
+function trungLich(pid, hen, gio, boId){
+  if(!pid || !(hen > 0)) return null;
+  var b = hen + Math.max(1, Number(gio) || 1) * 3600000, kq = null;
+  LICH.forEach(function(x){
+    if(kq || !x || x.id === boId || x.tt !== 'lich' || phongIdCua(x) !== pid) return;
+    var h2 = henCua(x); if(!(h2 > 0)) return;
+    var b2 = h2 + Math.max(1, gioCua(x)) * 3600000;
+    if(hen < b2 && h2 < b) kq = x;
+  });
+  return kq;
+}
+/* Nhận lịch: KHÔNG sinh đơn giữ, KHÔNG đụng tiền — chỉ đổi trạng thái sang 'lich' */
+async function nhanLich(d){
+  var t = ketNg('rm');
+  if(t !== 'ok'){ noi(t === 'khoa' ? '🔒 Gói Karaoke · Spa · Nhà nghỉ đã hết hạn — gia hạn để nhận lịch' : '⏳ Đang tải dữ liệu phòng — chờ vài giây rồi bấm lại'); return; }
+  var r = lichCua(d), hen = henCua(d), ma = maDon(d.id), kh = d.khach || 'khách';
+  if(!r.phong && !r.lines.length){
+    if(confirm('Lịch của ' + kh + ' không còn phòng / món nào trong kho.\n\nBáo khách "không nhận" lịch này?')) await boOnl(d.id, true);
+    return;
+  }
+  var tr = r.phong ? trungLich(r.phong.id, hen, r.phong.gio, d.id) : null;
+  if(tr && !confirm('⚠️ ' + r.phong.name + ' đã có lịch của ' + (tr.khach || 'khách') + ' lúc ' + txtHen(henCua(tr)) + '.\n\nVẫn nhận lịch này?')) return;
+  if(!(hen > 0) && !confirm('Khách chưa hẹn giờ đến.\nNhận lịch rồi gọi ' + (d.sdt || 'khách') + ' hỏi giờ nhé?')) return;
+  /* 'lich' không được Rules chốt một lần như 'nhan' ⇒ đọc lại: máy khác vừa xử lý thì thôi */
+  try{
+    var s = await F.getDoc(F.doc(F.db, 'qr_don', d.id));
+    if(!s.exists() || String((s.data() || {}).tt || '') !== 'cho'){ noi('⚠️ Đơn này vừa được máy khác xử lý rồi'); return; }
+  }catch(e){}
+  var kq = await choGhi(F.updateDoc(F.doc(F.db, 'qr_don', d.id), { tt: 'lich', xuLy: F.serverTimestamp() }));
+  noi('✅ Đã nhận lịch ' + ma + ' của ' + kh + ' — nằm trong 📅 Lịch đặt phòng' + (kq === 'off' ? ' (máy đang mất mạng, có mạng sẽ tự gửi)' : ''));
+  if(r.mat.length) alert('Những mục sau KHÔNG nhận được:\n\n• ' + r.mat.join('\n• ') + '\n\nGọi khách báo giúp nhé.');
+}
+
+/* Dòng đặc biệt để HIỆN đơn (tinhDonOnl): phòng / hàng có size-màu. null = hàng thường */
+function dongDac(it){
+  var p = sp(it.i), q = lamTron(it.q);
+  if(laRm()){
+    var r = p ? rmCua(p) : null;
+    if(it.r || r || laSpPhong(p)){
+      var cho = ketNg('rm') !== 'ok';
+      if(!(q > 0)) q = r ? gioTT(r) : 1;
+      return { ten: p ? String(p.name) : String(it.n || 'Phòng'), q: q, dv: 'giờ', gia: r ? (Number(r.rate) || 0) : 0, phong: 1,
+               mat: cho || !p || !r, lyDo: cho ? 'đang tải dữ liệu phòng…' : (!p ? 'phòng không còn' : 'không còn là phòng'), g: '' };
+    }
+  }
+  if(laFs() && p && (it.v || bienThe(p))){
+    var tt = ketNg('fs'), cho2 = (tt === 'cho' || tt === 'loi'), v = (!cho2 && it.v) ? btCua(p, it.v) : null;
+    return { ten: String(p.name), q: q, dv: it.v ? tenBT(it.v) : String(it.u || ''), gia: v ? giaBT(p, v) : 0,
+             mat: cho2 || !v || !(q > 0),
+             lyDo: cho2 ? 'đang tải size/màu…' : (!it.v ? 'khách chưa chọn size/màu' : (!v ? 'size/màu này không còn' : '')), g: String(it.g || '') };
+  }
+  return null;
+}
+/* Dòng size/màu lúc NHẬN đơn — dựng y hệt module Thời trang lúc bán tại quầy
+   (C.addLine(p,{name:v.k,ratio:1,price:v.price||p.price||0})) để lúc thanh toán
+   module tự trừ đúng tồn size/màu. null = hàng thường. */
+function dongBTNhan(p, it, q){
+  if(!laFs()) return null;
+  var vs = bienThe(p);
+  if(!vs && !it.v) return null;
+  if(!it.v) return { mat: String(p.name) + ' (khách chưa chọn size/màu)' };
+  var v = vs ? btCua(p, it.v) : null;
+  if(!v) return { mat: String(p.name) + ' (size/màu "' + tenBT(it.v) + '" không còn)' };
+  if(!(q > 0)) return { bo: 1 };
+  var k = String(v.k), gc = String(it.g || '').trim().slice(0, 60);
+  return { line: { key: p.id + '|' + k + (gc ? '|' + gc : ''), id: p.id, name: String(p.name) + (gc ? ' (' + gc + ')' : ''),
+                   unit: k, ratio: 1, price: giaBT(p, v), cost: Number(p.cost) || 0, qty: q, baseQty: q } };
+}
+function htmlHenDon(d){
+  var hen = henCua(d), pid = phongIdCua(d), p = pid ? sp(pid) : null;
+  var h = '<div class="qrd-gc2">🕒 Hẹn đến: <b>' + esc(txtHen(hen)) + '</b>' + (hen > 0 ? ' · ' + esc(conBao(hen)) : ' — gọi khách hỏi giờ') + '</div>';
+  if(p && hen > 0 && ketNg('rm') === 'ok'){
+    var tr = trungLich(pid, hen, gioCua(d), d.id);
+    if(tr) h += '<div class="qrd-warn" style="margin:4px 0 6px">⚠️ ' + esc(p.name) + ' đã có lịch của ' + esc(tr.khach || 'khách') + ' lúc ' + esc(txtHen(henCua(tr))) + '</div>';
+  }
+  return h;
+}
+/* Khung chuông: 1 dòng tóm tắt lịch đặt */
+function monBaoLich(d){
+  var its = Array.isArray(d && d.items) ? d.items : [], ph = null, n = 0;
+  its.forEach(function(x){ if(!x) return; if(x.r){ if(!ph) ph = x; } else n++; });
+  return 'Đặt lịch ' + txtHen(henCua(d)) + (ph ? ' · ' + String(ph.n || 'Phòng') + ' (' + soVN(lamTron(ph.q) || 1) + ' giờ)' : '')
+       + (n ? ' · ' + n + ' món đặt trước' : '');
+}
+
+/* ───────── 📅 lịch đặt phòng đã nhận — nghe riêng, theo từng cửa hàng ───────── */
+function dungLich(){
+  if(LICH_UNSUB){ try{ LICH_UNSUB(); }catch(e){} LICH_UNSUB = null; }
+  if(T_LICH){ clearTimeout(T_LICH); T_LICH = null; }
+  LICH_KEY = ''; LICH_LOI = 0;
+  if(LICH.length){ LICH = []; ganLichPhong(); }
+}
+function ngheLich(){
+  var u = uid(), cn = chiNhanh(), key = u + '|' + cn;
+  if(!u) return;
+  if(LICH_KEY === key && (LICH_UNSUB || T_LICH)) return;          /* đang nghe / đang hẹn nối lại đúng kênh này */
+  if(LICH_KEY !== key){ dungLich(); LICH_KEY = key; }              /* đổi tài khoản / đổi cửa hàng ⇒ bỏ kênh cũ */
+  var huy = null;
+  try{
+    huy = F.onSnapshot(
+      F.query(F.collection(F.db, 'qr_don'), F.where('ownerUid', '==', u), F.where('tt', '==', 'lich'), F.where('chiNhanh', '==', cn), F.limit(200)),
+      function(s){
+        if(LICH_UNSUB !== huy) return;                             /* kênh cũ đã được thay — bỏ qua */
+        LICH_LOI = 0;
+        LICH = s.docs.map(function(x){ var o = x.data() || {}; o.id = x.id; return o; })
+                     .filter(function(o){ return o.tt === 'lich' && (o.chiNhanh || 'main') === cn; });
+        ganLichPhong();
+        try{ render(); }catch(e){}
+      },
+      function(e){
+        console.error('[qrd] mất kết nối lịch đặt phòng', e);
+        try{ if(huy) huy(); }catch(_){}
+        if(LICH_UNSUB === huy){ LICH_UNSUB = null; henLichLai(key); }   /* tự nối lại — không để danh sách đứng im */
+      });
+    LICH_UNSUB = huy;
+  }catch(e){ LICH_UNSUB = null; henLichLai(key); }
+}
+function henLichLai(key){
+  if(T_LICH) return;
+  LICH_LOI++;
+  var cho = Math.min(60000, 4000 * Math.pow(2, Math.min(LICH_LOI - 1, 4)));
+  T_LICH = setTimeout(function(){ T_LICH = null; if(LICH_KEY === key) xetLich(); }, cho);
+  try{ render(); }catch(e){}
+}
+function xetLich(){
+  try{
+    var u = uid();
+    if(!u || !DA_BOOT || !laRm() || !conHan(LIC)){ if(LICH_KEY || LICH.length) dungLich(); return; }
+    ngheLich();
+    ganObs();
+    /* giữ "còn … phút / trễ … phút" luôn mới khi đang mở tab Bán online */
+    if(LICH.length && Date.now() - LICH_VE > 60000){
+      var v = document.getElementById('sk-v-qrd');
+      if(v && v.classList.contains('sk-on')){ LICH_VE = Date.now(); render(); }
+    }
+  }catch(e){}
+}
+
+/* ───────── gắn nhãn 📅 lên thẻ phòng ở tab Phòng (chỉ thêm nhãn, không đụng module Phòng) ───────── */
+function ganObs(){
+  try{
+    var box = document.getElementById('rm-map');
+    if(!box || typeof MutationObserver !== 'function' || (OB_RM && OB_RM.__box === box)) return;
+    try{ if(OB_RM) OB_RM.disconnect(); }catch(e){}
+    OB_RM = new MutationObserver(function(){ ganLichPhong(); });
+    OB_RM.observe(box, { childList: true });                        /* module Phòng vẽ lại lưới ⇒ gắn lại nhãn */
+    OB_RM.__box = box;
+    ganLichPhong();
+  }catch(e){}
+}
+function ganLichPhong(){
+  try{
+    var box = document.getElementById('rm-map'); if(!box) return;
+    var cu = box.querySelectorAll('.qrd-rmhen'), i;
+    for(i = 0; i < cu.length; i++) cu[i].remove();
+    if(!LICH.length || !laRm()) return;
+    var bay = Date.now(), gan = {}, cn = chiNhanh();
+    LICH.forEach(function(d){
+      var pid = phongIdCua(d), h = henCua(d);
+      if(!pid || !(h > 0) || (d.chiNhanh || 'main') !== cn || h < bay - 3 * 3600000 || h > bay + 48 * 3600000) return;
+      if(!gan[pid] || henCua(gan[pid]) > h) gan[pid] = d;
+    });
+    var bs = box.querySelectorAll('.rm-c[data-id]');
+    for(i = 0; i < bs.length; i++){
+      var d = gan[bs[i].getAttribute('data-id')]; if(!d) continue;
+      var s = document.createElement('span'); s.className = 'qrd-rmhen';
+      s.textContent = '📅 ' + txtHenNgan(henCua(d)) + ' · ' + String(d.khach || 'Khách').slice(0, 14);
+      bs[i].appendChild(s);
+    }
+  }catch(e){}
+}
+
+/* ───────── khung "📅 Lịch đặt phòng" trong tab Bán online ───────── */
+function htmlLich(){
+  if(!laRm()) return '';
+  var cn = chiNhanh();
+  var ds = LICH.filter(function(d){ return (d.chiNhanh || 'main') === cn; })
+               .sort(function(a, b){ return (henCua(a) || 0) - (henCua(b) || 0); });
+  if(!ds.length && !(OTK && OSHARE) && !LICH_LOI) return '';
+  var h = '<div class="qrd-box qrd-lich"><div class="qrd-hd"><b>📅 Lịch đặt phòng' + (ds.length ? ' (' + ds.length + ')' : '') + '</b></div>';
+  if(LICH_LOI) h += '<div class="qrd-warn">⏳ Đang nối lại danh sách lịch đặt…</div>';
+  if(!ds.length) h += '<div class="qrd-st">Chưa có lịch nào. Khách đặt phòng qua link, bạn bấm "Nhận lịch" là lịch hiện ở đây và trên thẻ phòng.</div>';
+  ds.slice(0, 60).forEach(function(d){ h += theLich(d); });
+  return h + '</div>';
+}
+function theLich(d){
+  var hen = henCua(d), cho = ketNg('rm') !== 'ok', r = cho ? null : lichCua(d);
+  var tre = hen > 0 && Date.now() > hen + 15 * 60000, ph = r ? r.phong : null;
+  var h = '<div class="qrd-d' + (tre ? ' tre' : '') + '">'
+    + '<div class="qrd-d-h"><b>🕒 ' + esc(txtHen(hen)) + '</b><span>' + esc(conBao(hen)) + '</span></div>'
+    + '<div class="qrd-gc2"><b>' + esc(d.khach || 'Khách') + '</b> · ' + esc(maDon(d.id)) + '</div>';
+  if(d.sdt) h += '<div class="qrd-kh"><a href="tel:' + esc(d.sdt) + '">📞 ' + esc(d.sdt) + '</a><a href="https://zalo.me/' + esc(d.sdt) + '" target="_blank" rel="noopener">💬 Zalo</a></div>';
+  if(cho) h += '<div class="qrd-gc2">⏳ Đang tải dữ liệu phòng…</div>';
+  else{
+    h += '<div class="qrd-gc2">' + (ph ? '🛏️ <b>' + esc(ph.name) + '</b> · dự kiến ' + soVN(ph.gio) + ' giờ' : '🛏️ Khách chưa chọn phòng') + '</div>';
+    if(r.lines.length) h += '<div class="qrd-gc2">Đặt trước: ' + esc(r.lines.map(function(l){ return soVN(l.qty) + '× ' + l.name; }).join(', ')) + '</div>';
+    if(r.mat.length) h += '<div class="qrd-gc2 qrd-do">Không còn: ' + esc(r.mat.join(', ')) + '</div>';
+  }
+  if(d.ttoan === 'ck') h += '<div class="qrd-gc2">💳 Khách chọn chuyển khoản — nội dung: <b>' + esc(maDon(d.id).replace('-', ' ')) + '</b></div>';
+  if(d.ghiChu) h += '<div class="qrd-gc">Ghi chú: ' + esc(d.ghiChu) + '</div>';
+  return h + '<div class="qrd-row">'
+    + '<button class="qrd-b green" data-act="qrd-lden" data-id="' + esc(d.id) + '">Khách đến · mở phòng</button>'
+    + '<button class="qrd-b" data-act="qrd-lgio" data-id="' + esc(d.id) + '">Đổi giờ</button>'
+    + '<button class="qrd-b grey" data-act="qrd-lhuy" data-id="' + esc(d.id) + '">Huỷ lịch</button></div></div>';
+}
+function lichTim(id){ for(var i = 0; i < LICH.length; i++) if(LICH[i].id === id) return LICH[i]; return null; }
+function lichSanSang(d){
+  if(!d){ noi('Lịch này không còn'); return false; }
+  if((d.chiNhanh || 'main') !== chiNhanh()){ noi('Lịch này của cửa hàng khác — đổi sang cửa hàng đó'); return false; }
+  var t = ketNg('rm');
+  if(t !== 'ok'){ noi(t === 'khoa' ? '🔒 Gói Karaoke · Spa · Nhà nghỉ đã hết hạn' : '⏳ Đang tải dữ liệu phòng — chờ vài giây rồi bấm lại'); return false; }
+  return true;
+}
+/* 'lich' không được Rules chốt 1 lần như 'nhan' ⇒ đọc lại ngay trước khi ghi: máy khác vừa xử lý
+   thì thôi (2 máy cùng bấm "Khách vào phòng" không nhân đôi đồ). Mất mạng: đọc bộ nhớ đệm, vẫn làm được. */
+async function conLich(id){
+  try{ var s = await F.getDoc(F.doc(F.db, 'qr_don', id)); return s.exists() && String((s.data() || {}).tt || '') === 'lich'; }
+  catch(e){ return true; }
+}
+function daXuLy(){ noi('⚠️ Lịch này vừa được máy khác xử lý rồi'); try{ C.closeModal('#qrd-lphong-m'); }catch(e){} }
+/* "Khách đến": phòng đã đặt đang trống ⇒ hỏi 1 câu rồi mở; còn lại ⇒ bảng chọn phòng */
+async function denLich(id){
+  var d = lichTim(id); if(!lichSanSang(d)) return;
+  var r = lichCua(d), p = r.phong ? sp(r.phong.id) : null, rr = p ? rmCua(p) : null;
+  if(p && rr && !(Number(rr.openAt) > 0)){
+    if(!confirm('Mở ' + p.name + ' cho ' + (d.khach || 'khách') + '?' + (r.lines.length ? '\n' + r.lines.length + ' món đặt trước sẽ vào phòng.' : ''))) return;
+    await moLich(id, p.id, false);
+    return;
+  }
+  chonPhongLich(id);
+}
+function chonPhongLich(id){
+  var d = lichTim(id); if(!lichSanSang(d)) return;
+  var r = lichCua(d), dat = r.phong ? r.phong.id : '', pd = dat ? sp(dat) : null, rd = pd ? rmCua(pd) : null;
+  var ds = (C.products() || []).filter(function(p){ return p && p.id && rmCua(p); })
+            .sort(function(a, b){ return String(a.name).localeCompare(String(b.name), 'vi'); });
+  var h = '<h3>🛏️ ' + esc(d.khach || 'Khách') + ' đã đến</h3>'
+    + '<div class="qrd-st" style="margin-bottom:8px">'
+    + (dat ? 'Phòng đã đặt: <b>' + esc(r.phong.name) + '</b>' + (rd && Number(rd.openAt) > 0 ? ' — <b>đang có khách</b>' : '') + '. ' : '')
+    + 'Chọn phòng cho khách' + (r.lines.length ? ', ' + r.lines.length + ' món đặt trước sẽ vào phòng đó' : '') + '.</div>'
+    + '<div class="qrd-chon">';
+  if(!ds.length) h += '<div class="qrd-none" style="padding:18px 6px">Chưa có phòng nào — thêm ở tab Phòng.</div>';
+  ds.forEach(function(p){
+    var rr = rmCua(p), on = Number(rr.openAt) > 0;
+    h += '<div class="qrd-cr"><label><span>' + (p.id === dat ? '📅 ' : '') + esc(p.name) + '</span><i>' + (on ? 'đang có khách' : 'trống') + '</i></label>'
+       + (on ? '<button type="button" class="qrd-het" data-act="qrd-lvao" data-id="' + esc(id) + '" data-p="' + esc(p.id) + '">Khách vào phòng này</button>'
+             : '<button type="button" class="qrd-het mo" data-act="qrd-lmo" data-id="' + esc(id) + '" data-p="' + esc(p.id) + '">Mở phòng này</button>')
+       + '</div>';
+  });
+  h += '</div><div class="qrd-row" style="margin-top:10px">'
+    + (r.lines.length ? '<button class="qrd-b" data-act="qrd-lgiu" data-id="' + esc(id) + '">Không mở phòng · đưa đồ vào 🗂️ Đơn giữ</button>'
+                      : '<button class="qrd-b" data-act="qrd-lxong" data-id="' + esc(id) + '">Không mở phòng · chỉ ghi nhận đã đến</button>')
+    + '</div><div class="sk-card-acts" style="margin-top:10px"><span style="flex:1"></span><button class="sk-btn ghost" data-act="qrd-mdong" data-target="#qrd-lphong-m">Đóng</button></div>';
+  modalO('qrd-lphong-m').querySelector('.sk-card').innerHTML = h;
+  C.modal('#qrd-lphong-m');
+}
+/* Mở phòng (vao=false) / thêm đồ vào phòng đang có khách (vao=true) + đóng lịch — CÙNG 1 lượt ghi */
+async function moLich(id, pid, vao){
+  if(lichLam) return; lichLam = true;
+  try{
+    var d = lichTim(id); if(!lichSanSang(d)) return;
+    if(!(await conLich(id))){ daXuLy(); return; }
+    var p = sp(pid), rr = p ? rmCua(p) : null;
+    if(!p || !rr){ noi('⚠️ Phòng này không còn'); return; }
+    var dangCo = Number(rr.openAt) > 0;
+    if(!vao && dangCo){ noi('⚠️ ' + p.name + ' đang có khách — chọn phòng khác'); chonPhongLich(id); return; }
+    if(vao && !dangCo){ noi(p.name + ' đang trống — bấm "Mở phòng này"'); chonPhongLich(id); return; }
+    var r = lichCua(d), gio = vao ? JSON.parse(JSON.stringify(Array.isArray(rr.cart) ? rr.cart : [])) : [];
+    r.lines.forEach(function(l){ gopDong(gio, JSON.parse(JSON.stringify(l))); });
+    var ghi = { rate: Number(rr.rate) || 0, min: phutTT(rr), cart: gio };  /* kèm giá giờ + phút TT: phòng chưa chuyển két vẫn đủ dữ liệu */
+    if(!vao) ghi.openAt = Date.now();
+    var b = F.writeBatch(F.db);
+    b.set(C.doc('pos_rm', p.id), ghi, { merge: true });
+    b.update(F.doc(F.db, 'qr_don', id), { tt: 'xong', xuLy: F.serverTimestamp(), moPhong: p.id });
+    var kq = await choGhi(b.commit());
+    try{ C.closeModal('#qrd-lphong-m'); }catch(e){}
+    noi((vao ? '✅ Đã thêm ' + r.lines.length + ' món đặt trước vào ' : '▶️ Đã mở ') + p.name + ' cho ' + (d.khach || 'khách')
+        + (kq === 'off' ? ' (máy đang mất mạng, có mạng sẽ tự gửi)' : ''));
+    if(r.mat.length) alert('Những mục sau KHÔNG vào phòng:\n\n• ' + r.mat.join('\n• '));
+    try{ M.go('rm'); }catch(e){}
+  }catch(e){ loiO(e, 'Mở phòng cho lịch đặt'); }
+  finally{ lichLam = false; }
+}
+/* Không mở phòng: đồ đặt trước ⇒ đơn giữ (thanh toán tại quầy như mọi đơn giữ) */
+async function giuLich(id){
+  if(lichLam) return; lichLam = true;
+  try{
+    var d = lichTim(id); if(!lichSanSang(d)) return;
+    var r = lichCua(d);
+    if(!r.lines.length){ noi('Lịch này không có món đặt trước'); return; }
+    if(!(await conLich(id))){ daXuLy(); return; }
+    var st = null; try{ st = C.staff(); }catch(e){}
+    var ma = maDon(d.id);
+    var b = F.writeBatch(F.db);
+    b.set(F.doc(C.col('pos_held')), {
+      who: ('📅 ' + String(d.khach || 'Khách') + (d.sdt ? ' · ' + d.sdt : '')).slice(0, 80),
+      whoId: '', cart: r.lines, discount: 0,
+      note: [ma, 'Lịch hẹn ' + txtHen(henCua(d)), d.sdt ? ('SĐT ' + d.sdt) : '', d.ghiChu ? ('Ghi chú: ' + String(d.ghiChu)) : ''].filter(Boolean).join(' · ').slice(0, 300),
+      byId: st ? (st.id || '') : '', byName: st ? (st.name || 'Chủ') : 'Chủ',
+      createdAtMs: Date.now(), at: F.serverTimestamp() });
+    b.update(F.doc(F.db, 'qr_don', id), { tt: 'xong', xuLy: F.serverTimestamp() });
+    var kq = await choGhi(b.commit());
+    try{ C.closeModal('#qrd-lphong-m'); }catch(e){}
+    noi('✅ Đã đưa ' + r.lines.length + ' món của ' + (d.khach || 'khách') + ' vào 🗂️ Đơn giữ' + (kq === 'off' ? ' (máy đang mất mạng, có mạng sẽ tự gửi)' : ''));
+  }catch(e){ loiO(e, 'Đưa lịch vào đơn giữ'); }
+  finally{ lichLam = false; }
+}
+async function xongLich(id){
+  if(lichLam) return; lichLam = true;
+  try{
+    var d = lichTim(id); if(!d){ noi('Lịch này không còn'); return; }
+    if(!(await conLich(id))){ daXuLy(); return; }
+    await choGhi(F.updateDoc(F.doc(F.db, 'qr_don', id), { tt: 'xong', xuLy: F.serverTimestamp() }));
+    try{ C.closeModal('#qrd-lphong-m'); }catch(e){}
+    noi('✅ Đã ghi nhận ' + (d.khach || 'khách') + ' đã đến');
+  }catch(e){ loiO(e, 'Ghi nhận khách đến'); }
+  finally{ lichLam = false; }
+}
+async function huyLich(id){
+  var d = lichTim(id); if(!d){ noi('Lịch này không còn'); return; }
+  if(!confirm('Huỷ lịch ' + maDon(id) + ' của ' + (d.khach || 'khách') + ' (' + txtHen(henCua(d)) + ')?\nKhách mở link sẽ thấy "Cửa hàng đã huỷ lịch này".')) return;
+  if(lichLam) return; lichLam = true;
+  try{
+    if(!(await conLich(id))){ daXuLy(); return; }
+    await choGhi(F.updateDoc(F.doc(F.db, 'qr_don', id), { tt: 'bo', xuLy: F.serverTimestamp() }));
+    noi('Đã huỷ lịch của ' + (d.khach || 'khách'));
+  }catch(e){ loiO(e, 'Huỷ lịch đặt'); }
+  finally{ lichLam = false; }
+}
+function gioLich(id){
+  var d = lichTim(id); if(!d){ noi('Lịch này không còn'); return; }
+  var hen = henCua(d) || (Math.ceil((Date.now() + 1800000) / 1800000) * 1800000), g = vnG(hen);
+  modalO('qrd-lgio-m').querySelector('.sk-card').innerHTML = '<h3>🕒 Đổi giờ hẹn</h3>'
+    + '<div class="qrd-st" style="margin-bottom:8px">' + esc(d.khach || 'Khách') + ' · ' + esc(maDon(id)) + ' · đang hẹn <b>' + esc(txtHen(henCua(d))) + '</b></div>'
+    + '<div class="qrd-ck">Ngày <input type="date" id="qrd-lg-ngay" value="' + g.y + '-' + so2(g.mo) + '-' + so2(g.d) + '"> giờ <input type="time" id="qrd-lg-gio" value="' + so2(g.h) + ':' + so2(g.mi) + '"></div>'
+    + '<div class="qrd-st" style="margin:6px 0 10px">Khách mở link sẽ thấy giờ mới.</div>'
+    + '<div class="sk-card-acts"><button class="sk-btn ghost" data-act="qrd-mdong" data-target="#qrd-lgio-m">Hủy</button><span style="flex:1"></span>'
+    + '<button class="sk-btn green" data-act="qrd-lgio-luu" data-id="' + esc(id) + '">Lưu giờ mới</button></div>';
+  C.modal('#qrd-lgio-m');
+}
+async function luuGioLich(id){
+  var el = document.getElementById('qrd-lgio-m'); if(!el) return;
+  var a = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String((el.querySelector('#qrd-lg-ngay') || {}).value || ''));
+  var b = /^(\d{1,2}):(\d{2})$/.exec(String((el.querySelector('#qrd-lg-gio') || {}).value || ''));
+  if(!a || !b || Number(b[1]) > 23 || Number(b[2]) > 59){ noi('⚠️ Chọn đủ ngày và giờ'); return; }
+  var ms = Date.UTC(Number(a[1]), Number(a[2]) - 1, Number(a[3]), Number(b[1]), Number(b[2])) - 7 * 3600000;
+  if(!(ms > Date.now() - 86400000) || ms > Date.now() + 90 * 86400000){ noi('⚠️ Giờ hẹn chưa đúng'); return; }
+  var d = lichTim(id); if(!d){ noi('Lịch này không còn'); return; }
+  if(lichLam) return; lichLam = true;
+  try{
+    if(!(await conLich(id))){ daXuLy(); try{ C.closeModal('#qrd-lgio-m'); }catch(e){} return; }
+    await choGhi(F.updateDoc(F.doc(F.db, 'qr_don', id), { henMoi: ms, xuLy: F.serverTimestamp() }));
+    C.closeModal('#qrd-lgio-m');
+    noi('✅ Đã đổi giờ hẹn của ' + (d.khach || 'khách') + ' sang ' + txtHen(ms));
+  }catch(e){ loiO(e, 'Đổi giờ hẹn'); }
+  finally{ lichLam = false; }
+}
+
+/* ───────── "Chọn hàng hiện online": Tạm hết riêng từng size/màu ───────── */
+function txtHetChon(het, phong){ return phong ? (het ? 'Tạm ngưng' : 'Nhận đặt') : (het ? 'Tạm hết' : 'Còn hàng'); }
+function htmlBTChon(p){
+  if(!laFs()) return '';
+  var tt = ketNg('fs');
+  if(tt === 'cho' || tt === 'loi') return '<div class="qrd-bt"><em>Đang tải size/màu…</em></div>';
+  var vs = bienThe(p); if(!vs) return '';
+  return '<div class="qrd-bt">' + vs.slice(0, MAX_BT).map(function(v){
+    var k = p.id + '|' + String(v.k), het = !!(TAM_HETV && TAM_HETV[k]);
+    return '<button type="button" class="' + (het ? 'on' : '') + '" data-act="qrd-ohetv" data-k="' + esc(k) + '" title="Bấm để báo tạm hết / còn hàng">' + esc(tenBT(v.k)) + '</button>';
+  }).join('') + '</div>';
+}
+function hetChonV(k){
+  if(!TAM_HETV || !k) return;
+  if(TAM_HETV[k]) delete TAM_HETV[k]; else TAM_HETV[k] = 1;
+  var box = document.getElementById('qrd-ochon-ds'), bs = box ? box.querySelectorAll('[data-act="qrd-ohetv"]') : [], i;
+  for(i = 0; i < bs.length; i++) if(bs[i].getAttribute('data-k') === k) bs[i].classList.toggle('on', !!TAM_HETV[k]);
+  veChonDem();
+}
+function locHetV(tam, co){
+  var sanSang = laFs() && ketNg('fs') === 'ok';
+  return Object.keys(tam || {}).filter(function(k){
+    var j = k.indexOf('|'); if(j <= 0) return false;
+    var pid = k.slice(0, j); if(!co[pid]) return false;
+    if(!sanSang) return true;                                      /* két chưa tải xong ⇒ giữ nguyên, không lỡ tay xoá */
+    return !!btCua(sp(pid), k.slice(j + 1));
+  }).slice(0, 3000);
+}
+
+/* ───────── dọn đơn cũ (gọi từ donDepOnl) ───────── */
+function nenXoa(o, tt, han){
+  var t = ms(o.taoLuc) || Number(o.tsClient) || 0;
+  if(tt === 'lich'){                                                /* lịch quên đóng: dọn 2 ngày sau giờ hẹn */
+    var h = henCua(o);
+    return h > 0 ? (h < Date.now() - 2 * 86400000) : !!(t && t < Date.now() - 7 * 86400000);
+  }
+  if(tt === 'xong' || tt === 'bo'){ var x = ms(o.xuLy) || t; return !!(x && x < han); }
+  return !!(t && t < han);
+}
+
+M.css('qrd-onl2','\
+#pos-screen .qrd-bt{display:flex;flex-wrap:wrap;gap:5px;padding:0 0 9px 28px}\
+#pos-screen .qrd-bt button{border:1px solid #cfe0da;background:#fff;color:#2f4f45;border-radius:7px;padding:4px 8px;font-size:11.5px;font-weight:700;font-family:inherit;cursor:pointer}\
+#pos-screen .qrd-bt button.on{background:#fdecec;border-color:#f3c4c4;color:#b02a2a;text-decoration:line-through}\
+#pos-screen .qrd-bt em{font-style:normal;font-size:11.5px;color:#8a97a3}\
+#pos-screen .qrd-d.qrd-don-lich{border-left-color:#7c3aed}\
+#pos-screen .qrd-lich .qrd-d{border-left-color:#7c3aed}\
+#pos-screen .qrd-lich .qrd-d.tre{border-left-color:#dc2626;background:#fffafa}\
+#pos-screen .qrd-lich .qrd-d.tre .qrd-d-h span{color:#dc2626;font-weight:800}\
+#pos-screen .qrd-gc2.qrd-do{color:#b02a2a}\
+#pos-screen .qrd-het.mo{background:#e8f5ee;border-color:#9fd3b6;color:#0a5f4a}\
+#pos-screen .qrd-ck input[type=date]{border:1px solid #dfe6e9;border-radius:8px;padding:5px 6px;font-family:inherit;font-size:14px}\
+#pos-screen #rm-map .rm-c span.qrd-rmhen{display:inline-block;max-width:100%;margin-top:5px;padding:2px 6px;border-radius:6px;background:#e8f0fe;color:#1f4fb8;font-size:10.5px;font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}\
+');
+
+M.act('qrd-ohetv',    function(el, ds){ hetChonV(ds.k || ''); });
+M.act('qrd-lden',     function(el, ds){ denLich(ds.id || ''); });
+M.act('qrd-lmo',      function(el, ds){ moLich(ds.id || '', ds.p || '', false); });
+M.act('qrd-lvao',     function(el, ds){ moLich(ds.id || '', ds.p || '', true); });
+M.act('qrd-lgiu',     function(el, ds){ giuLich(ds.id || ''); });
+M.act('qrd-lxong',    function(el, ds){ xongLich(ds.id || ''); });
+M.act('qrd-lhuy',     function(el, ds){ huyLich(ds.id || ''); });
+M.act('qrd-lgio',     function(el, ds){ gioLich(ds.id || ''); });
+M.act('qrd-lgio-luu', function(el, ds){ luuGioLich(ds.id || ''); });
+
+/* Két ngành vừa về / vừa đổi ⇒ vẽ lại (đơn đang chờ hiện đúng size/màu, phòng) */
+function ngDoi(){ try{ if(laFs() || laRm()) render(); }catch(e){} ganLichPhong(); }
+try{ if(window.SKNG){ window.SKNG.gan('fs', ngDoi); window.SKNG.gan('rm', ngDoi); } }catch(e){}
+M.on('view:show', function(){ xetLich(); });
+setInterval(function(){ xetLich(); }, 4000);
+/* ═════════ HẾT KHỐI [ĐỢT 2] ═════════ */
 /* ═════════ HẾT KHỐI [ONLINE] ═════════ */
 
 /* ───────── HÀNH ĐỘNG ───────── */
@@ -20617,13 +21260,12 @@ M.act('qrd-thu',  function(){ dungThu(); });
 /* ───────── GẮN VÀO LÕI ───────── */
 M.on('boot', async function(){
   if(ON) return;
-  /* [ONLINE] Đợt 1: tab hiện cho Đa năng · F&B · Cân ký/Bán sỉ. Thời trang & Karaoke/Spa mở ở đợt sau.
+  /* [ĐỢT 2 · 2026-09-24] Tab hiện cho CẢ 5 ngành: Đa năng · F&B · Thời trang · Karaoke/Spa/Nhà nghỉ · Cân ký/Bán sỉ.
      Quán F&B luôn giữ tab như cũ (kể cả tài khoản cũ bật nhiều cờ một lúc). */
-  if(!M.flag('fnb') && (M.flag('fs') || M.flag('rm'))) return;
   ON = true;
-  var _fnb = laFnb();
+  var _fnb = laFnb(), _rm = !_fnb && laRm();
 
-  M.tab({ id:'qrd', label:(_fnb ? 'Đơn QR' : 'Bán online'), title:(_fnb ? 'Đơn khách tự đặt (bàn + online)' : 'Bán online — đơn khách đặt qua link'), after:(_fnb ? 'fnb' : 'sell'),
+  M.tab({ id:'qrd', label:(_fnb ? 'Đơn QR' : 'Bán online'), title:(_fnb ? 'Đơn khách tự đặt (bàn + online)' : (_rm ? 'Bán online — khách đặt phòng / đặt lịch qua link' : 'Bán online — đơn khách đặt qua link')), after:(_fnb ? 'fnb' : (_rm ? 'rm' : 'sell')),
     icon:'<svg viewBox="0 0 24 24"><path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h2v2h-2zM18 14h2v2h-2zM14 18h2v2h-2zM18 18h2v2h-2z"/></svg>',
     render: render,
     body:'<div id="qrd-w" class="qrd-w"><div class="qrd-none">Đang tải…</div></div>' });
@@ -20641,7 +21283,7 @@ M.on('view:show', function(c){
      nếu không sẽ mang mã của chi nhánh cũ sang ghi đè cho chi nhánh mới. */
   if(CFGCN !== chiNhanh()){
     CFGCN = chiNhanh(); TOKEN=''; SHARE=null; TENQUAN=''; soDonTruoc=0;
-    OTK=''; OSHARE=null; OCFG=null; OAN={}; OHET={}; O_SIG=''; O_CANH=''; O_LOI=false; O_CN=null;   /* [ONLINE] */
+    OTK=''; OSHARE=null; OCFG=null; OAN={}; OHET={}; OHETV={}; O_SIG=''; O_CANH=''; O_LOI=false; O_CN=null;   /* [ONLINE] [ĐỢT 2] */
     try{ capNhatHuy(0); }catch(e){}
     if(conHan(LIC)) docCfg().then(render).catch(function(){}); else render();
     return;
