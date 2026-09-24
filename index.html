@@ -749,7 +749,7 @@ import { getFirestore, initializeFirestore, persistentLocalCache, persistentMult
 import { getStorage, ref as _sref, uploadBytes, getDownloadURL, deleteObject, listAll }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
 
-const APP_BUILD = "2026-09-24-ANHSP"; // ⬆️ ĐỔI MỖI LẦN DEPLOY (đặt TRÙNG tên cache trong sw.js) — hiện ở ⚙️ Cài đặt để biết máy đã chạy bản mới chưa
+const APP_BUILD = "2026-09-25-DONANHSP"; // ⬆️ ĐỔI MỖI LẦN DEPLOY (đặt TRÙNG tên cache trong sw.js) — hiện ở ⚙️ Cài đặt để biết máy đã chạy bản mới chưa
 const firebaseConfig = {
   apiKey: "AIzaSyA_kjQ-CdASRkf50Glz3kQajlkD5qGWC4k",
   authDomain: "so-no-cc57a.firebaseapp.com",
@@ -18464,7 +18464,7 @@ if (window.__RMT_READY__) return; window.__RMT_READY__ = true;
 try{
 
 /* ĐỔI CHUỖI NÀY CHO TRÙNG APP_BUILD MỖI LẦN DEPLOY (chỉ để hiện ở bảng quản trị) */
-var BUILD = '2026-09-24-ANHSP';
+var BUILD = '2026-09-25-DONANHSP';
 var NHIP   = 6*3600*1000;          /* báo về tối đa 6 giờ 1 lần — khỏi tốn lượt ghi */
 var KEY_HB = 'rmt_hb_v1';
 var KEY_XEM= 'rmt_xem_v1';
@@ -21904,5 +21904,247 @@ try{
 })();
 </script>
 <!-- ═══════════════ HẾT: ẢNH SẢN PHẨM ═══════════════ -->
+<!-- ═══════════════ TỰ DỌN ẢNH SẢN PHẨM CŨ — MỌI SHOP, TỰ ĐỘNG (drop-in · namespace aspd-) ═══════════════
+     VÌ SAO CÓ KHỐI NÀY
+       App bán cho nhiều shop, tất cả dùng CHUNG 1 kho ảnh Firebase (tiền lưu trữ chủ phần mềm trả).
+       Đổi ảnh / bỏ ảnh / xoá sản phẩm thì ảnh cũ vẫn nằm lại u/{uid}/att/_sanpham (module Ảnh SP cố ý
+       KHÔNG xoá ngay vì link bán online, thực đơn QR, máy khác có thể còn trỏ tới). Không dọn thì nhiều
+       shop cộng lại, năm này qua năm khác, kho cứ phình ra và tốn tiền.
+     CÁCH LÀM — chạy ngầm, không ai phải bấm gì, không hiện gì lên màn hình
+       • Chỉ chạy trên MÁY CHỦ SHOP (máy nhân viên bỏ qua), khi có mạng, 7 ngày 1 lần.
+       • Liệt kê thư mục _sanpham. Ảnh đang gắn với sản phẩm trên máy ⇒ bỏ qua, khỏi tốn lượt đọc.
+       • Ảnh nghi "mồ côi" ⇒ hỏi thẳng MÁY CHỦ Firebase (không tin bộ nhớ đệm offline):
+           – còn sản phẩm nào ở MỌI chi nhánh dùng không (kể cả chi nhánh đang không mở),
+           – còn nằm trên link bán online / thực đơn QR (bản đã đẩy lên cho khách xem) không.
+       • Không ai dùng ⇒ lần này chỉ ĐÁNH DẤU. Lần kiểm sau (≥ 6 ngày) vẫn không ai dùng ⇒ mới XOÁ.
+         Nhờ vậy ảnh cũ luôn còn giữ ít nhất ~1 tuần sau khi thôi dùng (lỡ tay, phục hồi sao lưu gần…).
+       • Đọc lỗi / mất mạng / đổi tài khoản / dữ liệu lệch ⇒ DỪNG, không xoá gì. Chỉ xoá khi chắc chắn.
+       • Chỉ đụng file ĐÚNG MẪU TÊN của module Ảnh SP (18 ký tự a-z0-9 + .jpg). Thư mục _sanpham là
+         của RIÊNG ảnh sản phẩm — tính năng khác đừng cất file vào đây.
+     CHI PHÍ: tuần nào không có ảnh cũ = 1 lượt liệt kê kho (gần như 0đ). Có ảnh cũ mới đọc thêm các
+       sản phẩm ĐANG CÓ ẢNH + vài lượt nhỏ. Không ghi Firestore lần nào (dấu hẹn giờ cất trong máy).
+     KHÔNG sửa Rules (luật 'att' sẵn cho Chủ shop liệt kê / xem / xoá). KHÔNG sửa code cũ.
+     Thử bằng tay (DevTools, máy chủ shop): await aspDonAnh()  ⇒ chạy ngay 1 lượt, trả về số liệu.
+     ═══════════════════════════════════════════════════════════════════════════════════════════════ -->
+<script type="module">
+import { getApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getAuth } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { getDocFromServer, getDocsFromServer } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getStorage, ref as aspdRef, listAll, getDownloadURL, deleteObject }
+  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
+(function(){
+if(window.__ASPD_READY__) return; window.__ASPD_READY__ = true;
+
+var _lan = 0;
+(function cho(){
+  try{ if(window.SKMOD && window.SKMOD.core && window.SKMOD.fb){ chay(window.SKMOD); return; } }catch(e){}
+  if(++_lan < 80) setTimeout(cho, 400);
+})();
+
+function chay(M){
+try{
+var C = M.core, F = M.fb;
+if(!M.reg('anhspdon', { ns:'aspd', name:'Tự dọn ảnh sản phẩm cũ', ver:'1.0' })) return;
+
+/* ═════════ CẤU HÌNH ═════════ */
+var THU_MUC = '_sanpham';                  /* PHẢI TRÙNG THU_MUC của module Ảnh sản phẩm */
+var MAU_TEN = /^[a-z0-9]{18}\.jpg$/;       /* đúng mẫu tên module Ảnh SP đặt: rid(18) + '.jpg' */
+var NGAY    = 86400000;
+var NHIP    = 7 * NGAY;                    /* 7 ngày kiểm 1 lần */
+var CHO_XOA = 6 * NGAY;                    /* đã đánh dấu ≥ 6 ngày mà vẫn không ai dùng ⇒ mới xoá */
+var THU_LAI = 6 * 3600000;                 /* đọc lỗi / mất mạng ⇒ 6 giờ sau thử lại */
+var TIEP    = 3600000;                     /* còn file chưa xoá kịp ⇒ 1 giờ sau làm tiếp */
+var MOI_LAN = 300;                         /* mỗi lượt xoá tối đa 300 file */
+var TRE     = 60000;                       /* mở app 1 phút sau mới chạy — nhường app nạp dữ liệu */
+/* ═══════════════════════════ */
+
+var DANG = false, HMEM = {};              /* HMEM: giữ hẹn trong phiên nếu máy chặn bộ nhớ localStorage */
+var RX = new RegExp(THU_MUC + '(?:%2F|/)([A-Za-z0-9._-]+)', 'gi');
+
+/* ───────── tiện ích ───────── */
+function uid(){ try{ return C.uid() || null; }catch(e){ return null; } }
+function app(){
+  var a = null;
+  try{ a = getApp(); }catch(e){ a = null; }
+  if(!a){
+    var L = []; try{ L = getApps() || []; }catch(e2){ L = []; }
+    for(var i = 0; i < L.length; i++) if(L[i] && L[i].name !== 'errlog' && L[i].name !== 'pub'){ a = L[i]; break; }
+  }
+  return a;
+}
+function kho(){ var a = app(); return a ? getStorage(a) : getStorage(); }
+function tkUid(){
+  try{ var a = app(), u = (a ? getAuth(a) : getAuth()).currentUser; return (u && !u.isAnonymous) ? u.uid : null; }
+  catch(e){ return null; }
+}
+/* MÁY CHỦ SHOP = không mang lớp la-nv VÀ người đang đăng nhập chính là chủ kho dữ liệu */
+function laMayChu(){
+  try{ if(!document.body || document.body.classList.contains('la-nv')) return false; }catch(e){ return false; }
+  var u = uid(); return !!u && tkUid() === u;
+}
+function lsDoc(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
+function lsGhi(k, v){ try{ localStorage.setItem(k, v); }catch(e){} }
+function kHen(u){ return 'aspd_hen_' + u; }
+function kDau(u){ return 'aspd_dau_' + u; }
+function hen(u){
+  var n = Number(lsDoc(kHen(u)) || 0);
+  if(!isFinite(n) || n < 0) n = 0;
+  if(n > Date.now() + NHIP + NGAY) n = 0;                        /* đồng hồ máy từng chỉnh sai ⇒ bỏ hẹn cũ */
+  var h = Number(HMEM[u]) || 0;
+  return Math.max(n, h);
+}
+function datHen(u, t){ t = Math.round(t); HMEM[u] = t; lsGhi(kHen(u), String(t)); }
+function docDau(u){
+  try{ var o = JSON.parse(lsDoc(kDau(u)) || '{}'); return (o && typeof o === 'object' && !Array.isArray(o)) ? o : {}; }
+  catch(e){ return {}; }
+}
+function ghiDau(u, o){ lsGhi(kDau(u), JSON.stringify(o || {})); }
+/* Nhặt tên file ảnh SP trong 1 chuỗi (link đã mã hoá %2F hoặc đường dẫn thường) */
+function layTen(s, tap){
+  s = String(s == null ? '' : s);
+  if(s.indexOf(THU_MUC) < 0) return;
+  RX.lastIndex = 0; var m;
+  while((m = RX.exec(s))) tap[m[1]] = 1;
+}
+/* Ảnh đang gắn với sản phẩm của chi nhánh đang mở trên máy (chỉ dùng để GIỮ, không dùng để xoá) */
+function tenTrenMay(){
+  var tap = {}, L = [];
+  try{ L = C.products() || []; }catch(e){ L = []; }
+  for(var i = 0; i < L.length; i++){ var p = L[i]; if(p && p.image) layTen(p.image, tap); }
+  return tap;
+}
+function spCol(u, cn){ return cn === 'main' ? F.collection(F.db, 'users', u, 'products') : F.collection(F.db, 'users', u, 'branches', cn, 'products'); }
+function cfgDoc(u, cn){ return cn === 'main' ? F.doc(F.db, 'users', u, 'pos_meta', 'qr') : F.doc(F.db, 'users', u, 'branches', cn, 'pos_meta', 'qr'); }
+function ma(e){ return String((e && (e.code || e.message)) || e || ''); }
+
+/* ───────── 1 LƯỢT KIỂM — chỉ xoá khi chắc chắn ───────── */
+async function quet(){
+  if(DANG) return { bo:'đang chạy' };
+  var u = uid();
+  if(!u || !laMayChu()) return { bo:'không phải máy chủ shop' };
+  if(navigator.onLine === false) return { bo:'mất mạng' };
+  DANG = true;
+  var kq = { tong:0, dangDung:0, danhDau:0, xoa:0, conLai:0, la:0, loi:'' };
+  var henSau = THU_LAI;
+  datHen(u, Date.now() + THU_LAI);                                /* giữ chỗ: tab khác khỏi chạy trùng */
+  var con = function(){ if(uid() !== u || !laMayChu()) throw new Error('doi-tai-khoan'); };
+  try{
+    /* 1) Liệt kê thư mục ảnh sản phẩm của shop */
+    var ds = await listAll(aspdRef(kho(), 'u/' + u + '/att/' + THU_MUC)); con();
+    var goc0 = (ds && ds.items) || [], files = [], i;
+    for(i = 0; i < goc0.length; i++){ if(goc0[i] && MAU_TEN.test(String(goc0[i].name || ''))) files.push(goc0[i]); else kq.la++; }
+    kq.tong = files.length;
+    var dau = docDau(u), dauMoi = {};
+
+    /* 2) Lọc nhanh bằng dữ liệu đang có trên máy — ảnh đang dùng khỏi tốn lượt đọc */
+    var may = tenTrenMay(), nghi = [], trenMay = [];
+    for(i = 0; i < files.length; i++){
+      if(may[files[i].name]){ kq.dangDung++; trenMay.push(files[i].name); }
+      else nghi.push(files[i]);
+    }
+    if(!nghi.length){ ghiDau(u, {}); henSau = NHIP; return kq; }
+
+    /* 3) Tiền tố link của thư mục — lấy từ chính SDK dựng link, không tự đoán */
+    var tienTo = '';
+    for(i = 0; i < nghi.length && !tienTo; i++){
+      try{
+        var url = await getDownloadURL(nghi[i]); con();
+        var goc = String(url || '').split('?')[0], tn0 = nghi[i].name;
+        if(goc.length > tn0.length && goc.slice(-tn0.length) === tn0) tienTo = goc.slice(0, goc.length - tn0.length);
+        else throw new Error('link-la');
+      }catch(e){ if(!(e && e.code === 'storage/object-not-found')) throw e; }
+    }
+    if(!tienTo){ ghiDau(u, {}); henSau = NHIP; return kq; }        /* file nghi đều đã bị xoá ở nơi khác */
+    if(tienTo.indexOf('/o/') < 0 || tienTo.slice(-(THU_MUC.length + 3)) !== THU_MUC + '%2F') throw new Error('link-la');
+
+    /* 4) Hỏi MÁY CHỦ — mọi chi nhánh ('main' luôn có mặt) */
+    var cns = { main:1 };
+    var sb = await getDocsFromServer(F.collection(F.db, 'users', u, 'branches')); con();
+    sb.forEach(function(d){ if(d && d.id) cns[d.id] = 1; });
+    var dsCN = Object.keys(cns), dung = {}, cong = '';
+    for(var b = 0; b < dsCN.length; b++){
+      var cn = dsCN[b], qs;
+      /* 4a) sản phẩm có ảnh nằm trong thư mục này — SP không ảnh không tốn lượt đọc */
+      try{ qs = await getDocsFromServer(F.query(spCol(u, cn), F.where('image', '>=', tienTo), F.where('image', '<=', tienTo + '\uf8ff'))); }
+      catch(e){
+        if(!(e && e.code === 'failed-precondition')) throw e;
+        qs = await getDocsFromServer(spCol(u, cn));                 /* thiếu chỉ mục ⇒ đọc cả kho (chắc chắn, tốn hơn) */
+      }
+      con();
+      qs.forEach(function(d){ var v = (d && d.data && d.data()) || {}; if(v.image) layTen(v.image, dung); });
+      /* 4b) bản đã đẩy lên link bán online + thực đơn QR (khách đang xem bản này) */
+      var md = await getDocFromServer(cfgDoc(u, cn)); con();
+      var m = md.exists() ? (md.data() || {}) : {}, tks = [];
+      if(typeof m.token === 'string' && m.token) tks.push(m.token);
+      if(typeof m.onl === 'string' && m.onl && m.onl !== m.token) tks.push(m.onl);
+      for(var t = 0; t < tks.length; t++){
+        var sq = await getDocFromServer(F.doc(F.db, 'shares_qr', tks[t])); con();
+        if(sq.exists()) cong += JSON.stringify(sq.data() || {}) + '\n';
+      }
+    }
+    layTen(cong, dung);
+
+    /* 5) Chốt an toàn: máy thấy ảnh đang dùng mà máy chủ không trả về cái nào ⇒ dữ liệu lệch ⇒ DỪNG */
+    var khop = 0;
+    for(i = 0; i < trenMay.length; i++) if(dung[trenMay[i]]) khop++;
+    if(trenMay.length > 0 && khop === 0) throw new Error('lech-du-lieu');
+
+    /* 6) Quyết định từng ảnh nghi mồ côi: lần đầu ĐÁNH DẤU, đủ ≥ 6 ngày vẫn mồ côi mới XOÁ */
+    var bayGio = Date.now(), xoaDS = [];
+    may = tenTrenMay();                                            /* đọc lại: lỡ vừa gắn ảnh trong lúc chạy */
+    for(i = 0; i < nghi.length; i++){
+      var tn = nghi[i].name;
+      if(dung[tn] || may[tn] || cong.indexOf(tn) >= 0){ kq.dangDung++; continue; }
+      var t0 = Number(dau[tn]) || 0;
+      if(t0 > bayGio) t0 = bayGio;                                 /* đồng hồ máy từng chạy lố ⇒ tính lại từ nay */
+      if(t0 > 0 && bayGio - t0 >= CHO_XOA){ xoaDS.push(nghi[i]); dauMoi[tn] = t0; }
+      else { dauMoi[tn] = (t0 > 0) ? t0 : bayGio; kq.danhDau++; }
+    }
+    ghiDau(u, dauMoi);
+
+    /* 7) Xoá từng file — lỗi giữa chừng thì dừng (dấu vẫn giữ, lượt sau làm tiếp) */
+    for(i = 0; i < xoaDS.length; i++){
+      if(i >= MOI_LAN){ kq.conLai = xoaDS.length - i; break; }
+      con();
+      if(i % 25 === 0) may = tenTrenMay();
+      var fx = xoaDS[i];
+      if(may[fx.name]){ delete dauMoi[fx.name]; kq.dangDung++; continue; }
+      try{ await deleteObject(fx); kq.xoa++; }
+      catch(e){ if(!(e && e.code === 'storage/object-not-found')){ ghiDau(u, dauMoi); throw e; } }
+      delete dauMoi[fx.name];
+    }
+    ghiDau(u, dauMoi);
+    henSau = kq.conLai ? TIEP : NHIP;
+    return kq;
+  }catch(e){
+    kq.loi = ma(e) || 'loi';
+    henSau = /permission-denied|unauthorized|unauthenticated/i.test(kq.loi) ? NHIP : THU_LAI;
+    return kq;
+  }finally{
+    datHen(u, Date.now() + henSau);
+    DANG = false;
+    try{ console.info('[aspd] tự dọn ảnh SP', kq); }catch(e){}
+  }
+}
+
+/* ───────── HẸN GIỜ: 1 phút sau khi mở app, rồi 30 phút xem lại 1 lần ───────── */
+function toi(){
+  if(DANG) return;
+  try{
+    var u = uid();
+    if(!u || !laMayChu() || navigator.onLine === false) return;
+    if(document.visibilityState && document.visibilityState !== 'visible') return;
+    if(Date.now() < hen(u)) return;
+    quet()['catch'](function(){});
+  }catch(e){}
+}
+setTimeout(function(){ toi(); setInterval(toi, 30 * 60000); }, TRE);
+window.aspDonAnh = function(){ return quet(); };
+
+}catch(e){ console.error('[aspd] module Tự dọn ảnh SP lỗi khởi động', e); }
+}
+})();
+</script>
+<!-- ═══════════════ HẾT: TỰ DỌN ẢNH SẢN PHẨM CŨ ═══════════════ -->
 </body>
 </html>
