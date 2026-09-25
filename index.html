@@ -768,7 +768,7 @@ import { getFirestore, initializeFirestore, persistentLocalCache, persistentMult
 import { getStorage, ref as _sref, uploadBytes, getDownloadURL, deleteObject, listAll }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
 
-const APP_BUILD = "2026-09-25-QT7"; // ⬆️ ĐỔI MỖI LẦN DEPLOY (đặt TRÙNG tên cache trong sw.js) — hiện ở ⚙️ Cài đặt để biết máy đã chạy bản mới chưa
+const APP_BUILD = "2026-09-25-QT8"; // ⬆️ ĐỔI MỖI LẦN DEPLOY (đặt TRÙNG tên cache trong sw.js) — hiện ở ⚙️ Cài đặt để biết máy đã chạy bản mới chưa
 const firebaseConfig = {
   apiKey: "AIzaSyA_kjQ-CdASRkf50Glz3kQajlkD5qGWC4k",
   authDomain: "so-no-cc57a.firebaseapp.com",
@@ -5079,7 +5079,9 @@ async function docLuatCnMayChu(){
   try{ const s=await getDoc(doc(db,'billing','config')); c=s.exists()?(s.data()||{}):{}; }catch(e){ return null; }
   try{ const s2=await getDoc(doc(db,'accounts',UID)); a=s2.exists()?(s2.data()||{}):{}; }catch(e){ a={}; }
   const ms=v=>{ try{ if(!v)return 0; if(typeof v.toMillis==='function')return v.toMillis(); const d=(v&&v.toDate)?v.toDate():new Date(v); return isNaN(d)?0:d.getTime(); }catch(e){ return 0; } };
-  return { batCn:c.enforceCn===true, cnChung:c.cnChung!==false, mienTru:a.cnMienTru===true, anHan:ms(a.cnAnHanDen)>Date.now(),
+  /* [QT8] Khớp Rules VÁ LỖ Z2: billing/config thiếu ô enforceCn = máy chủ ĐANG thu phí chi nhánh;
+     thiếu ô cnChung = suất 'sono_cn' KHÔNG tính cho cửa hàng ngành khác. Chỉ ghi rõ false / true mới nới. */
+  return { batCn:c.enforceCn!==false, cnChung:c.cnChung===true, mienTru:a.cnMienTru===true, anHan:ms(a.cnAnHanDen)>Date.now(),
            cho:(Array.isArray(a.cnCho)?a.cnCho.filter(function(x){return typeof x==='string';}):[]) };
 }
 async function skLoadCn(){
@@ -19473,7 +19475,7 @@ if (window.__RMT_READY__) return; window.__RMT_READY__ = true;
 try{
 
 /* ĐỔI CHUỖI NÀY CHO TRÙNG APP_BUILD MỖI LẦN DEPLOY (chỉ để hiện ở bảng quản trị) */
-var BUILD = '2026-09-25-QT7';
+var BUILD = '2026-09-25-QT8';
 var NHIP   = 6*3600*1000;          /* báo về tối đa 6 giờ 1 lần — khỏi tốn lượt ghi */
 var KEY_HB = 'rmt_hb_v2';          /* [QT7] nhịp báo về tính RIÊNG từng tài khoản (bản v1 tính chung cả máy) */
 var KEY_XEM= 'rmt_xem_v1';
