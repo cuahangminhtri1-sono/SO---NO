@@ -762,7 +762,7 @@ import { getFirestore, initializeFirestore, persistentLocalCache, persistentMult
 import { getStorage, ref as _sref, uploadBytes, getDownloadURL, deleteObject, listAll }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
 
-const APP_BUILD = "2026-09-25-DONANHSP"; // ⬆️ ĐỔI MỖI LẦN DEPLOY (đặt TRÙNG tên cache trong sw.js) — hiện ở ⚙️ Cài đặt để biết máy đã chạy bản mới chưa
+const APP_BUILD = "2026-09-25-TROLY3"; // ⬆️ ĐỔI MỖI LẦN DEPLOY (đặt TRÙNG tên cache trong sw.js) — hiện ở ⚙️ Cài đặt để biết máy đã chạy bản mới chưa
 const firebaseConfig = {
   apiKey: "AIzaSyA_kjQ-CdASRkf50Glz3kQajlkD5qGWC4k",
   authDomain: "so-no-cc57a.firebaseapp.com",
@@ -12371,13 +12371,15 @@ import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, getDocs, serv
 <!-- ═══════════════ HẾT: LÁ CHẮN DỮ LIỆU ═══════════════ -->
 
 <!-- ═══════════════════════════════════════════════════════════════════════
-     🤖 TRỢ LÝ AI HƯỚNG DẪN SỬ DỤNG — v2 (bản chi tiết cho người mới & người lớn tuổi)
+     🤖 TRỢ LÝ AI HƯỚNG DẪN SỬ DỤNG — v3 (bản chi tiết cho người mới & người lớn tuổi)
      • KHỐI TỰ CHỨA, CHỈ THÊM, KHÔNG SỬA 1 DÒNG NÀO CỦA CODE CŨ.
      • Namespace riêng: biến SNAI__, class/id đều bắt đầu "snai" → không đụng code cũ.
      • Chạy 100% ngoại tuyến (không cần mạng, không cần API key, không tốn phí).
      • Bọc try/catch toàn bộ: lỗi gì cũng KHÔNG ảnh hưởng app.
-     • v2 thêm: 🎓 Học từ đầu (khóa 14 bài) · 🔠 Chữ to 3 cỡ · 🔊 Đọc to thành tiếng
-                · nhóm 📱 Đơn QR · tổng cộng 155 mục hướng dẫn.
+     • v2: 🎓 Học từ đầu · 🔠 Chữ to 3 cỡ · 🔊 Đọc to thành tiếng.
+     • v3: 👆 CHỈ TẬN TAY (khoanh đúng nút thật trên màn hình, đi từng bước) · gợi ý
+           đúng màn đang đứng · hiểu gõ sai 1 chữ · nhóm 🌐 Bán online (link cửa hàng,
+           đặt phòng/đặt lịch, size/màu, chuông báo đơn) · sửa các mục đã cũ.
      • Dán NGUYÊN KHỐI ngay TRƯỚC  </body>.
      ═══════════════════════════════════════════════════════════════════════ -->
 <script>
@@ -12550,7 +12552,8 @@ var CAT={
  cv :{i:'🧠',n:'Cố vấn kinh doanh (AI)'},
  nv :{i:'👥',n:'Nhân viên & Phân quyền'},
  cn :{i:'🏪',n:'Cửa hàng & Ngành nghề'},
- qr :{i:'📱',n:'Đơn QR — Khách tự gọi món'},
+ onl:{i:'🌐',n:'Bán online — khách đặt qua link'},
+ qr :{i:'📱',n:'Đơn QR tại bàn (quán ăn, cafe)'},
  sl :{i:'💾',n:'Sao lưu & Phục hồi'},
  inn:{i:'🖨️',n:'In ấn & Chia sẻ'},
  loi:{i:'🆘',n:'Sự cố thường gặp'}
@@ -12635,17 +12638,22 @@ a:`<b class="snai-h">🔑 Đổi mật khẩu</b>
 <div class="snai-tip">👁 Ở mỗi ô đều có <b>hình con mắt</b>. Bấm vào là hiện chữ ra cho bạn nhìn, bấm lần nữa là che lại. Người lớn tuổi nên bấm hiện chữ để nhìn cho rõ, gõ xong che lại.</div>
 <div class="snai-warn">⚠️ Đổi xong <b>ghi ngay mật khẩu mới ra giấy</b>. Đổi rồi mà quên là phải nhờ chủ phần mềm đặt lại, rất mất công.</div>`},
 
-{c:'bd',t:'Quên mật khẩu phải làm sao?',k:'quen mat khau khong dang nhap duoc lay lai mat khau reset',
+{c:'bd',t:'Quên mật khẩu phải làm sao?',k:'quen mat khau khong dang nhap duoc lay lai mat khau reset dat lai mat khau thu dat lai email',
 a:`<b class="snai-h">😥 Quên mật khẩu đăng nhập</b>
-<b>👉 Nói trước cho yên tâm:</b> quên mật khẩu <b>KHÔNG hề mất dữ liệu</b>. Dữ liệu vẫn nằm nguyên trên máy chủ, chỉ là tạm thời chưa mở cửa vào được thôi.
-Mật khẩu do hệ thống Firebase của Google giữ, <b>app không xem được</b> — nên không có chỗ nào bấm để "xem lại mật khẩu" cả.
-<b>🪜 Thử lần lượt 3 cách sau, theo đúng thứ tự:</b>
+<b>👉 Nói trước cho yên tâm:</b> quên mật khẩu <b>KHÔNG mất dữ liệu</b>. Mọi thứ vẫn nằm nguyên trên máy chủ, chỉ là tạm thời chưa mở cửa vào được thôi.
+<b>🪜 Cách 1 — Tự đặt lại mật khẩu qua email (nhanh nhất):</b>
 <ol>
-<li><b>Cách 1 — thử lại cho kỹ.</b> Gõ lại các mật khẩu bạn hay dùng. Nhớ kiểm tra chữ HOA/thường và bàn phím có tự viết hoa chữ đầu không. Rất nhiều trường hợp chỉ sai đúng 1 chữ hoa.</li>
-<li><b>Cách 2 — mượn máy khác còn đăng nhập sẵn.</b> Nếu bạn còn một điện thoại hoặc máy tính khác mà app vẫn vào thẳng được (không hỏi mật khẩu), thì lấy máy đó ra: bấm <span class="snai-path">⚙️ Cài đặt</span> → <b>🔑 Đổi mật khẩu</b>. Ở ô mật khẩu cũ bạn vẫn phải điền... nên cách này chỉ dùng được khi bạn nhớ mang máng ra mật khẩu cũ.</li>
-<li><b>Cách 3 — nhờ chủ phần mềm.</b> Nhắn tin cho người bán phần mềm cho bạn, nói rõ <b>email đang dùng</b>, nhờ đặt lại mật khẩu. Đây là cách chắc chắn nhất.</li>
+<li>Ở màn hình đăng nhập, gõ <b>đúng email</b> của bạn vào <b>ô Email</b>.</li>
+<li>Bấm dòng chữ <b>Quên mật khẩu?</b> nằm ngay dưới ô mật khẩu.</li>
+<li>App báo <b>"Đã gửi thư đặt lại mật khẩu tới …"</b>.</li>
+<li>Mở hộp thư của email đó (nhớ xem cả mục <b>Spam / Thư rác</b>) → mở thư vừa nhận → bấm vào <b>đường link</b> trong thư.</li>
+<li>Gõ <b>mật khẩu mới</b> (từ 6 ký tự trở lên) → lưu lại.</li>
+<li>Quay về app, đăng nhập bằng mật khẩu mới.</li>
 </ol>
-<div class="snai-warn">⚠️ <b>TUYỆT ĐỐI ĐỪNG đăng ký một email mới.</b> Tài khoản mới là một cái tủ mới hoàn toàn trống rỗng — toàn bộ khách hàng, công nợ, hàng hóa của bạn vẫn nằm ở email cũ và bạn sẽ tưởng là đã mất hết. Cứ bình tĩnh lấy lại email cũ.</div>`},
+<b>🪜 Cách 2 — Thử lại cho thật kỹ:</b> gõ lại các mật khẩu bạn hay dùng. Để ý <b>chữ HOA / chữ thường</b>, và bàn phím có đang <b>tự viết hoa chữ đầu</b> không. Rất nhiều trường hợp chỉ sai đúng 1 chữ hoa.
+<b>🪜 Cách 3 — Nhờ chủ phần mềm:</b> email cũ không còn dùng, không nhận được thư → gọi <b>0977 823 979</b>, nói rõ <b>email đang dùng</b> để được giúp.
+<div class="snai-warn">⚠️ App báo <b>"Nhập email ở ô trên rồi bấm Quên mật khẩu?"</b> nghĩa là bạn <b>chưa gõ email</b>. Gõ email vào ô trên trước, rồi mới bấm.</div>
+<div class="snai-warn">⚠️ <b>TUYỆT ĐỐI ĐỪNG đăng ký một email mới.</b> Tài khoản mới là một cái tủ trống — khách hàng, công nợ, hàng hóa của bạn vẫn nằm ở email cũ, bạn sẽ tưởng mất hết.</div>`},
 
 {c:'bd',t:'Cài app vào màn hình chính điện thoại',k:'cai app vao may cai dat app man hinh chinh pwa icon bieu tuong install home screen tai app',
 a:`<b class="snai-h">📲 Cài App vào máy</b>
@@ -13088,7 +13096,8 @@ Và điều quan trọng nhất: khóa này áp dụng <b>TRÊN MỌI THIẾT B�
 <li>App yêu cầu nhập <b>mật khẩu đăng nhập của bạn</b> (chính là mật khẩu vào app, không phải mã PIN nhân viên).</li>
 <li>Nhập đúng → sổ mở khóa.</li>
 </ol>
-<div class="snai-tip">🔑 Vì phải có mật khẩu đăng nhập mới mở được, nên <b>chỉ mình bạn mở được</b>. Nhân viên biết mã PIN cũng không mở nổi.</div>`},
+<div class="snai-tip">🔑 Vì phải có mật khẩu đăng nhập mới mở được, nên <b>chỉ mình bạn mở được</b>. Nhân viên biết mã PIN cũng không mở nổi.</div>
+<div class="snai-warn">⚠️ <b>Trong lúc khóa</b>, ghi thêm <b>🛒 Mua</b> / <b>💰 Trả</b> trong Sổ Nợ cũng bị chặn — app báo <b>"🔒 Sổ Nợ đang KHÓA — mở khóa bằng mật khẩu…"</b>. Mở khóa xong là ghi bình thường.</div>`},
 
 {c:'sn',t:'Số nợ hiển thị bị sai',k:'so no sai lech khong khop tinh lai cong no nham so tien bi le',
 a:`<b class="snai-h">🔧 Số nợ bị sai / không khớp</b>
@@ -13349,20 +13358,19 @@ a:`<b class="snai-h">📦 Bán theo nhiều đơn vị</b>
 <div class="snai-ok">✅ <b>Tồn kho luôn tính đúng theo đơn vị nhỏ nhất.</b> Ví dụ đơn vị gốc là "lon", bạn bán 1 thùng → app <b>tự trừ 24 lon</b> trong kho. Bạn không phải tự tính.</div>
 <div class="snai-tip">💡 <b>Chưa thấy bảng chọn đơn vị hiện ra?</b> Nghĩa là sản phẩm đó chưa được cài. Cài như sau: tab <b>Kho</b> → chạm vào sản phẩm → bấm <b>✎ Sửa</b> → kéo tới mục <b>Đơn vị quy đổi</b> → thêm các dòng. Xem chi tiết ở mục <b>Cài đơn vị quy đổi</b>.</div>`},
 
-{c:'bh',t:'Báo hết tồn không cho bán',k:'het ton khong ban duoc bao het hang ton kho am canh bao het',
-a:`<b class="snai-h">⛔ "Hết tồn" — không thêm được vào giỏ</b>
-<b>👉 Chuyện gì đang xảy ra:</b> app thấy <b>số tồn trong máy đã bằng 0</b> nên chặn không cho bán. Đây là <b>tính năng bảo vệ</b> — chặn bán khống, chặn tồn kho bị âm, giữ cho báo cáo lãi lỗ chính xác.
-<b>🪜 Xử lý — chọn đúng 1 trong 3 trường hợp sau:</b>
+{c:'bh',t:'Bán quá số tồn — tồn kho bị âm có sao không?',k:'het ton ban am ton kho am so am ton am khong du hang ban qua ton chua nhap hang van ban het hang van ban duoc bao het ton',
+a:`<b class="snai-h">➖ Tồn kho bị âm (bán âm kho)</b>
+<b>👉 Trả lời thẳng:</b> <b>không sao cả</b>. App <b>cho bán vượt số tồn</b> — vì thực tế nhiều khi hàng về tới tiệm rồi mà chưa kịp nhập vào máy. Bán xong thì số tồn trong máy thành <b>số âm</b>, ví dụ <b>Tồn -3</b>.
+<b>🔎 Bạn sẽ thấy:</b> ô sản phẩm ở tab <b>Bán</b> ghi số tồn màu đỏ nhưng <b>vẫn bấm bán được</b> như thường.
+<b>🪜 Cho số tồn đúng trở lại — chọn 1 trong 3 cách:</b>
 <ol>
-<li><b>TRƯỜNG HỢP 1 — Hàng thực tế VẪN CÒN trên kệ.</b>
-<br>Nghĩa là số tồn trong máy bị sai (do lúc nhập hàng quên bấm, hoặc kiểm kho sai).
-<br><b>Cách sửa:</b> tab <b>Kho</b> → gõ tên hàng tìm → <b>chạm vào sản phẩm</b> → bấm nút <b>📥 Nhập</b> → gõ đúng số lượng thực tế đang có → OK.</li>
-<li><b>TRƯỜNG HỢP 2 — Hàng đã hết thật, vừa nhập hàng mới về.</b>
-<br><b>Cách làm:</b> vào tab <b>Nhập</b> → lập phiếu nhập hàng đầy đủ (có nhà cung cấp, giá nhập) → Lưu phiếu. Cách này chuẩn hơn vì cập nhật luôn giá vốn và công nợ nhà cung cấp.</li>
-<li><b>TRƯỜNG HỢP 3 — Bạn nghi tồn kho sai nhiều mặt hàng.</b>
-<br><b>Cách làm:</b> dùng chức năng <b>Kiểm kho</b> để đếm lại và đặt lại con số đúng cho hàng loạt. Xem mục <b>Kiểm kho bằng quét mã</b>.</li>
+<li><b>Nhập hàng đầy đủ</b> (chuẩn nhất): tab <b>Nhập</b> → lập phiếu nhập → bấm <b>✔ Lưu phiếu nhập</b>. Số tồn tự <b>cộng bù</b> lên, giá vốn cũng cập nhật theo.</li>
+<li><b>Nhập nhanh</b>: tab <b>Kho</b> → chạm vào sản phẩm → dùng nút <b>nhập nhanh</b> trong bảng chi tiết → gõ số lượng.</li>
+<li><b>Kiểm kho</b>: tab <b>Kho</b> → bấm <b>📋 Kiểm kho</b> → đếm lại hàng, đặt đúng số thực tế.</li>
 </ol>
-<div class="snai-tip">💡 <b>Đang bán gấp, khách đứng đợi?</b> Dùng TRƯỜNG HỢP 1 cho nhanh (chỉ 5 giây), tối rảnh làm phiếu nhập đầy đủ sau cũng được.</div>`},
+<div class="snai-ok">✅ Đơn đã bán vẫn tính <b>đúng tiền, đúng lãi</b>. Số âm chỉ là lời nhắc: máy đang thiếu một phiếu nhập hàng.</div>
+<div class="snai-tip">💡 Nên sớm cho tồn về số đúng — để <b>cảnh báo sắp hết hàng</b> và <b>Cố vấn dự báo nhập hàng</b> chạy chính xác.</div>
+<div class="snai-warn">⚠️ <b>Bán online</b> cũng <b>không bị chặn theo tồn kho</b>. Hàng hết thật thì vào tab <b>Bán online</b> → <b>Chọn hàng hiện online</b> → bấm <b>Tạm hết</b> ở món đó, không thì khách vẫn đặt được.</div>`},
 
 {c:'bh',t:'Gửi link hóa đơn & xin chữ ký nhận hàng',k:'gui link hoa don ky nhan hang chu ky don hang chia se hoa don',
 a:`<b class="snai-h">🔗 Gửi link hóa đơn</b>
@@ -13625,7 +13633,8 @@ a:`<b class="snai-h">🖼️ Ảnh sản phẩm</b>
 <div class="snai-ok">✅ <b>Biết là làm đúng khi:</b> sản phẩm có ảnh nhỏ ở danh sách Kho, và ô sản phẩm ở tab Bán hiện hình.</div>
 <div class="snai-warn">⚠️ <b>Tải ảnh cần có mạng.</b> Bán hàng offline vẫn bình thường — có mạng rồi gắn ảnh sau.</div>
 <div class="snai-tip">💡 Có sẵn link ảnh trên mạng thì bấm <b>🔗 Dán link</b> trong khung ảnh. Muốn gỡ ảnh thì bấm <b>🗑 Bỏ ảnh</b> rồi <b>Lưu</b>.</div>
-<div class="snai-tip">💡 Link bán online tự cập nhật ảnh khi máy chủ shop đang mở app (muốn lên ngay thì bấm <b>Cập nhật hàng lên link</b>). Thực đơn QR tại bàn thì bấm <b>Cập nhật thực đơn lên mã</b>.</div>`},
+<div class="snai-tip">💡 Link bán online tự cập nhật ảnh khi máy chủ shop đang mở app (muốn lên ngay thì bấm <b>Cập nhật hàng lên link</b>). Thực đơn QR tại bàn thì bấm <b>Cập nhật thực đơn lên mã</b>.</div>
+<div class="snai-ok">🧹 Ảnh cũ không còn dùng (đã đổi ảnh khác, đã xóa sản phẩm) thì app <b>tự dọn định kỳ</b> trên máy chủ shop. Bạn không phải làm gì — ảnh đang dùng không bao giờ bị đụng tới.</div>`},
 
 {c:'kho',t:'Chuyển kho sang chi nhánh khác',k:'chuyen kho chi nhanh khac dieu chuyen hang qua cua hang khac transfer',
 a:`<b class="snai-h">🔄 Chuyển kho giữa chi nhánh</b>
@@ -13723,7 +13732,7 @@ a:`<b class="snai-h">💰 Mở ca</b>
 <b>📌 Khi nào cần dùng:</b> khi bạn <b>giao quầy cho nhân viên</b>, hoặc muốn kiểm soát chặt tiền mặt từng buổi. Bán một mình thì có thể không cần mở ca.
 <b>🪜 Làm từng bước:</b>
 <ol>
-<li>Vào <span class="snai-path">🛒 BÁN HÀNG</span> → tab <b>Báo cáo</b>.</li>
+<li>Vào <span class="snai-path">🛒 BÁN HÀNG</span> → tab <b>Bán</b> (hàng nút trên cùng, cạnh 🗂️ Đơn giữ).</li>
 <li>Tìm nút <b>💰 Quỹ / Chốt ca</b> → bấm vào.</li>
 <li><b>Chọn người trực ca</b> — bấm chọn tên nhân viên sẽ đứng bán buổi này.</li>
 <li><b>Nhập Quỹ đầu ca.</b> Đây là <b>số tiền thối mà chủ giao cho nhân viên đầu buổi</b> để thối lại cho khách.
@@ -13737,7 +13746,7 @@ a:`<b class="snai-h">💰 Mở ca</b>
 {c:'bc',t:'Ghi chi vặt / nộp tiền về chủ trong ca',k:'chi vat chi tieu trong ca nop tien ve chu bo them tien vao quy',
 a:`<b class="snai-h">🧾 Ghi chi tiêu trong ca</b>
 <b>👉 Cái này để làm gì:</b> ghi lại những lần <b>tiền mặt ra vào ngăn kéo mà không phải do bán hàng</b>. Không ghi thì cuối ca đếm tiền sẽ bị lệch.
-<b>📍 Ở đâu:</b> đang trong ca, vào tab <b>Báo cáo</b> → bấm <b>💰 Quỹ / Chốt ca</b> → trong bảng có <b>3 nút</b>.
+<b>📍 Ở đâu:</b> đang trong ca, vào tab <b>Bán</b> (hàng nút trên cùng, cạnh 🗂️ Đơn giữ) → bấm <b>💰 Quỹ / Chốt ca</b> → trong bảng có <b>3 nút</b>.
 <b>📖 Dùng nút nào, khi nào:</b>
 <ol>
 <li><b>Chi vặt</b> — khi <b>lấy tiền RA khỏi ngăn kéo để tiêu</b>.
@@ -13762,7 +13771,7 @@ a:`<b class="snai-h">🔒 Chốt ca</b>
 <b>👉 Cái này để làm gì:</b> cuối buổi <b>đếm tiền mặt thật</b> trong ngăn kéo rồi so với số app tính. Biết ngay <b>thừa hay thiếu bao nhiêu</b>.
 <b>🪜 Làm từng bước:</b>
 <ol>
-<li>Vào tab <b>Báo cáo</b> → bấm <b>💰 Quỹ / Chốt ca</b>.</li>
+<li>Vào tab <b>Bán</b> (hàng nút trên cùng, cạnh 🗂️ Đơn giữ) → bấm <b>💰 Quỹ / Chốt ca</b>.</li>
 <li>Bấm nút <b>Chốt ca</b>.</li>
 <li><b>Chờ vài giây</b> — app đang tải lại toàn bộ đơn hàng của ca này để tính cho thật chính xác. Đừng tắt giữa chừng.</li>
 <li>Bây giờ <b>lấy hết tiền mặt trong ngăn kéo ra ĐẾM CHO KỸ</b>. Đếm cả tiền lẻ. Đếm 2 lần cho chắc.</li>
@@ -13814,7 +13823,7 @@ a:`<b class="snai-h">🔄 Tính lại ca · 🗑 Xóa ca</b>
 <b>👉 Cái này để làm gì:</b> sửa lại những ca có số liệu sai, hoặc dọn bỏ ca tạo nhầm.
 <b>🪜 Cách vào:</b>
 <ol>
-<li>Vào tab <b>Báo cáo</b> → bấm <b>💰 Quỹ / Chốt ca</b>.</li>
+<li>Vào tab <b>Bán</b> (hàng nút trên cùng, cạnh 🗂️ Đơn giữ) → bấm <b>💰 Quỹ / Chốt ca</b>.</li>
 <li>Kéo xuống phần <b>lịch sử ca</b>.</li>
 <li><b>Chạm vào ca</b> cần xem hoặc sửa.</li>
 </ol>
@@ -14057,7 +14066,7 @@ a:`<b class="snai-h">🏪 Chi nhánh</b>
 <ol>
 <li>Bấm <span class="snai-path">🛒 BÁN HÀNG</span> để vào màn bán hàng.</li>
 <li>Nhìn lên <b>góc trên bên PHẢI</b> → có nút <b>🏪 ▾</b> → bấm vào.</li>
-<li>Bảng danh sách chi nhánh trượt ra → bấm <b>➕ Thêm chi nhánh</b>.</li>
+<li>Bảng danh sách chi nhánh trượt ra → bấm <b>➕ Mở cửa hàng mới</b>.</li>
 <li><b>Đặt tên</b> cho chi nhánh, ví dụ <i>"Cửa hàng chợ Mới"</i>, <i>"Chi nhánh 2"</i>.</li>
 <li>Bấm <b>Lưu</b>.</li>
 </ol>
@@ -15073,7 +15082,9 @@ a:`<b class="snai-h">🤖 Dùng Trợ lý cho dễ</b>
 </ol>
 <b>💬 Hoặc cứ gõ câu hỏi bằng lời nói thường</b> vào ô trống dưới cùng rồi bấm nút <b>➤</b>. Ví dụ gõ: <i>ghi no cho khach</i> · <i>in bang ke</i> · <i>quen pin</i>.
 <div class="snai-ok">✅ <b>Gõ có dấu hay không dấu đều được</b>, gõ sai chính tả một hai chữ vẫn tìm ra. Không cần gõ dài, chỉ vài từ chính là đủ.</div>
-<div class="snai-tip">💡 Trợ lý chạy <b>ngay trong máy bạn</b> — không cần mạng, không tốn tiền, không gửi dữ liệu của bạn đi đâu cả. Hỏi bao nhiêu lần cũng được.</div>`},
+<div class="snai-tip">💡 Trợ lý chạy <b>ngay trong máy bạn</b> — không cần mạng, không tốn tiền, không gửi dữ liệu của bạn đi đâu cả. Hỏi bao nhiêu lần cũng được.</div>
+<div class="snai-ok">👆 <b>Mới — Chỉ tận tay:</b> bấm nút <b>👆 Chỉ tận tay</b> ở thanh trên cùng của Trợ lý rồi chọn việc cần làm. Mình <b>khoanh vàng đúng cái nút</b> trên màn hình, có <b>ngón tay chỉ vào</b>, bạn bấm theo từng bước. Muốn dừng thì bấm <b>✕ Thoát</b>.</div>
+<div class="snai-tip">📍 Mở Trợ lý ở màn nào thì mình <b>gợi ý việc của màn đó</b> trước — đang ở Kho thì gợi ý việc Kho, đang ở Bán online thì gợi ý việc Bán online.</div>`},
 
 {c:'bd',t:'Gọi hỗ trợ khi bí — số hotline',k:'ho tro hotline lien he goi dien so dien thoai chu phan mem giup do bi loi khong biet lam',
 a:`<b class="snai-h">📞 Gọi người hỗ trợ</b>
@@ -15371,7 +15382,7 @@ a:`<b class="snai-h">🕘 Lịch sử chốt ca</b>
 <b>👉 Để làm gì:</b> xem lại <b>các ca đã chốt hôm qua, tuần trước</b> — ai trực, bán được bao nhiêu, thừa hay thiếu tiền.
 <b>🪜 Làm từng bước:</b>
 <ol>
-<li>Vào <span class="snai-path">🛒 BÁN HÀNG</span> → tab <b>Báo cáo</b> (nút dưới cùng bên phải).</li>
+<li>Vào <span class="snai-path">🛒 BÁN HÀNG</span> → tab <b>Bán</b> (hàng nút trên cùng, cạnh 🗂️ Đơn giữ).</li>
 <li>Bấm <span class="snai-path">💰 Quỹ / Chốt ca</span>.</li>
 <li>Bấm <b>🕘 Lịch sử chốt ca</b>.</li>
 <li>Danh sách hiện ra, mỗi dòng là một ca: <b>ngày giờ · tên người trực · nhãn màu</b>.</li>
@@ -15413,7 +15424,7 @@ a:`<b class="snai-h">📜 Nhật ký thu chi của ca</b>
 <b>👉 Để làm gì:</b> cuối ca thấy <b>thiếu tiền</b> mà không biết vì sao — mở cái này ra là thấy <b>từng khoản một</b>, ai ghi, lúc mấy giờ.
 <b>🪜 Mở ở đâu:</b>
 <ol>
-<li>Tab <b>Báo cáo</b> → <span class="snai-path">💰 Quỹ / Chốt ca</span>.</li>
+<li>Tab <b>Bán</b> (hàng nút trên cùng) → <span class="snai-path">💰 Quỹ / Chốt ca</span>.</li>
 <li>Đang trong ca thì bấm luôn <b>📜 Chi tiết các khoản thu / chi trong ca</b>.</li>
 <li>Ca đã chốt rồi thì vào <b>🕘 Lịch sử chốt ca</b> → bấm vào ca đó → rồi bấm nút <b>📜</b>.</li>
 </ol>
@@ -15529,41 +15540,41 @@ a:`<b class="snai-h">⇄ Đổi ngành nghề</b>
 
 /* ═════════ BỔ SUNG v2 — 📱 ĐƠN QR TẠI BÀN ═════════ */
 {c:'qr',t:'Đơn QR tại bàn là gì? Dùng làm gì?',k:'don qr tai ban la gi khach tu goi mon quet ma tren ban thuc don menu do mot nguoi chay ban',
-a:`<b class="snai-h">📱 Khách tự gọi món bằng mã QR</b>
-<b>👉 Nó làm được gì:</b> bạn <b>dán một mã QR lên mỗi bàn</b>. Khách ngồi xuống, lấy điện thoại <b>rê camera vào mã</b> là hiện ra <b>thực đơn của quán</b>. Khách tự bấm chọn món rồi bấm gửi — đơn <b>chạy thẳng xuống máy tính tiền</b> kèm <b>tiếng chuông báo</b>.
+a:`<b class="snai-h">📱 Khách tự gọi món bằng mã QR dán bàn</b>
+<b>👉 Nó làm được gì:</b> bạn dán một mã QR lên mỗi bàn. Khách ngồi xuống, rê camera điện thoại vào mã là hiện ra thực đơn của quán. Khách tự chọn món rồi bấm gửi — đơn chạy thẳng về máy tính tiền kèm <b>tiếng chuông báo</b>.
 <b>🎯 Lợi ích thật sự:</b>
 <ul>
-<li><b>Đỡ hẳn một người chạy bàn ghi giấy.</b> Quán đông vẫn không sót món.</li>
+<li><b>Đỡ một người chạy bàn ghi giấy.</b> Quán đông vẫn không sót món.</li>
 <li><b>Không ghi nhầm món</b> — khách tự bấm, tự chịu.</li>
-<li>Khách <b>không phải tải ứng dụng gì cả</b>, chỉ cần camera điện thoại.</li>
+<li>Khách <b>không phải cài app</b> gì cả, chỉ cần camera điện thoại.</li>
 </ul>
 <b>🔒 Ba điều được khóa chặt cho bạn yên tâm:</b>
-<ol>
-<li>Đơn khách gửi <b>KHÔNG tự vào bill</b>. Nhân viên phải bấm <b>Nhận vào bàn</b> thì món mới vào — khách phá cũng không lên tiền.</li>
-<li>Giá luôn lấy <b>theo giá trong kho lúc nhận đơn</b>, không lấy giá khách gửi lên.</li>
-<li>Món đã xóa khỏi kho thì <b>bỏ qua và báo rõ cho nhân viên</b>.</li>
-</ol>
-<div class="snai-warn">⚠️ <b>Điều kiện dùng:</b> phải đang bật <b>gói F&amp;B (Nhà hàng · Quán ăn · Cafe)</b> vì cần có <b>sơ đồ bàn</b>, và cần thêm <b>gói Đơn QR</b> (có dùng thử 14 ngày miễn phí). Quán tạp hóa, thời trang không dùng được cái này.</div>
-<div class="snai-tip">💡 Bàn nào khách lớn tuổi không quen quét mã thì nhân viên cứ ghi tay như cũ — hai cách <b>dùng song song</b> được, không xung đột.</div>`},
+<ul>
+<li>Đơn khách gửi <b>KHÔNG tự vào bill</b>. Nhân viên phải bấm <b>Nhận vào bàn</b> thì món mới vào.</li>
+<li>Giá luôn lấy theo <b>giá trong kho</b> lúc nhận đơn, không lấy giá khách gửi lên.</li>
+<li>Món đã xóa khỏi kho thì bỏ qua và báo rõ cho nhân viên.</li>
+</ul>
+<div class="snai-warn">⚠️ <b>Điều kiện:</b> mã QR dán bàn chỉ có ở cửa hàng ngành <b>Nhà hàng · Quán ăn · Cafe (F&amp;B)</b> — vì cần có <b>sơ đồ bàn</b> — và cần <b>gói Bán online</b> (tên cũ là gói Đơn QR, có dùng thử miễn phí). Tab tên là <b>Đơn QR</b>.</div>
+<div class="snai-ok">✅ Ngành khác (tạp hóa, thời trang, karaoke…) <b>không có mã dán bàn</b> nhưng vẫn <b>bán online qua link</b> được — xem nhóm <b>🌐 Bán online</b>. Quán ăn thì có cả hai: mã dán bàn + link bán online, nằm chung trong tab Đơn QR.</div>
+<div class="snai-tip">💡 Bàn nào khách lớn tuổi không quen quét mã thì nhân viên cứ ghi tay như cũ — hai cách dùng song song được, không xung đột.</div>`},
 
 {c:'qr',t:'Bật Đơn QR và tạo mã cho quán (lần đầu)',k:'bat don qr tao ma lan dau cai dat day thuc don len ma bat dau',
-a:`<b class="snai-h">🚀 Bật Đơn QR lần đầu</b>
+a:`<b class="snai-h">🚀 Bật mã QR dán bàn lần đầu</b>
 <b>⛳ Làm trước 2 việc này, thiếu là không chạy:</b>
 <ol>
-<li>Cửa hàng phải đang ở <b>ngành F&amp;B</b> (bấm <b>🏪 ▾</b> → xem ngành).</li>
-<li>Phải <b>đã tạo bàn</b> trong tab <b>🍽️ Bàn</b> và <b>kho phải có món</b> (có tên, có giá bán).</li>
+<li>Cửa hàng phải thuộc ngành <b>Quán ăn · Cafe (F&amp;B)</b> — bấm nút <b>🏪 ▾</b> ở góc trên màn Bán hàng để xem.</li>
+<li>Đã tạo <b>bàn</b> trong tab <b>Bàn</b>, và kho đã có <b>món</b> (có tên, có giá bán).</li>
 </ol>
-<b>🪜 Bật lần đầu:</b>
+<b>🪜 Bật lần đầu — làm từng bước:</b>
 <ol>
-<li>Vào <span class="snai-path">🛒 BÁN HÀNG</span> → tìm tab <b>Đơn QR</b> ở thanh dưới cùng.</li>
-<li>Chưa mua gói thì hiện màn giới thiệu → bấm <b>🎁 Dùng thử 14 ngày miễn phí</b>.</li>
-<li>Bấm nút <b>Tạo mã &amp; đẩy thực đơn</b>.</li>
-<li>Chờ vài giây. Xong, màn hình hiện: <b>Tên hiện cho khách</b>, <b>số món trên thực đơn</b>, <b>số bàn</b>.</li>
+<li>Vào <span class="snai-path">🛒 BÁN HÀNG</span> → bấm tab <b>Đơn QR</b> ở thanh dưới cùng.</li>
+<li>Chưa có gói thì hiện trang giới thiệu → bấm <b>Dùng thử … ngày miễn phí</b> (thường là 14 ngày).</li>
+<li>Bấm nút xanh <b>Tạo mã &amp; đẩy thực đơn</b>. Chờ vài giây.</li>
 </ol>
-<div class="snai-ok">✅ <b>Biết là xong khi:</b> thấy nút <b>Bật nhận đơn qua mã QR</b> chuyển trạng thái <b>ĐANG BẬT</b>, và có nút <b>🖨️ In mã QR các bàn</b>.</div>
-<b>🔜 Việc tiếp theo:</b> in mã dán lên bàn — xem mục <b>"In mã QR dán lên từng bàn"</b>.
-<div class="snai-warn">⚠️ Báo <b>"Chưa có bàn nào"</b> → qua tab <b>🍽️ Bàn</b> → <b>➕ Thêm bàn</b> trước đã.<br>Báo <b>"Kho chưa có món nào"</b> → qua tab <b>Kho</b> → <b>➕ Thêm SP</b> trước đã.</div>
-<div class="snai-tip">💡 Thực đơn QR nhận <b>tối đa 300 món</b>. Quán nhiều hơn thì app tự lấy 300 món đầu — nên <b>xóa bớt món không còn bán</b> cho gọn.</div>`},
+<div class="snai-ok">✅ <b>Biết là xong khi:</b> hiện khung <b>Nhận đơn từ mã QR</b> có <b>công tắc màu xanh</b> và dòng <b>"Đang nhận đơn"</b>, kèm số món trên thực đơn, số bàn — và có nút <b>In mã QR các bàn</b>.</div>
+<b>🔜 Việc tiếp theo:</b> in mã dán lên bàn — xem mục "In mã QR dán lên từng bàn".
+<div class="snai-warn">⚠️ App báo chưa có bàn → qua tab <b>Bàn</b> thêm bàn trước. Báo kho chưa có món → qua tab <b>Kho</b> → <b>➕ Thêm SP</b> trước.</div>
+<div class="snai-tip">💡 Ngay dưới khung mã dán bàn còn có khung <b>🌐 Cửa hàng online</b> — tạo thêm link để khách ở nhà đặt món giao tận nơi. Xem nhóm <b>🌐 Bán online</b>.</div>`},
 
 {c:'qr',t:'In mã QR dán lên từng bàn',k:'in ma qr cac ban dan len ban a4 a5 in nhiet the qr cat roi',
 a:`<b class="snai-h">🖨️ In mã QR cho các bàn</b>
@@ -15746,6 +15757,293 @@ a:`<b class="snai-h">⏳ Đã chuyển tiền nhưng vẫn báo hết hạn</b>
 <div class="snai-warn">⚠️ <b>Tuyệt đối đừng đăng ký một email mới</b> vì tưởng mất tài khoản. Email mới là cái tủ trống, toàn bộ dữ liệu của bạn vẫn nằm ở email cũ.</div>
 <div class="snai-tip">💡 Lần sau nên gia hạn <b>trước khi hết hạn 2–3 ngày</b>. App có băng nhắc ở đầu màn hình khi còn ≤3 ngày — thấy băng đó là lo liền, đừng để đứt giữa buổi bán.</div>`},
 
+
+/* ═════════ BỔ SUNG v3 — 🌐 BÁN ONLINE · ĐẶT PHÒNG · CHUÔNG · CHỈ TẬN TAY ═════════ */
+{c:'onl',t:'Bán online là gì? Dùng làm gì?',k:'ban online la gi cua hang online ban qua mang ban tren zalo facebook link dat hang khach tu dat hang giao hang tan noi den lay goi ban online',
+a:`<b class="snai-h">🌐 Bán online — khách tự đặt hàng qua link</b>
+<b>👉 Nói cho dễ hiểu:</b> mỗi cửa hàng của bạn có <b>1 đường link riêng</b>, giống một trang bán hàng nhỏ. Bạn gửi link lên Zalo, Facebook, hoặc in <b>mã QR</b> dán ở quầy. Khách bấm vào là thấy hàng của bạn — có tên, có giá, có ảnh — rồi tự chọn và bấm đặt.
+<b>🔁 Đơn chạy về đâu:</b>
+<ol>
+<li>Khách đặt xong → máy bán hàng của bạn <b>reo chuông</b>, hiện khung đỏ <b>🔔 Có đơn mới</b>.</li>
+<li>Bạn xem đơn → bấm <b>Nhận đơn</b>. Đơn tự thành một <b>đơn giữ</b> mang tên khách, nằm trong nút <b>🗂️ Đơn giữ</b> ở tab Bán.</li>
+<li>Soạn hàng, giao hàng (hoặc chờ khách tới lấy).</li>
+<li>Mở đơn giữ đó ra, thu tiền như bán tại quầy: <b>Tiền mặt</b>, <b>VietQR</b> hoặc <b>Ghi nợ</b>. Kho, quỹ ca, sổ nợ tự trừ tự cộng như thường — không phải ghi lại gì.</li>
+</ol>
+<b>🏪 Dùng được cho cả 5 ngành:</b>
+<ul>
+<li>🛒 Bán hàng đa năng · ⚖️ Cân ký / Bán sỉ — khách đặt hàng, chọn giao tận nơi hoặc đến lấy.</li>
+<li>🍜 Quán ăn / Cafe — có thêm <b>mã QR dán bàn</b> để khách ngồi tại bàn tự gọi món (tab tên là <b>Đơn QR</b>).</li>
+<li>👕 Thời trang / Mỹ phẩm — khách chọn đúng <b>size, màu</b>.</li>
+<li>🛏️ Karaoke / Spa / Nhà nghỉ — khách <b>đặt phòng, đặt lịch</b> trước.</li>
+</ul>
+<div class="snai-ok">🔒 <b>3 điều giữ an toàn cho bạn:</b> đơn khách gửi <b>không tự thành tiền</b> — phải bấm Nhận mới vào · giá luôn lấy theo <b>giá trong Kho</b> lúc bạn nhận, khách không sửa được giá · gặp khách đặt phá thì bấm <b>Chặn số này</b>.</div>
+<div class="snai-warn">⚠️ Cần có <b>gói Bán online</b> (tên cũ là gói Đơn QR, dùng chung cho mọi ngành) — có <b>dùng thử miễn phí</b>. Tab nằm ở thanh dưới cùng màn 🛒 Bán hàng, tên là <b>Bán online</b> (quán ăn thì tên là <b>Đơn QR</b>).</div>
+<div class="snai-tip">💡 App phải <b>đang mở</b> thì máy mới reo chuông báo đơn. Nên để 1 máy ở quầy, cắm sạc, vặn to loa.</div>`},
+
+{c:'onl',t:'Mở tab Bán online và dùng thử miễn phí',k:'mo tab ban online o dau khong thay tab ban online dung thu ban online mua goi ban online kich hoat goi don qr',
+a:`<b class="snai-h">🚪 Mở tab Bán online (lần đầu)</b>
+<b>🪜 Làm từng bước:</b>
+<ol>
+<li>Bấm nút <span class="snai-path">🛒 BÁN HÀNG</span> trên cùng màn hình.</li>
+<li>Nếu app hỏi <b>chọn ngành nghề</b> → chạm vào ngành của cửa hàng bạn. Nếu app hỏi <b>người bán + mã PIN</b> → chạm tên rồi bấm mã PIN.</li>
+<li>Nhìn xuống <b>thanh dưới cùng</b> → bấm tab <b>Bán online</b> (quán ăn / cafe thì tab tên là <b>Đơn QR</b>).</li>
+<li>Chưa có gói thì hiện trang giới thiệu có hình quả địa cầu 🌐. Bấm nút xanh <b>Dùng thử … ngày miễn phí</b> (thường là 14 ngày).</li>
+<li>Muốn mua luôn thì bấm <b>Mua gói · quét mã QR</b> rồi làm theo hướng dẫn hiện ra. Cần hỏi thì bấm nút <b>Gọi</b> ngay bên cạnh.</li>
+</ol>
+<div class="snai-ok">✅ <b>Biết là làm đúng khi:</b> tab hiện khung <b>🌐 Cửa hàng online</b> có nút <b>Tạo link cửa hàng</b>. Làm tiếp mục <b>"Tạo link cửa hàng online (lần đầu)"</b>.</div>
+<div class="snai-warn">⚠️ <b>Máy nhân viên không mở gói được</b> — app báo "Đây là máy nhân viên — nhờ chủ shop". Chủ shop mở trên máy của chủ là xong, máy nhân viên tự dùng theo.</div>
+<div class="snai-tip">💡 Mỗi tài khoản chỉ được <b>dùng thử 1 lần</b>; đã dùng thử rồi thì chỉ còn nút mua. Gói hết hạn thì khách <b>không gửi đơn được nữa</b>, còn hàng hóa và đơn cũ của bạn vẫn nguyên.</div>`},
+
+{c:'onl',t:'Tạo link cửa hàng online (lần đầu)',k:'tao link cua hang online lan dau lay link ban hang tao cua hang online bat ban online',
+a:`<b class="snai-h">🔗 Tạo link cửa hàng</b>
+<b>⛳ Chuẩn bị trước:</b> trong tab <b>Kho</b> đã có hàng, mỗi món có <b>tên</b> và <b>giá bán</b>. Có ảnh càng tốt — khách nhìn ảnh dễ chọn hơn.
+<b>🪜 Làm từng bước:</b>
+<ol>
+<li>Vào <span class="snai-path">🛒 BÁN HÀNG</span> → tab <b>Bán online</b> (quán ăn: <b>Đơn QR</b>).</li>
+<li>Tìm khung <b>🌐 Cửa hàng online</b> → bấm nút xanh <b>Tạo link cửa hàng</b>.</li>
+<li>Chờ vài giây cho app đưa hàng lên link.</li>
+</ol>
+<div class="snai-ok">✅ <b>Biết là làm đúng khi:</b> khung hiện đầy đủ: <b>công tắc</b> nhận đơn ở góc phải, dòng <b>Tên hiện cho khách</b>, số món đang có trên link, giờ nhận đơn, cách nhận hàng, và <b>đường link</b> của bạn ngay bên dưới.</div>
+<b>🔜 Làm tiếp theo thứ tự này là đẹp nhất:</b>
+<ol>
+<li><b>Cài đặt</b> — giờ nhận đơn, giao tận nơi hay đến lấy, có nhận chuyển khoản không.</li>
+<li><b>Chọn hàng hiện online</b> — ẩn bớt món không muốn bán online.</li>
+<li><b>Gửi link</b> cho khách, hoặc lấy <b>Mã QR cửa hàng</b> in dán quầy.</li>
+</ol>
+<div class="snai-warn">⚠️ Chỉ <b>máy chủ shop</b> mới tạo được link — máy nhân viên sẽ báo "Chỉ máy chủ shop tạo được link".</div>`},
+
+{c:'onl',t:'Gửi link cửa hàng cho khách qua Zalo, Facebook',k:'gui link cua hang sao chep link chia se link zalo facebook messenger dang link ban online copy link',
+a:`<b class="snai-h">📤 Gửi link cho khách</b>
+<b>📍 Ở đâu:</b> tab <b>Bán online</b> → khung <b>🌐 Cửa hàng online</b>, ngay dưới dòng link có 3 nút.
+<b>🪜 Cách 1 — Gửi thẳng (dễ nhất):</b>
+<ol>
+<li>Bấm <b>Gửi link</b>.</li>
+<li>Bảng chia sẻ của điện thoại hiện lên → chọn <b>Zalo</b> (hoặc Messenger, tin nhắn…).</li>
+<li>Chọn người hoặc nhóm cần gửi → bấm gửi.</li>
+</ol>
+<b>🪜 Cách 2 — Sao chép rồi dán:</b>
+<ol>
+<li>Bấm <b>Sao chép link</b> → app báo "Đã sao chép link".</li>
+<li>Mở Zalo / Facebook → vào ô soạn tin hoặc ô đăng bài.</li>
+<li><b>Giữ ngón tay</b> lên ô đó khoảng 1 giây → chọn <b>Dán</b> → gửi / đăng.</li>
+</ol>
+<div class="snai-tip">💡 <b>Mẹo bán được nhiều:</b> đăng link lên <b>trang cá nhân Zalo, Facebook</b> kèm vài dòng giới thiệu và ảnh món ngon. Ghim bài đó lên đầu trang để khách cũ dễ tìm lại.</div>
+<div class="snai-ok">✅ Khách bấm link là vào thẳng cửa hàng của bạn, <b>không phải cài app</b> gì cả.</div>`},
+
+{c:'onl',t:'Mã QR cửa hàng — in dán quầy, đăng Facebook',k:'ma qr cua hang in ma qr dan quay luu anh ma qr chia se anh ma qr ban online quet ma dat hang',
+a:`<b class="snai-h">🔳 Mã QR cửa hàng online</b>
+<b>👉 Cái này để làm gì:</b> một tấm ảnh có <b>tên cửa hàng</b> + <b>mã QR</b> + dòng "Quét mã để đặt hàng online". Khách lấy camera điện thoại quét là vào thẳng link đặt hàng.
+<b>🪜 Làm từng bước:</b>
+<ol>
+<li>Tab <b>Bán online</b> → khung <b>🌐 Cửa hàng online</b> → bấm <b>Mã QR cửa hàng</b>.</li>
+<li>Ảnh mã QR hiện ra. Chọn:
+<ul>
+<li><b>Lưu ảnh</b> — tải ảnh về máy để mang đi in, hoặc gửi sau.</li>
+<li><b>Chia sẻ ảnh</b> — gửi thẳng ảnh qua Zalo / Messenger.</li>
+</ul></li>
+</ol>
+<b>📌 Dán ở đâu cho hiệu quả:</b> quầy tính tiền, cửa ra vào, túi đựng hàng, xe giao hàng, tờ rơi, bài đăng Facebook.
+<div class="snai-warn">⚠️ <b>Cần có mạng</b> lúc tạo mã. App báo "Cần mạng để tạo mã QR" thì bật wifi / 4G rồi bấm lại.</div>
+<div class="snai-warn">⚠️ Nếu sau này bấm <b>Đổi link</b> thì mã QR cũ <b>ngưng dùng được</b> — phải lấy mã mới in lại.</div>
+<div class="snai-tip">💡 Máy không chia sẻ ảnh được thì bấm <b>Lưu ảnh</b>, rồi vào Zalo gửi ảnh vừa lưu trong thư viện ảnh.</div>`},
+
+{c:'onl',t:'Bật / tắt nhận đơn online',k:'bat tat nhan don online tam ngung nhan don nghi ban cong tac ban online dong cua hang online',
+a:`<b class="snai-h">🔛 Bật / tắt nhận đơn online</b>
+<b>📍 Ở đâu:</b> tab <b>Bán online</b> → khung <b>🌐 Cửa hàng online</b> → <b>công tắc tròn</b> ở góc trên bên phải của khung.
+<b>🎨 Nhìn màu để biết:</b>
+<ul>
+<li>🟢 <b>Màu xanh</b> — đang <b>nhận đơn</b>. Khách đặt được.</li>
+<li>⚪ <b>Màu xám</b> — đang <b>tắt</b>. Khách mở link vẫn <b>xem được hàng</b> nhưng <b>không đặt được</b>.</li>
+</ul>
+<b>🪜 Cách làm:</b> chạm vào công tắc 1 lần là đổi. App báo "Đã bật nhận đơn online" hoặc "Đã tắt".
+<b>📌 Nên tắt khi:</b> nghỉ bán, đi vắng, hết nhiều hàng, hoặc đơn quá đông làm không kịp.
+<div class="snai-tip">💡 Muốn app <b>tự</b> nhận đơn theo giờ (VD 7:00–21:00) thì khỏi bật tắt tay — vào <b>Cài đặt</b> chọn <b>Giờ nhận đơn</b>.</div>
+<div class="snai-warn">⚠️ Máy nhân viên không có công tắc này — chỉ chủ shop bật / tắt được.</div>`},
+
+{c:'onl',t:'Cài đặt cửa hàng online: giờ nhận đơn, giao hàng, chuyển khoản',k:'cai dat cua hang online gio nhan don gio mo cua giao tan noi den lay chuyen khoan so dien thoai cua hang loi nhan phi ship',
+a:`<b class="snai-h">⚙️ Cài đặt cửa hàng online</b>
+<b>📍 Ở đâu:</b> tab <b>Bán online</b> → khung <b>🌐 Cửa hàng online</b> → bấm <b>Cài đặt</b>.
+<b>🪜 Bảng cài đặt có 6 phần, chỉnh từ trên xuống:</b>
+<ol>
+<li><b>Giờ nhận đơn</b> — chọn <b>Cả ngày</b>, hoặc chọn <b>Từ … đến …</b> rồi đặt giờ. Ngoài giờ, khách vẫn xem hàng nhưng không đặt được.</li>
+<li><b>Cách nhận hàng</b> — tick <b>🛵 Giao tận nơi</b>, <b>🏪 Khách đến lấy</b>, hoặc cả hai. Phải chọn ít nhất 1.</li>
+<li><b>Thanh toán</b> — tick <b>💳 Cho khách chuyển khoản</b> nếu muốn khách trả bằng chuyển khoản. Ô này chỉ bấm được khi shop <b>đã cài số tài khoản ngân hàng</b> (màn Sổ Nợ → ⚙️ Cài đặt → 🏦 Số tài khoản).</li>
+<li><b>SĐT cửa hàng</b> — số để khách bấm gọi cho bạn.</li>
+<li><b>Lời nhắn cho khách</b> — VD: "Giao trong 3km, phí ship 15.000đ".</li>
+<li><b>Số điện thoại đã chặn</b> — danh sách số bạn đã chặn, có nút <b>Bỏ chặn</b>.</li>
+</ol>
+<b>👉 Cuối cùng bấm</b> <b>Lưu &amp; cập nhật link</b>.
+<div class="snai-ok">✅ <b>Biết là làm đúng khi:</b> app báo "Đã lưu cài đặt và cập nhật link", và dòng dưới tên cửa hàng hiện đúng giờ nhận đơn + cách nhận hàng.</div>
+<div class="snai-warn">⚠️ App báo lỗi thì sửa theo: <b>"Giờ nhận đơn chưa đúng"</b> → giờ mở phải khác giờ đóng · <b>"Chọn ít nhất 1 cách nhận hàng"</b> → tick lại Giao hoặc Lấy · <b>"SĐT cửa hàng chưa đúng"</b> → gõ lại số điện thoại, bắt đầu bằng số 0.</div>`},
+
+{c:'onl',t:'Chọn hàng hiện online và bấm "Tạm hết"',k:'chon hang hien online an hang an mon tam het het hang con hang hien ca nhom an ca nhom mon het tren link',
+a:`<b class="snai-h">🧺 Chọn hàng hiện online · Tạm hết</b>
+<b>👉 Cái này để làm gì:</b> chọn món nào <b>cho khách thấy</b> trên link, món nào <b>ẩn đi</b>, và báo món nào đang <b>tạm hết</b>.
+<b>🪜 Làm từng bước:</b>
+<ol>
+<li>Tab <b>Bán online</b> → bấm <b>Chọn hàng hiện online</b>.</li>
+<li>Bảng hiện danh sách hàng theo từng <b>nhóm</b>. Trên cùng có ô <b>Tìm hàng…</b> để gõ tìm cho nhanh.</li>
+<li>Mỗi món có <b>ô tick</b> bên trái:
+<ul>
+<li>✅ Có tick = món <b>hiện</b> trên link.</li>
+<li>⬜ Bỏ tick = món <b>ẩn</b>, khách không thấy.</li>
+</ul></li>
+<li>Mỗi món có nút bên phải ghi <b>Còn hàng</b> hoặc <b>Tạm hết</b> — chạm vào để đổi qua lại. Món <b>Tạm hết</b> thì khách không đặt được món đó.</li>
+<li>Muốn làm cả nhóm một lần: bấm <b>Hiện cả nhóm</b> / <b>Ẩn cả nhóm</b> ở đầu nhóm.</li>
+<li>Xong bấm <b>Lưu &amp; cập nhật link</b>.</li>
+</ol>
+<div class="snai-ok">✅ Dòng trên cùng của bảng cho biết đang hiện bao nhiêu món, bao nhiêu món đang "Tạm hết". Lưu xong app báo link đang hiện mấy món.</div>
+<div class="snai-warn">⚠️ <b>Quan trọng:</b> app <b>KHÔNG tự chặn đơn theo số tồn kho</b> (vì có khi hàng về rồi mà chưa kịp nhập vào máy). Hàng hết thật thì <b>bạn phải tự bấm "Tạm hết"</b>, không thì khách vẫn đặt được.</div>
+<div class="snai-tip">💡 👕 Thời trang: dưới mỗi món có nút <b>riêng từng size / màu</b> — hết size nào bấm đúng size đó. 🛏️ Karaoke / Spa / Nhà nghỉ: nút ghi <b>Nhận đặt</b> / <b>Tạm ngưng</b> — phòng đang sửa thì bấm cho thành Tạm ngưng.</div>`},
+
+{c:'onl',t:'Cập nhật hàng, giá, ảnh mới lên link',k:'cap nhat hang len link gia moi anh moi mon moi link chua doi gia link chua cap nhat dong bo link',
+a:`<b class="snai-h">🔄 Cập nhật hàng lên link</b>
+<b>👉 Tin vui:</b> bạn sửa giá, thêm món, đổi ảnh trong tab <b>Kho</b> thì app <b>tự đưa lên link</b> sau khoảng <b>1 phút</b> — miễn là <b>máy chủ shop đang mở app</b>.
+<b>🪜 Muốn lên ngay lập tức:</b>
+<ol>
+<li>Tab <b>Bán online</b> → khung <b>🌐 Cửa hàng online</b>.</li>
+<li>Bấm <b>Cập nhật hàng lên link</b> → chờ vài giây.</li>
+</ol>
+<div class="snai-tip">💡 Quán ăn có <b>mã QR dán bàn</b>: thực đơn trên mã dán bàn cập nhật riêng bằng nút <b>Cập nhật thực đơn lên mã</b> ở khung phía trên.</div>
+<div class="snai-warn">⚠️ Thấy dòng chữ <b>nền vàng</b> hiện dưới đường link thì đọc kỹ — đó là app đang báo điều cần sửa.</div>`},
+
+{c:'onl',t:'Nhận đơn online — từ lúc chuông reo tới lúc giao hàng',k:'nhan don online don moi xem don chuong reo don hang online nhan don khong nhan giao hang thu tien don giu ten khach xu ly don',
+a:`<b class="snai-h">🛵 Nhận và giao đơn online</b>
+<b>🪜 BƯỚC 1 — Nghe chuông:</b> máy reo, hiện khung đỏ <b>🔔 Có đơn mới</b> giữa màn hình (đang ở màn nào cũng hiện). Bấm nút xanh <b>Xem đơn</b> → app tự mở tab Bán online.
+<b>🪜 BƯỚC 2 — Đọc thẻ đơn</b> (có hình 🌐 + tên khách):
+<ul>
+<li><b>Mã đơn</b> dạng DH-XXXXXX và thời gian đặt.</li>
+<li><b>📞 Số điện thoại</b> — bấm vào là gọi. Bên cạnh có <b>💬 Zalo</b>.</li>
+<li><b>🛵 Giao tới:</b> địa chỉ — hoặc <b>🏪 Khách đến lấy</b>.</li>
+<li><b>Cách trả tiền:</b> 💳 chuyển khoản (kèm nội dung chuyển khoản là mã đơn) hoặc 💵 trả tiền mặt khi nhận hàng.</li>
+<li>Từng món, số lượng, ghi chú của khách và dòng <b>Tạm tính theo giá kho</b>.</li>
+</ul>
+<b>🪜 BƯỚC 3 — Quyết định:</b>
+<ul>
+<li>Làm được → bấm <b>Nhận đơn</b>. App báo "Đã nhận đơn … — nằm trong 🗂️ Đơn giữ".</li>
+<li>Không làm được → bấm <b>Không nhận</b>. Khách sẽ thấy "Cửa hàng chưa nhận được đơn này".</li>
+</ul>
+<b>🪜 BƯỚC 4 — Soạn hàng, giao hàng.</b>
+<b>🪜 BƯỚC 5 — Thu tiền:</b> tab <b>Bán</b> → bấm <b>🗂️ Đơn giữ</b> → chạm đơn có tên <b>🌐 Tên khách</b> → giỏ hàng mở ra đủ món → chọn <b>Tiền mặt</b>, <b>VietQR</b> hoặc <b>Ghi nợ</b> như bán thường.
+<div class="snai-ok">✅ Thu tiền xong thì kho tự trừ, báo cáo tự cộng, tiền vào quỹ ca (nếu đang mở ca) — y như bán tại quầy.</div>
+<div class="snai-warn">⚠️ Món khách đặt mà <b>đã bị xóa khỏi kho</b> thì app <b>không đưa vào đơn</b> và báo danh sách để bạn gọi khách đổi món. Hai máy cùng bấm Nhận một đơn thì chỉ một máy nhận được, máy kia báo "Đơn này vừa được máy khác xử lý rồi".</div>
+<div class="snai-tip">💡 Máy nhân viên cũng <b>Nhận / Không nhận</b> đơn được. Riêng tạo link, cài đặt, chọn hàng thì chỉ máy chủ shop làm.</div>`},
+
+{c:'onl',t:'Khách đặt ảo, bom hàng — chặn số điện thoại',k:'chan so dien thoai khach dat ao bom hang dat pha khach xau bo chan so danh sach chan',
+a:`<b class="snai-h">🚫 Chặn số khách đặt phá</b>
+<b>🪜 Chặn — làm từng bước:</b>
+<ol>
+<li>Trên thẻ đơn online của khách đó, bấm nút đỏ <b>Chặn số này</b>.</li>
+<li>App hỏi lại → bấm <b>OK</b>.</li>
+</ol>
+<div class="snai-ok">✅ Đơn đó bị báo "không nhận". Từ nay <b>mọi đơn từ số này tự bị từ chối</b>, máy <b>không reo chuông</b> nữa.</div>
+<b>🪜 Bỏ chặn (khi lỡ chặn nhầm):</b>
+<ol>
+<li>Tab <b>Bán online</b> → bấm <b>Cài đặt</b>.</li>
+<li>Kéo xuống phần <b>Số điện thoại đã chặn</b> → bấm <b>Bỏ chặn</b> ở số cần bỏ.</li>
+</ol>
+<div class="snai-tip">💡 Bị <b>nhiều số lạ</b> đặt phá liên tục thì dùng cách mạnh hơn: <b>Đổi link</b> — xem mục "Đổi link cửa hàng khi bị đặt phá".</div>`},
+
+{c:'onl',t:'Đổi link cửa hàng khi bị đặt phá',k:'doi link cua hang link moi huy link cu bi dat pha link bi lo',
+a:`<b class="snai-h">♻️ Đổi link cửa hàng</b>
+<b>👉 Khi nào dùng:</b> <b>chỉ khi bị người lạ đặt phá</b> liên tục mà chặn số không xuể.
+<b>🪜 Làm từng bước:</b>
+<ol>
+<li>Tab <b>Bán online</b> → bấm nút đỏ <b>Đổi link</b>.</li>
+<li>Đọc kỹ lời nhắc → bấm <b>OK</b>.</li>
+<li>Gửi <b>link mới</b> cho khách quen, lấy <b>Mã QR cửa hàng</b> mới đem in lại.</li>
+</ol>
+<div class="snai-warn">⚠️ Link cũ (đã gửi khách, mã QR đã in dán) <b>ngưng ngay lập tức</b>. Khách bấm link cũ sẽ không đặt được nữa — nhớ báo khách quen.</div>
+<div class="snai-ok">✅ Quán ăn yên tâm: <b>mã QR dán bàn KHÔNG bị ảnh hưởng</b> khi đổi link online.</div>`},
+
+{c:'onl',t:'Đổi tên cửa hàng hiện cho khách',k:'doi ten cua hang ten quan hien cho khach ten tren link sua ten cua hang online',
+a:`<b class="snai-h">✏️ Đổi tên hiện cho khách</b>
+<b>🪜 Làm từng bước:</b>
+<ol>
+<li>Tab <b>Bán online</b> → khung <b>🌐 Cửa hàng online</b> → bấm <b>Đổi tên</b>.</li>
+<li>Ô nhập hiện ra → xóa tên cũ, gõ tên mới. VD: <code>Tạp hóa Cô Ba</code>.</li>
+<li>Bấm <b>OK</b>.</li>
+</ol>
+<div class="snai-ok">✅ App báo "Đã đổi tên cửa hàng". Tên mới hiện ngay trên link online — quán ăn thì <b>thực đơn QR dán bàn cũng đổi theo</b>.</div>
+<div class="snai-tip">💡 Nên đặt tên dễ nhận ra, kèm khu vực. VD "Tạp hóa Cô Ba — chợ Mới", để khách không nhầm với tiệm khác.</div>`},
+
+{c:'onl',t:'Chuông báo đơn: thử chuông, bật tiếng, giữ màn hình sáng',k:'chuong bao don thu chuong khong nghe chuong khong keu chuong khong reo bat tieng giu man hinh sang man hinh tu tat im lang am luong cham de bat chuong da nghe tat chuong',
+a:`<b class="snai-h">🔔 Chuông báo đơn</b>
+<b>📍 Ở đâu:</b> cuối tab <b>Bán online</b> (quán ăn: <b>Đơn QR</b>) có khung <b>Chuông báo đơn trên máy này</b>.
+<b>🎧 Dòng trạng thái nghĩa là:</b>
+<ul>
+<li>🔔 <b>Đang nghe đơn</b> — tốt rồi, có đơn là reo.</li>
+<li>🔕 <b>Máy đang chặn tiếng</b> — <b>chạm vào màn hình 1 lần</b> là mở tiếng (điện thoại bắt buộc phải chạm 1 lần mới cho phát tiếng).</li>
+<li>⏳ <b>Đang nối lại</b> — mạng yếu, chờ chút app tự nối.</li>
+<li>⚪ <b>Chưa nghe đơn</b> — tắt hẳn app rồi mở lại.</li>
+</ul>
+<b>🪜 Thử chuông:</b> bấm nút <b>Thử chuông</b> → phải nghe tiếng "ting tang" và máy rung.
+<b>🪜 Giữ màn hình luôn sáng:</b> bật <b>công tắc</b> cạnh dòng "Giữ màn hình luôn sáng" — máy để ở quầy sẽ không tự tắt màn hình. Mỗi máy bật riêng.
+<b>🔔 Khi có đơn:</b> máy reo liên tục — 3 phút đầu cứ 3 giây reo 1 lần, sau đó 20 giây 1 lần — cho tới khi có người bấm <b>Xem đơn</b> hoặc <b>Đã nghe, tắt chuông</b>. Trên máy tính, tên tab trình duyệt nhấp nháy "🔔 Có đơn mới!".
+<div class="snai-warn">⚠️ <b>Không nghe chuông? Kiểm tra 4 thứ:</b>
+<ol>
+<li>Vặn to âm lượng <b>Phương tiện (Media)</b> — không phải âm lượng chuông gọi.</li>
+<li>iPhone: <b>tắt chế độ Im lặng</b> (gạt nút nhỏ bên hông máy).</li>
+<li>App phải <b>đang mở</b> trên màn hình — tắt app thì không reo được.</li>
+<li>Thấy viên vàng <b>"🔕 Chạm để bật chuông báo đơn"</b> ở trên cùng → chạm vào nó.</li>
+</ol></div>
+<div class="snai-tip">💡 Máy đang mở cửa hàng nào có link / mã QR thì <b>chỉ reo đơn của cửa hàng đó</b> — 2 cửa hàng 2 máy không reo chéo nhau.</div>`},
+
+{c:'onl',t:'Thời trang: khách chọn size, màu khi đặt online',k:'thoi trang my pham size mau dat online khach chon size mau het size tam het size bien the online',
+a:`<b class="snai-h">👕 Bán online hàng có size / màu</b>
+<b>👉 Chạy thế nào:</b> món nào trong Kho đã cài <b>size / màu</b> (xem mục "Module Thời trang — size &amp; màu") thì trên link, khách phải <b>chọn đúng size, màu</b> mới đặt được. Giá theo đúng size / màu đó.
+<b>🪜 Khi có đơn:</b>
+<ol>
+<li>Thẻ đơn ghi rõ từng món kèm <b>size · màu</b> khách chọn.</li>
+<li>Bấm <b>Nhận đơn</b> → đơn giữ ghi đúng size / màu.</li>
+<li>Giao xong mở đơn giữ thu tiền → app <b>trừ đúng tồn của từng size / màu</b>.</li>
+</ol>
+<b>🪜 Hết riêng một size / màu:</b> tab Bán online → <b>Chọn hàng hiện online</b> → dưới tên món có các nút size / màu → bấm đúng size / màu đã hết → <b>Lưu &amp; cập nhật link</b>.
+<div class="snai-warn">⚠️ App báo "Đang tải size/màu — chờ vài giây rồi bấm Nhận lại" thì đợi 3–5 giây rồi bấm <b>Nhận đơn</b> lần nữa.</div>`},
+
+{c:'onl',t:'Karaoke, Spa, Nhà nghỉ: khách đặt phòng, đặt lịch online',k:'dat phong dat lich online karaoke spa nha nghi lich dat phong hen gio khach den mo phong nhan lich huy lich doi gio tam ngung phong',
+a:`<b class="snai-h">📅 Đặt phòng · đặt lịch qua link</b>
+<b>👉 Chạy thế nào:</b> khách mở link → chọn <b>phòng</b>, chọn <b>giờ đến</b>, có thể đặt trước đồ uống / dịch vụ → gửi. Máy reo chuông, thẻ đơn có hình <b>📅</b>.
+<b>🪜 BƯỚC 1 — Nhận lịch:</b> trên thẻ đơn bấm <b>Nhận lịch</b> (không làm được thì bấm <b>Không nhận</b>).
+<ul>
+<li>Phòng đó đã có lịch trùng giờ → app hỏi lại cho chắc.</li>
+<li>Khách chưa hẹn giờ → app nhắc bạn gọi khách hỏi giờ.</li>
+</ul>
+<b>🪜 BƯỚC 2 — Theo dõi lịch:</b> lịch đã nhận nằm trong khung <b>📅 Lịch đặt phòng</b> (tab Bán online) và hiện luôn <b>trên thẻ phòng</b>. Mỗi lịch ghi: 🕒 giờ hẹn · tên khách · 📞 / 💬 Zalo · phòng + số giờ dự kiến · món đặt trước.
+<b>🪜 BƯỚC 3 — Khách tới:</b> bấm <b>Khách đến · mở phòng</b> → bảng chọn phòng hiện ra:
+<ul>
+<li>Phòng trống → bấm <b>Mở phòng này</b> (món đặt trước tự vào phòng).</li>
+<li>Phòng đang có khách (khách đi chung nhóm) → bấm <b>Khách vào phòng này</b>.</li>
+<li>Không mở phòng → <b>Không mở phòng · đưa đồ vào 🗂️ Đơn giữ</b> (khi có món đặt trước), hoặc <b>Không mở phòng · chỉ ghi nhận đã đến</b>.</li>
+</ul>
+<b>🔧 Nút khác trên lịch:</b> <b>Đổi giờ</b> (chọn ngày + giờ mới → <b>Lưu giờ mới</b>) · <b>Huỷ lịch</b>.
+<div class="snai-tip">💡 Phòng đang sửa, không muốn khách đặt: tab Bán online → <b>Chọn hàng hiện online</b> → bấm nút <b>Nhận đặt</b> ở phòng đó cho thành <b>Tạm ngưng</b> → Lưu.</div>
+<div class="snai-warn">⚠️ Gói Karaoke · Spa · Nhà nghỉ hết hạn thì không nhận lịch được — app báo cần gia hạn.</div>`},
+
+{c:'bd',t:'Thông báo từ chủ phần mềm · thanh báo có bản mới',k:'thong bao chu phan mem thanh bao ban moi cap nhat ban moi co ban moi tai lai app thanh cam thong bao giua man hinh nang cap app',
+a:`<b class="snai-h">📢 Thông báo &amp; bản cập nhật mới</b>
+<b>👉 Bạn có thể gặp 2 kiểu:</b>
+<ol>
+<li><b>Thông báo của chủ phần mềm</b> — hiện ở <b>đầu màn hình</b>, hoặc một <b>hộp giữa màn hình</b> khi là tin quan trọng. Đọc xong bấm đóng là được.</li>
+<li><b>Thanh báo có bản mới</b> — app vừa được nâng cấp. Bấm nút trên thanh đó để nạp bản mới.</li>
+</ol>
+<div class="snai-ok">✅ <b>Yên tâm khi đang bán:</b> app <b>không tự tải lại</b> giữa lúc bạn đang có giỏ hàng, đơn giữ hay phiếu nhập. Máy rảnh thì app tự cập nhật; đang bận thì chỉ hiện thanh để bạn bấm lúc tiện.</div>
+<div class="snai-tip">💡 Muốn biết máy đã lên bản mới chưa: màn Sổ Nợ → <b>⚙️ Cài đặt → 🏦 Số tài khoản</b>, nhìn dòng <b>Phiên bản</b> ở dưới cùng bảng. Vẫn thấy bản cũ thì <b>vuốt tắt hẳn app</b> (xóa khỏi danh sách app đang mở) rồi mở lại khi <b>có mạng</b>.</div>`},
+
+{c:'bd',t:'Chỉ tận tay — trợ lý khoanh đúng nút cần bấm',k:'chi tan tay khoanh nut ngon tay chi bam vao dau huong dan tung buoc tren man hinh cam tay chi viec khong biet bam dau',
+a:`<b class="snai-h">👆 Chỉ tận tay</b>
+<b>👉 Cái này để làm gì:</b> thay vì đọc chữ, mình <b>chỉ thẳng trên màn hình</b>: khoanh vàng đúng cái nút cần bấm, có <b>ngón tay 👆</b> chỉ vào, kèm một khung nhắc <b>"Bước 1 / 4: Bấm nút …"</b>. Bạn bấm vào đúng nút đó là mình tự qua bước tiếp theo.
+<b>🪜 Cách dùng:</b>
+<ol>
+<li>Mở Trợ lý (nút tròn 🤖 TRỢ LÝ ở góc dưới bên phải).</li>
+<li>Bấm nút <b>👆 Chỉ tận tay</b> ở thanh trên cùng.</li>
+<li>Chạm vào việc bạn muốn làm, VD <b>Ghi khách mua chịu</b>.</li>
+<li>Trợ lý tự đóng lại, màn hình tối đi, chỉ còn <b>chỗ cần bấm sáng lên</b>. Bấm đúng chỗ đó.</li>
+<li>Bước nào cần <b>gõ chữ / gõ số</b> thì gõ xong bấm <b>Xong, tiếp ▶</b> ở khung nhắc.</li>
+</ol>
+<b>🔘 Các nút trên khung nhắc:</b> <b>✕ Thoát</b> — dừng hướng dẫn · <b>Bước sau ▶</b> — bỏ qua bước này · <b>📖 Xem hướng dẫn chữ</b> — đọc bài hướng dẫn đầy đủ.
+<div class="snai-tip">💡 Khung báo <b>"Có một bảng khác đang che"</b> nghĩa là đang mở một bảng khác đè lên — làm xong hoặc bấm Đóng / Hủy / ✕ trên bảng đó là mình chỉ tiếp.</div>
+<div class="snai-ok">✅ Trong mỗi bài hướng dẫn chữ, chỗ nào có nút <b>👆 Chỉ tận tay trên màn hình</b> là bấm vào được luôn. Đọc to đang bật thì mình đọc từng bước cho bạn nghe.</div>`},
 ];
 
 /* ═════════════ 3) BỘ MÁY HIỂU TIẾNG VIỆT ═════════════ */
@@ -16387,6 +16685,624 @@ build=function(){
 /* ═════ GHI ĐÈ: đóng bảng thì ngừng đọc ═════ */
 var _snaiClose=close;
 close=function(){ sayStop(); try{ _snaiClose(); }catch(e){} };
+
+/* ═════════════ 5c) NÂNG CẤP v3 — HƯỚNG DẪN ĐÚNG CHỖ · 👆 CHỈ TẬN TAY · HIỂU GÕ SAI ═════════════
+   Cách làm y như v2: chỉ GHI ĐÈ vài hàm ở trên, phần còn lại giữ nguyên.
+   • 👆 Chỉ tận tay: khoanh vàng + ngón tay chỉ vào ĐÚNG nút thật trên màn hình, đi từng bước.
+     Lớp khoanh KHÔNG chặn chạm (pointer-events:none) → app vẫn bấm được như thường.
+     Chỉ QUAN SÁT cú chạm (capture, không preventDefault) → không đổi hành vi nào của app.
+   • Mở trợ lý ở màn nào thì gợi ý việc của màn đó.
+   • Gõ sai 1 chữ vẫn tìm ra (VD "sao luuu", "chuog bao don").                              */
+
+/* ---- từ đồng nghĩa bổ sung (cách nói quen của bà con) ---- */
+try{
+  SYN.online  ='ban online link cua hang dat hang';
+  SYN.onl     ='ban online';
+  SYN.link    ='chia se link cua hang ban online';
+  SYN.dat     ='dat hang dat phong dat lich';
+  SYN.lich    ='dat lich dat phong hen gio';
+  SYN.hen     ='dat lich hen gio';
+  SYN.ship    ='giao hang giao tan noi';
+  SYN.giao    ='giao hang giao tan noi ship';
+  SYN.chan    ='chan so bom hang dat ao';
+  SYN.bom     ='chan so dat ao';
+  SYN.am      ='ban am ton am';
+  SYN.thieu   ='ghi no mua chiu';
+  SYN.chiu    ='ghi no mua chiu';
+  SYN.gach    ='tra tien thu no';
+  SYN.chuong  ='chuong bao don';
+  SYN.keu     ='chuong bao don';
+  SYN.reo     ='chuong bao don';
+  SYN.zalo    ='chia se link gui';
+  SYN.facebook='chia se link ban online';
+}catch(e){}
+
+HOT=['Cách ghi nợ cho khách','Bán hàng thế nào','Bán online là gì','Sao lưu dữ liệu','Chia sẻ link cho khách',
+     'Thêm sản phẩm','Chốt ca','Xem báo cáo lãi','Gọi hỗ trợ khi bí'];
+
+/* ═════ HIỂU GÕ SAI 1 CHỮ ═════ */
+var VOC=null;
+function vocab(){
+  if(VOC)return VOC; VOC={};
+  for(var i=0;i<KB.length;i++){
+    var ws=((KB[i]._t||'')+' '+(KB[i]._k||'')).split(' ');
+    for(var j=0;j<ws.length;j++){ var w=ws[j]; if(w.length>=3) VOC[w]=(VOC[w]||0)+1; }
+  }
+  return VOC;
+}
+/* đúng 1 chữ khác nhau (thêm / bớt / đổi 1 chữ) */
+function gan1(a,b){
+  var la=a.length,lb=b.length; if(a===b||Math.abs(la-lb)>1)return false;
+  var i=0,j=0,d=0;
+  while(i<la&&j<lb){
+    if(a.charAt(i)===b.charAt(j)){i++;j++;continue;}
+    d++; if(d>1)return false;
+    if(la>lb)i++; else if(lb>la)j++; else{i++;j++;}
+  }
+  return (d+(la-i)+(lb-j))<=1;
+}
+function suaGo(q){
+  var v=vocab(),w=nrm(q).split(' '),doi=false;
+  for(var k=0;k<w.length;k++){
+    var x=w[k]; if(x.length<4||v[x]||STOP[x]||SYN[x])continue;
+    var best='',bs=0;
+    for(var y in v){ if(v.hasOwnProperty(y)&&v[y]>bs&&gan1(x,y)){ best=y; bs=v[y]; } }
+    if(best){ w[k]=best; doi=true; }
+  }
+  return doi?w.join(' '):'';
+}
+var _v2search=search;
+search=function(q){
+  var r=_v2search(q);
+  if(r&&r.length)return r;
+  var f=''; try{ f=suaGo(q); }catch(e){ f=''; }
+  return f?_v2search(f):r;
+};
+
+/* ═════ TIỆN ÍCH ═════ */
+function byTitle(t){ for(var i=0;i<KB.length;i++) if(KB[i].t===t) return KB[i]; return null; }
+function inPOS(){ var p=document.getElementById('pos-screen'); return !!(p&&p.classList.contains('on')); }
+function posTab(v){ return inPOS() && !!document.querySelector('#pos-screen .sk-tab.sk-on[data-v="'+v+'"]'); }
+function openM(sel){ try{ return !!document.querySelector(sel); }catch(e){ return false; } }
+function vs(sel){
+  try{
+    var x=document.querySelector(sel); if(!x)return false;
+    var cs=getComputedStyle(x); if(cs.display==='none'||cs.visibility==='hidden')return false;
+    var r=x.getBoundingClientRect(); return r.width>2&&r.height>2;
+  }catch(e){ return false; }
+}
+function visEl(x){
+  try{
+    if(!x||!x.getBoundingClientRect)return false;
+    var r=x.getBoundingClientRect(); if(r.width<3||r.height<3)return false;
+    var n=x,k=0;
+    while(n&&n.nodeType===1&&k<40){
+      var cs=getComputedStyle(n);
+      if(cs.display==='none'||cs.visibility==='hidden'||parseFloat(cs.opacity)<0.05)return false;
+      n=n.parentElement; k++;
+    }
+    return true;
+  }catch(e){ return false; }
+}
+
+/* ═════ 👆 CHỈ TẬN TAY — CÁC BÀI ═════ */
+var S_SONO ={s:'#snbh-posnav .snbh-tab[data-act="close-pos"]',t:'Bấm nút <b>📒 SỔ NỢ</b> ở trên cùng để về màn sổ nợ.',skip:function(){ return !inPOS(); }};
+var S_POS  ={s:'#snbh-topbar .snbh-tab',t:'Bấm nút <b>🛒 BÁN HÀNG</b> ở trên cùng màn hình.',skip:inPOS,miss:'Nút này nằm trên thanh xanh ở đầu màn Sổ Nợ.'};
+var S_TOOLS={s:'#app .btn-tools',t:'Bấm nút <b>🧰 Công cụ &amp; Sao lưu</b>.',skip:function(){ return openM('#modal-tools.active'); }};
+var S_SET  ={s:'#snbh-topbar .snbh-set',t:'Bấm <b>⚙️ Cài đặt</b> ở góc phải thanh xanh trên cùng.',skip:function(){ return openM('#snbh-topbar .snbh-menu.on'); }};
+var S_CARD ={s:'#customer-list .customer-card',any:'#customer-list .customer-card',
+  t:'Chạm vào <b>tên người khách</b> trong danh sách.',
+  sm:'Không thấy khách cần tìm? Gõ vài chữ tên khách vào ô 🔍 Tìm ở phía trên cho nhanh.',
+  skip:function(){ return openM('#modal-detail.active'); },
+  miss:'Chưa thấy khách nào trong danh sách. Nếu sổ chưa có khách, hãy thêm khách trước (chọn "👆 Thêm khách hàng mới").'};
+function S_TAB(v,ten){
+  return {s:'#pos-screen .sk-tab[data-v="'+v+'"]',t:'Nhìn xuống thanh dưới cùng, bấm tab <b>'+ten+'</b>.',
+    skip:function(){ return posTab(v); },
+    miss:'Chưa thấy tab <b>'+ten+'</b>. Có thể người đang bán chưa được quyền mở tab này, hoặc tài khoản chưa mở gói Bán hàng.'};
+}
+var S_QRD={s:'#pos-screen .sk-tab[data-v="qrd"]',t:'Nhìn thanh dưới cùng, bấm tab <b>Bán online</b> (quán ăn / cafe: tab <b>Đơn QR</b>).',
+  skip:function(){ return posTab('qrd'); },
+  miss:'Chưa thấy tab này. Có thể máy chưa lên bản mới của app — tắt hẳn app rồi mở lại khi có mạng.'};
+var M_KHOA='Không thấy nút? Có thể Sổ Nợ đang KHÓA 🔒, hoặc người đang dùng chưa được quyền sửa công nợ.';
+
+var TOURS={
+ 'them-khach':{n:'Thêm khách hàng mới',e:'Thêm khách hàng mới',g:'sono',st:[S_SONO,
+   {s:'#app .btn-add',t:'Bấm nút <b>+ Thêm</b> (bên phải ô tìm khách).',skip:function(){ return openM('#modal-add-cust.active'); },miss:M_KHOA},
+   {s:'#new-name',w:'see',t:'Chạm vào ô này, gõ <b>tên khách</b>. VD: <i>Cô Ba bán rau</i>.',sm:'Muốn lấy tên + số từ danh bạ máy thì bấm nút 📇 Chọn nhanh từ danh bạ máy ở phía trên.'},
+   {s:'#new-phone',w:'see',t:'Gõ <b>số điện thoại</b> của khách (không có thì bỏ trống).'},
+   {s:'#modal-add-cust .btn-save',t:'Bấm <b>Lưu</b>.'}],
+   done:'Khách mới đã nằm trong danh sách. Chạm vào tên khách để ghi nợ, ghi trả.'},
+ 'ghi-no':{n:'Ghi khách mua chịu (ghi nợ)',e:'Ghi khách mua hàng (ghi nợ)',g:'sono',st:[S_SONO,S_CARD,
+   {s:'#modal-detail [onclick="openTx(\'mua\')"]',t:'Bấm nút xanh <b>🛒 Mua</b>.',miss:M_KHOA},
+   {s:'#tx-amount',w:'see',t:'Chạm vào ô này, gõ <b>số tiền</b> khách mua chịu. Chỉ gõ số, VD <b>150000</b>.'},
+   {s:'#tx-note',w:'see',t:'Ghi <b>món hàng</b> khách mua (không bắt buộc). VD: <i>2 bao gạo</i>.'},
+   {s:'#modal-tx .btn-save',t:'Bấm <b>Lưu</b>.'}],
+   done:'Đã ghi nợ. Số nợ của khách tự cộng lên, hiện màu đỏ.'},
+ 'thu-no':{n:'Ghi khách trả tiền (thu nợ)',e:'Ghi khách trả tiền (thu nợ)',g:'sono',st:[S_SONO,S_CARD,
+   {s:'#modal-detail [onclick="openTx(\'tra\')"]',t:'Bấm nút xanh dương <b>💰 Trả</b>.',miss:M_KHOA},
+   {s:'#tx-amount',w:'see',t:'Gõ <b>số tiền</b> khách vừa trả. VD <b>100000</b>.'},
+   {s:'#modal-tx .btn-save',t:'Bấm <b>Lưu</b>.'}],
+   done:'Đã ghi khách trả. Số nợ tự trừ xuống. Khách trả dư thì app tự chuyển sang "Mình nợ khách".'},
+ 'tim-khach':{n:'Tìm nhanh một khách',e:'Tìm nhanh một khách hàng',g:'sono',st:[S_SONO,
+   {s:'#search-input',w:'see',t:'Chạm vào ô <b>🔍 Tìm tên khách hàng</b>, gõ vài chữ trong tên — danh sách tự lọc ngay.'}],
+   done:'Chạm vào tên khách hiện ra để mở sổ của khách đó.'},
+ 'chia-se':{n:'Gửi link công nợ cho khách',e:'Chia sẻ link công nợ cho khách xem',g:'sono',st:[S_SONO,S_CARD,
+   {s:'#modal-detail [onclick="generateShareLink()"]',t:'Bấm nút <b>📤 Chia sẻ</b>.'}],
+   done:'Bảng chia sẻ của điện thoại hiện ra → chọn <b>Zalo</b> (hoặc tin nhắn) → chọn tên khách → gửi.'},
+ 'in-bang-ke':{n:'In / gửi ảnh bảng kê công nợ',e:'In bảng kê công nợ khổ A4 / A5',g:'sono',st:[S_SONO,S_CARD,
+   {s:'#modal-detail [onclick="snOpenPrint()"]',t:'Bấm nút <b>🖨️ In A4/A5</b>.'},
+   {s:'#sn-print-modal .sn-share-btn',w:'see',opt:1,t:'Muốn <b>gửi ảnh bảng kê</b> qua Zalo thì bấm nút <b>📤 Chia sẻ / Lưu ảnh</b> này.',sm:'Muốn in ra giấy thì dùng các nút in ở dưới cùng bảng.'}],
+   done:'Chọn khoảng ngày nếu cần, rồi bấm In — hoặc gửi ảnh bảng kê cho khách.'},
+ 'sao-luu':{n:'Sao lưu dữ liệu',e:'Sao lưu dữ liệu (nên làm thường xuyên)',g:'sono',st:[S_SONO,S_TOOLS,
+   {s:'#backup-btn',t:'Bấm <b>💾 Sao lưu toàn bộ (.json)</b>.'}],
+   done:'Máy tải về 1 tệp sao lưu. Nên gửi tệp đó vào Zalo "Cloud của tôi" hoặc email để cất giữ.'},
+ 'excel':{n:'Xuất file Excel',e:'Xuất file Excel',g:'sono',st:[S_SONO,S_TOOLS,
+   {s:'#export-btn',t:'Bấm <b>📥 Xuất Excel (.xlsx)</b>.'}],
+   done:'Máy tải về tệp Excel — mở bằng Excel hoặc Google Trang tính.'},
+ 'nhac-no':{n:'Bật nhắc nợ tự động',e:'Bật nhắc nợ tự động',g:'sono',st:[S_SONO,S_TOOLS,
+   {s:'#modal-tools .btn-remind',t:'Bấm <b>🔔 Nhắc nợ tự động</b>.'},
+   {s:'#modal-rem .rem-enable-row',w:'see',t:'Tick vào ô <b>Bật nhắc nợ tự động</b>.'},
+   {s:'#modal-rem .rd-opts',w:'see',t:'Chọn <b>nhắc lại sau mấy ngày</b>: Hằng ngày, 7, 15 hay 30 ngày.'},
+   {s:'#modal-rem .btn-save',t:'Bấm <b>Lưu</b>.'}],
+   done:'Từ giờ mỗi lần mở app, danh sách khách cần nhắc sẽ hiện ở đầu màn Sổ Nợ.'},
+ 'gia-han':{n:'Gia hạn tài khoản',e:'Gia hạn tài khoản — giá bao nhiêu?',g:'set',st:[S_SONO,S_TOOLS,
+   {s:'#modal-tools .btn-renew',t:'Bấm <b>💳 Gia hạn tài khoản</b>.'},
+   {s:'#modal-renew .rn-tabs',w:'see',t:'Chọn gói cần gia hạn: <b>📒 Sổ Nợ</b> hoặc <b>🛒 Bán hàng (POS)</b>.'},
+   {s:'#modal-renew .rn-months',w:'see',t:'Chọn <b>số tháng</b>. Ngay dưới có <b>Gói năm</b> được tặng thêm tháng — lợi nhất.'},
+   {s:'#rn-body',w:'see',opt:1,t:'Mở app ngân hàng, <b>quét mã QR</b> ở đây rồi chuyển khoản. Nội dung chuyển khoản đã có sẵn email của bạn.'}],
+   done:'Chuyển xong thì chờ chủ phần mềm kích hoạt. Cần nhanh thì gọi 0977 823 979.'},
+ 'so-tk':{n:'Cài số tài khoản ngân hàng',e:'Cài số tài khoản ngân hàng để tạo QR',g:'set',st:[S_SONO,S_SET,
+   {s:'#snbh-topbar [data-snbh="account"]',t:'Bấm <b>🏦 Số tài khoản</b>.'},
+   {s:'#set-bank',w:'see',t:'Chọn <b>ngân hàng</b> của bạn trong danh sách.'},
+   {s:'#set-account',w:'see',t:'Gõ <b>số tài khoản</b>.'},
+   {s:'#set-accname',w:'see',t:'Gõ <b>tên chủ tài khoản</b>, viết hoa không dấu. VD: NGUYEN VAN A.'},
+   {s:'#modal-settings .btn-save',t:'Bấm <b>Lưu</b>.'}],
+   done:'Từ giờ link nợ, hóa đơn và nút VietQR khi bán hàng đều hiện mã QR chuyển vào tài khoản này.'},
+ 'doi-mk':{n:'Đổi mật khẩu',e:'Đổi mật khẩu',g:'set',st:[S_SONO,S_SET,
+   {s:'#snbh-topbar [data-snbh="pass"]',t:'Bấm <b>🔑 Đổi mật khẩu</b>.'}],
+   done:'Điền mật khẩu cũ, mật khẩu mới 2 lần rồi bấm Đổi mật khẩu. Nhớ ghi mật khẩu mới ra giấy.'},
+ 'khoa-so':{n:'Khóa / mở khóa Sổ Nợ',e:'Khóa sổ — chống sửa công nợ',g:'set',st:[S_SONO,S_SET,
+   {s:'#snbh-topbar [data-snbh="lock"]',t:'Bấm <b>🔒 Khóa sổ</b>.'}],
+   done:'Làm theo hộp hỏi hiện ra. Mở khóa thì bấm lại 🔒 Khóa sổ và nhập mật khẩu đăng nhập.'},
+ 'cai-app':{n:'Cài app vào màn hình điện thoại',e:'Cài app vào màn hình chính điện thoại',g:'set',st:[S_SONO,S_SET,
+   {s:'#snbh-topbar [data-snbh="install"]',t:'Bấm <b>📲 Cài App vào máy</b>.',
+    miss:'Máy này không hiện nút cài tự động (thường là iPhone, hoặc app đã được cài rồi). Bấm "📖 Xem hướng dẫn chữ" để cài bằng tay.'}],
+   done:'Máy hỏi "Cài đặt ứng dụng?" thì bấm Cài đặt.'},
+ 'ban-hang':{n:'Bán một đơn hàng',e:'Bán hàng cơ bản — từ A đến Z',g:'pos',st:[S_POS,S_TAB('sell','Bán'),
+   {s:'#sk-grid .sk-tile',any:'#sk-grid .sk-tile',t:'Chạm vào <b>món khách mua</b>. Chạm 2 lần = 2 cái.',
+    sm:'Nhiều hàng quá? Gõ tên vào ô tìm ở trên, hoặc bấm 📷 Quét để quét mã vạch.',
+    miss:'Chưa thấy sản phẩm nào. Nếu kho còn trống, hãy thêm sản phẩm trước (chọn "👆 Thêm sản phẩm vào kho").'},
+   {s:'#sk-cartbar',t:'Chọn đủ món rồi thì bấm thanh xanh <b>Xem giỏ · thanh toán</b> ở dưới.'},
+   {s:'#sk-cart-sheet .sk-pays',any:'#sk-cart-sheet .sk-pay',t:'Kiểm lại món + tổng tiền, rồi chọn cách khách trả: <b>Tiền mặt</b>, <b>VietQR</b> hay <b>Ghi nợ</b>.'}],
+   done:'Tiền mặt: gõ số tiền khách đưa → Hoàn tất. VietQR: khách quét xong bấm "Khách đã CK". Ghi nợ: chọn tên khách → Ghi nợ.'},
+ 'giu-don':{n:'Mở lại đơn đang giữ (cả đơn online)',e:'Giữ đơn (treo đơn) và mở lại',g:'pos',st:[S_POS,S_TAB('sell','Bán'),
+   {s:'#sk-v-sell [data-act="held-list"]',t:'Bấm <b>🗂️ Đơn giữ</b>.'}],
+   done:'Chạm vào đơn cần bán tiếp — giỏ hàng mở ra đủ món, thu tiền như thường.'},
+ 'tra-hang':{n:'Khách trả lại hàng',e:'Trả hàng / hoàn tiền cho khách',g:'pos',st:[S_POS,S_TAB('sell','Bán'),
+   {s:'#sk-v-sell [data-act="orders"]',t:'Bấm <b>↩️ Đơn &amp; trả hàng</b>.'},
+   {s:'#sk-ord-search',w:'see',t:'Gõ tên khách hoặc mã đơn để tìm, rồi <b>chạm vào đơn</b> khách muốn trả.'}],
+   done:'Trong chi tiết đơn bấm nút trả hàng, chọn số lượng trả rồi bấm "Xác nhận trả".'},
+ 'quy-ca':{n:'Mở ca / chốt ca',e:'Mở ca — quỹ đầu ca',g:'pos',st:[S_POS,S_TAB('sell','Bán'),
+   {s:'#sk-ca-btn',t:'Bấm <b>💰 Quỹ / Chốt ca</b> (hàng nút trên cùng).',miss:'Chưa thấy nút này — có thể người đang bán chưa được quyền mở / chốt ca (thường chỉ Chủ).'}],
+   done:'Chưa mở ca thì chọn người trực ca, gõ quỹ đầu ca rồi bấm ▶️ Mở ca. Cuối buổi vào lại đây để chốt ca.'},
+ 'them-sp':{n:'Thêm sản phẩm vào kho',e:'Thêm sản phẩm mới vào kho',g:'pos',st:[S_POS,S_TAB('kho','Kho'),
+   {s:'#sk-v-kho [data-act="prod-new"]',t:'Bấm <b>➕ Thêm SP</b>.',skip:function(){ return openM('#sk-prod.on'); }},
+   {s:'#sk-pf-name',w:'see',t:'Gõ <b>tên sản phẩm</b>. VD: <i>Bia Tiger lon</i>.'},
+   {s:'#sk-pf-cost',w:'see',t:'Gõ <b>giá vốn</b> — giá bạn mua vào (để app tính lãi đúng).'},
+   {s:'#sk-pf-price',w:'see',t:'Gõ <b>giá bán</b> cho khách.'},
+   {s:'#sk-pf-stock',w:'see',t:'Gõ <b>số lượng đang có</b> trong tiệm.'},
+   {s:'#sk-prod [data-act="prod-save"]',t:'Bấm <b>Lưu</b>.'}],
+   done:'Sản phẩm đã vào kho và hiện ở tab Bán để bán ngay.'},
+ 'nhap-hang':{n:'Nhập hàng về kho',e:'Nhập hàng từ nhà cung cấp',g:'pos',st:[S_POS,S_TAB('nhap','Nhập'),
+   {s:'#sk-np-sup',w:'see',t:'Chọn <b>nhà cung cấp</b> (không có thì bỏ qua).'},
+   {s:'#sk-np-search',w:'see',t:'Gõ tên hàng cần nhập, rồi <b>chạm vào món</b> hiện ra để thêm vào phiếu. Chỉnh số lượng, giá nhập ở từng dòng.'},
+   {s:'#sk-np-paid',w:'see',t:'Gõ số tiền <b>trả nhà cung cấp ngay</b>. Còn lại app tự ghi nợ nhà cung cấp.'},
+   {s:'#sk-v-nhap [data-act="np-save"]',t:'Bấm <b>✔ Lưu phiếu nhập</b>.'}],
+   done:'Tồn kho tự cộng lên, giá vốn cập nhật theo giá nhập.'},
+ 'bao-cao':{n:'Xem lời lỗ, doanh thu',e:'Xem báo cáo doanh thu — lãi lỗ',g:'pos',st:[S_POS,S_TAB('report','Báo cáo'),
+   {s:'#sk-period',w:'see',t:'Chọn kỳ muốn xem: <b>Hôm nay</b>, <b>7 ngày</b>, <b>30 ngày</b> hay <b>Tùy chọn</b>.'},
+   {s:'#sk-report',w:'see',opt:1,t:'Đây là kết quả: <b>Thành tiền</b>, <b>Vốn</b>, <b>Lãi</b>, <b>Số đơn bán</b>, tiền mặt / chuyển khoản / bán nợ.'}],
+   done:'Kéo xuống dưới cùng còn có 📒 Báo cáo Sổ Nợ chi tiết.'},
+ 'nhan-vien':{n:'Thêm nhân viên + mã PIN',e:'Thêm nhân viên và đặt mã PIN',g:'pos',st:[S_POS,S_TAB('report','Báo cáo'),
+   {s:'#sk-v-report [data-act="staff-mgmt"]',t:'Bấm <b>👤 Quản lý nhân viên</b>.',skip:function(){ return openM('#sk-staff.on')||openM('#sk-staff-form.on'); },
+    miss:'Chưa thấy nút này — chỉ Chủ mới quản lý được nhân viên.'},
+   {s:'#sk-staff [data-act="staff-new"]',t:'Bấm <b>➕ Thêm nhân viên</b>.',skip:function(){ return openM('#sk-staff-form.on'); }},
+   {s:'#sk-stf-name',w:'see',t:'Gõ <b>tên nhân viên</b>.'},
+   {s:'#sk-stf-pin',w:'see',t:'Đặt <b>mã PIN</b> 4–6 số cho người này.'},
+   {s:'#sk-stf-role',w:'see',t:'Chọn <b>vai trò</b>: Thu ngân (chỉ bán) · Quản lý · Chủ.'},
+   {s:'#sk-staff-form [data-act="staff-save"]',t:'Bấm <b>Lưu</b>.'}],
+   done:'Lần sau mở Bán hàng, nhân viên chạm tên mình và bấm mã PIN là vào bán.'},
+ 'onl-mo':{n:'Mở Bán online · dùng thử · tạo link',e:'Mở tab Bán online và dùng thử miễn phí',g:'onl',st:[S_POS,S_QRD,
+   {c:[{s:'#qrd-w [data-act="qrd-thu"]',t:'Bấm <b>Dùng thử … ngày miễn phí</b>.'},
+       {s:'#qrd-w [data-act="qrd-mua"]',t:'Đã hết lượt dùng thử. Bấm <b>Mua gói · quét mã QR</b>, hoặc gọi số hotline bên cạnh.'},
+       {s:'#qrd-w [data-act="qrd-otao"]',t:'Gói đã mở. Bấm <b>Tạo link cửa hàng</b>.'},
+       {s:'#qrd-w .qrd-onl',w:'see',t:'Đây là khung <b>🌐 Cửa hàng online</b> của bạn — link, công tắc nhận đơn và các nút đều ở đây.'}],
+    miss:'Chưa thấy khung Bán online — đang tải, hoặc máy đang mất mạng. Chờ vài giây rồi bấm Thử lại.'}],
+   done:'Tiếp theo: Cài đặt → Chọn hàng hiện online → Gửi link cho khách.'},
+ 'onl-gui':{n:'Gửi link cửa hàng cho khách',e:'Gửi link cửa hàng cho khách qua Zalo, Facebook',g:'onl',st:[S_POS,S_QRD,
+   {s:'#qrd-w [data-act="qrd-oshare"]',t:'Bấm <b>Gửi link</b> → chọn <b>Zalo</b> hoặc app muốn gửi.',
+    miss:'Chưa có link cửa hàng. Tạo link trước (chọn "👆 Mở Bán online · dùng thử · tạo link").'}],
+   done:'Chọn người / nhóm rồi gửi. Muốn in dán quầy thì bấm "Mã QR cửa hàng".'},
+ 'onl-cfg':{n:'Cài giờ nhận đơn, giao hàng, chuyển khoản',e:'Cài đặt cửa hàng online: giờ nhận đơn, giao hàng, chuyển khoản',g:'onl',st:[S_POS,S_QRD,
+   {s:'#qrd-w [data-act="qrd-ocfg"]',t:'Bấm <b>Cài đặt</b> (dưới đường link).',skip:function(){ return openM('#qrd-ocfg-m.on'); },
+    miss:'Chưa có link cửa hàng, hoặc đây là máy nhân viên (chỉ chủ shop chỉnh được).'},
+   {s:'#qrd-ocfg-m .sk-card',w:'see',t:'Chỉnh <b>Giờ nhận đơn</b>, <b>Cách nhận hàng</b>, <b>Thanh toán</b>, SĐT cửa hàng, lời nhắn cho khách.'},
+   {s:'#qrd-ocfg-m [data-act="qrd-ocfg-luu"]',t:'Bấm <b>Lưu &amp; cập nhật link</b>.'}],
+   done:'Link đã cập nhật cài đặt mới.'},
+ 'onl-chon':{n:'Ẩn / hiện hàng, bấm Tạm hết',e:'Chọn hàng hiện online và bấm "Tạm hết"',g:'onl',st:[S_POS,S_QRD,
+   {s:'#qrd-w [data-act="qrd-ochon"]',t:'Bấm <b>Chọn hàng hiện online</b>.',skip:function(){ return openM('#qrd-ochon-m.on'); },
+    miss:'Chưa có link cửa hàng, hoặc đây là máy nhân viên (chỉ chủ shop chỉnh được).'},
+   {s:'#qrd-ochon-ds',w:'see',t:'Bỏ tick = <b>ẩn món</b>. Bấm nút <b>Còn hàng / Tạm hết</b> bên phải để đổi.'},
+   {s:'#qrd-ochon-m [data-act="qrd-ochon-luu"]',t:'Bấm <b>Lưu &amp; cập nhật link</b>.'}],
+   done:'App báo link đang hiện mấy món.'},
+ 'chuong':{n:'Thử chuông báo đơn',e:'Chuông báo đơn: thử chuông, bật tiếng, giữ màn hình sáng',g:'onl',st:[S_POS,S_QRD,
+   {s:'#qrd-chuong [data-act="qrd-thuchuong"]',t:'Bấm <b>Thử chuông</b> — phải nghe tiếng "ting tang".',
+    miss:'Chưa thấy khung chuông — gói Bán online chưa mở, hoặc đang tải.'},
+   {s:'#qrd-chuong [data-act="qrd-sang"]',w:'see',t:'Đây là công tắc <b>Giữ màn hình luôn sáng</b> — nên bật cho máy để ở quầy.'}],
+   done:'Không nghe tiếng: vặn to âm lượng Phương tiện (Media), iPhone thì tắt chế độ Im lặng.'}
+};
+var TGR=[['sono','📒 SỔ NỢ'],['pos','🛒 BÁN HÀNG'],['onl','🌐 BÁN ONLINE'],['set','⚙️ TÀI KHOẢN & CÀI ĐẶT']];
+/* bài hướng dẫn chữ → bài chỉ tận tay tương ứng */
+var TOURBY={};
+(function(){
+  for(var k in TOURS){ if(TOURS.hasOwnProperty(k)&&!TOURBY[TOURS[k].e]) TOURBY[TOURS[k].e]=k; }
+  var them={'Chốt ca — tính thừa / thiếu tiền mặt':'quy-ca','Ghi chi vặt / nộp tiền về chủ trong ca':'quy-ca',
+            'Bán online là gì? Dùng làm gì?':'onl-mo','Tạo link cửa hàng online (lần đầu)':'onl-mo',
+            'Thanh toán tiền mặt & tính tiền thối':'ban-hang','Ghi nợ cho khách khi bán hàng':'ban-hang',
+            'Nhắc nợ nhanh qua Zalo / SMS':'chia-se','Lọc bảng kê theo khoảng ngày':'in-bang-ke'};
+  for(var t in them){ if(them.hasOwnProperty(t)&&!TOURBY[t]&&byTitle(t)) TOURBY[t]=them[t]; }
+})();
+
+/* ═════ 👆 CHỈ TẬN TAY — BỘ MÁY ═════ */
+CSS+=''
++'#snai-tr-ring{position:fixed;z-index:2147483400;pointer-events:none;border:4px solid #f5b400;border-radius:14px;display:none;'
++'box-sizing:border-box;box-shadow:0 0 0 9999px rgba(6,20,15,.45);transition:left .15s,top .15s,width .15s,height .15s;}'
++'#snai-tr-ring.on{display:block;animation:snaiTr 1.1s ease-in-out infinite;}'
++'@keyframes snaiTr{0%,100%{border-color:#f5b400}50%{border-color:#fff3b0}}'
++'#snai-tr-hand{position:fixed;z-index:2147483401;pointer-events:none;font-size:36px;line-height:1;display:none;'
++'filter:drop-shadow(0 2px 3px rgba(0,0,0,.45));animation:snaiHand .9s ease-in-out infinite;}'
++'@keyframes snaiHand{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}'
++'#snai-tr-bub{position:fixed;left:10px;right:10px;z-index:2147483450;max-width:500px;margin:0 auto;display:none;box-sizing:border-box;'
++'background:#fff;color:#10231c;border:3px solid #0d7a5f;border-radius:16px;padding:12px 14px 11px;max-height:46vh;overflow-y:auto;'
++'box-shadow:0 12px 36px rgba(0,0,0,.4);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;}'
++'#snai-tr-bub.on{display:block;}'
++'#snai-tr-bub .tr-h{font-size:12px;font-weight:900;color:#0d7a5f;letter-spacing:.3px;margin-bottom:5px;}'
++'#snai-tr-bub .tr-t{font-size:17px;line-height:1.5;font-weight:700;}'
++'#snai-tr-bub .tr-t b{color:#0a5f4a;}'
++'#snai-tr-bub .tr-s{font-size:14px;line-height:1.55;color:#4f625b;margin-top:6px;}'
++'#snai-tr-bub .tr-b{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px;}'
++'#snai-tr-bub .tr-b button{flex:1 1 auto;min-height:44px;border:none;border-radius:11px;padding:10px 12px;font-size:15px;'
++'font-weight:800;font-family:inherit;cursor:pointer;background:#eef1f0;color:#34443f;}'
++'#snai-tr-bub .tr-b button.g{background:#0d7a5f;color:#fff;}'
++'#snai-tr-bub.snai-f1 .tr-t{font-size:19.5px;}#snai-tr-bub.snai-f1 .tr-s{font-size:16px;}#snai-tr-bub.snai-f1 .tr-b button{font-size:16.5px;}'
++'#snai-tr-bub.snai-f2 .tr-t{font-size:22.5px;}#snai-tr-bub.snai-f2 .tr-s{font-size:18px;}#snai-tr-bub.snai-f2 .tr-b button{font-size:18px;}'
++'@media (prefers-reduced-motion:reduce){#snai-tr-ring.on,#snai-tr-hand{animation:none}}';
+
+var TR=null,TRT=null,trRg=null,trHd=null,trBb=null;
+function trEls(){
+  if(!trRg){ trRg=E('div'); trRg.id='snai-tr-ring'; document.body.appendChild(trRg); }
+  if(!trHd){ trHd=E('div'); trHd.id='snai-tr-hand'; trHd.textContent='👆'; document.body.appendChild(trHd); }
+  if(!trBb){
+    trBb=E('div'); trBb.id='snai-tr-bub'; trBb.setAttribute('role','dialog'); trBb.setAttribute('aria-live','polite');
+    document.body.appendChild(trBb);
+    trBb.addEventListener('click',function(e){
+      var n=e.target;
+      while(n&&n!==trBb){ var a=n.getAttribute&&n.getAttribute('data-tr'); if(a){ trBtn(a); return; } n=n.parentNode; }
+    });
+  }
+}
+function trHide(){
+  try{ if(trRg)trRg.className=''; if(trHd)trHd.style.display='none'; if(trBb){ trBb.className=''; } if(TR)TR.sig=''; }catch(e){}
+}
+function trEnd(im){
+  try{ if(TRT){ clearInterval(TRT); TRT=null; } }catch(e){}
+  TR=null;
+  try{ if(trRg)trRg.className=''; if(trHd)trHd.style.display='none'; if(trBb){ trBb.className=''; trBb.innerHTML=''; } }catch(e){}
+  if(!im){ try{ sayStop(); }catch(e){} }
+  try{ syncFab(); }catch(e){}
+}
+function trStart(k){
+  var T=TOURS[k]; if(!T)return;
+  try{ close(); }catch(e){}
+  trEnd(true);
+  setTimeout(function(){
+    try{
+      trEls();
+      TR={k:k,T:T,i:0,t0:0,sc:-1,cv:0,el:null,sig:'',say:'',mode:'',num:0,lastI:-1,n:1,fin:false};
+      var n=0; for(var i=0;i<T.st.length;i++){ var s=T.st[i],sk=false; try{ sk=!!(s.skip&&s.skip()); }catch(x){} if(!sk)n++; }
+      TR.n=Math.max(1,n);
+      TRT=setInterval(trTick,280);
+      trTick(); syncFab();
+    }catch(e){ trEnd(true); }
+  },260);
+}
+function trFind(st){
+  var L=st.c||[st];
+  for(var i=0;i<L.length;i++){
+    var o=L[i],ss=[].concat(o.s||[]);
+    for(var j=0;j<ss.length;j++){
+      var ns; try{ ns=document.querySelectorAll(ss[j]); }catch(e){ ns=[]; }
+      for(var m=0;m<ns.length&&m<80;m++){ if(visEl(ns[m])) return {el:ns[m],o:o}; }
+    }
+  }
+  return null;
+}
+function trWait(){
+  var g=document.getElementById('qrd-bao');
+  if(g) return {hide:1};                                        /* chuông báo đơn đang hiện: nhường chỗ */
+  g=document.getElementById('nga-mask');
+  if(g&&g.classList.contains('on')) return {el:document.getElementById('nga-sheet')||g,t:'👉 Chạm chọn <b>ngành nghề</b> của cửa hàng bạn.',sm:'Chọn xong mình chỉ tiếp.'};
+  g=document.getElementById('sk-gate');
+  if(g&&g.classList.contains('on')) return {el:g.querySelector('.sk-gate-card'),t:'👉 Chạm vào <b>tên người đang bán</b>, rồi bấm <b>mã PIN</b>.',sm:'Bán một mình không cần PIN? Chủ tắt được trong 👤 Quản lý nhân viên.'};
+  g=document.getElementById('sk-num');
+  if(g&&g.classList.contains('on')) return {el:g.querySelector('.sk-card'),t:'👉 Gõ <b>con số</b> app đang hỏi (số lượng hoặc giá), rồi bấm <b>OK</b>.',sm:'Để nguyên rồi bấm OK là lấy số có sẵn.'};
+  g=document.getElementById('sk-unit');
+  if(g&&g.classList.contains('on')) return {el:g.querySelector('.sk-card'),t:'👉 Chạm chọn <b>đơn vị</b> khách mua (VD: lon, lốc, thùng).',sm:''};
+  return null;
+}
+function trHtml(t,sm,mode){
+  var T=TR.T,st=(mode==='click'||mode==='see');
+  var h='<div class="tr-h">👆 CHỈ TẬN TAY · '+esc(T.n)+(st?' · BƯỚC '+TR.num+' / '+TR.n:'')+'</div>'
+       +'<div class="tr-t">'+t+'</div>'+(sm?'<div class="tr-s">'+sm+'</div>':'');
+  var b;
+  if(mode==='click') b='<button type="button" data-tr="x">✕ Thoát</button><button type="button" data-tr="skip">Bước sau ▶</button>';
+  else if(mode==='see') b='<button type="button" data-tr="x">✕ Thoát</button><button type="button" class="g" data-tr="next">Xong, tiếp ▶</button>';
+  else if(mode==='miss') b='<button type="button" data-tr="retry">↻ Thử lại</button><button type="button" data-tr="text">📖 Xem hướng dẫn chữ</button>'
+                         +'<button type="button" data-tr="skip">Bỏ qua bước ▶</button><button type="button" data-tr="x">✕ Thoát</button>';
+  else if(mode==='done') b='<button type="button" data-tr="text">📖 Đọc hướng dẫn chữ</button><button type="button" class="g" data-tr="x">👍 Xong</button>';
+  else b='<button type="button" data-tr="x">✕ Thoát</button>';
+  return h+'<div class="tr-b">'+b+'</div>';
+}
+function trShow(el,t,sm,mode){
+  if(!TR||!trBb)return;
+  var W=window.innerWidth||document.documentElement.clientWidth||360,H=window.innerHeight||document.documentElement.clientHeight||640;
+  var r=null;
+  if(el){
+    r=el.getBoundingClientRect();
+    var pad=6;
+    trRg.style.left=Math.round(r.left-pad)+'px'; trRg.style.top=Math.round(r.top-pad)+'px';
+    trRg.style.width=Math.round(r.width+pad*2)+'px'; trRg.style.height=Math.round(r.height+pad*2)+'px';
+    if(trRg.className!=='on')trRg.className='on';
+    if(mode==='click'||mode==='wait'){
+      var up=(r.bottom+48<H),hx=Math.round(r.left+r.width/2-17),hy=up?Math.round(r.bottom+2):Math.round(r.top-44);
+      hx=Math.max(4,Math.min(W-40,hx)); hy=Math.max(4,Math.min(H-44,hy));
+      trHd.textContent=up?'👆':'👇'; trHd.style.left=hx+'px'; trHd.style.top=hy+'px'; trHd.style.display='block';
+    }else trHd.style.display='none';
+  }else{ trRg.className=''; trHd.style.display='none'; }
+  /* khung nhắc nằm phía ít vướng: nút ở nửa dưới màn hình → khung lên trên, và ngược lại */
+  var top=!!(r&&((r.top+r.bottom)/2)>H*0.5);
+  trBb.style.top=top?'calc(10px + env(safe-area-inset-top,0px))':'auto';
+  trBb.style.bottom=top?'auto':'calc(12px + env(safe-area-inset-bottom,0px))';
+  if((mode==='click'||mode==='see')&&TR.lastI!==TR.i){ TR.lastI=TR.i; TR.num++; if(TR.num>TR.n)TR.n=TR.num; }
+  TR.mode=mode;
+  var sig=mode+'|'+TR.i+'|'+t+'|'+sm;
+  if(sig!==TR.sig){
+    TR.sig=sig;
+    trBb.innerHTML=trHtml(t,sm,mode);
+    if(TTS&&mode!=='load'){ var s=plain(t+'. '+(sm||'')); if(s&&s!==TR.say){ TR.say=s; try{ sayText(s); }catch(e){} } }
+  }
+  var fc='on'+(FS===1?' snai-f1':(FS===2?' snai-f2':''));
+  if(trBb.className!==fc)trBb.className=fc;
+}
+function trFinish(){
+  if(!TR)return;
+  TR.fin=true; TR.el=null;
+  try{ if(TRT){ clearInterval(TRT); TRT=null; } }catch(e){}
+  trShow(null,'🎉 Làm xong rồi!',TR.T.done||'','done');
+}
+function trGo(){ if(!TR)return; TR.i++; TR.t0=0; TR.el=null; TR.sig=''; TR.cv=0; trTick(); }
+function trTick(){
+  if(!TR||TR.fin)return;
+  try{
+    var T=TR.T;
+    if(vs('#auth-screen')||vs('#locked-view')){ TR.el=null; trShow(null,'⚠️ Cần đăng nhập vào app trước.','Đăng nhập xong mở lại Trợ lý rồi chọn lại việc cần làm nhé.','end'); return; }
+    var w=trWait();
+    if(w){
+      TR.el=null;
+      if(w.hide){ trHide(); return; }
+      trShow(w.el&&visEl(w.el)?w.el:null,w.t,w.sm||'','wait'); return;
+    }
+    var st=T.st[TR.i];
+    if(!st){ trFinish(); return; }
+    var sk=false; try{ sk=!!(st.skip&&st.skip()); }catch(e){ sk=false; }
+    if(sk){ TR.i++; TR.t0=0; TR.el=null; trTick(); return; }
+    var p=trFind(st);
+    if(p){
+      var r=p.el.getBoundingClientRect(),W=window.innerWidth||360,H=window.innerHeight||640;
+      var on=(r.bottom>4&&r.top<H-4&&r.right>4&&r.left<W-4);
+      if(!on||r.top<0||r.bottom>H){
+        if(TR.sc!==TR.i){ TR.sc=TR.i; try{ p.el.scrollIntoView({block:'center',inline:'nearest',behavior:'smooth'}); }catch(e){ try{ p.el.scrollIntoView(); }catch(x){} } }
+        if(!on)p=null;                                           /* nằm ngoài màn hình (bảng chưa trượt lên…) */
+      }
+    }
+    if(!p){
+      TR.el=null;
+      if(!TR.t0)TR.t0=Date.now();
+      var ch=Date.now()-TR.t0;
+      if(st.opt&&ch>1600){ TR.i++; TR.t0=0; trTick(); return; }
+      if(ch>4200) trShow(null,'🤔 Mình chưa thấy chỗ cần bấm trên màn hình.',st.miss||'Có thể màn hình đang mở chỗ khác, hoặc bạn chưa có quyền / chưa mở gói cho việc này. Bấm "Thử lại" hoặc "Xem hướng dẫn chữ".','miss');
+      else trShow(null,'⏳ Chờ màn hình mở ra…','','load');
+      return;
+    }
+    TR.t0=0;
+    /* có bảng khác đang đè lên chỗ cần bấm? */
+    var rr=p.el.getBoundingClientRect(),W2=window.innerWidth||360,H2=window.innerHeight||640;
+    var cx=(Math.max(rr.left,0)+Math.min(rr.right,W2))/2,cy=(Math.max(rr.top,0)+Math.min(rr.bottom,H2))/2,hit=null;
+    try{ hit=document.elementFromPoint(cx,cy); }catch(e){ hit=null; }
+    var ok=!hit||hit===p.el||p.el.contains(hit)||(trBb&&trBb.contains(hit));
+    if(!ok&&st.any&&hit.closest){ try{ ok=!!hit.closest(st.any); }catch(e){} }
+    if(!ok){
+      if(!TR.cv)TR.cv=Date.now();
+      if(Date.now()-TR.cv>700){ TR.el=null; trShow(null,'👀 Có một bảng khác đang che chỗ cần bấm.','Làm xong hoặc đóng bảng đó trước (bấm <b>Đóng</b>, <b>Hủy</b> hoặc <b>✕</b>), rồi mình chỉ tiếp.','wait'); return; }
+    }else TR.cv=0;
+    TR.el=p.el;
+    trShow(p.el,p.o.t,p.o.sm||'',p.o.w||st.w||'click');
+  }catch(e){}
+}
+function trBtn(a){
+  if(a==='x'){ trEnd(); return; }
+  if(!TR){ trEnd(); return; }
+  if(a==='next'||a==='skip'){ if(TR.fin){ trEnd(); return; } trGo(); return; }
+  if(a==='retry'){ TR.t0=0; TR.sig=''; TR.sc=-1; TR.cv=0; trTick(); return; }
+  if(a==='text'){
+    var e=byTitle(TR.T.e); trEnd();
+    try{ open(); if(e) setTimeout(function(){ try{ showId(e.id,1); }catch(x){} },320); }catch(x){}
+  }
+}
+/* Quan sát cú chạm (KHÔNG chặn, KHÔNG đổi gì) — chạm đúng chỗ đang khoanh thì qua bước sau */
+document.addEventListener('click',function(e){
+  try{
+    if(!TR||TR.fin||!TR.el||TR.mode!=='click')return;
+    var st=TR.T.st[TR.i]; if(!st)return;
+    var tg=e.target; if(!tg||(trBb&&trBb.contains(tg)))return;
+    var ok=(TR.el===tg||TR.el.contains(tg));
+    if(!ok&&st.any&&tg.closest){ try{ ok=!!tg.closest(st.any); }catch(x){} }
+    if(!ok)return;
+    var my=TR.i;
+    setTimeout(function(){ if(TR&&!TR.fin&&TR.i===my) trGo(); },450);
+  }catch(x){}
+},true);
+
+function trMenu(){
+  push('me','👆 Chỉ tận tay');
+  typing(function(){
+    var h='<b class="snai-h">👆 Chỉ tận tay trên màn hình</b>Chọn việc bạn muốn làm. Mình sẽ <b>khoanh vàng đúng cái nút</b> cần bấm, có <b>ngón tay 👆 chỉ vào</b>. Bạn chỉ việc bấm theo, từng bước một.'
+      +'<div class="snai-tip">💡 Đang làm muốn dừng thì bấm <b>✕ Thoát</b> ở khung nhắc. Bấm nhầm cũng không sao — cứ làm lại.</div>';
+    for(var g=0;g<TGR.length;g++){
+      var ks=[]; for(var k in TOURS){ if(TOURS.hasOwnProperty(k)&&TOURS[k].g===TGR[g][0]) ks.push(k); }
+      if(!ks.length)continue;
+      h+='<div class="snai-more"><div class="snai-ml">'+TGR[g][1]+'</div>';
+      for(var i=0;i<ks.length;i++) h+='<button type="button" class="snai-sg" data-snaitour="'+ks[i]+'">👆 '+esc(TOURS[ks[i]].n)+'</button>';
+      h+='</div>';
+    }
+    push('ai',h);
+    setChips(['Xem mục lục','Gọi hỗ trợ khi bí']);
+  });
+}
+
+/* ═════ HƯỚNG DẪN ĐÚNG CHỖ ĐANG ĐỨNG ═════ */
+var CTX={
+ sono:{n:'màn 📒 SỔ NỢ',tr:['ghi-no','thu-no','them-khach','chia-se'],
+   q:['Thêm khách hàng mới','Ghi khách mua hàng (ghi nợ)','Ghi khách trả tiền (thu nợ)','Chia sẻ link công nợ cho khách xem','In bảng kê công nợ khổ A4 / A5','Sao lưu dữ liệu (nên làm thường xuyên)']},
+ sell:{n:'🛒 BÁN HÀNG — tab Bán',tr:['ban-hang','giu-don','tra-hang','quy-ca'],
+   q:['Bán hàng cơ bản — từ A đến Z','Giữ đơn (treo đơn) và mở lại','Trả hàng / hoàn tiền cho khách','Ghi nợ cho khách khi bán hàng','Mở ca — quỹ đầu ca','Bán quá số tồn — tồn kho bị âm có sao không?']},
+ kho:{n:'🛒 BÁN HÀNG — tab Kho',tr:['them-sp'],
+   q:['Thêm sản phẩm mới vào kho','Sửa hoặc xóa sản phẩm','Ảnh minh họa cho sản phẩm','Kiểm kho bằng quét mã','In tem mã vạch cho sản phẩm','Cài đơn vị quy đổi (lon / lốc / thùng)']},
+ nhap:{n:'🛒 BÁN HÀNG — tab Nhập',tr:['nhap-hang'],
+   q:['Nhập hàng từ nhà cung cấp','Quản lý nhà cung cấp & trả tiền NCC','Giá vốn — vì sao bắt buộc phải điền đúng']},
+ report:{n:'🛒 BÁN HÀNG — tab Báo cáo',tr:['bao-cao','nhan-vien'],
+   q:['Xem báo cáo doanh thu — lãi lỗ','Chọn khoảng ngày tùy ý cho báo cáo','Đọc hiểu bảng báo cáo — từng mục nghĩa là gì','Báo cáo Sổ Nợ chi tiết','Thêm nhân viên và đặt mã PIN']},
+ qrd:{n:'🛒 BÁN HÀNG — tab Bán online / Đơn QR',tr:['onl-mo','onl-gui','onl-chon','chuong'],
+   q:['Bán online là gì? Dùng làm gì?','Tạo link cửa hàng online (lần đầu)','Nhận đơn online — từ lúc chuông reo tới lúc giao hàng','Chọn hàng hiện online và bấm "Tạm hết"','Cài đặt cửa hàng online: giờ nhận đơn, giao hàng, chuyển khoản','Chuông báo đơn: thử chuông, bật tiếng, giữ màn hình sáng']},
+ fnb:{n:'🛒 BÁN HÀNG — tab Bàn',tr:[],
+   q:['Module F&B — sơ đồ bàn quán ăn, cà phê','Định lượng nguyên vật liệu (bán 1 ly trừ nhiều thứ)','Đơn QR tại bàn là gì? Dùng làm gì?']},
+ rm:{n:'🛒 BÁN HÀNG — tab Phòng',tr:[],
+   q:['Module Karaoke / Nhà nghỉ — phòng tính giờ','Karaoke, Spa, Nhà nghỉ: khách đặt phòng, đặt lịch online']},
+ aib:{n:'🛒 BÁN HÀNG — tab Cố vấn',tr:[],
+   q:['Cố vấn kinh doanh là gì? Nằm ở đâu?','Quét sâu — bấm 1 lần cho số chính xác','Bản tin hôm nay — việc nên làm ngay','Chấm điểm rủi ro nợ — nên đòi ai trước']}
+};
+var LASTCTX='';
+function ctxNow(){
+  try{
+    if(inPOS()){
+      var t=document.querySelector('#pos-screen .sk-tab.sk-on'),v=t?t.getAttribute('data-v'):'sell';
+      return CTX[v]?{k:v,c:CTX[v]}:{k:'sell',c:CTX.sell};
+    }
+  }catch(e){}
+  return {k:'sono',c:CTX.sono};
+}
+function ctxHtml(x){
+  var c=x.c,i,h='<b class="snai-h">📍 Bạn đang ở '+esc(c.n)+'</b>Ở màn này hay làm những việc sau — chạm vào việc bạn cần:';
+  for(i=0;i<c.tr.length;i++){
+    var T=TOURS[c.tr[i]];
+    if(T) h+='<button type="button" class="snai-big" data-snaitour="'+c.tr[i]+'">👆 '+esc(T.n)+'</button>';
+  }
+  var ls='';
+  for(i=0;i<c.q.length;i++){
+    var e=byTitle(c.q[i]);
+    if(e) ls+='<button type="button" class="snai-sg" data-snaiid="'+e.id+'">'+(CAT[e.c]?CAT[e.c].i+' ':'')+esc(e.t)+'</button>';
+  }
+  if(ls) h+='<div class="snai-more"><div class="snai-ml">ĐỌC HƯỚNG DẪN CHỮ</div>'+ls+'</div>';
+  return h;
+}
+function ctxChips(x){
+  var a=[],c=x.c;
+  for(var i=0;i<c.q.length&&a.length<6;i++){ if(byTitle(c.q[i])) a.push(c.q[i]); }
+  return a.length?a:HOT;
+}
+
+/* ═════ GHI ĐÈ: lời chào có "đang ở đâu" ═════ */
+welcome=function(){
+  body.innerHTML='';
+  var x=ctxNow(); LASTCTX=x.k;
+  push('ai','<b class="snai-h">👋 Chào bạn!</b>'
+   +'Mình là <b>trợ lý hướng dẫn</b> của phần mềm này. Mình thuộc lòng <b>'+KB.length+' mục hướng dẫn</b> — từ ghi nợ, bán hàng, kho, báo cáo, bán online, cho tới sao lưu và xử lý sự cố.'
+   +'<div class="snai-ok">💬 Cứ gõ câu hỏi bằng lời bình thường vào ô dưới cùng, <b>có dấu hay không dấu, gõ sai một chữ cũng được</b>.<br>VD: <i>"lam sao ghi no cho khach"</i> · <i>"in bang ke"</i> · <i>"ban online"</i>.</div>'
+   +'<button type="button" class="snai-big" data-snaitool="tour">👆 Chỉ tận tay — khoanh đúng nút cần bấm</button>'
+   +'<button type="button" class="snai-big alt" data-snaicourse="start">🎓 Tôi mới dùng lần đầu — dạy tôi từ đầu</button>'
+   +'<button type="button" class="snai-big alt" data-snaiq="Xem mục lục">📚 Xem toàn bộ mục lục theo nhóm</button>'
+   +'<div class="snai-tip">👴 <b>Mắt kém, ngại đọc chữ nhỏ?</b> Bấm <b>🔠 Chữ to</b> ở thanh ngay trên để phóng to chữ, hoặc <b>🔊 Đọc to</b> để mình đọc thành tiếng cho nghe.</div>');
+  push('ai',ctxHtml(x));
+  setChips(ctxChips(x));
+};
+
+/* ═════ GHI ĐÈ: mở lại ở màn khác → gợi ý việc của màn đó ═════ */
+var _v2open=open;
+open=function(){
+  var dau=!(body&&body.childNodes.length);
+  _v2open();
+  if(dau)return;
+  try{ var x=ctxNow(); if(x.k!==LASTCTX){ LASTCTX=x.k; push('ai',ctxHtml(x)); setChips(ctxChips(x)); } }catch(e){}
+};
+
+/* ═════ GHI ĐÈ: bài nào có "chỉ tận tay" thì hiện nút ═════ */
+var _v2go=goBtn;
+goBtn=function(e){
+  var h=_v2go(e),k=e?TOURBY[e.t]:null;
+  if(k&&TOURS[k]) h='<button type="button" class="snai-big" data-snaitour="'+k+'">👆 Chỉ tận tay trên màn hình</button>'+h;
+  return h;
+};
+
+/* ═════ GHI ĐÈ: gõ "chỉ tận tay" → mở danh sách ═════ */
+var _v2ask=ask;
+ask=function(q,asUser){
+  var nq=nrm(q);
+  if(/(chi tan tay|tan tay|chi cho toi bam)/.test(nq)){ trMenu(); return; }
+  return _v2ask(q,asUser);
+};
+
+/* ═════ GHI ĐÈ: nút nổi ẩn trong lúc đang chỉ tận tay ═════ */
+var _v2sync=syncFab;
+syncFab=function(){ _v2sync(); try{ if(fab&&TR) fab.classList.add('snai-off'); }catch(e){} };
+
+/* ═════ GHI ĐÈ: dựng giao diện → thêm nút 👆 + bắt nút chỉ tận tay ═════ */
+function v3Wire(){
+  var p=document.getElementById('snai-panel'); if(!p)return;
+  if(!p.__snaiV3){
+    p.__snaiV3=1;
+    p.addEventListener('click',function(e){
+      var n=e.target;
+      while(n&&n!==p){
+        if(n.getAttribute){
+          var v=n.getAttribute('data-snaitour'); if(v!=null){ trStart(v); return; }
+          v=n.getAttribute('data-snaitool'); if(v==='tour'){ trMenu(); return; }
+        }
+        n=n.parentNode;
+      }
+    });
+  }
+  var t=document.getElementById('snai-tools');
+  if(t&&!document.getElementById('snai-trbtn')){
+    var b=E('button','big','👆 Chỉ tận tay'); b.type='button'; b.id='snai-trbtn'; b.setAttribute('data-snaitool','tour');
+    t.insertBefore(b,t.firstChild);
+  }
+}
+var _v2build=build;
+build=function(){ _v2build(); try{ v3Wire(); }catch(e){} };
+
+/* Cho phép gọi từ nơi khác: window.SNAI_TOUR('ghi-no') */
+window.SNAI_TOUR=function(k){ try{ trStart(k); }catch(e){} };
+
 
 /* ═════════════ 6) KHỞI ĐỘNG ═════════════ */
 function boot(){ try{ build(); }catch(e){} }
@@ -18477,7 +19393,7 @@ if (window.__RMT_READY__) return; window.__RMT_READY__ = true;
 try{
 
 /* ĐỔI CHUỖI NÀY CHO TRÙNG APP_BUILD MỖI LẦN DEPLOY (chỉ để hiện ở bảng quản trị) */
-var BUILD = '2026-09-25-DONANHSP';
+var BUILD = '2026-09-25-TROLY3';
 var NHIP   = 6*3600*1000;          /* báo về tối đa 6 giờ 1 lần — khỏi tốn lượt ghi */
 var KEY_HB = 'rmt_hb_v1';
 var KEY_XEM= 'rmt_xem_v1';
