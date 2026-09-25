@@ -333,6 +333,18 @@
   .sn-doc .sn-sign{page-break-inside:avoid;}
 }
 </style>
+<style>
+/* ===== NÚT ✕ ĐÓNG Ở GÓC TRÊN — bảng Chi tiết khách (Sổ Nợ) + bảng Chi tiết sản phẩm (Kho) — CHỈ THÊM MỚI, không đụng CSS cũ =====
+   Nút ghim ở góc trên bên phải: kéo danh sách xuống bao xa vẫn nổi ở đó -> bấm là thoát ngay, khỏi kéo xuống đáy tìm nút "Đóng".
+   Khung chứa nút cao 0 -> KHÔNG đẩy lệch nội dung nào của bảng. Nút "Đóng" cũ ở cuối bảng vẫn giữ nguyên. */
+#modal-detail .xtop-bar,#sk-detail .xtop-bar{position:-webkit-sticky;position:sticky;top:0;z-index:6;height:0;display:flex;justify-content:flex-end;pointer-events:none}
+#modal-detail .xtop-btn,#sk-detail .xtop-btn{pointer-events:auto;flex:0 0 auto;box-sizing:border-box;width:2.2em;height:2.2em;margin:-10px 0 0;padding:0;border:1px solid #dbe2de;border-radius:50%;background:#f2f5f3;color:#374151;font-family:inherit;font-size:18px;line-height:1;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.16);-webkit-tap-highlight-color:transparent;-webkit-appearance:none;appearance:none}
+#modal-detail .xtop-btn:active,#sk-detail .xtop-btn:active{background:#e1e7e4}
+#modal-detail .xtop-btn svg,#sk-detail .xtop-btn svg{display:block;width:1em;height:1em;pointer-events:none}
+/* chừa chỗ bên phải tiêu đề để tên dài không chui xuống dưới nút ✕ */
+#modal-detail #detail-name{padding-right:2.8em}
+#sk-detail .sk-dt-name{padding-right:2.8em}
+</style>
 </head>
 <body>
 
@@ -615,6 +627,7 @@
 <!-- MODAL: Chi tiết -->
 <div class="modal-overlay" id="modal-detail">
   <div class="modal">
+    <div class="xtop-bar"><button type="button" class="xtop-btn" onclick="closeModal('modal-detail')" aria-label="Đóng" title="Đóng"><svg viewBox="0 0 24 24" width="1em" height="1em" aria-hidden="true" focusable="false"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg></button></div>
     <h2 id="detail-name">Chi tiết</h2>
     <div id="detail-info" style="font-size:0.85em;color:#6b7280;margin-bottom:12px"></div>
     <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
@@ -10748,7 +10761,7 @@ M.on('boot',function(){
   </div></div>
 
   <!-- PRODUCT DETAIL + THẺ KHO -->
-  <div id="sk-detail" class="sk-modal"><div class="sk-card"><div id="sk-detail-body"></div><div class="sk-card-acts" style="margin-top:14px"><span style="flex:1"></span><button class="sk-btn green" data-act="modal-close" data-target="#sk-detail">Đóng</button></div></div></div>
+  <div id="sk-detail" class="sk-modal"><div class="sk-card"><div class="xtop-bar"><button type="button" class="xtop-btn" data-act="modal-close" data-target="#sk-detail" aria-label="Đóng" title="Đóng"><svg viewBox="0 0 24 24" width="1em" height="1em" aria-hidden="true" focusable="false"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg></button></div><div id="sk-detail-body"></div><div class="sk-card-acts" style="margin-top:14px"><span style="flex:1"></span><button class="sk-btn green" data-act="modal-close" data-target="#sk-detail">Đóng</button></div></div></div>
 
   <!-- UNIT PICKER -->
   <div id="sk-unit" class="sk-modal"><div class="sk-card sk-card-sm"><h3 id="sk-unit-title">Chọn đơn vị</h3><div id="sk-unit-list"></div><div class="sk-card-acts"><span style="flex:1"></span><button class="sk-btn ghost" data-act="modal-close" data-target="#sk-unit">Hủy</button></div></div></div>
