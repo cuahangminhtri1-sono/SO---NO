@@ -768,7 +768,7 @@ import { getFirestore, initializeFirestore, persistentLocalCache, persistentMult
 import { getStorage, ref as _sref, uploadBytes, getDownloadURL, deleteObject, listAll }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
 
-const APP_BUILD = "2026-09-25-QT8"; // ⬆️ ĐỔI MỖI LẦN DEPLOY (đặt TRÙNG tên cache trong sw.js) — hiện ở ⚙️ Cài đặt để biết máy đã chạy bản mới chưa
+const APP_BUILD = "2026-09-26-QT9"; // ⬆️ ĐỔI MỖI LẦN DEPLOY (đặt TRÙNG tên cache trong sw.js) — hiện ở ⚙️ Cài đặt để biết máy đã chạy bản mới chưa
 const firebaseConfig = {
   apiKey: "AIzaSyA_kjQ-CdASRkf50Glz3kQajlkD5qGWC4k",
   authDomain: "so-no-cc57a.firebaseapp.com",
@@ -1931,6 +1931,31 @@ function renewBank(){
 function renewPrice(){ return priceFor('sono'); }
 function posRenewPrice(){ return priceFor('sono_pos'); }
 
+/* ═══ [QT9] MỖI HỘP THƯ CHỈ DÙNG THỬ 1 LẦN — máy chủ chặn thật (Rules VÁ LỖ Z3 · công tắc billing/config.motThuMoiHop)
+   Gmail coi ten@gmail.com · t.en@gmail.com · ten+1@gmail.com là CÙNG một hộp thư. Muốn mở dùng thử BẤT KỲ gói nhóm
+   Sổ Nợ + Bán hàng nào, tài khoản phải GIỮ được "khoá hộp thư" trialKeys/{hộp thư thật}: ai giữ trước thì chỉ người
+   đó được dùng thử, nick phụ vẫn MUA gói bình thường. Công thức hộp thư PHẢI trùng hàm hopThuThat() trong Rules.
+   Trả về 'ok' (đang giữ khoá) · 'khac' (tài khoản khác giữ, hoặc Rules chưa có kho này) · 'loi' (mất mạng…).
+   Chỉ gọi ngay trước lúc tạo giấy phép dùng thử — không tốn lượt ghi nào khi khách dùng app bình thường. ═══ */
+function snHopThuThat(e){
+  e=String(e||'').toLowerCase(); var p=e.split('@'); if(p.length!==2)return '';
+  var ten=p[0].split('+')[0], mien=(p[1]==='googlemail.com')?'gmail.com':p[1];
+  if(mien==='gmail.com')ten=ten.replace(/\./g,'');
+  return ten+'@'+mien;
+}
+window.snKhoaThu=async function(){
+  try{
+    const u=auth.currentUser; if(!u)return 'loi';
+    const k=snHopThuThat(u.email); if(!k||k.indexOf('/')>=0)return 'loi';
+    const ref=doc(db,'trialKeys',k);
+    try{ await setDoc(ref,{uid:u.uid,at:serverTimestamp()}); return 'ok'; }
+    catch(e){
+      if(!e||e.code!=='permission-denied')return 'loi';
+      try{ const s=await getDoc(ref); return (s.exists()&&(s.data()||{}).uid===u.uid)?'ok':'khac'; }
+      catch(e2){ return (e2&&e2.code==='permission-denied')?'khac':'loi'; }
+    }
+  }catch(e){ return 'loi'; }
+};
 // ── Tự mở dùng thử miễn phí cho khách mới ──
 async function tryStartTrial(uid){
   // ① Doc gốc: TUYỆT ĐỐI không được chứa paidUntil (Rules mới cấm — hạn nằm ở lic/)
@@ -1951,12 +1976,14 @@ async function tryStartTrial(uid){
   }
   // ② Giấy phép dùng thử RIÊNG app này. Rules chỉ cho TẠO 1 lần (không update, không delete)
   //    ⇒ xoá đi tạo lại để thử vô hạn là bất khả thi.
+  const _kt=await window.snKhoaThu();   /* [QT9] giữ khoá hộp thư trước (Rules VÁ LỖ Z3) */
   try{
     const until=new Date(Date.now()+TRIAL_DAYS*86400000);
     await setDoc(licRef(uid,MA_APP),{trial:true,trialUsed:true,active:true,paidUntil:until,startedAt:serverTimestamp()});
     return true;
   }catch(e){console.error('tryStartTrial',e);
     if(/\+[^@]*@/.test((auth.currentUser&&auth.currentUser.email)||''))window.__snThuLyDo='bidanh';   /* [QT7] Rules chặn email bí danh */
+    else if(_kt==='khac')window.__snThuLyDo='hopthu';   /* [QT9] hộp thư đã dùng thử ở tài khoản khác */
     return false;}
 }
 /* [QT7] Mã máy + "máy này đã có tài khoản chủ shop khác chưa" — dùng CHUNG bộ nhớ rmt_dev_v1 với khối
@@ -1978,6 +2005,7 @@ window.startTrialNow=async()=>{
   if(ok){location.reload();}
   else if(window.__snThuLyDo==='may'){ alert('📱 Điện thoại này đã có tài khoản Sổ Nợ khác.\n\nMỗi máy chỉ được dùng thử 1 lần. Hãy đăng nhập lại tài khoản cũ để dùng tiếp, hoặc gọi '+snHotTxt()+' để mua gói cho tài khoản này.'); }
   else if(window.__snThuLyDo==='bidanh'){ alert('✉️ Email có dấu "+" (email bí danh) không mở được dùng thử.\n\nHãy đăng ký bằng email thường, hoặc gọi '+snHotTxt()+' để mua gói.'); }
+  else if(window.__snThuLyDo==='hopthu'){ alert('✉️ Hộp thư email này đã dùng thử ở một tài khoản khác.\n\nGmail coi ten@gmail.com, t.en@gmail.com và ten+1@gmail.com là CÙNG một hộp thư nên chỉ được dùng thử 1 lần. Hãy đăng nhập lại tài khoản cũ để dùng tiếp, hoặc gọi '+snHotTxt()+' để mua gói cho tài khoản này.'); }
   else{toast('❌ Chưa mở được dùng thử. Hãy tải lại trang.');}
 };
 
@@ -5787,6 +5815,7 @@ async function skDiag(){
     /* Tự mở dùng thử Bán hàng miễn phí 15 ngày — CHỈ 1 LẦN (Rules chặn tạo lại) */
     if(!daTungCoPos && navigator.onLine!==false){   /* offline: KHÔNG mở dùng thử (lệnh ghi sẽ treo vĩnh viễn) */
       try{
+        if(!LA_NV){ try{ await window.snKhoaThu(); }catch(_){} }   /* [QT9] giữ khoá hộp thư (Rules VÁ LỖ Z3) */
         var until=new Date(Date.now()+POS_TRIAL_DAYS*86400000);
         await setDoc(licRef(UID,MA_POS),{trial:true,trialUsed:true,active:true,paidUntil:until,startedAt:serverTimestamp()});
         _posCache={ok:true,until:until};
@@ -19178,6 +19207,7 @@ window.AIB={ hoi:function(t){ try{ M.go('aib'); }catch(e){} setTimeout(function(
     var f=FB(), u=uid(), m=mod(k);
     if(!f||!u||!m) return false;
     try{
+      try{ if(typeof window.snKhoaThu==='function') await window.snKhoaThu(); }catch(_){}   /* [QT9] giữ khoá hộp thư (Rules VÁ LỖ Z3) */
       var until=new Date(Date.now()+MOD_TRIAL_DAYS*86400000);
       await f.setDoc(f.doc(f.db,'accounts',u,'lic',m.lic),
         {trial:true,trialUsed:true,active:true,paidUntil:until,startedAt:f.serverTimestamp()});
@@ -19475,7 +19505,7 @@ if (window.__RMT_READY__) return; window.__RMT_READY__ = true;
 try{
 
 /* ĐỔI CHUỖI NÀY CHO TRÙNG APP_BUILD MỖI LẦN DEPLOY (chỉ để hiện ở bảng quản trị) */
-var BUILD = '2026-09-25-QT8';
+var BUILD = '2026-09-26-QT9';
 var NHIP   = 6*3600*1000;          /* báo về tối đa 6 giờ 1 lần — khỏi tốn lượt ghi */
 var KEY_HB = 'rmt_hb_v2';          /* [QT7] nhịp báo về tính RIÊNG từng tài khoản (bản v1 tính chung cả máy) */
 var KEY_XEM= 'rmt_xem_v1';
@@ -19721,6 +19751,7 @@ async function moThuCn(el){
     /* ĐÃ có giấy phép (đang dùng thử / đã mua / đã hết hạn) ⇒ để nguyên màn MUA, không mở lại */
     if (d && d.exists && d.exists()){ dangMo=false; return; }
 
+    try{ if(typeof window.snKhoaThu==='function') await window.snKhoaThu(); }catch(_){}   /* [QT9] giữ khoá hộp thư (Rules VÁ LỖ Z3) */
     var until=new Date(Date.now()+ngayThu()*86400000);
     await f.setDoc(ref,{ trial:true, trialUsed:true, active:true, paidUntil:until,
                          startedAt:f.serverTimestamp(), qty:1 });
@@ -20675,6 +20706,7 @@ async function dungThu(){
   if(laMayNV()){ noi('📱 Máy nhân viên không mở dùng thử được — nhờ chủ shop mở trên máy chủ shop'); return; }   /* [ONLINE] */
   if(!confirm('Mở dùng thử gói "Bán online" '+ngayThuQr()+' ngày miễn phí?\n\nChỉ mở được MỘT LẦN duy nhất.')) return;
   try{
+    try{ if(typeof window.snKhoaThu==='function') await window.snKhoaThu(); }catch(_){}   /* [QT9] giữ khoá hộp thư (Rules VÁ LỖ Z3) */
     await F.setDoc(F.doc(F.db,'accounts',u,'lic',MA_GOI), {
       trial: true, trialUsed: true, active: true,
       paidUntil: new Date(Date.now() + ngayThuQr()*86400000),
@@ -20686,7 +20718,7 @@ async function dungThu(){
     render();
   }catch(e){
     if(e && e.code === 'permission-denied')
-      alert('Tài khoản này đã dùng thử gói Bán online rồi.\nGọi '+hotQr()+' để mở gói trả phí nhé.');
+      alert('Tài khoản này (hoặc một tài khoản khác cùng hộp thư email) đã dùng thử gói Bán online rồi.\nGọi '+hotQr()+' để mở gói trả phí nhé.');
     else C.err ? C.err(e,'Dùng thử gói QR') : noi('Lỗi: '+((e&&e.code)||e));
   }
 }
