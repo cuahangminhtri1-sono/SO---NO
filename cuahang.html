@@ -1319,5 +1319,621 @@ document.addEventListener('click', function(e){
 })();
 </script>
 <!-- ═══════════════ HẾT: XEM ẢNH LỚN ═══════════════ -->
+<!-- ═══════════════ NHẮN TIN VỚI CỬA HÀNG (khối độc lập · namespace chk-) ═══════════════
+     Khách hỏi hàng, hỏi giá, thỏa thuận đơn ngay trên link — cửa hàng trả lời trong app.
+     • CHỈ THÊM: không sửa một dòng nào của trang. Khối này lỗi thì việc đặt hàng vẫn chạy y nguyên.
+     • Mỗi khách 1 cuộc riêng: qr_chat/{mã link}_{uid khách} — không ai khác đọc được.
+     • Khách chỉ xem hàng ⇒ chỉ 1 lượt đọc công tắc nhắn tin (nhớ 30 phút), không đọc tin nhắn nào.
+     • Thẻ "📋 Chốt đơn" của cửa hàng có nút "✅ Đồng ý" — lưu lại làm bằng chứng thỏa thuận.
+     ═════════════════════════════════════════════════════════════════════════════════════ -->
+<script type="module">
+import { getApps, getApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+import { getFirestore, doc, getDoc, collection, query, orderBy, limit, onSnapshot,
+         writeBatch, updateDoc, serverTimestamp, increment }
+  from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+
+(function(){
+'use strict';
+if(window.__CHK_NHAN__) return; window.__CHK_NHAN__ = true;
+try{
+
+const TRANG  = 'online';                       /* 'online' = cuahang.html · 'ban' = menu.html */
+const LA_ONL = TRANG === 'online';
+const QS  = new URLSearchParams(location.search);
+const TK  = (QS.get('t') || '').trim().slice(0, 80);
+const BAN = (QS.get('b') || '').trim().slice(0, 80);
+if(!TK) return;
+
+const KMENU = (LA_ONL ? 'olmenu_' : 'qrmenu_') + TK;  /* trang tự ghi sau khi đọc cửa hàng */
+const KDON  = 'oldon_' + TK;                          /* đơn online gần nhất (cuahang) */
+const KTEN  = 'chk_ten_v1';
+const KCO   = 'chk_co_';                              /* + mã cuộc: '1' = đã có cuộc */
+const KBAO  = 'chk_bao_';                             /* + mã cuộc: giờ tin cửa hàng đã báo */
+const KCFG  = 'chk_cfg_' + TK;                        /* công tắc nhắn tin của cửa hàng {c, t} — đọc lại sau 30 phút */
+const DAN_CACH = 1150;                                /* luật máy chủ: 2 tin cách nhau ≥ 1 giây */
+
+const $ = s => document.querySelector(s);
+const LS = {
+  get: k => { try{ return localStorage.getItem(k); }catch(e){ return null; } },
+  set: (k, v) => { try{ localStorage.setItem(k, v); }catch(e){} }
+};
+const docJ = (k, d) => { try{ const v = JSON.parse(LS.get(k) || 'null'); return (v == null) ? d : v; }catch(e){ return d; } };
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const vnd = n => Math.round(Number(n) || 0).toLocaleString('vi-VN') + 'đ';
+const maDon = id => 'DH-' + String(id || '').slice(-6).toUpperCase();
+const ngu = t => new Promise(r => setTimeout(r, t));
+function cat(s, n){ let o = ''; for(const ch of String(s == null ? '' : s)){ if(o.length + ch.length > n) break; o += ch; } return o; }
+function ms(v){ try{ if(v && typeof v.toMillis === 'function') return v.toMillis(); }catch(e){} return (typeof v === 'number') ? v : 0; }
+const hai = n => (n < 10 ? '0' : '') + n;
+function gio(t){ const d = new Date(t); return hai(d.getHours()) + ':' + hai(d.getMinutes()); }
+function nhanNgay(t){
+  const d = new Date(t), h = new Date(), x = new Date(h.getFullYear(), h.getMonth(), h.getDate()).getTime();
+  const n = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  if(n === x) return 'Hôm nay';
+  if(n === x - 86400000) return 'Hôm qua';
+  return hai(d.getDate()) + '/' + hai(d.getMonth() + 1) + '/' + d.getFullYear();
+}
+
+/* ───────── GIAO DIỆN ───────── */
+const css = document.createElement('style');
+css.id = 'chk-css';
+css.textContent =
+  'body.chk-co{padding-bottom:calc(150px + env(safe-area-inset-bottom,0px))}'   /* chừa chỗ cho nút 💬 ⇒ món cuối cuộn lên khỏi bị che */
+ +'.chk-nut{position:fixed;right:14px;bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:70;display:none;align-items:center;gap:7px;'
+ +'border:none;border-radius:999px;background:#0d7a5f;color:#fff;font-family:inherit;font-size:14px;font-weight:800;padding:11px 16px 11px 13px;'
+ +'box-shadow:0 8px 22px rgba(8,60,45,.35);cursor:pointer;-webkit-tap-highlight-color:transparent;transition:transform .15s}'
+ +'.chk-nut.on{display:flex}.chk-nut:active{transform:scale(.95)}'
+ +'.chk-nut i{font-style:normal;font-size:18px;line-height:1}'
+ +'.chk-nut b{position:absolute;top:-2px;right:-2px;width:14px;height:14px;border-radius:50%;background:#e53935;border:2px solid #fff;display:none}'
+ +'.chk-nut.moi b{display:block}'
+ +'#xong button.chk-xn{display:block;margin:12px auto 0;background:#e6efeb;color:#0a5f4a}'
+ +'.chk-bao{position:fixed;left:50%;top:calc(10px + env(safe-area-inset-top,0px));transform:translate(-50%,-140%);z-index:130;'
+ +'width:min(94vw,440px);background:#0a5f4a;color:#fff;border-radius:14px;padding:11px 14px;font-size:14px;line-height:1.4;'
+ +'box-shadow:0 10px 26px rgba(0,0,0,.28);transition:transform .25s;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}'
+ +'.chk-bao.on{transform:translate(-50%,0)}'
+ +'.chk-k{position:fixed;left:0;top:0;width:100%;height:100%;z-index:120;display:none;flex-direction:column;background:#eef3f1;color:#16302a}'
+ +'.chk-k.on{display:flex}'
+ +'.chk-h{flex:none;display:flex;align-items:center;gap:6px;background:#0d7a5f;color:#fff;'
+ +'padding:calc(8px + env(safe-area-inset-top,0px)) 10px 8px 4px;box-shadow:0 2px 10px rgba(8,40,30,.2)}'
+ +'.chk-v{flex:none;width:44px;height:44px;border:none;background:transparent;color:#fff;font-size:30px;line-height:1;border-radius:50%;cursor:pointer;font-family:inherit;padding:0 0 4px}'
+ +'.chk-tt{flex:1;min-width:0}.chk-tt b{display:block;font-size:16px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}'
+ +'.chk-tt span{display:block;font-size:12px;opacity:.85;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}'
+ +'.chk-goi{flex:none;display:none;width:42px;height:42px;border-radius:50%;background:rgba(255,255,255,.16);color:#fff;text-decoration:none;font-size:19px;align-items:center;justify-content:center}'
+ +'.chk-ds{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding:10px 12px 8px}'
+ +'.chk-trong{max-width:340px;margin:28px auto;text-align:center;color:#4a6a61;font-size:14px;line-height:1.6}'
+ +'.chk-trong i{display:block;font-style:normal;font-size:40px;margin-bottom:8px}'
+ +'.chk-ngay{text-align:center;font-size:11.5px;color:#6b8a80;margin:12px 0 6px;font-weight:700}'
+ +'.chk-r{display:flex;flex-direction:column;align-items:flex-start;margin:3px 0}.chk-r.toi{align-items:flex-end}'
+ +'.chk-b{max-width:82%;padding:8px 12px;border-radius:17px;font-size:15px;line-height:1.42;white-space:pre-wrap;overflow-wrap:anywhere;background:#fff;'
+ +'border-bottom-left-radius:5px;box-shadow:0 1px 2px rgba(0,0,0,.06)}'
+ +'.chk-r.toi .chk-b{background:#0d7a5f;color:#fff;border-bottom-left-radius:17px;border-bottom-right-radius:5px}'
+ +'.chk-r.toi .chk-b.don{background:#e2f2ec;color:#0a5f4a;border:1.5px solid #b9dccf}'
+ +'.chk-g{font-size:10.5px;color:#7a948c;margin:2px 6px 0}'
+ +'.chk-the{max-width:86%;background:#fff;border:2px solid #f0b429;border-radius:16px;padding:11px 13px;box-shadow:0 2px 8px rgba(0,0,0,.07)}'
+ +'.chk-the h4{margin:0 0 6px;font-size:14.5px;font-weight:800;color:#8a5a00}'
+ +'.chk-the .chk-tg{font-size:14px;margin-bottom:5px}.chk-the .chk-tg b{font-size:16px;color:#0a5f4a}'
+ +'.chk-the .chk-nd{font-size:14px;line-height:1.45;white-space:pre-wrap;overflow-wrap:anywhere}'
+ +'.chk-dy{display:block;width:100%;margin-top:10px;border:none;border-radius:11px;background:#16a34a;color:#fff;font-family:inherit;font-size:15px;font-weight:800;padding:11px;cursor:pointer}'
+ +'.chk-dy:disabled{opacity:.55}'
+ +'.chk-ok{margin-top:9px;font-size:13.5px;font-weight:800;color:#16803c}'
+ +'.chk-loi{font-size:12px;color:#b02a2a;margin:3px 6px 0;text-align:right;max-width:82%}'
+ +'.chk-loi button{border:none;background:none;color:#0a5f4a;font-family:inherit;font-weight:800;font-size:12.5px;padding:2px 4px;cursor:pointer;text-decoration:underline}'
+ +'.chk-chan{flex:none;background:#fff8e1;color:#7a5a00;font-size:13px;line-height:1.45;padding:9px 14px;border-top:1px solid #f2e2b0;display:none}'
+ +'.chk-chan.on{display:block}'
+ +'.chk-chips{flex:none;display:flex;gap:7px;overflow-x:auto;padding:8px 10px 2px;scrollbar-width:none;-webkit-overflow-scrolling:touch}'
+ +'.chk-chips::-webkit-scrollbar{display:none}'
+ +'.chk-chip{flex:none;border:1.5px solid #cfe3dc;background:#fff;color:#0a5f4a;border-radius:999px;padding:7px 12px;font-family:inherit;font-size:13px;font-weight:700;white-space:nowrap;cursor:pointer}'
+ +'.chk-chip.don{border-color:#b9dccf;background:#e2f2ec}'
+ +'.chk-ten{flex:none;padding:6px 10px 0;display:none}.chk-ten.on{display:block}'
+ +'.chk-ten input{width:100%;box-sizing:border-box;border:1.5px solid #d5e3de;border-radius:12px;padding:9px 12px;font-family:inherit;font-size:16px;background:#fff;outline:none}'
+ +'.chk-o{flex:none;display:flex;gap:8px;align-items:flex-end;padding:8px 10px calc(8px + env(safe-area-inset-bottom,0px));background:#fff;border-top:1px solid #dfe9e5}'
+ +'.chk-o textarea{flex:1;min-width:0;resize:none;border:1.5px solid #d5e3de;border-radius:21px;padding:10px 14px;font-family:inherit;font-size:16px;line-height:1.35;'
+ +'max-height:120px;min-height:44px;box-sizing:border-box;outline:none;background:#f7faf9;color:#16302a}'
+ +'.chk-o textarea:focus{border-color:#0d7a5f;background:#fff}'
+ +'.chk-o textarea:disabled{opacity:.55}'
+ +'.chk-gui{flex:none;width:44px;height:44px;border-radius:50%;border:none;background:#0d7a5f;color:#fff;font-size:18px;cursor:pointer;padding:0}'
+ +'.chk-gui:disabled{opacity:.4}';
+document.head.appendChild(css);
+
+const NUT = document.createElement('button');
+NUT.type = 'button';
+NUT.className = 'chk-nut';
+NUT.setAttribute('aria-label', LA_ONL ? 'Nhắn tin cho cửa hàng' : 'Nhắn tin cho quán');
+NUT.innerHTML = '<i>💬</i><span>' + (LA_ONL ? 'Nhắn cửa hàng' : 'Nhắn quán') + '</span><b></b>';
+
+const BAO = document.createElement('div');
+BAO.className = 'chk-bao';
+BAO.setAttribute('role', 'status');
+
+const K = document.createElement('div');
+K.className = 'chk-k';
+K.setAttribute('role', 'dialog');
+K.setAttribute('aria-modal', 'true');
+K.setAttribute('aria-label', 'Nhắn tin với cửa hàng');
+K.innerHTML =
+  '<div class="chk-h"><button type="button" class="chk-v" aria-label="Quay lại">‹</button>'
+ +'<div class="chk-tt"><b></b><span></span></div><a class="chk-goi" aria-label="Gọi cửa hàng">📞</a></div>'
+ +'<div class="chk-ds"></div>'
+ +'<div class="chk-chan"></div>'
+ +'<div class="chk-chips"></div>'
+ +'<div class="chk-ten"><input type="text" maxlength="40" autocomplete="name" placeholder="Tên của bạn (để cửa hàng tiện xưng hô)"></div>'
+ +'<div class="chk-o"><textarea rows="1" maxlength="500" placeholder="Nhắn cho ' + (LA_ONL ? 'cửa hàng' : 'quán') + '…"></textarea>'
+ +'<button type="button" class="chk-gui" aria-label="Gửi">➤</button></div>';
+const DS = K.querySelector('.chk-ds'), CHAN = K.querySelector('.chk-chan'), CHIPS = K.querySelector('.chk-chips');
+const TENW = K.querySelector('.chk-ten'), TENI = TENW.querySelector('input');
+const TA = K.querySelector('textarea'), GUI = K.querySelector('.chk-gui');
+
+function gan(){
+  if(!document.body) return false;
+  document.body.appendChild(NUT); document.body.appendChild(BAO); document.body.appendChild(K);
+  const tn = $('#them-nua');                         /* nút trong màn "Đã gửi đơn" */
+  if(tn && !$('#chk-xong')){
+    const b = document.createElement('button');
+    b.type = 'button'; b.id = 'chk-xong';
+    b.className = LA_ONL ? 'nut nhat' : 'chk-xn';
+    b.textContent = LA_ONL ? '💬 Nhắn cửa hàng về đơn này' : '💬 Nhắn quán';
+    b.style.display = 'none';
+    b.addEventListener('click', () => moKhung());
+    tn.insertAdjacentElement('afterend', b);
+  }
+  return true;
+}
+
+/* ───────── TRẠNG THÁI ───────── */
+let db = null, UID = '', TID = '';
+let S = null;                    /* cửa hàng: trang tự lưu sau khi đọc (không tốn lượt đọc thêm) */
+let CUOC = null, CUOC_SAN = false, unCuoc = null, loiCuoc = 0, maLoiCuoc = '';
+let TIN = [], TIN_SAN = false, unTin = null, loiTin = 0;
+const CHO = [];                  /* tin đang gửi / gửi lỗi */
+let dangGui = false, lanGui = 0;
+let KHUNG_MO = false, ST = 0, dauLan = false;
+let CHAT = null, dangKiemChat = false, lanKiemChat = 0, lyDoKhoa = '';   /* CHAT: null = chưa biết · true = bật · false = cửa hàng tắt */
+let docKCho = false, docKHen = 0, docKTimer = 0, nutVT = '';
+let treCuoc = 0, treTin = 0;           /* chưa được nối lại trước mốc này (giãn cách khi lỗi) */
+
+function shopTuBoNho(){
+  const m = docJ(KMENU, null);
+  return (m && typeof m === 'object' && m.ownerUid) ? m : null;
+}
+const tenBan = () => String((S && S.ban && S.ban[BAN]) || BAN);
+function khoaNhap(){ return lyDoKhoa || (CHAT === false ? 'Cửa hàng đang tạm tắt nhắn tin.' : ''); }
+function napChat(){ const v = docJ(KCFG, null); if(v && typeof v.c === 'boolean' && Date.now() - (Number(v.t) || 0) < 1800000) CHAT = v.c; }
+function ghiChat(c){ CHAT = c; LS.set(KCFG, JSON.stringify({ c: c, t: Date.now() })); }
+/* Đọc công tắc nhắn tin trên link (trường 'chat'): 1 lượt, nhớ 30 phút. Đọc lỗi ⇒ coi như BẬT. */
+async function kiemChat(ep){
+  if(dangKiemChat || !db || (!ep && CHAT !== null)) return;
+  dangKiemChat = true; lanKiemChat = Date.now();
+  try{ const s = await getDoc(doc(db, 'shares_qr', TK)); if(s.exists()) ghiChat((s.data() || {}).chat !== false); }
+  catch(e){ if(CHAT === null) CHAT = true; }
+  dangKiemChat = false;
+  capNhatNut(); if(KHUNG_MO) veTatCa();
+}
+function sdtShop(){ return String((S && S.cfg && S.cfg.sdt) || '').replace(/[^0-9+]/g, '').slice(0, 15); }
+function hoSo(){
+  let ten = '', sdt = '';
+  if(LA_ONL){ const kh = docJ('olkhach_v1', null) || {}; ten = kh.ten || ''; sdt = kh.sdt || ''; }
+  if(!String(ten).trim()) ten = LS.get(KTEN) || '';
+  return { ten: cat(String(ten).trim(), 60), sdt: cat(String(sdt).replace(/[^0-9+]/g, ''), 15),
+           banId: LA_ONL ? '' : BAN, banTen: LA_ONL ? '' : cat(tenBan(), 60) };
+}
+function chuaDoc(){ return !!(CUOC && CUOC.cuoiTu === 'c' && ms(CUOC.cuoi) > ms(CUOC.docK)); }
+
+/* ───────── NÚT NỔI ───────── */
+function biChe(){
+  const top = $('#top');
+  if(!top || getComputedStyle(top).display === 'none') return true;
+  if(document.querySelector('#khay.on,#bt.on,#dp.on,#xong.on,.lba.on')) return true;
+  return KHUNG_MO;
+}
+function datViTri(){
+  const th = $('#thanh');
+  let v = 'calc(16px + env(safe-area-inset-bottom,0px))';
+  if(th && th.classList.contains('on')){
+    const r = th.getBoundingClientRect();
+    if(r.height > 0 && r.top < innerHeight) v = Math.max(12, Math.round(innerHeight - r.top + 10)) + 'px';
+  }
+  if(v !== nutVT){ nutVT = v; NUT.style.bottom = v; }
+}
+function canNghe(){ return !!TID && (KHUNG_MO || LS.get(KCO + TID) === '1' || (LA_ONL && !!LS.get(KDON))); }
+function capNhatNut(){
+  if(!S) S = shopTuBoNho();
+  if(db && !unCuoc && canNghe()) ngheCuoc();
+  if(db && KHUNG_MO && CUOC && !unTin) ngheTin();
+  if(KHUNG_MO && CHAT === false && Date.now() - lanKiemChat > 60000) kiemChat(true);   /* đang mở khung mà thấy tắt ⇒ 1 phút hỏi lại 1 lần */
+  const dung = !!(S && UID && db) && (CHAT === true || !!CUOC);
+  const hien = dung && !biChe();
+  if(document.body.classList.contains('chk-co') !== dung) document.body.classList.toggle('chk-co', dung);
+  NUT.classList.toggle('on', hien);
+  NUT.classList.toggle('moi', chuaDoc());
+  if(hien) datViTri();
+  const xn = $('#chk-xong'); if(xn){ const d = dung ? '' : 'none'; if(xn.style.display !== d) xn.style.display = d; }
+}
+
+let henBao = 0;
+function baoMoi(nd){
+  BAO.textContent = '💬 ' + ((S && S.quan) || (LA_ONL ? 'Cửa hàng' : 'Quán')) + ': ' + cat(nd || 'vừa nhắn cho bạn', 90);
+  BAO.classList.add('on');
+  try{ if(navigator.vibrate) navigator.vibrate(90); }catch(e){}
+  clearTimeout(henBao); henBao = setTimeout(() => BAO.classList.remove('on'), 6000);
+}
+BAO.addEventListener('click', () => { BAO.classList.remove('on'); moKhung(); });
+
+/* ───────── NGHE CUỘC TRÒ CHUYỆN ───────── */
+function ngheCuoc(){
+  if(unCuoc || !TID || !db || Date.now() < treCuoc) return;
+  const tid = TID;
+  try{
+    unCuoc = onSnapshot(doc(db, 'qr_chat', tid), s => {
+      if(tid !== TID) return;
+      loiCuoc = 0; maLoiCuoc = ''; CUOC_SAN = true;
+      CUOC = s.exists() ? (s.data({ serverTimestamps: 'estimate' }) || null) : null;
+      if(CUOC) LS.set(KCO + tid, '1');
+      khiCuocDoi();
+    }, e => {
+      if(tid !== TID) return;
+      unCuoc = null; CUOC_SAN = false; loiCuoc++;
+      maLoiCuoc = (e && e.code) || 'loi';
+      treCuoc = Date.now() + Math.min(60000, 2000 * Math.pow(2, Math.min(loiCuoc, 5)));
+      if(KHUNG_MO) veTatCa();
+    });
+  }catch(e){ unCuoc = null; }
+}
+function khiCuocDoi(){
+  if(CUOC && KHUNG_MO) ngheTin();
+  if(chuaDoc()){
+    if(KHUNG_MO && !document.hidden) danhDauXem();
+    else{
+      const t = ms(CUOC.cuoi), da = Number(LS.get(KBAO + TID)) || 0;
+      if(t > da){ LS.set(KBAO + TID, String(t)); baoMoi(CUOC.cuoiNd); }
+    }
+  }
+  capNhatNut();
+  if(KHUNG_MO) veTatCa();
+}
+function ngheTin(){
+  if(unTin || !TID || !db || !CUOC || Date.now() < treTin) return;
+  const tid = TID;
+  try{
+    unTin = onSnapshot(query(collection(db, 'qr_chat', tid, 'tin'), orderBy('luc', 'desc'), limit(80)), s => {
+      if(tid !== TID) return;
+      loiTin = 0; TIN_SAN = true;
+      TIN = s.docs.map(d => { const x = d.data({ serverTimestamps: 'estimate' }) || {}; x.id = d.id; return x; })
+                  .sort((a, b) => (ms(a.luc) - ms(b.luc)) || (a.id < b.id ? -1 : 1));
+      for(let i = CHO.length - 1; i >= 0; i--) if(CHO[i].tt === 'xong' && TIN.some(t => t.id === CHO[i].id)) CHO.splice(i, 1);
+      veTin();
+    }, e => {
+      if(tid !== TID) return;
+      unTin = null; loiTin++;
+      treTin = Date.now() + Math.min(60000, 2000 * Math.pow(2, Math.min(loiTin, 5)));
+    });
+  }catch(e){ unTin = null; }
+}
+function boNghe(){
+  try{ if(unCuoc) unCuoc(); }catch(e){} unCuoc = null;
+  try{ if(unTin) unTin(); }catch(e){} unTin = null;
+}
+
+function danhDauXem(){
+  if(!chuaDoc() || !TID || !db || docKCho) return;
+  const tre = docKHen - Date.now();
+  if(tre > 0){ if(!docKTimer) docKTimer = setTimeout(() => { docKTimer = 0; danhDauXem(); }, tre + 50); return; }
+  docKCho = true; docKHen = Date.now() + 1500;
+  updateDoc(doc(db, 'qr_chat', TID), { docK: serverTimestamp() })
+    .catch(() => {}).then(() => { docKCho = false; });
+}
+
+/* ───────── GỬI TIN ───────── */
+function guiTin(nd, loai, ref){
+  nd = cat(String(nd == null ? '' : nd).trim(), 500);
+  if(!nd || !db || !TID || !S || khoaNhap()) return false;
+  let id;
+  try{ id = doc(collection(db, 'qr_chat', TID, 'tin')).id; }catch(e){ return false; }
+  CHO.push({ id: id, nd: nd, loai: loai || 'tx', ref: ref ? cat(ref, 60) : '', tt: 'cho', ts: Date.now(), loi: '' });
+  veTin(true);
+  chayHang();
+  return true;
+}
+async function chayHang(){
+  if(dangGui) return;
+  const x = CHO.find(c => c.tt === 'cho');
+  if(!x) return;
+  dangGui = true;
+  const tid = TID;
+  try{
+    const doi = lanGui + DAN_CACH - Date.now();
+    if(doi > 0) await ngu(doi);
+    await guiMot(x, tid);
+    x.tt = 'xong'; lanGui = Date.now();
+    LS.set(KCO + tid, '1');
+    if(!unCuoc) ngheCuoc();
+    if(CUOC && !unTin && KHUNG_MO) ngheTin();
+  }catch(e){
+    lanGui = Date.now();
+    x.tt = 'loi';
+    x.loi = await lyDo(e, tid);
+  }
+  dangGui = false;
+  if(tid === TID){ veTatCa(); if(CHO.some(c => c.tt === 'cho')) setTimeout(chayHang, 0); }
+}
+async function guiMot(x, tid){
+  for(let lan = 0; lan < 2; lan++){
+    let co;
+    if(CUOC_SAN && lan === 0) co = !!CUOC;
+    else{
+      const s = await getDoc(doc(db, 'qr_chat', tid));
+      co = s.exists();
+      if(tid === TID){ CUOC = co ? (s.data({ serverTimestamps: 'estimate' }) || null) : null; }
+    }
+    try{ await ghiLo(x, co, tid); return; }
+    catch(e){
+      const ma = (e && e.code) || '';
+      if(lan === 0 && /permission-denied|not-found|failed-precondition|aborted|already-exists/.test(ma)){
+        await ngu(DAN_CACH);
+        try{ const m = await getDoc(doc(db, 'qr_chat', tid, 'tin', x.id)); if(m.exists()) return; }catch(e2){}
+        continue;
+      }
+      throw e;
+    }
+  }
+}
+async function ghiLo(x, co, tid){
+  const b = writeBatch(db);
+  const cref = doc(db, 'qr_chat', tid);
+  const now = serverTimestamp();
+  const xem = cat((x.loai === 'don' ? '🧾 ' : x.loai === 'ok' ? '✅ ' : '') + x.nd, 120);
+  const hs = hoSo();
+  if(!co){
+    b.set(cref, { token: TK, ownerUid: cat(S.ownerUid, 80), chiNhanh: cat(S.chiNhanh || 'main', 80), kieu: TRANG,
+                  banId: hs.banId, banTen: hs.banTen, khachUid: UID, ten: hs.ten, sdt: hs.sdt,
+                  tao: now, cuoi: now, cuoiTu: 'k', cuoiNd: xem, cuoiK: now, soK: 1, mo: true, chan: false, docK: now });
+  }else{
+    const u = { cuoi: now, cuoiTu: 'k', cuoiNd: xem, cuoiK: now, soK: increment(1), mo: true, docK: now };
+    if(CUOC){
+      if(hs.ten && hs.ten !== CUOC.ten) u.ten = hs.ten;
+      if(hs.sdt && hs.sdt !== CUOC.sdt) u.sdt = hs.sdt;
+      if(!LA_ONL && hs.banId && hs.banId !== CUOC.banId){ u.banId = hs.banId; u.banTen = hs.banTen; }
+    }
+    b.update(cref, u);
+  }
+  const m = { tu: 'k', nd: x.nd, loai: x.loai, luc: now, uid: UID };
+  if(x.ref) m.ref = x.ref;
+  b.set(doc(db, 'qr_chat', tid, 'tin', x.id), m);
+  await b.commit();
+}
+async function lyDo(e, tid){
+  const ma = (e && e.code) || '';
+  if(ma !== 'permission-denied') return 'Chưa gửi được (mạng chập chờn).';
+  try{
+    const c = await getDoc(doc(db, 'qr_chat', tid));
+    if(c.exists()){
+      const d = c.data() || {};
+      if(d.chan === true){ lyDoKhoa = 'Cửa hàng hiện không nhận tin nhắn từ bạn.'; return lyDoKhoa; }
+      if((Number(d.soK) || 0) >= 500){ lyDoKhoa = 'Cuộc trò chuyện đã quá dài — bạn gọi điện cho cửa hàng giúp nhé.'; return lyDoKhoa; }
+    }
+  }catch(e2){}
+  try{
+    const s = await getDoc(doc(db, 'shares_qr', TK));
+    const d = s.exists() ? (s.data() || {}) : null;
+    if(!d){ lyDoKhoa = 'Link này không còn dùng được nữa.'; return lyDoKhoa; }
+    if(d.chat === false){ ghiChat(false); return 'Cửa hàng đang tạm tắt nhắn tin.'; }
+    ghiChat(true);
+  }catch(e3){}
+  return 'Cửa hàng tạm thời chưa nhận được tin nhắn. Bạn gọi điện cho cửa hàng giúp nhé.';
+}
+
+/* ───────── VẼ ───────── */
+function veTin(cuon){
+  if(!KHUNG_MO) return;
+  const sat = DS.scrollHeight - DS.scrollTop - DS.clientHeight < 90;
+  const ds = TIN.slice(), co = {};
+  TIN.forEach(t => { co[t.id] = 1; });
+  CHO.forEach(c => { if(!co[c.id]) ds.push({ id: c.id, tu: 'k', nd: c.nd, loai: c.loai, ref: c.ref, _tt: c.tt, _loi: c.loi, _ts: c.ts }); });
+  let h = '';
+  if(!ds.length){
+    if((!CUOC_SAN && !maLoiCuoc) || (CUOC && !TIN_SAN)) h = '<div class="chk-trong">Đang mở tin nhắn…</div>';
+    else h = '<div class="chk-trong"><i>👋</i>Chào bạn! Nhắn cho <b>' + esc((S && S.quan) || (LA_ONL ? 'cửa hàng' : 'quán'))
+           + '</b> để hỏi hàng, hỏi giá hay thỏa thuận đơn.<br><small>Tin nhắn chỉ bạn và cửa hàng xem được.</small></div>';
+  }else{
+    const dongY = {};
+    ds.forEach(t => { if(t.tu === 'k' && t.loai === 'ok' && t.ref) dongY[t.ref] = t._tt || 'xong'; });
+    let cuoiK = -1;
+    ds.forEach((t, i) => { if(t.tu === 'k' && !t._tt) cuoiK = i; });
+    let ngayTr = '';
+    ds.forEach((t, i) => {
+      const tms = t._tt ? t._ts : (ms(t.luc) || Date.now());
+      const ng = nhanNgay(tms);
+      if(ng !== ngayTr){ h += '<div class="chk-ngay">' + ng + '</div>'; ngayTr = ng; }
+      const toi = t.tu === 'k';
+      let noi;
+      if(t.loai === 'chot'){
+        const dy = dongY[t.id];
+        noi = '<div class="chk-the"><h4>📋 Cửa hàng chốt đơn</h4>'
+            + ((typeof t.tong === 'number') ? '<div class="chk-tg">Tổng: <b>' + vnd(t.tong) + '</b></div>' : '')
+            + '<div class="chk-nd">' + esc(t.nd) + '</div>'
+            + (dy ? '<div class="chk-ok">' + (dy === 'cho' ? '⏳ Đang gửi đồng ý…' : '✅ Bạn đã đồng ý') + '</div>'
+                  : '<button type="button" class="chk-dy" data-chk-dy="' + esc(t.id) + '"' + (khoaNhap() ? ' disabled' : '') + '>✅ Đồng ý</button>')
+            + '</div>';
+      }else{
+        noi = '<div class="chk-b' + (t.loai === 'don' ? ' don' : '') + '">' + (t.loai === 'don' ? '🧾 ' : t.loai === 'ok' ? '✅ ' : '') + esc(t.nd) + '</div>';
+      }
+      let duoi = '';
+      if(t._tt === 'cho') duoi = '<div class="chk-g">Đang gửi…</div>';
+      else if(t._tt === 'loi') duoi = '<div class="chk-loi">⚠️ ' + esc(t._loi || 'Chưa gửi được.')
+          + (khoaNhap() ? '' : ' <button type="button" data-chk-lai="' + esc(t.id) + '">Gửi lại</button>')
+          + '<button type="button" data-chk-bo="' + esc(t.id) + '">Bỏ</button></div>';
+      else duoi = '<div class="chk-g">' + gio(tms) + ((i === cuoiK && CUOC && ms(CUOC.docC) >= ms(t.luc)) ? ' · Đã xem' : '') + '</div>';
+      h += '<div class="chk-r' + (toi ? ' toi' : '') + '">' + noi + duoi + '</div>';
+    });
+  }
+  DS.innerHTML = h;
+  if(cuon || sat || dauLan){ DS.scrollTop = DS.scrollHeight; dauLan = false; }
+}
+function veKhoa(){
+  lyDoKhoaCapNhat();
+  let tb = '';
+  if(khoaNhap()) tb = khoaNhap();
+  else if(maLoiCuoc === 'permission-denied') tb = 'Tin nhắn chưa sẵn sàng — bạn thử lại sau ít phút nhé.';
+  else if(maLoiCuoc || (typeof navigator.onLine === 'boolean' && !navigator.onLine)) tb = 'Đang mất mạng — có mạng lại tin sẽ tự gửi.';
+  const sdt = LA_ONL ? sdtShop() : '';
+  if(tb && sdt && khoaNhap()) tb += ' Gọi: ' + sdt;
+  CHAN.textContent = tb;
+  CHAN.classList.toggle('on', !!tb);
+  TA.disabled = !!khoaNhap();
+  GUI.disabled = !!khoaNhap();
+}
+function lyDoKhoaCapNhat(){
+  if(CUOC && CUOC.chan === true) lyDoKhoa = 'Cửa hàng hiện không nhận tin nhắn từ bạn.';
+  else if(CUOC && (Number(CUOC.soK) || 0) >= 500) lyDoKhoa = 'Cuộc trò chuyện đã quá dài — bạn gọi điện cho cửa hàng giúp nhé.';
+  else if(lyDoKhoa === 'Cửa hàng hiện không nhận tin nhắn từ bạn.' && CUOC && CUOC.chan !== true) lyDoKhoa = '';
+}
+function veChips(){
+  const a = [];
+  if(!khoaNhap()){
+    if(LA_ONL){
+      const dn = docJ(KDON, null);
+      if(dn && dn.id) a.push('<button type="button" class="chk-chip don" data-chk-don="1">🧾 Hỏi về đơn ' + esc(maDon(dn.id)) + '</button>');
+      ['Còn hàng không ạ?', 'Giao mất bao lâu ạ?', 'Có giảm giá không ạ?'].forEach(t => a.push('<button type="button" class="chk-chip" data-chk-c="' + esc(t) + '">' + esc(t) + '</button>'));
+    }else{
+      ['Cho thêm đá', 'Tính tiền giúp mình', 'Món của mình lâu chưa ra ạ?', 'Cho xin chén đũa'].forEach(t => a.push('<button type="button" class="chk-chip" data-chk-c="' + esc(t) + '">' + esc(t) + '</button>'));
+    }
+  }
+  const h = a.join('');
+  if(CHIPS.innerHTML !== h) CHIPS.innerHTML = h;
+  CHIPS.style.display = h ? '' : 'none';
+}
+function veTatCa(){
+  if(!KHUNG_MO) return;
+  K.querySelector('.chk-tt b').textContent = (S && S.quan) || (LA_ONL ? 'Cửa hàng' : 'Quán');
+  K.querySelector('.chk-tt span').textContent = LA_ONL ? 'Tin nhắn chỉ bạn và cửa hàng xem được' : ('Bạn đang ngồi ' + tenBan());
+  const g = K.querySelector('.chk-goi'), sdt = LA_ONL ? sdtShop() : '';
+  if(sdt){ g.href = 'tel:' + sdt; g.style.display = 'flex'; } else g.style.display = 'none';
+  veKhoa();
+  veChips();
+  TENW.classList.toggle('on', !CUOC && !khoaNhap() && !hoSo().ten);
+  veTin();
+}
+function coDanTa(){ TA.style.height = 'auto'; TA.style.height = Math.min(120, Math.max(44, TA.scrollHeight)) + 'px'; }
+
+/* ───────── MỞ / ĐÓNG KHUNG ───────── */
+function moKhung(){
+  if(KHUNG_MO || !S || !UID || !db) return;
+  KHUNG_MO = true; dauLan = true;
+  K.classList.add('on'); NUT.classList.remove('on'); BAO.classList.remove('on');
+  try{ ST = Date.now() + Math.random(); history.pushState({ chkKhung: ST }, ''); }catch(e){ ST = 0; }
+  ngheCuoc();
+  if(CUOC) ngheTin();
+  if(CHAT === false) kiemChat(true);                  /* đang thấy tắt ⇒ hỏi lại, cửa hàng có thể vừa bật */
+  veTatCa(); theoBanPhim();
+  if(chuaDoc()) danhDauXem();
+  try{ if(window.matchMedia && matchMedia('(pointer:fine)').matches) TA.focus(); }catch(e){}
+}
+function dongKhung(tuBack){
+  if(!KHUNG_MO) return;
+  KHUNG_MO = false;
+  K.classList.remove('on'); K.style.height = ''; K.style.top = '';
+  try{ TA.blur(); }catch(e){}
+  if(!tuBack && ST){
+    try{ const s = history.state; if(s && s.chkKhung === ST) history.back(); }catch(e){}
+  }
+  ST = 0;
+  capNhatNut();
+}
+window.addEventListener('popstate', () => {
+  if(!KHUNG_MO) return;
+  let s = null; try{ s = history.state; }catch(e){}
+  if(!(s && s.chkKhung === ST)) dongKhung(true);
+});
+function theoBanPhim(){
+  if(!KHUNG_MO || !window.visualViewport) return;
+  const v = window.visualViewport;
+  K.style.height = Math.round(v.height) + 'px';
+  K.style.top = Math.round(v.offsetTop) + 'px';
+}
+if(window.visualViewport){
+  visualViewport.addEventListener('resize', () => { theoBanPhim(); if(KHUNG_MO) DS.scrollTop = DS.scrollHeight; });
+  visualViewport.addEventListener('scroll', theoBanPhim);
+}
+
+/* ───────── SỰ KIỆN ───────── */
+NUT.addEventListener('click', () => moKhung());
+K.querySelector('.chk-v').addEventListener('click', () => dongKhung(false));
+document.addEventListener('keydown', e => { if(KHUNG_MO && e.key === 'Escape') dongKhung(false); });
+function bamGui(){
+  const nd = TA.value;
+  if(!String(nd).trim()) return;
+  const t = String(TENI.value || '').trim();
+  if(t) LS.set(KTEN, cat(t, 40));
+  if(guiTin(nd, 'tx')){ TA.value = ''; coDanTa(); TENW.classList.remove('on'); }
+}
+GUI.addEventListener('click', bamGui);
+TA.addEventListener('input', coDanTa);
+TA.addEventListener('keydown', e => {
+  if(e.key === 'Enter' && !e.shiftKey && !e.isComposing){
+    let pc = false; try{ pc = matchMedia('(pointer:fine)').matches; }catch(x){}
+    if(pc){ e.preventDefault(); bamGui(); }
+  }
+});
+TENI.addEventListener('change', () => { const t = String(TENI.value || '').trim(); if(t) LS.set(KTEN, cat(t, 40)); });
+K.addEventListener('click', e => {
+  const t = e.target && e.target.closest ? e.target.closest('button') : null;
+  if(!t || !K.contains(t)) return;
+  if(t.hasAttribute('data-chk-c')){ guiTin(t.getAttribute('data-chk-c'), 'tx'); return; }
+  if(t.hasAttribute('data-chk-don')){
+    const dn = docJ(KDON, null);
+    if(dn && dn.id){
+      let nd = 'Đơn ' + maDon(dn.id) + ' · ' + vnd(dn.tong);
+      if(dn.hen) nd += ' · hẹn ' + gio(Number(dn.hen)) + ' ' + nhanNgay(Number(dn.hen)).toLowerCase();
+      guiTin(nd, 'don', String(dn.id));
+    }
+    return;
+  }
+  if(t.hasAttribute('data-chk-dy')){ t.disabled = true; guiTin('Đồng ý chốt đơn', 'ok', t.getAttribute('data-chk-dy')); return; }
+  if(t.hasAttribute('data-chk-lai')){
+    const c = CHO.find(x => x.id === t.getAttribute('data-chk-lai'));
+    if(c){ c.tt = 'cho'; c.loi = ''; c.ts = Date.now(); veTin(true); chayHang(); }
+    return;
+  }
+  if(t.hasAttribute('data-chk-bo')){
+    const i = CHO.findIndex(x => x.id === t.getAttribute('data-chk-bo'));
+    if(i >= 0 && CHO[i].tt === 'loi'){ CHO.splice(i, 1); veTin(); }
+  }
+});
+document.addEventListener('visibilitychange', () => { if(!document.hidden && KHUNG_MO && chuaDoc()) danhDauXem(); });
+window.addEventListener('online', () => { treCuoc = 0; treTin = 0; if(KHUNG_MO) veTatCa(); if(!unCuoc && canNghe()) ngheCuoc(); });
+window.addEventListener('offline', () => { if(KHUNG_MO) veTatCa(); });
+
+/* ───────── KHỞI ĐỘNG ───────── */
+function doiNguoi(u){
+  const uid = (u && u.uid) ? u.uid : '';
+  if(uid === UID) return;
+  boNghe();
+  CUOC = null; CUOC_SAN = false; TIN = []; TIN_SAN = false; CHO.length = 0; lyDoKhoa = ''; maLoiCuoc = ''; treCuoc = 0; treTin = 0;
+  UID = uid; TID = uid ? (TK + '_' + uid) : '';
+  if(canNghe()) ngheCuoc();
+  if(KHUNG_MO) veTatCa();
+  capNhatNut();
+}
+let lanCho = 0;
+(function cho(){
+  try{
+    if(!document.body){ setTimeout(cho, 200); return; }
+    if(!K.isConnected) gan();
+    if(getApps().length){
+      const app = getApp();
+      db = getFirestore(app);
+      napChat(); kiemChat(false);
+      onAuthStateChanged(getAuth(app), u => { try{ doiNguoi(u); }catch(e){} });
+      setInterval(() => { try{ capNhatNut(); }catch(e){} }, 400);
+      return;
+    }
+  }catch(e){}
+  if(++lanCho < 200) setTimeout(cho, 300);
+})();
+
+}catch(e){ try{ console.warn('[chk] Nhắn tin lỗi khởi động', e); }catch(x){} }
+})();
+</script>
+<!-- ═══════════════ HẾT: NHẮN TIN VỚI CỬA HÀNG ═══════════════ -->
 </body>
 </html>
