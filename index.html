@@ -768,7 +768,7 @@ import { getFirestore, initializeFirestore, persistentLocalCache, persistentMult
 import { getStorage, ref as _sref, uploadBytes, getDownloadURL, deleteObject, listAll }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
 
-const APP_BUILD = "2026-09-26-QT9"; // ⬆️ ĐỔI MỖI LẦN DEPLOY (đặt TRÙNG tên cache trong sw.js) — hiện ở ⚙️ Cài đặt để biết máy đã chạy bản mới chưa
+const APP_BUILD = "2026-10-01-QT10"; // ⬆️ ĐỔI MỖI LẦN DEPLOY (đặt TRÙNG tên cache trong sw.js) — hiện ở ⚙️ Cài đặt để biết máy đã chạy bản mới chưa
 const firebaseConfig = {
   apiKey: "AIzaSyA_kjQ-CdASRkf50Glz3kQajlkD5qGWC4k",
   authDomain: "so-no-cc57a.firebaseapp.com",
@@ -19505,7 +19505,7 @@ if (window.__RMT_READY__) return; window.__RMT_READY__ = true;
 try{
 
 /* ĐỔI CHUỖI NÀY CHO TRÙNG APP_BUILD MỖI LẦN DEPLOY (chỉ để hiện ở bảng quản trị) */
-var BUILD = '2026-09-26-QT9';
+var BUILD = '2026-10-01-QT10';
 var NHIP   = 6*3600*1000;          /* báo về tối đa 6 giờ 1 lần — khỏi tốn lượt ghi */
 var KEY_HB = 'rmt_hb_v2';          /* [QT7] nhịp báo về tính RIÊNG từng tài khoản (bản v1 tính chung cả máy) */
 var KEY_XEM= 'rmt_xem_v1';
@@ -23238,5 +23238,814 @@ window.aspDonAnh = function(){ return quet(); };
 })();
 </script>
 <!-- ═══════════════ HẾT: TỰ DỌN ẢNH SẢN PHẨM CŨ ═══════════════ -->
+<!-- ═══════════════ NHẮN TIN KHÁCH — link bán online + QR tại bàn (drop-in · namespace tnk-) ═══════════════
+     • Khách nhắn từ link bán online (mọi ngành) hoặc mã QR tại bàn ⇒ máy chủ shop + máy nhân viên
+       nhận ngay: chuông + rung + nút 💬 có số tin chưa đọc (nằm ngay trên nút trợ lý).
+     • Trả lời bằng chữ hoặc bấm câu mẫu; gửi thẻ "📋 Chốt đơn" (tổng tiền + ghi chú) — khách bấm
+       "✅ Đồng ý" là lưu lại làm bằng chứng thỏa thuận. KHÔNG tự sửa đơn nào.
+     • Đơn online có thêm nút "💬 Nhắn khách" ⇒ cửa hàng nhắn trước được (hết size, đổi món, hẹn giờ…).
+       Đơn QR tại bàn không có mã khách nên chỉ trả lời được khi khách nhắn trước.
+     • Mỗi cuộc: ✔ Xong (cất khỏi hộp thư) · 🚫 Chặn khách. Công tắc "Cho khách nhắn tin" (chỉ chủ shop)
+       nằm trong tab Đơn QR / Bán online.
+     • Không sửa code cũ: chỉ thêm khối này. Dữ liệu: qr_chat/{mã link}_{uid khách}/tin/{id}.
+     ═════════════════════════════════════════════════════════════════════════════════════════════ -->
+<script type="module">
+import { getApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getAuth } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+(function(){
+if(window.__TNK_READY__) return; window.__TNK_READY__ = true;
+
+var _lan = 0;
+(function cho(){
+  try{ if(window.SKMOD && window.SKMOD.core && window.SKMOD.fb && window.SKMOD.fb.db){ chay(window.SKMOD); return; } }catch(e){}
+  if(++_lan < 240) setTimeout(cho, 500);
+})();
+
+function chay(M){
+try{
+var C = M.core, F = M.fb;
+if(!M.reg('tinnhan', { ns:'tnk', name:'Nhắn tin khách — link online + QR bàn', ver:'1.0' })) return;
+
+/* ───────── TIỆN ÍCH ───────── */
+function uid(){ try{ return C.uid(); }catch(e){ return null; } }
+function chiNhanh(){ try{ return C.branch() || 'main'; }catch(e){ return 'main'; } }
+function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]; }); }
+function cat(s, n){ var o = '', a = Array.from(String(s == null ? '' : s)); for(var i = 0; i < a.length; i++){ if(o.length + a[i].length > n) break; o += a[i]; } return o; }
+function ms(v){ try{ if(v && typeof v.toMillis === 'function') return v.toMillis(); }catch(e){} return (typeof v === 'number') ? v : 0; }
+function tien(n){ return Math.round(Number(n) || 0).toLocaleString('vi-VN') + 'đ'; }
+function maDon(id){ return 'DH-' + String(id || '').slice(-6).toUpperCase(); }
+function hai(n){ return (n < 10 ? '0' : '') + n; }
+function gio(t){ var d = new Date(t); return hai(d.getHours()) + ':' + hai(d.getMinutes()); }
+function nhanNgay(t){
+  var d = new Date(t), h = new Date(), x = new Date(h.getFullYear(), h.getMonth(), h.getDate()).getTime();
+  var n = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  if(n === x) return 'Hôm nay';
+  if(n === x - 86400000) return 'Hôm qua';
+  return hai(d.getDate()) + '/' + hai(d.getMonth() + 1) + '/' + d.getFullYear();
+}
+function khiNao(t){
+  if(!t) return '';
+  var p = Math.floor((Date.now() - t) / 60000);
+  if(p < 1) return 'vừa xong';
+  if(p < 60) return p + ' phút';
+  if(nhanNgay(t) === 'Hôm nay') return gio(t);
+  return nhanNgay(t) === 'Hôm qua' ? 'Hôm qua' : nhanNgay(t).slice(0, 5);
+}
+function ngu(t){ return new Promise(function(r){ setTimeout(r, t); }); }
+function appChinh(){
+  var app = null;
+  try{ app = getApp(); }catch(e){ app = null; }
+  if(!app){
+    var a = []; try{ a = getApps() || []; }catch(e2){ a = []; }
+    for(var i = 0; i < a.length; i++) if(a[i] && a[i].name !== 'errlog' && a[i].name !== 'pub'){ app = a[i]; break; }
+  }
+  return app;
+}
+function authUid(){ try{ var a = appChinh(); var u = a ? getAuth(a).currentUser : null; return u ? u.uid : null; }catch(e){ return null; } }
+function laNV(){ var a = authUid(), u = uid(); return !!(a && u && a !== u); }
+function bao(t){
+  if(MO){ baoTid = ''; BAO.textContent = t; BAO.classList.add('on'); clearTimeout(henBao); henBao = setTimeout(function(){ BAO.classList.remove('on'); }, 3500); return; }
+  try{ C.toast(t); }catch(e){}
+}
+
+var henBao = 0, baoTid = '', MO = false;
+var CAU_ONL = ['Dạ còn hàng ạ', 'Dạ hết hàng rồi ạ, mình đổi món khác nhé?', 'Dạ shop giao trong khoảng 30 phút ạ', 'Dạ shop đã nhận đơn ạ', 'Cảm ơn anh/chị ạ!'];
+var CAU_BAN = ['Dạ có ngay ạ', 'Dạ nhân viên ra ngay ạ', 'Dạ món đang lên ạ', 'Cảm ơn anh/chị ạ!'];
+
+/* ───────── GIAO DIỆN ───────── */
+M.css('tnk',
+  '#tnk-fab{position:fixed;right:14px;bottom:calc(88px + env(safe-area-inset-bottom,0px));z-index:8990;width:58px;height:58px;border-radius:50%;border:none;cursor:pointer;'
+ +'background:linear-gradient(145deg,#2f7bf5,#1d4ed8);box-shadow:0 8px 22px rgba(29,78,216,.42);display:none;flex-direction:column;align-items:center;justify-content:center;'
+ +'gap:1px;color:#fff;font-family:inherit;padding:0;transition:transform .16s;-webkit-tap-highlight-color:transparent}'
+ +'#tnk-fab.on{display:flex}#tnk-fab:active{transform:scale(.92)}'
+ +'#tnk-fab .tnk-fi{font-size:22px;line-height:1}#tnk-fab .tnk-fl{font-size:8.5px;font-weight:800;letter-spacing:.2px}'
+ +'#tnk-fab .tnk-so{position:absolute;top:-4px;right:-4px;min-width:22px;height:22px;border-radius:11px;background:#e53935;color:#fff;font-size:12px;font-weight:800;'
+ +'line-height:22px;text-align:center;padding:0 6px;box-sizing:border-box;border:2px solid #fff;display:none}'
+ +'#tnk-fab.moi .tnk-so{display:block}#tnk-fab.moi{animation:tnkRung 1.6s ease-in-out infinite}'
+ +'@keyframes tnkRung{0%,100%{transform:none}8%{transform:rotate(-9deg)}16%{transform:rotate(9deg)}24%{transform:rotate(-5deg)}32%{transform:none}}'
+ +'#tnk-bao{position:fixed;left:50%;top:calc(10px + env(safe-area-inset-top,0px));transform:translate(-50%,-150%);z-index:2147483060;width:min(94vw,460px);'
+ +'background:#1d4ed8;color:#fff;border-radius:14px;padding:11px 14px;font-size:14px;line-height:1.4;box-shadow:0 10px 28px rgba(0,0,0,.3);cursor:pointer;'
+ +'transition:transform .25s;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:inherit}'
+ +'#tnk-bao.on{transform:translate(-50%,0)}'
+ +'#tnk-k{position:fixed;inset:0;z-index:2147483050;display:none;background:rgba(10,25,40,.45)}'
+ +'#tnk-k.on{display:block}'
+ +'#tnk-k .tnk-w{position:absolute;top:0;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:560px;background:#eef3f1;display:flex;flex-direction:column;'
+ +'color:#16302a;font-family:inherit;box-shadow:0 0 40px rgba(0,0,0,.25)}'
+ +'#tnk-k .tnk-p{flex:1;min-height:0;display:none;flex-direction:column}#tnk-k .tnk-p.on{display:flex}'
+ +'#tnk-k .tnk-h{flex:none;display:flex;align-items:center;gap:6px;background:#0d7a5f;color:#fff;padding:calc(8px + env(safe-area-inset-top,0px)) 8px 8px 4px}'
+ +'#tnk-k .tnk-ic{flex:none;width:44px;height:44px;border:none;background:transparent;color:#fff;font-size:24px;line-height:1;border-radius:50%;cursor:pointer;font-family:inherit;padding:0;display:flex;align-items:center;justify-content:center;text-decoration:none}'
+ +'#tnk-k .tnk-ic.lui{font-size:32px;padding-bottom:4px}'
+ +'#tnk-k .tnk-tt{flex:1;min-width:0}#tnk-k .tnk-tt b{display:block;font-size:16px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}'
+ +'#tnk-k .tnk-tt span{display:block;font-size:12px;opacity:.88;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}'
+ +'#tnk-k .tnk-loc{flex:none;display:flex;gap:6px;padding:8px 10px;background:#fff;border-bottom:1px solid #e1ebe7;overflow-x:auto}'
+ +'#tnk-k .tnk-loc button{flex:none;border:1.5px solid #d3e3dd;background:#fff;color:#3c554e;border-radius:999px;padding:6px 12px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer}'
+ +'#tnk-k .tnk-loc button.on{background:#0d7a5f;border-color:#0d7a5f;color:#fff}'
+ +'#tnk-k .tnk-ds{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}'
+ +'#tnk-k .tnk-row{display:flex;gap:11px;align-items:center;padding:11px 14px;background:#fff;border-bottom:1px solid #edf2f0;cursor:pointer;width:100%;border-left:none;border-right:none;border-top:none;text-align:left;font-family:inherit;color:inherit}'
+ +'#tnk-k .tnk-row:active{background:#f3f8f6}'
+ +'#tnk-k .tnk-av{flex:none;width:42px;height:42px;border-radius:50%;background:#dcefe8;color:#0a5f4a;font-weight:800;font-size:17px;display:flex;align-items:center;justify-content:center}'
+ +'#tnk-k .tnk-av.ban{background:#fdf0d5;color:#8a5a00}'
+ +'#tnk-k .tnk-mid{flex:1;min-width:0}#tnk-k .tnk-l1{display:flex;gap:8px;align-items:baseline}'
+ +'#tnk-k .tnk-l1 b{flex:1;min-width:0;font-size:15px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}'
+ +'#tnk-k .tnk-l1 i{flex:none;font-style:normal;font-size:11.5px;color:#7a948c}'
+ +'#tnk-k .tnk-l2{display:flex;gap:8px;align-items:center;margin-top:2px}'
+ +'#tnk-k .tnk-l2 span{flex:1;min-width:0;font-size:13px;color:#5d756e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}'
+ +'#tnk-k .tnk-row.moi .tnk-l1 b,#tnk-k .tnk-row.moi .tnk-l2 span{font-weight:800;color:#16302a}'
+ +'#tnk-k .tnk-dot{flex:none;width:10px;height:10px;border-radius:50%;background:#e53935;display:none}#tnk-k .tnk-row.moi .tnk-dot{display:block}'
+ +'#tnk-k .tnk-tag{flex:none;font-size:10.5px;font-weight:800;border-radius:6px;padding:1px 6px;background:#e7f1fd;color:#1d4ed8}'
+ +'#tnk-k .tnk-tag.ban{background:#fdf0d5;color:#8a5a00}#tnk-k .tnk-tag.chan{background:#fdecec;color:#b02a2a}'
+ +'#tnk-k .tnk-trong{padding:40px 24px;text-align:center;color:#5d756e;font-size:14px;line-height:1.6}#tnk-k .tnk-trong i{display:block;font-style:normal;font-size:42px;margin-bottom:8px}'
+ +'#tnk-k .tnk-tac{flex:none;display:none;gap:7px;flex-wrap:wrap;padding:8px 10px;background:#fff;border-bottom:1px solid #e1ebe7}#tnk-k .tnk-tac.on{display:flex}'
+ +'#tnk-k .tnk-tac button{border:none;border-radius:9px;padding:9px 12px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;background:#eef7f3;color:#0a5f4a}'
+ +'#tnk-k .tnk-tac button.do{background:#fdecec;color:#b02a2a}'
+ +'#tnk-k .tnk-tin{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding:10px 12px 8px}'
+ +'#tnk-k .tnk-ngay{text-align:center;font-size:11.5px;color:#6b8a80;margin:12px 0 6px;font-weight:700}'
+ +'#tnk-k .tnk-r{display:flex;flex-direction:column;align-items:flex-start;margin:3px 0}#tnk-k .tnk-r.toi{align-items:flex-end}'
+ +'#tnk-k .tnk-b{max-width:82%;padding:8px 12px;border-radius:17px;border-bottom-left-radius:5px;font-size:15px;line-height:1.42;white-space:pre-wrap;overflow-wrap:anywhere;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.06)}'
+ +'#tnk-k .tnk-r.toi .tnk-b{background:#0d7a5f;color:#fff;border-bottom-left-radius:17px;border-bottom-right-radius:5px}'
+ +'#tnk-k .tnk-b.don{background:#e7f1fd;color:#123c8a;border:1.5px solid #bfd5f7}'
+ +'#tnk-k .tnk-b.ok{background:#e3f6e8;color:#14642f;border:1.5px solid #b5e2c3;font-weight:700}'
+ +'#tnk-k .tnk-g{font-size:10.5px;color:#7a948c;margin:2px 6px 0}'
+ +'#tnk-k .tnk-the{max-width:86%;background:#fff;border:2px solid #f0b429;border-radius:16px;padding:10px 13px}'
+ +'#tnk-k .tnk-the h4{margin:0 0 5px;font-size:14px;font-weight:800;color:#8a5a00}#tnk-k .tnk-the .tg{font-size:14px;margin-bottom:4px}#tnk-k .tnk-the .tg b{font-size:16px;color:#0a5f4a}'
+ +'#tnk-k .tnk-the .nd{font-size:14px;line-height:1.45;white-space:pre-wrap;overflow-wrap:anywhere}'
+ +'#tnk-k .tnk-the .tt{margin-top:7px;font-size:13px;font-weight:800;color:#8a5a00}#tnk-k .tnk-the .tt.ok{color:#16803c}'
+ +'#tnk-k .tnk-loi{font-size:12px;color:#b02a2a;margin:3px 6px 0;text-align:right;max-width:82%}'
+ +'#tnk-k .tnk-loi button{border:none;background:none;color:#0a5f4a;font-family:inherit;font-weight:800;font-size:12.5px;padding:2px 4px;cursor:pointer;text-decoration:underline}'
+ +'#tnk-k .tnk-nb{flex:none;font-size:13px;line-height:1.45;padding:9px 14px;display:none}#tnk-k .tnk-nb.on{display:block}'
+ +'#tnk-k .tnk-nb.vang{background:#fff8e1;color:#7a5a00;border-top:1px solid #f2e2b0}#tnk-k .tnk-nb.xanh{background:#e7f1fd;color:#123c8a;border-top:1px solid #cfe0fb}'
+ +'#tnk-k .tnk-chips{flex:none;display:flex;gap:7px;overflow-x:auto;padding:8px 10px 2px;scrollbar-width:none}#tnk-k .tnk-chips::-webkit-scrollbar{display:none}'
+ +'#tnk-k .tnk-chip{flex:none;border:1.5px solid #cfe3dc;background:#fff;color:#0a5f4a;border-radius:999px;padding:7px 12px;font-family:inherit;font-size:13px;font-weight:700;white-space:nowrap;cursor:pointer}'
+ +'#tnk-k .tnk-cf{flex:none;display:none;background:#fffaf0;border-top:2px solid #f0b429;padding:10px 12px}#tnk-k .tnk-cf.on{display:block}'
+ +'#tnk-k .tnk-cf b{display:block;font-size:14px;color:#8a5a00;margin-bottom:7px}'
+ +'#tnk-k .tnk-cf input,#tnk-k .tnk-cf textarea{width:100%;box-sizing:border-box;border:1.5px solid #e5d3a8;border-radius:10px;padding:9px 11px;font-family:inherit;font-size:16px;background:#fff;margin-bottom:7px;outline:none;resize:none}'
+ +'#tnk-k .tnk-cf .tnk-hang{display:flex;gap:8px}#tnk-k .tnk-cf .tnk-hang button{flex:1;border:none;border-radius:10px;padding:11px;font-family:inherit;font-size:14px;font-weight:800;cursor:pointer}'
+ +'#tnk-k .tnk-cf .gui{background:#16a34a;color:#fff}#tnk-k .tnk-cf .huy{background:#eef1f0;color:#51655f}'
+ +'#tnk-k .tnk-o{flex:none;display:flex;gap:7px;align-items:flex-end;padding:8px 10px calc(8px + env(safe-area-inset-bottom,0px));background:#fff;border-top:1px solid #dfe9e5}'
+ +'#tnk-k .tnk-o textarea{flex:1;min-width:0;resize:none;border:1.5px solid #d5e3de;border-radius:21px;padding:10px 14px;font-family:inherit;font-size:16px;line-height:1.35;max-height:120px;min-height:44px;box-sizing:border-box;outline:none;background:#f7faf9;color:#16302a}'
+ +'#tnk-k .tnk-o textarea:focus{border-color:#0d7a5f;background:#fff}'
+ +'#tnk-k .tnk-o .tnk-cb{flex:none;width:44px;height:44px;border-radius:50%;border:1.5px solid #f0b429;background:#fffaf0;font-size:18px;cursor:pointer;padding:0}'
+ +'#tnk-k .tnk-o .tnk-gui{flex:none;width:44px;height:44px;border-radius:50%;border:none;background:#0d7a5f;color:#fff;font-size:18px;cursor:pointer;padding:0}'
+ +'#tnk-k .tnk-o .tnk-gui:disabled,#tnk-k .tnk-o textarea:disabled{opacity:.45}'
+ +'#pos-screen .tnk-sec .qrd-st b.tnk-do{color:#b02a2a}'
+);
+
+var FAB = document.createElement('button');
+FAB.id = 'tnk-fab'; FAB.type = 'button'; FAB.setAttribute('aria-label', 'Tin nhắn khách');
+FAB.innerHTML = '<span class="tnk-fi">💬</span><span class="tnk-fl">Tin nhắn</span><b class="tnk-so"></b>';
+var BAO = document.createElement('div'); BAO.id = 'tnk-bao'; BAO.setAttribute('role', 'status');
+var K = document.createElement('div');
+K.id = 'tnk-k'; K.setAttribute('role', 'dialog'); K.setAttribute('aria-modal', 'true'); K.setAttribute('aria-label', 'Tin nhắn khách');
+K.innerHTML = '<div class="tnk-w">'
+  + '<div class="tnk-p tnk-hop on">'
+  +   '<div class="tnk-h"><button type="button" class="tnk-ic" data-tnk="dong" aria-label="Đóng">✕</button>'
+  +   '<div class="tnk-tt"><b>💬 Tin nhắn khách</b><span class="tnk-hop-phu"></span></div></div>'
+  +   '<div class="tnk-loc"></div><div class="tnk-ds"></div>'
+  + '</div>'
+  + '<div class="tnk-p tnk-cuoc">'
+  +   '<div class="tnk-h"><button type="button" class="tnk-ic lui" data-tnk="lui" aria-label="Quay lại">‹</button>'
+  +   '<div class="tnk-tt"><b class="tnk-ten"></b><span class="tnk-phu"></span></div>'
+  +   '<a class="tnk-ic tnk-goi" aria-label="Gọi khách" style="display:none">📞</a>'
+  +   '<button type="button" class="tnk-ic" data-tnk="tac" aria-label="Thêm">⋯</button></div>'
+  +   '<div class="tnk-tac"><button type="button" data-tnk="xong">✔ Xong — cất khỏi hộp thư</button><button type="button" class="do" data-tnk="chan">🚫 Chặn khách này</button></div>'
+  +   '<div class="tnk-tin"></div>'
+  +   '<div class="tnk-nb"></div>'
+  +   '<div class="tnk-chips"></div>'
+  +   '<div class="tnk-cf"><b>📋 Chốt đơn với khách</b>'
+  +     '<input type="text" inputmode="numeric" class="tnk-cf-tien" placeholder="Tổng tiền (không bắt buộc) — vd 450000">'
+  +     '<textarea rows="2" maxlength="500" class="tnk-cf-nd" placeholder="Nội dung chốt: giờ giao, size, phí ship…"></textarea>'
+  +     '<div class="tnk-hang"><button type="button" class="huy" data-tnk="cf-huy">Huỷ</button><button type="button" class="gui" data-tnk="cf-gui">Gửi thẻ chốt</button></div></div>'
+  +   '<div class="tnk-o"><button type="button" class="tnk-cb" data-tnk="cf" aria-label="Chốt đơn">📋</button>'
+  +   '<textarea rows="1" maxlength="500" class="tnk-ta" placeholder="Trả lời khách…"></textarea>'
+  +   '<button type="button" class="tnk-gui" data-tnk="gui" aria-label="Gửi">➤</button></div>'
+  + '</div></div>';
+var Q = function(s){ return K.querySelector(s); };
+var P_HOP = Q('.tnk-hop'), P_CUOC = Q('.tnk-cuoc'), LOC = Q('.tnk-loc'), DSV = Q('.tnk-ds'), TINV = Q('.tnk-tin');
+var NB = Q('.tnk-nb'), CHIPS = Q('.tnk-chips'), CF = Q('.tnk-cf'), TAC = Q('.tnk-tac'), TA = Q('.tnk-ta'), GUI = Q('.tnk-gui');
+var SEC = document.createElement('div');
+SEC.className = 'qrd-box tnk-sec'; SEC.id = 'tnk-sec';
+
+function gan(){
+  if(!document.body) return false;
+  if(!FAB.isConnected) document.body.appendChild(FAB);
+  if(!BAO.isConnected) document.body.appendChild(BAO);
+  if(!K.isConnected) document.body.appendChild(K);
+  return true;
+}
+
+/* ───────── TRẠNG THÁI ───────── */
+var U = null;                     /* shop đang nghe */
+var LIC = undefined;              /* undefined = chưa đọc · null = không có gói · {} = có */
+var licLuc = 0, licDang = false;
+var DS = [], unDS = null, loiDS = 0, treDS = 0, dsSan = false, dauDS = true;
+var DABAO = {};
+var TOKEN = 'tnk' + Date.now(), TID = '', CUOC = null, cuocSan = false, unCuoc = null;
+var NHAP = null;                  /* cuộc cửa hàng nhắn trước (chưa có trên máy chủ) */
+var TIN = [], unTin = null, tinSan = false, loiTin = 0, treTin = 0, loiCuoc = 0, treCuoc = 0;
+var CHO = [], dangGui = false;
+var LOC_TAT = false;              /* true = xem tất cả cửa hàng */
+var CONG = { tks: [], bat: true, san: false, dang: false };
+var docCCho = false, docCHen = 0, docCTimer = 0, congTre = 0;
+
+function chuaDoc(t){ return !!(t && t.cuoiTu === 'k' && ms(t.cuoi) > ms(t.docC)); }
+/* Giống chuông đơn của module Đơn QR: máy đang mở cửa hàng CÓ khách nhắn ⇒ chỉ tính cửa hàng đó
+   (2 cửa hàng 2 máy không báo chéo); máy đang ở chỗ khác (màn chính, cửa hàng chưa có tin) ⇒ tính tất cả. */
+function cnLoc(){ var cn = chiNhanh(); return DS.some(function(t){ return (t.chiNhanh || 'main') === cn; }) ? cn : ''; }
+function dsCN(){ var cn = cnLoc(); return cn ? DS.filter(function(t){ return (t.chiNhanh || 'main') === cn; }) : DS.slice(); }
+function dsHien(){ return LOC_TAT ? DS : dsCN(); }
+function tenCuoc(t){
+  if(!t) return 'Khách';
+  if(t.kieu === 'ban') return (t.ten ? t.ten + ' · ' : '') + (t.banTen || ('Bàn ' + (t.banId || '')));
+  return t.ten || (t.sdt ? t.sdt : 'Khách online');
+}
+
+/* ───────── ÂM BÁO (mở khoá ở lần chạm đầu) ───────── */
+var AC = null;
+function moAm(){ try{ if(!AC){ var A = window.AudioContext || window.webkitAudioContext; if(A) AC = new A(); } if(AC && AC.state === 'suspended') AC.resume(); }catch(e){} }
+document.addEventListener('pointerdown', moAm, true);
+document.addEventListener('keydown', moAm, true);
+function keu(){
+  try{ if(navigator.vibrate) navigator.vibrate([90, 60, 90]); }catch(e){}
+  try{
+    if(!AC || AC.state !== 'running') return;
+    var t = AC.currentTime;
+    [880, 1318].forEach(function(f, i){
+      var o = AC.createOscillator(), g = AC.createGain(), b = t + i * 0.17;
+      o.type = 'sine'; o.frequency.value = f;
+      g.gain.setValueAtTime(0.0001, b); g.gain.exponentialRampToValueAtTime(0.28, b + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, b + 0.16);
+      o.connect(g); g.connect(AC.destination); o.start(b); o.stop(b + 0.18);
+    });
+  }catch(e){}
+}
+function baoMoi(t){
+  baoTid = t.id;
+  BAO.textContent = '💬 ' + tenCuoc(t) + ': ' + cat(t.cuoiNd || 'vừa nhắn', 90);
+  BAO.classList.add('on');
+  clearTimeout(henBao); henBao = setTimeout(function(){ BAO.classList.remove('on'); }, 7000);
+}
+BAO.addEventListener('click', function(){ BAO.classList.remove('on'); if(baoTid){ var t = baoTid; baoTid = ''; moCuoc(t); } });
+
+/* ───────── GIẤY PHÉP + HỘP THƯ ───────── */
+async function kiemLic(){
+  var u = uid(); if(!u || licDang) return;
+  licDang = true;
+  try{
+    var s = await F.getDoc(F.doc(F.db, 'accounts', u, 'lic', 'sono_qr'));
+    if(uid() === u){ LIC = s.exists() ? (s.data() || {}) : null; licLuc = Date.now(); }
+  }catch(e){ if(e && e.code === 'permission-denied' && uid() === u){ LIC = null; licLuc = Date.now(); } }
+  licDang = false;
+}
+function ngheDS(){
+  var u = uid();
+  if(!u || unDS || Date.now() < treDS) return;
+  try{
+    unDS = F.onSnapshot(F.query(F.collection(F.db, 'qr_chat'), F.where('ownerUid', '==', u), F.where('mo', '==', true), F.limit(100)),
+      function(s){
+        if(uid() !== u) return;
+        loiDS = 0; dsSan = true;
+        DS = s.docs.map(function(d){ var x = d.data({ serverTimestamps:'estimate' }) || {}; x.id = d.id; return x; })
+               .sort(function(a, b){ return ms(b.cuoi) - ms(a.cuoi); });
+        khiDSDoi();
+      },
+      function(e){
+        if(uid() !== u) return;
+        unDS = null; loiDS++;
+        treDS = Date.now() + Math.min(120000, 3000 * Math.pow(2, Math.min(loiDS, 5)));
+        veSec();
+      });
+  }catch(e){ unDS = null; treDS = Date.now() + 30000; }
+}
+function boHet(){
+  try{ if(unDS) unDS(); }catch(e){} unDS = null;
+  dongCuoc(true); 
+  DS = []; dsSan = false; dauDS = true; DABAO = {}; LIC = undefined; licLuc = 0; CONG = { tks: [], bat: true, san: false, dang: false };
+}
+function khiDSDoi(){
+  var cn = cnLoc(), moi = [];
+  DS.forEach(function(t){
+    if(!chuaDoc(t)) return;
+    var c = ms(t.cuoi);
+    if(c <= (DABAO[t.id] || 0)) return;
+    DABAO[t.id] = c;
+    if(MO && TID === t.id && !document.hidden){ danhDauXem(); return; }
+    if(!cn || (t.chiNhanh || 'main') === cn || LOC_TAT) moi.push(t);
+  });
+  if(dauDS){
+    dauDS = false;
+    var n = dsCN().filter(chuaDoc).length;
+    if(n) bao('💬 Có ' + n + ' khách đang chờ trả lời tin nhắn');
+  }else if(moi.length){
+    keu();
+    if(!MO) baoMoi(moi[0]); else if(TID !== moi[0].id) veNhacTrongKhung(moi[0]);
+  }
+  syncFab(); veSec();
+  if(MO && !TID) veDS();
+  if(MO) veLoc();
+}
+function veNhacTrongKhung(t){ baoMoi(t); }
+
+/* ───────── NÚT NỔI 💬 ───────── */
+function biChe(){
+  var x;
+  x = document.getElementById('sk-scanwrap'); if(x && x.classList.contains('on')) return true;
+  x = document.getElementById('sk-gate'); if(x && x.classList.contains('on')) return true;
+  x = document.getElementById('sk-cart-sheet'); if(x && x.classList.contains('on')) return true;
+  x = document.getElementById('sn-print-modal'); if(x && x.classList.contains('on')) return true;
+  if(document.querySelector('#pos-screen .sk-modal.on')) return true;
+  if(document.querySelector('.modal-overlay.active')) return true;
+  var ids = ['auth-screen', 'public-view', 'locked-view'];
+  for(var i = 0; i < ids.length; i++){ x = document.getElementById(ids[i]); if(x && getComputedStyle(x).display !== 'none') return true; }
+  x = document.getElementById('snai-panel'); if(x && x.classList.contains('on')) return true;
+  return MO;
+}
+var fabVT = '';
+function syncFab(){
+  try{
+    var ds = dsCN(), n = ds.filter(chuaDoc).length;
+    var hien = !!(uid() && LIC && ds.length) && !biChe();
+    FAB.classList.toggle('on', hien);
+    FAB.classList.toggle('moi', n > 0);
+    var so = FAB.querySelector('.tnk-so'), txt = n > 99 ? '99+' : String(n);
+    if(so.textContent !== txt) so.textContent = txt;
+    if(!hien) return;
+    var sn = document.getElementById('snai-fab'), v;
+    if(sn && getComputedStyle(sn).display !== 'none'){
+      var r = sn.getBoundingClientRect();
+      v = Math.max(80, Math.round(innerHeight - r.top + 12)) + 'px';
+    }else{
+      var pos = document.getElementById('pos-screen');
+      v = 'calc(' + ((pos && pos.classList.contains('on')) ? 128 : 18) + 'px + env(safe-area-inset-bottom,0px))';
+    }
+    if(v !== fabVT){ fabVT = v; FAB.style.bottom = v; }
+  }catch(e){}
+}
+FAB.addEventListener('click', function(){ moHop(); });
+
+/* ───────── MỤC "TIN NHẮN KHÁCH" TRONG TAB ĐƠN QR / BÁN ONLINE ───────── */
+async function docCong(){
+  if(CONG.dang) return;
+  var u = uid(); if(!u) return;
+  CONG.dang = true;
+  try{
+    var s = await F.getDoc(C.doc('pos_meta', 'qr'));
+    var d = (s.exists() && s.data()) || {}, tks = [], bat = true;
+    var ds = [d.onl, d.token];
+    for(var i = 0; i < ds.length; i++){
+      var tk = ds[i];
+      if(typeof tk !== 'string' || !tk || tks.indexOf(tk) >= 0) continue;
+      try{
+        var sh = await F.getDoc(F.doc(F.db, 'shares_qr', tk));
+        if(!sh.exists()) continue;
+        var x = sh.data() || {};
+        if(x.ownerUid !== u) continue;
+        tks.push(tk);
+        if(x.chat === false) bat = false;
+      }catch(e2){}
+    }
+    if(uid() === u) CONG = { tks: tks, bat: bat, san: true, dang: false, cn: chiNhanh() };
+  }catch(e){ CONG.dang = false; congTre = Date.now() + 60000; }
+  CONG.dang = false;
+  veSec();
+}
+async function doiCong(){
+  if(laNV()){ bao('Chỉ chủ shop mới bật / tắt được nhắn tin'); return; }
+  if(!CONG.san || CONG.dang) return;
+  if(!CONG.tks.length){ bao('Chưa có link bán online / mã QR nào — tạo link trước nhé'); return; }
+  var moi = !CONG.bat;
+  if(!moi && !window.confirm('Tắt nhắn tin?\n\nKhách sẽ không gửi được tin mới qua link / mã QR. Tin cũ vẫn còn, bạn vẫn trả lời được.')) return;
+  CONG.dang = true; veSec();
+  var loi = 0;
+  for(var i = 0; i < CONG.tks.length; i++){
+    try{ await F.setDoc(F.doc(F.db, 'shares_qr', CONG.tks[i]), { ownerUid: uid(), chat: moi }, { merge: true }); }
+    catch(e){ loi++; }
+  }
+  CONG.dang = false;
+  if(loi){ bao('Chưa đổi được — kiểm tra mạng / gói Bán online còn hạn không'); CONG.san = false; docCong(); return; }
+  CONG.bat = moi; veSec();
+  bao(moi ? '✅ Đã bật — khách nhắn tin được' : '⏸️ Đã tắt nhắn tin');
+}
+var secHtml = '';
+function veSec(){
+  if(!LIC) return;
+  var ds = dsCN(), n = ds.filter(chuaDoc).length;
+  var h = '<div class="qrd-hd"><b>💬 Tin nhắn khách</b>'
+        + (CONG.san && !laNV() && CONG.tks.length ? '<button type="button" class="qrd-sw' + (CONG.bat ? ' on' : '') + '" data-tnk="sw" aria-label="Bật tắt cho khách nhắn tin"' + (CONG.dang ? ' disabled' : '') + '></button>' : '')
+        + '</div><div class="qrd-st">'
+        + (CONG.san ? (CONG.bat ? 'Đang <b>bật</b> — khách mở link / quét mã là nhắn được cho cửa hàng.' : 'Đang <b>tắt</b> — khách không gửi được tin mới.') : 'Khách mở link / quét mã là nhắn được cho cửa hàng.')
+        + '<br>' + (unDS || dsSan ? (ds.length ? ds.length + ' cuộc đang mở' + (n ? ' · <b class="tnk-do">' + n + ' chưa đọc</b>' : '') : 'Chưa có tin nhắn nào.') : 'Đang tải tin nhắn…')
+        + '</div><div class="qrd-row"><button type="button" class="qrd-b green" data-tnk="hop">💬 Mở hộp tin nhắn' + (n ? ' (' + n + ')' : '') + '</button></div>';
+  if(h !== secHtml){ secHtml = h; SEC.innerHTML = h; }
+}
+function ganSec(){
+  if(!LIC) { if(SEC.isConnected) SEC.remove(); return; }
+  var w = document.getElementById('qrd-w');
+  if(!w || !w.parentNode) return;
+  if(SEC.parentNode !== w.parentNode || SEC.nextSibling !== w){ w.parentNode.insertBefore(SEC, w); }
+  if(SEC.offsetParent === null || CONG.dang || Date.now() < congTre) return;   /* tab đang ẩn ⇒ khỏi tốn lượt đọc */
+  if(!CONG.san || CONG.cn !== chiNhanh()) docCong();
+}
+
+/* ───────── NÚT "💬 NHẮN KHÁCH" TRÊN THẺ ĐƠN ONLINE ───────── */
+var henGanNut = 0;
+function ganNutDon(){
+  henGanNut = 0;
+  if(!LIC) return;
+  var bs = document.querySelectorAll('#pos-screen .qrd-d [data-act="qrd-onhan"], #pos-screen .qrd-d [data-act="qrd-lden"]');
+  for(var i = 0; i < bs.length; i++){
+    var row = bs[i].closest('.qrd-row'), id = bs[i].getAttribute('data-id');
+    if(!row || !id || row.querySelector('.tnk-don')) continue;
+    var nb = document.createElement('button');
+    nb.type = 'button'; nb.className = 'qrd-b tnk-don'; nb.setAttribute('data-tnk-don', id);
+    nb.textContent = '💬 Nhắn khách';
+    row.appendChild(nb);
+  }
+}
+function henGan(){ if(!henGanNut) henGanNut = (window.requestAnimationFrame || setTimeout)(ganNutDon); }
+try{ new MutationObserver(henGan).observe(document.documentElement, { childList: true, subtree: true }); }catch(e){}
+
+var dangMoDon = false;
+async function moTuDon(id, nut){
+  if(dangMoDon) return;
+  dangMoDon = true;
+  var cu = nut ? nut.textContent : '';
+  if(nut){ nut.disabled = true; nut.textContent = '⏳ Đang mở…'; }
+  try{
+    var s = await F.getDoc(F.doc(F.db, 'qr_don', id));
+    if(!s.exists()){ bao('Không tìm thấy đơn này nữa'); return; }
+    var d = s.data() || {};
+    if(d.kieu !== 'online' || !d.khachUid || !d.token){ bao('Đơn này không nhắn qua link được — gọi / Zalo cho khách nhé'); return; }
+    var tid = d.token + '_' + d.khachUid;
+    NHAP = { tid: tid, token: String(d.token), khachUid: String(d.khachUid), chiNhanh: cat(d.chiNhanh || chiNhanh(), 80),
+             ten: cat(d.khach || '', 60), sdt: cat(String(d.sdt || '').replace(/[^0-9+]/g, ''), 15), donId: id, tong: Number(d.tong) || 0 };
+    moCuoc(tid);
+  }catch(e){ bao('Chưa mở được — kiểm tra mạng rồi thử lại'); }
+  finally{ dangMoDon = false; if(nut && nut.isConnected){ nut.disabled = false; nut.textContent = cu || '💬 Nhắn khách'; } }
+}
+
+/* ───────── MỞ / ĐÓNG ───────── */
+function trangThai(){ try{ return history.state; }catch(e){ return null; } }
+function tangHienTai(){ var s = trangThai(); return (s && s.tnkHop === TOKEN) ? (s.tang || 0) : 0; }
+function moHop(){
+  gan();
+  if(!MO){
+    MO = true; K.classList.add('on'); BAO.classList.remove('on');
+    try{ history.pushState({ tnkHop: TOKEN, tang: 1 }, ''); }catch(e){}
+  }
+  if(!TID){ P_CUOC.classList.remove('on'); P_HOP.classList.add('on'); veLoc(); veDS(); }
+  syncFab();
+}
+function dongHop(tuBack){
+  if(!MO) return;
+  if(!tuBack){
+    var t = tangHienTai();
+    if(t > 0){ try{ history.go(-t); }catch(e){} }
+  }
+  dongCuoc(true);
+  MO = false; K.classList.remove('on');
+  P_CUOC.classList.remove('on'); P_HOP.classList.add('on');
+  syncFab();
+}
+window.addEventListener('popstate', function(){
+  if(!MO) return;
+  var t = tangHienTai();
+  if(t < 2 && TID){ dongCuoc(true); P_CUOC.classList.remove('on'); P_HOP.classList.add('on'); veLoc(); veDS(); }
+  if(t < 1) dongHop(true);
+});
+document.addEventListener('keydown', function(e){
+  if(!MO || e.key !== 'Escape') return;
+  if(TID) lui(); else dongHop(false);
+});
+function lui(){
+  if(tangHienTai() >= 2){ try{ history.back(); }catch(e){} return; }
+  dongCuoc(true); P_CUOC.classList.remove('on'); P_HOP.classList.add('on'); veLoc(); veDS();
+}
+
+function moCuoc(tid){
+  if(!tid) return;
+  if(!MO) moHop();
+  if(TID !== tid){
+    dongCuoc(true);
+    TID = tid; CUOC = null; cuocSan = false; TIN = []; tinSan = false; loiCuoc = 0; treCuoc = 0; loiTin = 0; treTin = 0;
+    if(NHAP && NHAP.tid !== tid) NHAP = null;
+    var t = DS.find ? DS.find(function(x){ return x.id === tid; }) : null;
+    if(t){ CUOC = t; }
+  }
+  if(tangHienTai() < 2){ try{ history.pushState({ tnkHop: TOKEN, tang: 2 }, ''); }catch(e){} }
+  P_HOP.classList.remove('on'); P_CUOC.classList.add('on');
+  TAC.classList.remove('on'); CF.classList.remove('on');
+  BAO.classList.remove('on');
+  ngheCuoc();
+  veCuoc();
+  TINV.scrollTop = TINV.scrollHeight;
+}
+function dongCuoc(giuNhap){
+  try{ if(unCuoc) unCuoc(); }catch(e){} unCuoc = null;
+  try{ if(unTin) unTin(); }catch(e){} unTin = null;
+  TID = ''; CUOC = null; cuocSan = false; TIN = []; tinSan = false;
+  CHO = CHO.filter(function(c){ return c.tt === 'cho'; });
+  if(!giuNhap) NHAP = null;
+}
+
+/* ───────── NGHE 1 CUỘC ───────── */
+function ngheCuoc(){
+  if(unCuoc || !TID || Date.now() < treCuoc) return;
+  var tid = TID;
+  try{
+    unCuoc = F.onSnapshot(F.doc(F.db, 'qr_chat', tid), function(s){
+      if(tid !== TID) return;
+      loiCuoc = 0; cuocSan = true;
+      CUOC = s.exists() ? (s.data({ serverTimestamps:'estimate' }) || null) : null;
+      if(CUOC){ CUOC.id = tid; ngheTin(); if(chuaDoc(CUOC)) danhDauXem(); }
+      veCuoc();
+    }, function(e){
+      if(tid !== TID) return;
+      unCuoc = null; cuocSan = false; loiCuoc++;
+      treCuoc = Date.now() + Math.min(60000, 2000 * Math.pow(2, Math.min(loiCuoc, 5)));
+      veCuoc();
+    });
+  }catch(e){ unCuoc = null; }
+}
+function ngheTin(){
+  if(unTin || !TID || !CUOC || Date.now() < treTin) return;
+  var tid = TID;
+  try{
+    unTin = F.onSnapshot(F.query(F.collection(F.db, 'qr_chat', tid, 'tin'), F.orderBy('luc', 'desc'), F.limit(100)), function(s){
+      if(tid !== TID) return;
+      loiTin = 0; tinSan = true;
+      TIN = s.docs.map(function(d){ var x = d.data({ serverTimestamps:'estimate' }) || {}; x.id = d.id; return x; })
+                  .sort(function(a, b){ return (ms(a.luc) - ms(b.luc)) || (a.id < b.id ? -1 : 1); });
+      CHO = CHO.filter(function(c){ return !(c.tt === 'xong' && TIN.some(function(t){ return t.id === c.id; })); });
+      veTin();
+    }, function(e){
+      if(tid !== TID) return;
+      unTin = null; loiTin++;
+      treTin = Date.now() + Math.min(60000, 2000 * Math.pow(2, Math.min(loiTin, 5)));
+    });
+  }catch(e){ unTin = null; }
+}
+function danhDauXem(){
+  if(!TID || !CUOC || !chuaDoc(CUOC) || docCCho || document.hidden || !MO) return;
+  var tre = docCHen - Date.now();
+  if(tre > 0){ if(!docCTimer) docCTimer = setTimeout(function(){ docCTimer = 0; danhDauXem(); }, tre + 50); return; }
+  docCCho = true; docCHen = Date.now() + 1500;
+  F.updateDoc(F.doc(F.db, 'qr_chat', TID), { docC: F.serverTimestamp() })['catch'](function(){}).then(function(){ docCCho = false; });
+}
+document.addEventListener('visibilitychange', function(){ if(!document.hidden && MO && TID) danhDauXem(); });
+
+/* ───────── GỬI ───────── */
+function guiTin(nd, loai, tong){
+  nd = cat(String(nd == null ? '' : nd).trim(), 500);
+  if(!nd || !TID) return false;
+  if(!CUOC && !(NHAP && NHAP.tid === TID)) return false;
+  var id;
+  try{ id = F.doc(F.collection(F.db, 'qr_chat', TID, 'tin')).id; }catch(e){ return false; }
+  CHO.push({ id: id, tid: TID, nd: nd, loai: loai || 'tx', tong: (typeof tong === 'number' && isFinite(tong)) ? tong : null, tt: 'cho', ts: Date.now(), loi: '' });
+  veTin(true);
+  chayHang();
+  return true;
+}
+async function chayHang(){
+  if(dangGui) return;
+  var x = null;
+  for(var i = 0; i < CHO.length; i++) if(CHO[i].tt === 'cho'){ x = CHO[i]; break; }
+  if(!x) return;
+  dangGui = true;
+  try{ await guiMot(x); x.tt = 'xong'; if(NHAP && NHAP.tid === x.tid) NHAP.daTao = true; }
+  catch(e){
+    x.tt = 'loi';
+    x.loi = (e && e.code === 'permission-denied') ? 'Chưa gửi được — gói Bán online còn hạn không, hoặc máy này chưa được cấp quyền.' : 'Chưa gửi được — kiểm tra mạng.';
+  }
+  dangGui = false;
+  if(x.tid === TID){ if(!unCuoc) ngheCuoc(); veTin(); }
+  for(var j = 0; j < CHO.length; j++) if(CHO[j].tt === 'cho'){ setTimeout(chayHang, 0); break; }
+}
+async function guiMot(x){
+  for(var lan = 0; lan < 2; lan++){
+    var co;
+    if(lan === 0 && x.tid === TID && cuocSan) co = !!CUOC;
+    else{ var s = await F.getDoc(F.doc(F.db, 'qr_chat', x.tid)); co = s.exists(); }
+    try{ await ghiLo(x, co); return; }
+    catch(e){
+      var ma = (e && e.code) || '';
+      if(lan === 0 && /permission-denied|not-found|failed-precondition|aborted|already-exists/.test(ma)){
+        await ngu(800);
+        try{ var m = await F.getDoc(F.doc(F.db, 'qr_chat', x.tid, 'tin', x.id)); if(m.exists()) return; }catch(e2){}
+        continue;
+      }
+      throw e;
+    }
+  }
+}
+async function ghiLo(x, co){
+  var b = F.writeBatch(F.db), cref = F.doc(F.db, 'qr_chat', x.tid), now = F.serverTimestamp();
+  var xem = cat((x.loai === 'chot' ? '📋 ' : '') + x.nd, 120);
+  if(!co){
+    var n = NHAP;
+    if(!n || n.tid !== x.tid){ var er = new Error('Chưa có cuộc'); er.code = 'failed-precondition'; throw er; }
+    b.set(cref, { token: n.token, ownerUid: uid(), chiNhanh: n.chiNhanh || 'main', kieu: 'online', banId: '', banTen: '',
+                  khachUid: n.khachUid, ten: n.ten, sdt: n.sdt, tao: now, cuoi: now, cuoiTu: 'c', cuoiNd: xem, cuoiK: new Date(0),
+                  soK: 0, mo: true, chan: false, docC: now });
+  }else{
+    b.update(cref, { cuoi: now, cuoiTu: 'c', cuoiNd: xem, mo: true, docC: now });
+  }
+  var m = { tu: 'c', nd: x.nd, loai: x.loai, luc: now, uid: authUid() || '' };
+  if(typeof x.tong === 'number') m.tong = x.tong;
+  b.set(F.doc(F.db, 'qr_chat', x.tid, 'tin', x.id), m);
+  await b.commit();
+}
+
+/* ───────── VẼ ───────── */
+function veLoc(){
+  var khac = cnLoc() ? DS.length - dsCN().length : 0;
+  var h = '';
+  if(khac || LOC_TAT){
+    h = '<button type="button" data-tnk="loc-cn" class="' + (LOC_TAT ? '' : 'on') + '">Cửa hàng này (' + dsCN().length + ')</button>'
+      + '<button type="button" data-tnk="loc-tat" class="' + (LOC_TAT ? 'on' : '') + '">Tất cả cửa hàng (' + DS.length + ')</button>';
+  }
+  LOC.innerHTML = h; LOC.style.display = h ? '' : 'none';
+  var phu = Q('.tnk-hop-phu'), n = dsHien().filter(chuaDoc).length;
+  phu.textContent = n ? (n + ' cuộc chưa đọc') : 'Khách nhắn từ link bán online & mã QR bàn';
+}
+function veDS(){
+  if(!MO || TID) return;
+  var ds = dsHien(), h = '';
+  if(!unDS && !dsSan) h = '<div class="tnk-trong">' + (LIC === null ? '<i>🔒</i>Cần <b>Gói Bán online</b> để khách nhắn tin cho cửa hàng.' : 'Đang tải tin nhắn…') + '</div>';
+  else if(!ds.length) h = '<div class="tnk-trong"><i>💬</i>Chưa có tin nhắn nào.<br>Khách mở link bán online hoặc quét mã QR tại bàn là nhắn được cho cửa hàng.</div>';
+  else ds.forEach(function(t){
+    var ban = t.kieu === 'ban', ten = tenCuoc(t);
+    var chu = Array.from(String(ban ? (t.banTen || 'B') : (t.ten || 'K')).trim())[0] || '?';
+    h += '<button type="button" class="tnk-row' + (chuaDoc(t) ? ' moi' : '') + '" data-tnk-mo="' + esc(t.id) + '">'
+       + '<span class="tnk-av' + (ban ? ' ban' : '') + '">' + esc(ban ? '🍽' : chu.toUpperCase()) + '</span>'
+       + '<span class="tnk-mid"><span class="tnk-l1"><b>' + esc(ten) + '</b><i>' + esc(khiNao(ms(t.cuoi))) + '</i></span>'
+       + '<span class="tnk-l2">' + (t.chan ? '<em class="tnk-tag chan">Đã chặn</em>' : (ban ? '<em class="tnk-tag ban">Tại bàn</em>' : '<em class="tnk-tag">Online</em>'))
+       + '<span>' + (t.cuoiTu === 'c' ? 'Bạn: ' : '') + esc(t.cuoiNd || '') + '</span><i class="tnk-dot"></i></span></span></button>';
+  });
+  DSV.innerHTML = h;
+}
+function veCuoc(){
+  if(!MO || !TID) return;
+  var t = CUOC || (NHAP && NHAP.tid === TID ? { kieu: 'online', ten: NHAP.ten, sdt: NHAP.sdt } : null);
+  Q('.tnk-ten').textContent = t ? tenCuoc(t) : 'Khách';
+  Q('.tnk-phu').textContent = t ? ((t.kieu === 'ban' ? '🍽️ Khách tại bàn' : '🌐 Khách online') + (t.sdt ? ' · ' + t.sdt : '')) : '';
+  var g = Q('.tnk-goi');
+  if(t && t.sdt){ g.href = 'tel:' + t.sdt; g.style.display = 'flex'; } else g.style.display = 'none';
+  var bc = TAC.querySelector('[data-tnk="chan"]');
+  bc.textContent = (CUOC && CUOC.chan) ? '✅ Bỏ chặn khách này' : '🚫 Chặn khách này';
+  bc.className = (CUOC && CUOC.chan) ? '' : 'do';
+  TAC.querySelector('[data-tnk="xong"]').style.display = CUOC ? '' : 'none';
+  bc.style.display = CUOC ? '' : 'none';
+  var nb = '', lop = 'vang';
+  if(!cuocSan && loiCuoc) nb = 'Chưa tải được cuộc trò chuyện — đang thử lại…';
+  else if(CUOC && CUOC.chan) nb = '🚫 Đã chặn khách này — khách không gửi được tin. Bấm ⋯ để bỏ chặn.';
+  else if(!CUOC && NHAP && NHAP.tid === TID && cuocSan){ nb = 'Khách chưa nhắn. Tin đầu tiên của bạn sẽ hiện ngay trên link đặt hàng của khách (đơn ' + maDon(NHAP.donId) + ').'; lop = 'xanh'; }
+  NB.textContent = nb; NB.className = 'tnk-nb ' + lop + (nb ? ' on' : '');
+  var cau = (t && t.kieu === 'ban') ? CAU_BAN : CAU_ONL, h = '';
+  cau.forEach(function(c){ h += '<button type="button" class="tnk-chip" data-tnk-c="' + esc(c) + '">' + esc(c) + '</button>'; });
+  if(CHIPS.innerHTML !== h) CHIPS.innerHTML = h;
+  var duoc = !!(CUOC || (NHAP && NHAP.tid === TID && cuocSan));
+  TA.disabled = !duoc; GUI.disabled = !duoc; Q('.tnk-cb').disabled = !duoc;
+  veTin();
+}
+function veTin(cuon){
+  if(!MO || !TID) return;
+  var sat = TINV.scrollHeight - TINV.scrollTop - TINV.clientHeight < 90;
+  var ds = TIN.slice(), co = {};
+  TIN.forEach(function(t){ co[t.id] = 1; });
+  CHO.forEach(function(c){ if(c.tid === TID && !co[c.id]) ds.push({ id: c.id, tu: 'c', nd: c.nd, loai: c.loai, tong: c.tong, _tt: c.tt, _loi: c.loi, _ts: c.ts }); });
+  var h = '';
+  if(!ds.length){
+    h = (CUOC && !tinSan) || (!cuocSan && !loiCuoc) ? '<div class="tnk-trong">Đang tải…</div>' : '<div class="tnk-trong"><i>💬</i>Chưa có tin nhắn.</div>';
+  }else{
+    var dongY = {}, cuoiC = -1, ngTr = '';
+    ds.forEach(function(t){ if(t.tu === 'k' && t.loai === 'ok' && t.ref) dongY[t.ref] = t; });
+    ds.forEach(function(t, i){ if(t.tu === 'c' && !t._tt) cuoiC = i; });
+    ds.forEach(function(t, i){
+      var tms = t._tt ? t._ts : (ms(t.luc) || Date.now()), ng = nhanNgay(tms);
+      if(ng !== ngTr){ h += '<div class="tnk-ngay">' + ng + '</div>'; ngTr = ng; }
+      var toi = t.tu === 'c', noi;
+      if(t.loai === 'chot'){
+        var dy = dongY[t.id];
+        noi = '<div class="tnk-the"><h4>📋 Thẻ chốt đơn</h4>' + (typeof t.tong === 'number' ? '<div class="tg">Tổng: <b>' + tien(t.tong) + '</b></div>' : '')
+            + '<div class="nd">' + esc(t.nd) + '</div>'
+            + (t._tt ? '' : (dy ? '<div class="tt ok">✅ Khách đã đồng ý lúc ' + gio(ms(dy.luc) || Date.now()) + '</div>' : '<div class="tt">⏳ Chờ khách bấm Đồng ý</div>')) + '</div>';
+      }else if(t.loai === 'don') noi = '<div class="tnk-b don">🧾 Khách hỏi về ' + esc(t.nd) + '</div>';
+      else if(t.loai === 'ok') noi = '<div class="tnk-b ok">✅ Khách đồng ý chốt đơn</div>';
+      else noi = '<div class="tnk-b">' + esc(t.nd) + '</div>';
+      var duoi;
+      if(t._tt === 'cho') duoi = '<div class="tnk-g">Đang gửi…</div>';
+      else if(t._tt === 'loi') duoi = '<div class="tnk-loi">⚠️ ' + esc(t._loi) + ' <button type="button" data-tnk-lai="' + esc(t.id) + '">Gửi lại</button><button type="button" data-tnk-bo="' + esc(t.id) + '">Bỏ</button></div>';
+      else duoi = '<div class="tnk-g">' + gio(tms) + ((i === cuoiC && CUOC && ms(CUOC.docK) >= ms(t.luc)) ? ' · Khách đã xem' : '') + '</div>';
+      h += '<div class="tnk-r' + (toi ? ' toi' : '') + '">' + noi + duoi + '</div>';
+    });
+  }
+  TINV.innerHTML = h;
+  if(cuon || sat) TINV.scrollTop = TINV.scrollHeight;
+}
+function coDan(){ TA.style.height = 'auto'; TA.style.height = Math.min(120, Math.max(44, TA.scrollHeight)) + 'px'; }
+
+/* ───────── THAO TÁC CUỘC ───────── */
+async function suaCuoc(d, tb){
+  if(!TID || !CUOC) return;
+  try{ await F.updateDoc(F.doc(F.db, 'qr_chat', TID), d); if(tb) bao(tb); return true; }
+  catch(e){ bao('Chưa làm được — kiểm tra mạng rồi thử lại'); return false; }
+}
+
+/* ───────── SỰ KIỆN ───────── */
+function bamGui(){
+  var nd = TA.value;
+  if(!String(nd).trim()) return;
+  if(guiTin(nd, 'tx')){ TA.value = ''; coDan(); }
+}
+TA.addEventListener('input', coDan);
+TA.addEventListener('keydown', function(e){
+  if(e.key === 'Enter' && !e.shiftKey && !e.isComposing){
+    var pc = false; try{ pc = matchMedia('(pointer:fine)').matches; }catch(x){}
+    if(pc){ e.preventDefault(); bamGui(); }
+  }
+});
+K.addEventListener('click', async function(e){
+  if(e.target === K){ dongHop(false); return; }
+  var b = e.target && e.target.closest ? e.target.closest('button') : null;
+  if(!b || !K.contains(b)) return;
+  var a = b.getAttribute('data-tnk');
+  if(b.hasAttribute('data-tnk-mo')){ moCuoc(b.getAttribute('data-tnk-mo')); return; }
+  if(b.hasAttribute('data-tnk-c')){ guiTin(b.getAttribute('data-tnk-c'), 'tx'); return; }
+  if(b.hasAttribute('data-tnk-lai')){
+    var c = CHO.find(function(x){ return x.id === b.getAttribute('data-tnk-lai'); });
+    if(c){ c.tt = 'cho'; c.loi = ''; c.ts = Date.now(); veTin(true); chayHang(); }
+    return;
+  }
+  if(b.hasAttribute('data-tnk-bo')){ CHO = CHO.filter(function(x){ return !(x.id === b.getAttribute('data-tnk-bo') && x.tt === 'loi'); }); veTin(); return; }
+  if(a === 'dong'){ dongHop(false); return; }
+  if(a === 'lui'){ lui(); return; }
+  if(a === 'gui'){ bamGui(); return; }
+  if(a === 'tac'){ TAC.classList.toggle('on'); return; }
+  if(a === 'loc-cn' || a === 'loc-tat'){ LOC_TAT = a === 'loc-tat'; veLoc(); veDS(); return; }
+  if(a === 'cf'){
+    CF.classList.toggle('on');
+    if(CF.classList.contains('on')){
+      var ti = Q('.tnk-cf-tien');
+      if(!ti.value && NHAP && NHAP.tid === TID && NHAP.tong) ti.value = String(NHAP.tong);
+      try{ ti.focus(); }catch(x){}
+    }
+    return;
+  }
+  if(a === 'cf-huy'){ CF.classList.remove('on'); return; }
+  if(a === 'cf-gui'){
+    var nd = String(Q('.tnk-cf-nd').value || '').trim();
+    var so = String(Q('.tnk-cf-tien').value || '').replace(/[^0-9]/g, '');
+    var tong = so ? Math.min(500000000, parseInt(so, 10)) : null;
+    if(!nd){ bao('Ghi nội dung chốt (giờ giao, size, phí ship…)'); return; }
+    if(guiTin(nd, 'chot', tong)){ Q('.tnk-cf-nd').value = ''; Q('.tnk-cf-tien').value = ''; CF.classList.remove('on'); }
+    return;
+  }
+  if(a === 'xong'){
+    TAC.classList.remove('on');
+    if(await suaCuoc({ mo: false, docC: F.serverTimestamp() }, '✔ Đã cất cuộc này khỏi hộp thư')) lui();
+    return;
+  }
+  if(a === 'chan'){
+    TAC.classList.remove('on');
+    if(!CUOC) return;
+    if(CUOC.chan){ suaCuoc({ chan: false }, '✅ Đã bỏ chặn'); return; }
+    if(window.confirm('Chặn khách này?\n\nKhách sẽ không gửi được tin nhắn cho cửa hàng nữa. Bỏ chặn lúc nào cũng được.')) suaCuoc({ chan: true }, '🚫 Đã chặn khách');
+  }
+});
+document.addEventListener('click', function(e){
+  var b = e.target && e.target.closest ? e.target.closest('[data-tnk-don],[data-tnk="hop"],[data-tnk="sw"]') : null;
+  if(!b || K.contains(b)) return;
+  if(b.hasAttribute('data-tnk-don')){ e.preventDefault(); moTuDon(b.getAttribute('data-tnk-don'), b); return; }
+  var a = b.getAttribute('data-tnk');
+  if(a === 'hop') moHop();
+  else if(a === 'sw') doiCong();
+}, false);
+
+/* ───────── VÒNG KIỂM (đổi tài khoản / đổi cửa hàng / nối lại) ───────── */
+var cnTruoc = null;
+function nhip(){
+  try{
+    gan();
+    var u = uid();
+    if(u !== U){ boHet(); U = u; if(MO) dongHop(false); }
+    if(!u) { syncFab(); return; }
+    if(LIC === undefined || (Date.now() - licLuc > 30 * 60000 && !licDang)) kiemLic();
+    if(LIC && !unDS) ngheDS();
+    if(LIC === null && unDS){ try{ unDS(); }catch(e){} unDS = null; DS = []; dsSan = false; }
+    var cn = chiNhanh();
+    if(cn !== cnTruoc){ cnTruoc = cn; CONG.san = false; if(MO && !TID){ veLoc(); veDS(); } }
+    if(MO && TID && !unCuoc) ngheCuoc();
+    if(MO && TID && CUOC && !unTin) ngheTin();
+    ganSec(); veSec(); syncFab();
+    if(LIC) henGan();
+  }catch(e){}
+}
+setInterval(nhip, 700);
+nhip();
+
+}catch(e){ console.error('[tnk] module Nhắn tin khách lỗi khởi động', e); }
+}
+})();
+</script>
+<!-- ═══════════════ HẾT: NHẮN TIN KHÁCH ═══════════════ -->
 </body>
 </html>
