@@ -768,7 +768,7 @@ import { getFirestore, initializeFirestore, persistentLocalCache, persistentMult
 import { getStorage, ref as _sref, uploadBytes, getDownloadURL, deleteObject, listAll }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
 
-const APP_BUILD = "2026-10-01-QT11"; // ⬆️ ĐỔI MỖI LẦN DEPLOY (đặt TRÙNG tên cache trong sw.js) — hiện ở ⚙️ Cài đặt để biết máy đã chạy bản mới chưa
+const APP_BUILD = "2026-10-01-DON1"; // ⬆️ ĐỔI MỖI LẦN DEPLOY (đặt TRÙNG tên cache trong sw.js) — hiện ở ⚙️ Cài đặt để biết máy đã chạy bản mới chưa
 const firebaseConfig = {
   apiKey: "AIzaSyA_kjQ-CdASRkf50Glz3kQajlkD5qGWC4k",
   authDomain: "so-no-cc57a.firebaseapp.com",
@@ -852,6 +852,30 @@ async function purgeShare(token,uidOwner){
   }catch(e){}
   try{ await stgWipe('u/'+(uidOwner||UID)+'/sign/'+token); }catch(e){}
   try{ await deleteDoc(doc(db,'shares',token)); }catch(e){}
+}
+/* ── [TỰ DỌN] SỔ VIỆC DỌN DỞ — ghi việc dọn vào máy TRƯỚC khi xoá. Rớt mạng / tắt app trước khi kịp
+   dọn ảnh, chữ ký, link ⇒ module "Tự dọn rác" (cuối file) hỏi lại MÁY CHỦ rồi làm nốt.
+   Chỉ dùng localStorage của máy này — không tốn lượt đọc / ghi Firestore nào. */
+function _dqK(){ return 'sn_donq_v1_'+(UID||''); }
+function _dqDoc(){ try{ const a=JSON.parse(localStorage.getItem(_dqK())||'[]'); return Array.isArray(a)?a:[]; }catch(e){ return []; } }
+function dqAdd(job){
+  try{ if(!UID||!job||!job.key)return;
+    const a=_dqDoc().filter(x=>x&&x.key!==job.key); job.at=Date.now(); a.push(job);
+    localStorage.setItem(_dqK(),JSON.stringify(a.slice(-300)));
+  }catch(e){}
+}
+function dqXong(key){
+  try{ if(!UID||!key)return; const a=_dqDoc(), b=a.filter(x=>x&&x.key!==key);
+    if(b.length!==a.length)localStorage.setItem(_dqK(),JSON.stringify(b)); }catch(e){}
+}
+/* ── [TỰ DỌN] Xoá file trong thư mục TRỪ file còn dùng (keep: Set đường dẫn) — dùng khi phục hồi GHI ĐÈ */
+async function stgWipeTru(prefix,keep){
+  if(!prefix) return;
+  try{
+    const res=await listAll(_sref(stg,prefix));
+    for(const it of (res.items||[])){ if(keep&&keep.has(it.fullPath))continue; try{ await deleteObject(it); }catch(e){} }
+    for(const pf of (res.prefixes||[])){ try{ await stgWipeTru(pf.fullPath,keep); }catch(e){} }
+  }catch(e){}
 }
 
 /* ── 🧹 DỌN KHO ẢNH — quét & xoá mọi file / link chia sẻ không còn ai dùng.
@@ -2680,6 +2704,7 @@ function parseBackupFile(name,content){
     const obj=JSON.parse(content);
     if(!obj||!Array.isArray(obj.customers))throw new Error('File JSON không đúng định dạng sao lưu Sổ Nợ.');
     return {settings:obj.settings||null,customers:obj.customers.map(c=>({
+      id:(typeof c.id==='string'?c.id:''),   /* [TỰ DỌN] giữ mã khách ⇒ ghi đè xong ảnh đính kèm vẫn khớp thư mục */
       name:String(c.name||'').trim(),phone:String(c.phone||'').trim(),address:String(c.address||'').trim(),
       debt:parseVnd(c.debt),shareToken:c.shareToken||null,
       transactions:(c.transactions||[]).map(t=>{const o={type:normType(t.type),amount:parseVnd(t.amount),note:String(t.note||'').trim(),memo:String(t.memo||'').trim(),date:parseViDate(t.date)};if(attHas(t.att))o.att=t.att;return o;})
@@ -2754,12 +2779,16 @@ window.runImport=async()=>{
   try{
     if(mode==='replace'){
       impLog('🗑 Đang xoá dữ liệu cũ...');
+      /* [TỰ DỌN] file sao lưu chỉ lưu LINK ảnh / mã link chữ ký ⇒ ảnh + chữ ký mà file còn trỏ tới phải GIỮ.
+         Trước đây xoá sạch rồi mới nạp ⇒ ảnh đính kèm, chữ ký mất vĩnh viễn, link ảnh hỏng. */
+      const _keepP=new Set(),_keepTok=new Set();
+      _impParsed.customers.forEach(c=>{if(c.shareToken)_keepTok.add(String(c.shareToken));(c.transactions||[]).forEach(t=>{if(t&&t.att&&t.att.p)_keepP.add(String(t.att.p));});});
       const oldc=await getDocs(collection(db,'users',UID,'customers'));
       for(const cd of oldc.docs){
         const tx=await getDocs(collection(db,'users',UID,'customers',cd.id,'transactions'));
         for(const td of tx.docs)await deleteDoc(doc(db,'users',UID,'customers',cd.id,'transactions',td.id));
-        try{await stgWipe('u/'+UID+'/att/'+cd.id);}catch(e){}
-        const cc=cd.data();if(cc.shareToken){try{await purgeShare(cc.shareToken,UID);}catch(e){}}
+        try{await stgWipeTru('u/'+UID+'/att/'+cd.id,_keepP);}catch(e){}
+        const cc=cd.data();if(cc.shareToken&&!_keepTok.has(String(cc.shareToken))){try{await purgeShare(cc.shareToken,UID);}catch(e){}}
         await deleteDoc(doc(db,'users',UID,'customers',cd.id));
       }
       impLog('   Đã xoá xong.');
@@ -2770,6 +2799,7 @@ window.runImport=async()=>{
       cur.docs.forEach(cd=>{const c=cd.data();existing.set(String(c.name||'').toLowerCase(),{id:cd.id});});
     }
     let addedC=0,updatedC=0,addedT=0,skipT=0;const total=_impParsed.customers.length;let idx=0;
+    const _usedId=new Set(),_idOk=v=>typeof v==='string'&&/^[A-Za-z0-9_-]{1,100}$/.test(v);   /* [TỰ DỌN] ghi đè: dựng lại khách ĐÚNG mã cũ */
     for(const inc of _impParsed.customers){
       idx++;const key=inc.name.toLowerCase();let custId;const exKeys=new Set();
       if(existing.has(key)){
@@ -2777,7 +2807,9 @@ window.runImport=async()=>{
         const ex=await getDocs(collection(db,'users',UID,'customers',custId,'transactions'));
         ex.docs.forEach(td=>{const t=td.data();exKeys.add(`${ymd(t.date)}|${t.type}|${Number(t.amount)||0}|${(t.note||'').trim()}`);});
       }else{
-        const ref=await addDoc(collection(db,'users',UID,'customers'),{name:inc.name,phone:inc.phone,address:inc.address,debt:inc.debt,createdAt:serverTimestamp()});
+        let ref;
+        if(mode==='replace'&&_idOk(inc.id)&&!_usedId.has(inc.id)){ref=doc(db,'users',UID,'customers',inc.id);await setDoc(ref,{name:inc.name,phone:inc.phone,address:inc.address,debt:inc.debt,createdAt:serverTimestamp()});_usedId.add(inc.id);}
+        else ref=await addDoc(collection(db,'users',UID,'customers'),{name:inc.name,phone:inc.phone,address:inc.address,debt:inc.debt,createdAt:serverTimestamp()});
         custId=ref.id;addedC++;existing.set(key,{id:custId});
       }
       for(const t of inc.transactions){
@@ -3136,6 +3168,7 @@ window.delTx=async(txId)=>{
   _curTxs=(_curTxs||[]).filter(t=>t.id!==txId);
   const newDebt=calcDebtLocal(_curTxs);
   batch.update(custRef,{debt:newDebt});
+  if(_delP)dqAdd({key:'f:'+_delP,k:'f',p:_delP,cid:currentCustomerId,tid:txId});   /* [TỰ DỌN] rớt mạng thì lần mở sau làm nốt */
   batch.commit().then(()=>{if(_delP)stgDel(_delP).catch(()=>{});})
     .catch(err=>{toast('⚠️ Lỗi xoá giao dịch: '+(err&&err.message?err.message:err));});
   applyDebtLocal(currentCustomerId,newDebt);
@@ -3204,6 +3237,7 @@ window.onTxFileChange=async(input)=>{
     const a=await prepareAttachment(f,ATT_CAP);
     await _dropPendingUpload();                 /* đổi ảnh: bỏ file vừa tải lần trước */
     pendingAtt=a;_attUp=a.p||null;showTxFileInfo(pendingAtt);
+    if(_attUp)dqAdd({key:'u:'+_attUp,k:'u',p:_attUp,cid:currentCustomerId});   /* [TỰ DỌN] tắt app trước khi lưu ⇒ file không treo mãi */
   }
   catch(err){input.value='';showTxFileInfo(pendingAtt);alert('⚠️ '+(err&&err.message?err.message:err));}
 };
@@ -3408,7 +3442,8 @@ window.saveTx=async()=>{
   const newDebt=calcDebtLocal(_curTxs);
   batch.update(custRef,{debt:newDebt});
   const _oldP=(_attOld&&_attOld!==_savedAttP)?_attOld:null;   /* ảnh cũ bị thay/gỡ */
-  batch.commit().then(()=>{if(_oldP)stgDel(_oldP).catch(()=>{});})
+  if(_oldP&&editingTxId)dqAdd({key:'f:'+_oldP,k:'f',p:_oldP,cid:currentCustomerId,tid:editingTxId});   /* [TỰ DỌN] */
+  batch.commit().then(()=>{if(_oldP)stgDel(_oldP).catch(()=>{});if(_savedAttP)dqXong('u:'+_savedAttP);})
     .catch(err=>{toast('⚠️ Lỗi lưu giao dịch: '+(err&&err.message?err.message:err));});
   applyDebtLocal(currentCustomerId,newDebt);
   if(c&&c.shareToken){syncShare(c.shareToken,c.id,c.name,c.phone,newDebt).catch(()=>{});}
@@ -3540,6 +3575,7 @@ window.deleteCustomer=async()=>{
     _b.commit().catch(function(e){ toast('⚠️ Lỗi xoá giao dịch: '+((e&&(e.code||e.message))||e)); });
   }
   const batch=writeBatch(db);
+  dqAdd({key:'c:'+_cid,k:'c',cid:_cid,tok:_tok});   /* [TỰ DỌN] rớt mạng / tắt app thì lần mở sau dọn nốt ảnh, link, chữ ký */
   batch.delete(doc(db,'users',_uid,'customers',_cid));
   batch.commit().then(async()=>{
     /* Gỡ khỏi danh sách ngay tại máy — không chờ bộ lắng nghe, tránh trường hợp
@@ -3728,7 +3764,10 @@ async function skSaveProd(){
     skCloseModal('#sk-prod');toast('✅ Đã lưu sản phẩm');markDirty();
   }catch(e){toast('Lỗi lưu: '+(e.message||''));}
 }
-async function skDelProd(){if(!skEditId)return;try{deleteDoc(bdoc('products',skEditId)).catch(function(e){toast(e.message);});skCloseModal('#sk-prod');skCloseModal('#sk-detail');toast('Đã xóa sản phẩm');markDirty();}catch(e){toast(e.message);}}
+async function skDelProd(){if(!skEditId)return;try{deleteDoc(bdoc('products',skEditId)).catch(function(e){toast(e.message);});
+  /* [TỰ DỌN] két ngành của sản phẩm (biến thể · bậc giá · định lượng · phòng) xoá theo — chỉ két đang mở được ở cửa hàng này */
+  try{var _pidX=skEditId;['fnb','fs','kg','rm'].forEach(function(ns){if(window.SKNG&&window.SKNG.tt(ns)==='ok')deleteDoc(bdoc('pos_'+ns,_pidX)).catch(function(){});});}catch(_){}
+  skCloseModal('#sk-prod');skCloseModal('#sk-detail');toast('Đã xóa sản phẩm');markDirty();}catch(e){toast(e.message);}}
 function skScanField(){skq('#sk-prod').classList.remove('on');skScrim(false);skq('#sk-scan-title').textContent='Quét mã vạch SP';skStartScan('single',code=>{skq('#sk-pf-barcode').value=code;skModalOpen('#sk-prod');});}
 function skFillCatList(){skq('#sk-catlist').innerHTML=skCats().map(c=>'<option value="'+escHtml(c)+'">').join('');}
 function skCats(){const m={};skProducts.forEach(p=>{if(p.category)m[p.category]=1;});return Object.keys(m).sort();}
@@ -3999,8 +4038,8 @@ async function skDeleteOrder(){
   if(rets.length)warn+='\n\n⚠️ Đơn này đã có '+rets.length+' phiếu trả — các phiếu trả cũng sẽ bị xóa.';
   if(!confirm(warn))return;
   const cust=(o.method==='debt'&&o.customerId)?(customers||[]).find(x=>x.id===o.customerId):null;
-  let muaAmount=0,muaRef=null;
-  if(o.method==='debt'&&o.customerId){try{const tsnap=await getDocs(collection(db,'users',UID,'customers',o.customerId,'transactions'));const md=tsnap.docs.filter(d=>d.data().type==='mua').find(d=>d.data().orderId===id)||null;if(md){muaAmount=Math.round(Number(md.data().amount)||0);muaRef=doc(db,'users',UID,'customers',o.customerId,'transactions',md.id);}}catch(e){}}
+  let muaAmount=0,muaRef=null,_muaP=null;
+  if(o.method==='debt'&&o.customerId){try{const tsnap=await getDocs(collection(db,'users',UID,'customers',o.customerId,'transactions'));const md=tsnap.docs.filter(d=>d.data().type==='mua').find(d=>d.data().orderId===id)||null;if(md){muaAmount=Math.round(Number(md.data().amount)||0);muaRef=doc(db,'users',UID,'customers',o.customerId,'transactions',md.id);_muaP=((md.data()||{}).att||{}).p||null;}}catch(e){}}
   const batch=writeBatch(db);
   Object.keys(soldBase).forEach(pid=>{if(!skProducts.find(x=>x.id===pid))return;const net=Math.max(0,(soldBase[pid]||0)-(retBase[pid]||0));if(net>0){batch.update(bdoc('products',pid),{stock:increment(net)});const pn=(o.items.find(x=>x.id===pid)||{}).name||(skProducts.find(x=>x.id===pid)||{}).name||'';batch.set(doc(bcol('stock_moves')),{productId:pid,productName:pn,delta:+net,reason:'void',orderId:id,note:'Hủy đơn '+so,at:serverTimestamp()});}});
   rets.forEach(r=>{if(r.id)batch.delete(bdoc('returns',r.id));});
@@ -4009,7 +4048,10 @@ async function skDeleteOrder(){
   ghiNhatKy(skBranch,'xoa_don',{orderId:id,soDon:so,total:Math.round(Number(o.total)||0),method:o.method||'',
     customerId:o.customerId||'',customerName:o.customerName||'',soMatHang:(o.items||[]).length,
     soPhieuTra:rets.length,banLuc:Number(o.createdAtMs)||0});
-  batch.commit().then(function(){ if(o.hdToken)purgeShare(o.hdToken,UID).catch(function(){}); })
+  /* [TỰ DỌN] ghi việc trước: rớt mạng / tắt app thì lần mở sau dọn nốt link hoá đơn + ảnh của GD mua */
+  if(o.hdToken)dqAdd({key:'o:'+o.hdToken,k:'o',b:skBranch,oid:id,tok:o.hdToken});
+  if(muaRef&&_muaP)dqAdd({key:'f:'+_muaP,k:'f',p:_muaP,cid:o.customerId,tid:muaRef.id});
+  batch.commit().then(function(){ if(o.hdToken)purgeShare(o.hdToken,UID).catch(function(){}); if(muaRef&&_muaP)stgDel(_muaP).catch(function(){}); })
     .catch(e=>skErr(e,'Xóa đơn'));   /* xoá cả chuky + file chữ ký, không để mồ côi */
   if(o.method==='debt'&&o.customerId&&navigator.onLine&&cust&&cust.shareToken){(async()=>{try{const nd=await recomputeDebtOnline(o.customerId);await updateDoc(doc(db,'users',UID,'customers',o.customerId),{debt:nd});await syncShare(cust.shareToken,cust.id,cust.name,cust.phone,nd);}catch(e){}})();}
   skCloseModal('#sk-od');toast('🗑 Đã xóa đơn '+so+' · hàng đã trả về kho');markDirty();skOdId=null;
@@ -4045,7 +4087,7 @@ async function skDoReturn(){ try{ if(window.caChoPhepBan && window.caChoPhepBan(
       const cur=Math.round(Number(mua.data().amount)||0);
       const rem=cur-Math.round(refund);
       const mref=doc(db,'users',UID,'customers',o.customerId,'transactions',mua.id);
-      if(rem<=0){batch.delete(mref);}                                                   // trả hết phần còn lại → XÓA hẳn GD mua (sổ khách sạch)
+      if(rem<=0){batch.delete(mref);var _retDelP=((mua.data()||{}).att||{}).p||null;if(_retDelP)dqAdd({key:'f:'+_retDelP,k:'f',p:_retDelP,cid:o.customerId,tid:mua.id});} // trả hết phần còn lại → XÓA hẳn GD mua (sổ khách sạch) · [TỰ DỌN] kèm ảnh của GD đó
       else{const nt=mua.data().note||'';const suf=' · trả bớt hàng';batch.update(mref,{amount:rem,orderId:o.id,note:(nt.indexOf(suf)>=0?nt:nt+suf)});} // trả 1 phần → GIẢM số tiền GD mua (vẫn 1 dòng, không thêm dòng trả)
     }else{
       // Không tìm thấy GD mua gốc (đơn quá cũ đã bị sửa/xóa GD, hoặc offline thiếu cache) → buộc ghi 1 dòng giảm nợ để nợ vẫn ĐÚNG
@@ -4053,7 +4095,7 @@ async function skDoReturn(){ try{ if(window.caChoPhepBan && window.caChoPhepBan(
       batch.set(txRef,{type:'tra',amount:refund,note:'Hoàn trả hàng',memo:'',date:new Date(),createdAt:serverTimestamp(),createdAtMs:Date.now()});
     }
   }
-  batch.commit().catch(e=>skErr(e,'Trả hàng'));
+  batch.commit().then(()=>{if(typeof _retDelP!=='undefined'&&_retDelP)stgDel(_retDelP).catch(()=>{});}).catch(e=>skErr(e,'Trả hàng'));
   // Đồng bộ trang chia sẻ cho khách: CHỈ khi đang có mạng. Offline thì số nợ đã đúng nhờ increment; healDebt sẽ soát lại khi mở lại sổ nợ lúc có mạng.
   if(o.method==='debt'&&o.customerId&&navigator.onLine){const c=(customers||[]).find(x=>x.id===o.customerId);if(c&&c.shareToken){(async()=>{try{const nd=await recomputeDebtOnline(c.id);await updateDoc(doc(db,'users',UID,'customers',c.id),{debt:nd});await syncShare(c.shareToken,c.id,c.name,c.phone,nd);}catch(e){}})();}}
   skCloseModal('#sk-ret');toast(o.method==='debt'?('Đã trả hàng · giảm nợ '+fmt(refund)):('Đã trả hàng · hoàn '+fmt(refund)));markDirty();skRetOrder=null;
@@ -4095,7 +4137,10 @@ async function skSavePurchase(){
 function skRenderSuppliers(){const box=skq('#sk-sup-list');if(!box)return;if(!skSuppliers.length){box.innerHTML='<div class="sk-empty">Chưa có nhà cung cấp. Bấm ➕ Thêm NCC.</div>';return;}box.innerHTML=skSuppliers.map(s=>'<div class="sk-row"><div class="sk-row-main" data-act="sup-edit" data-id="'+s.id+'"><div class="sk-row-name">'+escHtml(s.name)+'</div><div class="sk-row-sub">'+(s.phone?escHtml(s.phone)+' · ':'')+((s.debt||0)>0?('<b style="color:#c0392b">Còn nợ '+fmt(s.debt)+'</b>'):'Không nợ')+'</div></div>'+((s.debt||0)>0?'<button class="sk-btn green" data-act="sup-pay" data-id="'+s.id+'">Trả NCC</button>':'')+'</div>').join('');}
 function skOpenSupplier(id){skSupEditId=id||null;const s=id?skSuppliers.find(x=>x.id===id):{};skq('#sk-sf-title').textContent=id?'Sửa nhà cung cấp':'Thêm nhà cung cấp';skq('#sk-sf-name').value=s.name||'';skq('#sk-sf-phone').value=s.phone||'';skq('#sk-sf-addr').value=s.address||'';skq('#sk-sf-del').style.display=id?'':'none';skModalOpen('#sk-sup-form');}
 async function skSaveSupplier(){const data={name:skq('#sk-sf-name').value.trim(),phone:skq('#sk-sf-phone').value.trim(),address:skq('#sk-sf-addr').value.trim()};if(!data.name){toast('Nhập tên NCC');return;}try{if(skSupEditId)updateDoc(doc(db,'users',UID,'suppliers',skSupEditId),data).catch(function(e){toast(e.message);});else addDoc(collection(db,'users',UID,'suppliers'),Object.assign({},data,{debt:0,createdAt:serverTimestamp()})).catch(function(e){toast(e.message);});skCloseModal('#sk-sup-form');toast('✅ Đã lưu NCC');markDirty();}catch(e){toast(e.message);}}
-async function skDelSupplier(){if(!skSupEditId)return;try{deleteDoc(doc(db,'users',UID,'suppliers',skSupEditId)).catch(function(e){toast(e.message);});skCloseModal('#sk-sup-form');toast('Đã xóa NCC');markDirty();}catch(e){toast(e.message);}}
+async function skDelSupplier(){if(!skSupEditId)return;try{deleteDoc(doc(db,'users',UID,'suppliers',skSupEditId)).catch(function(e){toast(e.message);});
+  /* [TỰ DỌN] phiếu trả nợ của NCC này xoá theo — không để nằm lại vô chủ */
+  try{var _sidX=skSupEditId;getDocs(query(collection(db,'users',UID,'supplier_payments'),where('supplierId','==',_sidX))).then(function(s){if(!s||s.empty)return;for(let i=0;i<s.docs.length;i+=400){const _b=writeBatch(db);s.docs.slice(i,i+400).forEach(function(d){_b.delete(d.ref);});_b.commit().catch(function(){});}}).catch(function(){});}catch(_){}
+  skCloseModal('#sk-sup-form');toast('Đã xóa NCC');markDirty();}catch(e){toast(e.message);}}
 function skPaySupplier(id){const s=skSuppliers.find(x=>x.id===id);if(!s)return;skNum('Trả nợ NCC: '+s.name+' (còn '+fmt(s.debt||0)+')',s.debt||0,v=>{if(v<=0)return;const batch=writeBatch(db);batch.update(doc(db,'users',UID,'suppliers',id),{debt:increment(-v)});batch.set(doc(collection(db,'users',UID,'supplier_payments')),{supplierId:id,amount:v,at:serverTimestamp()});batch.commit().catch(e=>skErr(e,'Trả NCC'));toast('Đã trả NCC '+fmt(v));markDirty();});}
 
 /* ---- THANH TOÁN ---- */
@@ -4982,6 +5027,8 @@ async function skSaveBranch(){const name=skq('#sk-bf-name').value.trim();if(!nam
   if(ng&&ng!==ngCu&&skNganhSanSang()&&!skNganhCoGoi(ng)){ var okT=await skMoGoiNganh(ng); if(!okT)return; }
   try{if(skBrEditId)updateDoc(doc(db,'users',UID,'branches',skBrEditId),{name:name,nganh:ng}).catch(function(e){skErr(e,'Lưu cửa hàng');});
     else{ var _ma=skMaMoiChoNganh(ng);   /* [v7] mã cố định — Rules dựa vào mã này để thu phí */
+      /* [TỰ DỌN] mã cấp lại trùng cửa hàng đã xoá ở bản cũ (chỉ xoá tên) ⇒ hỏi dọn dữ liệu cũ, không để "sống lại" */
+      try{ if(window.__TDR&&window.__TDR.donMaCu&&navigator.onLine!==false) await window.__TDR.donMaCu(_ma); }catch(_){}
       setDoc(doc(db,'users',UID,'branches',_ma),{name:name,nganh:ng,createdAt:serverTimestamp()},{merge:true}).catch(function(e){skErr(e,'Lưu cửa hàng');}); }
     if(skBrEditId)skNganhMap[skBrEditId]=ng;
     skCloseModal('#sk-branch-form');toast('✅ Đã lưu cửa hàng');markDirty();
@@ -4997,7 +5044,13 @@ async function skMoGoiNganh(k){
     if(ok){toast('🎁 Đã mở dùng thử '+N.ten(k)+' '+N.ngayThu+' ngày');return true;}
   }
   skCloseModal('#sk-branch-form');skCloseModal('#sk-branch');N.mua(k);return false;}
-async function skDelBranch(){if(!skBrEditId)return;if(skBranches.length<=1){toast('Phải còn ít nhất 1 cửa hàng');return;}if(skBrEditId===skBranch){toast('Không xóa cửa hàng đang dùng');return;}try{deleteDoc(doc(db,'users',UID,'branches',skBrEditId)).catch(function(e){skErr(e,'Xóa cửa hàng');});skCloseModal('#sk-branch-form');toast('Đã xóa cửa hàng');markDirty();}catch(e){skErr(e,'Xóa cửa hàng');}}
+async function skDelBranch(){if(!skBrEditId)return;if(skBranches.length<=1){toast('Phải còn ít nhất 1 cửa hàng');return;}if(skBrEditId===skBranch){toast('Không xóa cửa hàng đang dùng');return;}
+  /* [TỰ DỌN] Xoá cửa hàng = xoá SẠCH bên trong (hàng, đơn, kho, ca, quỹ, bàn, két ngành, link hoá đơn, thực đơn QR,
+     link online, đơn & tin nhắn khách). Bản cũ chỉ xoá TÊN ⇒ dữ liệu nằm lại mãi và "sống lại" khi mở cửa hàng
+     mới cùng ngành (mã cấp lại trùng). Việc nặng do module Tự dọn rác (cuối file) làm. */
+  var _idX=skBrEditId,_tenX=skBranchName(_idX);
+  if(!(window.__TDR&&window.__TDR.xoaCuaHang)){toast('⏳ Công cụ xoá chưa sẵn sàng — đợi vài giây rồi bấm lại');return;}
+  try{var _ok=await window.__TDR.xoaCuaHang(_idX,_tenX);if(_ok){skCloseModal('#sk-branch-form');markDirty();}}catch(e){skErr(e,'Xóa cửa hàng');}}
 
 /* ═══════════ CHI NHÁNH THÊM — TÍNH TIỀN THEO THÁNG (add-on giống POS) ═══════════
    Chi nhánh chính (main) luôn miễn phí kèm gói POS. Mỗi chi nhánh THÊM là 1 suất,
@@ -6080,7 +6133,7 @@ window.onFullModeChange=()=>{const mode=document.querySelector('input[name="full
 function fullLog(m){const el=document.getElementById('full-log');if(!el)return;el.style.display='block';el.textContent+=m+'\n';el.scrollTop=el.scrollHeight;}
 async function _wipeCol(ref){const s=await getDocs(ref);for(const d of s.docs)await deleteDoc(d.ref);}
 /* Đơn hàng có link hoá đơn + chữ ký nhận hàng ⇒ xoá đơn phải dọn kèm, không để mồ côi */
-async function _wipeOrders(ref){const s=await getDocs(ref);for(const d of s.docs){const t=((d.data()||{}).hdToken)||'';if(t){try{await purgeShare(t,UID);}catch(e){}}try{await deleteDoc(d.ref);}catch(e){}}}
+async function _wipeOrders(ref,keep){const s=await getDocs(ref);for(const d of s.docs){const t=((d.data()||{}).hdToken)||'';if(t&&!(keep&&keep.has(t))){try{await purgeShare(t,UID);}catch(e){}}try{await deleteDoc(d.ref);}catch(e){}}}   /* keep: mã hoá đơn file phục hồi còn dùng ⇒ giữ link + chữ ký */
 
 window.runFullRestore=async()=>{
   if(!_fullParsed)return;
@@ -6097,22 +6150,26 @@ window.runFullRestore=async()=>{
   try{
     /* ---------- PHẦN 1: SỔ NỢ (dùng lại logic Nhập/Phục hồi) ---------- */
     fullLog('▶ Phục hồi SỔ NỢ...');
-    const custs=_fullParsed.customers.map(c=>({name:String(c.name||'').trim(),phone:String(c.phone||'').trim(),address:String(c.address||'').trim(),debt:parseVnd(c.debt),shareToken:c.shareToken||null,transactions:(c.transactions||[]).map(t=>{const o={type:normType(t.type),amount:parseVnd(t.amount),note:String(t.note||'').trim(),memo:String(t.memo||'').trim(),date:parseViDate(t.date)};if(attHas(t.att))o.att=t.att;return o;})})).filter(c=>c.name);
+    const custs=_fullParsed.customers.map(c=>({id:(typeof c.id==='string'?c.id:''),name:String(c.name||'').trim(),phone:String(c.phone||'').trim(),address:String(c.address||'').trim(),debt:parseVnd(c.debt),shareToken:c.shareToken||null,transactions:(c.transactions||[]).map(t=>{const o={type:normType(t.type),amount:parseVnd(t.amount),note:String(t.note||'').trim(),memo:String(t.memo||'').trim(),date:parseViDate(t.date)};if(attHas(t.att))o.att=t.att;return o;})})).filter(c=>c.name);
     if(mode==='replace'){
       fullLog('  🗑 Xoá khách & giao dịch cũ...');
+      /* [TỰ DỌN] ảnh + chữ ký mà file phục hồi còn trỏ tới ⇒ GIỮ (file sao lưu chỉ lưu link, không lưu ảnh) */
+      const _keepP=new Set(),_keepTok=new Set();
+      custs.forEach(c=>{if(c.shareToken)_keepTok.add(String(c.shareToken));(c.transactions||[]).forEach(t=>{if(t&&t.att&&t.att.p)_keepP.add(String(t.att.p));});});
       const oldc=await getDocs(collection(db,'users',UID,'customers'));
       for(const cd of oldc.docs){const tx=await getDocs(collection(db,'users',UID,'customers',cd.id,'transactions'));for(const td of tx.docs)await deleteDoc(doc(db,'users',UID,'customers',cd.id,'transactions',td.id));
-        try{await stgWipe('u/'+UID+'/att/'+cd.id);}catch(e){}
-        const _cc=cd.data();if(_cc.shareToken){try{await purgeShare(_cc.shareToken,UID);}catch(e){}}
+        try{await stgWipeTru('u/'+UID+'/att/'+cd.id,_keepP);}catch(e){}
+        const _cc=cd.data();if(_cc.shareToken&&!_keepTok.has(String(_cc.shareToken))){try{await purgeShare(_cc.shareToken,UID);}catch(e){}}
         await deleteDoc(doc(db,'users',UID,'customers',cd.id));}
     }
     const existing=new Map();
     if(mode!=='replace'){const cur=await getDocs(collection(db,'users',UID,'customers'));cur.docs.forEach(cd=>{const c=cd.data();existing.set(String(c.name||'').toLowerCase(),{id:cd.id});});}
     let addedC=0,updatedC=0,addedT=0,skipT=0;
+    const _usedId=new Set(),_idOk=v=>typeof v==='string'&&/^[A-Za-z0-9_-]{1,100}$/.test(v);   /* [TỰ DỌN] ghi đè: dựng lại khách ĐÚNG mã cũ */
     for(const inc of custs){
       const key=inc.name.toLowerCase();let custId;const exKeys=new Set();
       if(existing.has(key)){custId=existing.get(key).id;updatedC++;const ex=await getDocs(collection(db,'users',UID,'customers',custId,'transactions'));ex.docs.forEach(td=>{const t=td.data();exKeys.add(`${ymd(t.date)}|${t.type}|${Number(t.amount)||0}|${(t.note||'').trim()}`);});}
-      else{const ref=await addDoc(collection(db,'users',UID,'customers'),{name:inc.name,phone:inc.phone,address:inc.address,debt:inc.debt,createdAt:serverTimestamp()});custId=ref.id;addedC++;existing.set(key,{id:custId});}
+      else{let ref;if(mode==='replace'&&_idOk(inc.id)&&!_usedId.has(inc.id)){ref=doc(db,'users',UID,'customers',inc.id);await setDoc(ref,{name:inc.name,phone:inc.phone,address:inc.address,debt:inc.debt,createdAt:serverTimestamp()});_usedId.add(inc.id);}else ref=await addDoc(collection(db,'users',UID,'customers'),{name:inc.name,phone:inc.phone,address:inc.address,debt:inc.debt,createdAt:serverTimestamp()});custId=ref.id;addedC++;existing.set(key,{id:custId});}
       for(const t of inc.transactions){const k=`${ymd(t.date)}|${t.type}|${t.amount}|${(t.note||'').trim()}`;if(exKeys.has(k)){skipT++;continue;}const td2={type:t.type,amount:t.amount,note:t.note,memo:t.memo||'',date:t.date,createdAt:serverTimestamp()};if(attHas(t.att))td2.att=t.att;await addDoc(collection(db,'users',UID,'customers',custId,'transactions'),td2);exKeys.add(k);addedT++;}
       const cd2={name:inc.name,phone:inc.phone,address:inc.address,debt:inc.debt};if(inc.shareToken)cd2.shareToken=inc.shareToken;await setDoc(doc(db,'users',UID,'customers',custId),cd2,{merge:true});
     }
@@ -6126,7 +6183,8 @@ window.runFullRestore=async()=>{
       let brs=[];try{const b=await getDocs(collection(db,'users',UID,'branches'));brs=b.docs.map(d=>d.id);}catch(e){}
       if(!brs.includes('main'))brs.push('main');
       const cols=['products','orders','stock_moves','purchases','returns'];
-      for(const bId of brs){for(const n of cols){try{if(n==='orders')await _wipeOrders(_posPath(bId,n));else await _wipeCol(_posPath(bId,n));}catch(e){}}}
+      const _keepHd=new Set();try{const _bb=pos.byBranch||{};for(const _k in _bb){((_bb[_k]&&_bb[_k].orders)||[]).forEach(o=>{if(o&&o.hdToken)_keepHd.add(String(o.hdToken));});}}catch(e){}   /* [TỰ DỌN] */
+      for(const bId of brs){for(const n of cols){try{if(n==='orders')await _wipeOrders(_posPath(bId,n),_keepHd);else await _wipeCol(_posPath(bId,n));}catch(e){}}}
       for(const gn of ['suppliers','supplier_payments','staff']){try{await _wipeCol(collection(db,'users',UID,gn));}catch(e){}}
     }
     // chi nhánh
@@ -19505,7 +19563,7 @@ if (window.__RMT_READY__) return; window.__RMT_READY__ = true;
 try{
 
 /* ĐỔI CHUỖI NÀY CHO TRÙNG APP_BUILD MỖI LẦN DEPLOY (chỉ để hiện ở bảng quản trị) */
-var BUILD = '2026-10-01-QT11';
+var BUILD = '2026-10-01-DON1';
 var NHIP   = 6*3600*1000;          /* báo về tối đa 6 giờ 1 lần — khỏi tốn lượt ghi */
 var KEY_HB = 'rmt_hb_v2';          /* [QT7] nhịp báo về tính RIÊNG từng tài khoản (bản v1 tính chung cả máy) */
 var KEY_XEM= 'rmt_xem_v1';
@@ -23238,6 +23296,687 @@ window.aspDonAnh = function(){ return quet(); };
 })();
 </script>
 <!-- ═══════════════ HẾT: TỰ DỌN ẢNH SẢN PHẨM CŨ ═══════════════ -->
+<!-- ═══════════════ TỰ DỌN RÁC — DỮ LIỆU & ẢNH MỒ CÔI · TIN NHẮN & ĐƠN CŨ (drop-in · namespace tdr-) ═══════════════
+     VÌ SAO CÓ KHỐI NÀY
+       Mọi shop dùng CHUNG 1 dự án Firebase — chủ phần mềm trả tiền lưu trữ. Rác không ai dọn thì nhiều
+       shop cộng lại, năm này qua năm khác, kho cứ phình ra.
+     LÀM GÌ — chạy ngầm, không ai phải bấm, không hiện gì lên màn hình
+       1) SỔ VIỆC DỌN DỞ (mọi máy đăng nhập thật, mỗi lần mở app): xoá giao dịch / khách / đơn mà rớt
+          mạng hay tắt app trước khi kịp dọn ảnh, chữ ký, link ⇒ hỏi lại MÁY CHỦ rồi làm nốt.
+       2) TIN NHẮN KHÁCH (máy chủ shop, 7 ngày 1 lần): cuộc không ai nhắn gì 30 ngày ⇒ xoá cả cuộc;
+          cuộc còn nhắn ⇒ chỉ xoá tin cũ hơn 30 ngày. Cuộc đã CHẶN giữ lại vỏ (giữ lệnh chặn), xoá tin.
+       3) ĐƠN QR / ONLINE (máy chủ shop, 7 ngày 1 lần, đọc HẾT không giới hạn 100): đã xử lý quá 3 ngày ·
+          chờ mãi không ai xử lý (online 7 ngày · tại bàn 2 ngày) · đặt lịch đã qua giờ hẹn 2 ngày.
+       4) KHO ẢNH (máy chủ shop, 30 ngày 1 lần, CHỈ đọc thêm khi thật sự có thư mục nghi mồ côi):
+          ảnh + giao dịch sót của khách đã xoá (soát chéo mọi giao dịch còn lại trước khi xoá) · chữ ký
+          + link của khách / đơn đã xoá. File mới tải dưới 1 ngày KHÔNG BAO GIỜ bị xoá.
+       5) XOÁ CỬA HÀNG = xoá SẠCH bên trong (tải file lưu trữ về máy trước) · mở cửa hàng mới trùng mã
+          cửa hàng đã xoá ở bản cũ ⇒ hỏi dọn dữ liệu cũ, không để "sống lại".
+       6) Nút 🧹 Dọn kho ảnh (bấm tay): soát kỹ toàn bộ, đọc thẳng máy chủ, không xoá file đang dùng.
+     KHÔNG BAO GIỜ đụng sổ sách đang dùng (khách, sổ nợ, hàng, đơn bán, kho, ca, quỹ). KHÔNG sửa Rules.
+     Thử bằng tay (DevTools, máy chủ shop): await tdrDonRac()  ⇒ chạy ngay mọi việc, trả về số liệu.
+     ═════════════════════════════════════════════════════════════════════════════════════ -->
+<script type="module">
+import { getApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getAuth } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { getDocFromServer, getDocsFromServer, startAfter, deleteField } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getStorage, ref as tdrRef, listAll, deleteObject, getMetadata }
+  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
+(function(){
+if(window.__TDR_READY__) return; window.__TDR_READY__ = true;
+
+var _lan = 0;
+(function cho(){
+  try{ if(window.SKMOD && window.SKMOD.core && window.SKMOD.fb && window.SKMOD.fb.db){ chay(window.SKMOD); return; } }catch(e){}
+  if(++_lan < 240) setTimeout(cho, 500);
+})();
+
+function chay(M){
+try{
+var C = M.core, F = M.fb;
+if(!M.reg('tudonrac', { ns:'tdr', name:'Tự dọn rác', ver:'1.0' })) return;
+
+/* ═════════ CẤU HÌNH ═════════ */
+var NGAY        = 86400000;
+var GIU_CHAT    = 30 * NGAY;     /* tin nhắn khách: giữ 30 ngày kể từ tin cuối */
+var GIU_DON_XL  = 3 * NGAY;      /* đơn QR / online đã xử lý: 3 ngày (y như module Đơn QR) */
+var GIU_CHO_ONL = 7 * NGAY;      /* đơn online chờ mãi không ai xử lý */
+var GIU_CHO_BAN = 2 * NGAY;      /* đơn QR tại bàn chờ mãi không ai xử lý */
+var GIU_LICH    = 2 * NGAY;      /* đơn đặt lịch: qua giờ hẹn 2 ngày */
+var NHIP_TUAN   = 7 * NGAY;      /* tin nhắn + đơn: 7 ngày quét 1 lần */
+var NHIP_KHO    = 30 * NGAY;     /* kho ảnh: 30 ngày quét 1 lần */
+var THU_LAI     = 6 * 3600000;   /* lỗi / mất mạng ⇒ 6 giờ sau thử lại */
+var TUOI_FILE   = NGAY;          /* file mới tải dưới 1 ngày KHÔNG BAO GIỜ bị xoá (đang ký / đang đính kèm dở) */
+var CHO_UP      = 30 * 60000;    /* file vừa tải mà chưa lưu: 30 phút sau mới xét */
+var HAN_VIEC    = 7 * NGAY;      /* việc dọn dở mà bản ghi gốc vẫn còn trên máy chủ quá 7 ngày ⇒ bỏ (lệnh xoá đã bị từ chối) */
+var BO_VIEC     = 21 * NGAY;     /* việc lỗi mãi quá 21 ngày ⇒ bỏ */
+var TRE         = 90000;         /* mở app 1,5 phút sau mới chạy — nhường app nạp dữ liệu */
+var LO          = 300;           /* mỗi lô đọc / xoá tối đa 300 bản ghi */
+var BR_KHO = ['products','orders','stock_moves','purchases','returns','shifts','cashlog','pos_audit',
+              'pos_held','pos_meta','pos_tables','pos_fnb','pos_fs','pos_rm','pos_kg','_diag'];   /* mọi kho bên trong 1 cửa hàng */
+var DO_NHANH = ['products','orders','stock_moves','pos_meta','shifts'];                          /* dò nhanh dữ liệu cũ của 1 mã cửa hàng */
+/* ═══════════════════════════ */
+
+var DANG = false, DANG_VIEC = false, DANG_CN = false, HMEM = {};
+
+/* ───────── tiện ích ───────── */
+function uid(){ try{ return C.uid() || null; }catch(e){ return null; } }
+function app(){
+  var a = null;
+  try{ a = getApp(); }catch(e){ a = null; }
+  if(!a){
+    var L = []; try{ L = getApps() || []; }catch(e2){ L = []; }
+    for(var i = 0; i < L.length; i++) if(L[i] && L[i].name !== 'errlog' && L[i].name !== 'pub'){ a = L[i]; break; }
+  }
+  return a;
+}
+function kho(){ var a = app(); return a ? getStorage(a) : getStorage(); }
+function tkUid(){
+  try{ var a = app(), u = (a ? getAuth(a) : getAuth()).currentUser; return (u && !u.isAnonymous) ? u.uid : null; }
+  catch(e){ return null; }
+}
+/* MÁY CHỦ SHOP = không mang lớp la-nv VÀ người đang đăng nhập chính là chủ kho dữ liệu */
+function laMayChu(){
+  try{ if(!document.body || document.body.classList.contains('la-nv')) return false; }catch(e){ return false; }
+  var u = uid(); return !!u && tkUid() === u;
+}
+function lsDoc(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
+function lsGhi(k, v){ try{ localStorage.setItem(k, v); }catch(e){} }
+function ma(e){ return String((e && (e.code || e.message)) || e || ''); }
+function msOf(v){
+  try{
+    if(!v) return 0;
+    if(typeof v.toMillis === 'function') return v.toMillis();
+    if(v instanceof Date) return v.getTime();
+    if(typeof v.seconds === 'number') return v.seconds * 1000;
+    return Number(v) || 0;
+  }catch(e){ return 0; }
+}
+function noi(t){ try{ C.toast(t); }catch(e){} }
+function kHen(u, loai){ return 'tdr_hen_' + loai + '_' + u; }
+function hen(u, loai, nhip){
+  var n = Number(lsDoc(kHen(u, loai)) || 0);
+  if(!isFinite(n) || n < 0) n = 0;
+  if(n > Date.now() + nhip + NGAY) n = 0;                          /* đồng hồ máy từng chỉnh sai ⇒ bỏ hẹn cũ */
+  return Math.max(n, Number(HMEM[loai + '|' + u]) || 0);
+}
+function datHen(u, loai, t){ t = Math.round(t); HMEM[loai + '|' + u] = t; lsGhi(kHen(u, loai), String(t)); }
+function col(u, b, n){ return b === 'main' ? F.collection(F.db, 'users', u, n) : F.collection(F.db, 'users', u, 'branches', b, n); }
+function hetGio(p, ms){ return Promise.race([p, new Promise(function(_, rej){ setTimeout(function(){ rej(new Error('het-gio')); }, ms); })]); }
+function henCua(d){                                                  /* giờ hẹn của đơn đặt lịch — y hệt module Đơn QR */
+  if(!d) return 0;
+  var h = Number(d.henMoi) || 0; if(h > 0) return h;
+  var its = Array.isArray(d.items) ? d.items : [];
+  for(var i = 0; i < its.length; i++){ var x = Number(its[i] && its[i].h) || 0; if(x > 0) return x; }
+  return 0;
+}
+
+/* ───────── KHO ẢNH ───────── */
+async function xoaFile(p){
+  p = String(p || '');
+  if(!p || p.slice(0, 5) === 'data:') return 0;                    /* dữ liệu cũ nhúng base64: không có file */
+  try{ await deleteObject(tdrRef(kho(), p)); return 1; }
+  catch(e){ if(e && e.code === 'storage/object-not-found') return 0; throw e; }
+}
+async function dsFile(prefix){                                       /* mọi file trong thư mục (kể cả thư mục con) */
+  var r = await listAll(tdrRef(kho(), prefix)), out = (r.items || []).slice();
+  for(var i = 0; i < (r.prefixes || []).length; i++) out = out.concat(await dsFile(r.prefixes[i].fullPath));
+  return out;
+}
+async function tuoi(it){                                             /* tuổi file (ms) — đọc lỗi ⇒ coi như MỚI, không xoá */
+  try{ var m = await getMetadata(it); var t = Date.parse(m && m.timeCreated); return isFinite(t) ? (Date.now() - t) : 0; }
+  catch(e){ return (e && e.code === 'storage/object-not-found') ? -1 : 0; }
+}
+/* Xoá file trong thư mục, TRỪ file đang dùng (giu).
+   kiemTuoi ⇒ chỉ xoá file đã cũ ≥ 1 ngày.
+   dau ('cust' | 'token') ⇒ chỉ xoá file mang DẤU của chính app này (app ghi kèm mã khách / mã link lúc tải lên)
+   khớp đúng tên thư mục — thư mục không rõ chủ thì file lạ (app khác, tính năng khác) KHÔNG bao giờ bị đụng. */
+async function xoaThuMuc(prefix, giu, kiemTuoi, dau){
+  var ds = await dsFile(prefix), n = 0, ten = String(prefix).split('/').pop();
+  for(var i = 0; i < ds.length; i++){
+    var it = ds[i];
+    if(giu && giu[it.fullPath]) continue;
+    if(kiemTuoi || dau){
+      var m = null;
+      try{ m = await getMetadata(it); }catch(e){ m = null; }
+      if(!m) continue;                                               /* đọc lỗi / file vừa mất ⇒ bỏ qua */
+      if(kiemTuoi){ var t = Date.parse(m.timeCreated); if(!isFinite(t) || Date.now() - t < TUOI_FILE) continue; }
+      if(dau && String((m.customMetadata || {})[dau] || '') !== ten) continue;
+    }
+    n += await xoaFile(it.fullPath);
+  }
+  return n;
+}
+async function coFileMoi(prefix){
+  var ds = await dsFile(prefix);
+  for(var i = 0; i < ds.length; i++){ var t = await tuoi(ds[i]); if(t >= 0 && t < TUOI_FILE) return true; }
+  return false;
+}
+/* Đường dẫn trong kho của 1 link ảnh Firebase Storage — không phải link kho ⇒ '' */
+function duongDan(u){
+  u = String(u || '');
+  if(u.indexOf('https://firebasestorage.googleapis.com/') !== 0) return '';
+  var i = u.indexOf('/o/'); if(i < 0) return '';
+  var s = u.slice(i + 3), q = s.indexOf('?'); if(q >= 0) s = s.slice(0, q);
+  try{ return decodeURIComponent(s); }catch(e){ return ''; }
+}
+
+/* ───────── FIRESTORE (mọi lượt đọc đều hỏi thẳng MÁY CHỦ, không tin bộ nhớ đệm) ───────── */
+async function xoaDocs(ds){
+  for(var i = 0; i < ds.length; i += LO){
+    var b = F.writeBatch(F.db);
+    ds.slice(i, i + LO).forEach(function(d){ b.delete(d && d.ref ? d.ref : d); });
+    await b.commit();
+  }
+  return ds.length;
+}
+async function xoaHet(q){                                            /* xoá sạch kết quả 1 truy vấn, theo lô */
+  var n = 0;
+  for(var v = 0; v < 400; v++){
+    var s = await getDocsFromServer(F.query(q, F.limit(LO)));
+    if(s.empty) return n;
+    await xoaDocs(s.docs); n += s.size;
+  }
+  throw new Error('qua-nhieu-ban-ghi');
+}
+async function quetHet(q, moiDoc){                                   /* đọc hết 1 truy vấn theo trang */
+  var last = null, n = 0;
+  for(var v = 0; v < 400; v++){
+    var s = await getDocsFromServer(last ? F.query(q, startAfter(last), F.limit(LO)) : F.query(q, F.limit(LO)));
+    for(var i = 0; i < s.docs.length; i++) await moiDoc(s.docs[i]);
+    n += s.size;
+    if(s.size < LO) return n;
+    last = s.docs[s.docs.length - 1];
+  }
+  return n;
+}
+async function dsCN(u){
+  var s = await getDocsFromServer(F.collection(F.db, 'users', u, 'branches')), a = ['main'];
+  s.forEach(function(d){ if(d.id !== 'main') a.push(d.id); });
+  return a;
+}
+/* Còn đơn nào (mọi cửa hàng) mang mã hoá đơn này không — đọc lỗi ⇒ coi như CÒN (không xoá) */
+async function hdConDon(u, tok, cns){
+  for(var i = 0; i < cns.length; i++){
+    try{
+      var q = await getDocsFromServer(F.query(col(u, cns[i], 'orders'), F.where('hdToken', '==', tok), F.limit(1)));
+      if(!q.empty) return true;
+    }catch(e){ return true; }
+  }
+  return false;
+}
+/* Dọn sạch 1 link chia sẻ (nợ / hoá đơn): chữ ký + file chữ ký + doc link. Link của shop khác ⇒ KHÔNG đụng. */
+async function donLink(u, tok, chac){
+  if(!tok) return 0;
+  tok = String(tok);
+  var sref = F.doc(F.db, 'shares', tok);
+  var s = await getDocFromServer(sref);
+  if(s.exists()){ var o = (s.data() || {}).ownerUid; if(o && o !== u) return 0; }
+  var ck = await getDocsFromServer(F.collection(F.db, 'shares', tok, 'chuky'));
+  var tam = false;
+  if(!ck.empty && !s.exists()){
+    /* Doc link đã mất (vd. quản trị thu hồi) mà chữ ký còn: Rules chỉ cho chủ shop xoá chữ ký khi doc link
+       còn ⇒ dựng tạm 1 doc của chính mình, xoá chữ ký, rồi xoá luôn doc tạm. */
+    await F.setDoc(sref, { ownerUid: u, tam: true }); tam = true;
+  }
+  if(!ck.empty) await xoaDocs(ck.docs);
+  await xoaThuMuc('u/' + u + '/sign/' + tok, null, false, (chac || s.exists() || tam) ? null : 'token');
+  if(s.exists() || tam) await F.deleteDoc(sref);
+  return 1;
+}
+
+/* ═══════════ 1) SỔ VIỆC DỌN DỞ ═══════════
+   App ghi việc vào sổ TRƯỚC khi xoá (localStorage của máy, không tốn lượt Firestore):
+     f = file của 1 giao dịch (xoá GD / thay ảnh / gỡ ảnh) · u = file vừa tải mà chưa lưu
+     c = khách đã xoá (giao dịch sót + thư mục ảnh + link + chữ ký) · o = đơn đã xoá (link hoá đơn + chữ ký)
+   Chỉ làm khi MÁY CHỦ xác nhận bản ghi gốc đã thật sự mất / không còn trỏ tới file. */
+function dqK(u){ return 'sn_donq_v1_' + u; }
+function dqDoc(u){
+  try{ var a = JSON.parse(lsDoc(dqK(u)) || '[]'); return Array.isArray(a) ? a.filter(function(x){ return x && x.key; }) : []; }
+  catch(e){ return []; }
+}
+function dqBo(u, keys){
+  if(!keys.length) return;
+  var a = dqDoc(u).filter(function(x){ return keys.indexOf(x.key) < 0; });
+  lsGhi(dqK(u), JSON.stringify(a));
+}
+function cidTuPath(u, p){
+  var t = 'u/' + u + '/att/'; p = String(p || '');
+  if(p.indexOf(t) !== 0) return '';
+  var r = p.slice(t.length).split('/');
+  return (r.length >= 2 && r[0]) ? r[0] : '';
+}
+async function lamViec(u, j){
+  if(j.k === 'f'){
+    var p = String(j.p || '');
+    if(!p || p.indexOf('u/' + u + '/') !== 0) return 'xong';       /* không thuộc kho của shop này ⇒ không đụng */
+    var cid = cidTuPath(u, p) || j.cid;
+    if(cid && j.tid){
+      var s = await getDocFromServer(F.doc(F.db, 'users', u, 'customers', String(cid), 'transactions', String(j.tid)));
+      if(s.exists() && (((s.data() || {}).att) || {}).p === p) return 'giu';   /* vẫn đang dùng file này */
+    }
+    await xoaFile(p); return 'xong';
+  }
+  if(j.k === 'u'){
+    var p2 = String(j.p || '');
+    if(!p2 || p2.indexOf('u/' + u + '/att/') !== 0) return 'xong';
+    if(Date.now() - (Number(j.at) || 0) < CHO_UP) return 'cho';
+    var cid2 = cidTuPath(u, p2); if(!cid2) return 'xong';
+    var q = await getDocsFromServer(F.query(F.collection(F.db, 'users', u, 'customers', cid2, 'transactions'),
+                                             F.where('att.p', '==', p2), F.limit(1)));
+    if(!q.empty) return 'xong';                                      /* đã lưu vào sổ ⇒ GIỮ file */
+    await xoaFile(p2); return 'xong';
+  }
+  if(j.k === 'c'){
+    if(!j.cid) return 'xong';
+    var cs = await getDocFromServer(F.doc(F.db, 'users', u, 'customers', String(j.cid)));
+    if(cs.exists()) return 'giu';
+    await xoaHet(F.collection(F.db, 'users', u, 'customers', String(j.cid), 'transactions'));
+    await xoaThuMuc('u/' + u + '/att/' + j.cid, null, false);
+    if(j.tok){
+      var dung = await getDocsFromServer(F.query(F.collection(F.db, 'users', u, 'customers'),
+                                                  F.where('shareToken', '==', String(j.tok)), F.limit(1)));
+      if(dung.empty) await donLink(u, j.tok, true);                  /* khách khác còn giữ mã link này ⇒ không đụng */
+    }
+    return 'xong';
+  }
+  if(j.k === 'o'){
+    if(!j.tok) return 'xong';
+    if(j.oid){
+      var os = await getDocFromServer(F.doc(col(u, j.b || 'main', 'orders'), String(j.oid)));
+      if(os.exists()) return 'giu';
+    }
+    await donLink(u, j.tok, true); return 'xong';
+  }
+  return 'xong';
+}
+async function chayViec(){
+  if(DANG_VIEC) return { bo:'đang chạy' };
+  var u = uid();
+  if(!u || !tkUid() || navigator.onLine === false) return { bo:'chưa sẵn sàng' };
+  var a = dqDoc(u);
+  if(!a.length) return { xong:0, con:0 };
+  DANG_VIEC = true;
+  var kq = { xong:0, con:0, loi:0 }, bo = [], now = Date.now();
+  try{
+    for(var i = 0; i < a.length && i < 60; i++){
+      if(uid() !== u) break;
+      var j = a[i], tuoiV = now - (Number(j.at) || now), r;
+      try{ r = await lamViec(u, j); }
+      catch(e){ r = 'loi'; kq.loi++; if(/unavailable|network|offline|het-gio/i.test(ma(e))) break; }
+      if(r === 'xong'){ bo.push(j.key); kq.xong++; }
+      else if(r === 'giu' && tuoiV > HAN_VIEC) bo.push(j.key);
+      else if(r === 'loi' && tuoiV > BO_VIEC) bo.push(j.key);
+      else kq.con++;
+    }
+  }finally{ dqBo(u, bo); DANG_VIEC = false; }
+  return kq;
+}
+
+/* ═══════════ 2) TIN NHẮN KHÁCH + 3) ĐƠN QR / ONLINE ═══════════ */
+function nenXoaDon(o, now){
+  var tt = String(o.tt || ''), t = msOf(o.taoLuc) || Number(o.tsClient) || 0;
+  if(tt === 'cho'){
+    var h = henCua(o);
+    if(h > 0) return h < now - GIU_LICH;                            /* đặt lịch còn chờ: chỉ xoá khi đã qua giờ hẹn */
+    return !!t && t < now - (o.kieu === 'online' ? GIU_CHO_ONL : GIU_CHO_BAN);
+  }
+  if(tt === 'lich'){ var h2 = henCua(o); return h2 > 0 ? (h2 < now - GIU_LICH) : (!!t && t < now - 7 * NGAY); }
+  if(tt === 'xong' || tt === 'bo'){ var x = msOf(o.xuLy) || t; return !!x && x < now - GIU_DON_XL; }
+  if(tt === 'nhan' || tt === 'huy') return !!t && t < now - GIU_DON_XL;
+  return false;                                                     /* trạng thái lạ ⇒ không đụng */
+}
+async function donChat(u, kq){
+  var cut = Date.now() - GIU_CHAT, moc = new Date(cut);
+  await quetHet(F.query(F.collection(F.db, 'qr_chat'), F.where('ownerUid', '==', u)), async function(d){
+    var x = d.data() || {}, cuoi = msOf(x.cuoi) || msOf(x.tao), tao = msOf(x.tao) || cuoi;
+    var tin = F.collection(F.db, 'qr_chat', d.id, 'tin');
+    if(cuoi && cuoi < cut){
+      kq.tin += await xoaHet(tin);                                  /* xoá tin TRƯỚC — Rules cần vỏ cuộc còn để soát chủ */
+      if(x.chan !== true){ await F.deleteDoc(d.ref); kq.chat++; }    /* cuộc đã chặn: giữ vỏ để còn chặn */
+    }else if(tao && tao < cut){
+      kq.tin += await xoaHet(F.query(tin, F.where('luc', '<', moc)));
+    }
+  });
+}
+async function donDon(u, kq){
+  var now = Date.now(), xoa = [];
+  await quetHet(F.query(F.collection(F.db, 'qr_don'), F.where('ownerUid', '==', u)), function(d){
+    if(nenXoaDon(d.data() || {}, now)) xoa.push(d.ref);
+  });
+  if(xoa.length){ await xoaDocs(xoa); kq.don += xoa.length; }
+}
+async function quetTuan(u){
+  var kq = { chat:0, tin:0, don:0, loi:'' }, henSau = NHIP_TUAN;
+  datHen(u, 'tuan', Date.now() + THU_LAI);                           /* giữ chỗ: tab khác khỏi chạy trùng */
+  try{
+    try{ await donChat(u, kq); }catch(e){ kq.loi += 'chat:' + ma(e) + ' '; }
+    try{ await donDon(u, kq); }catch(e){ kq.loi += 'don:' + ma(e) + ' '; }
+    if(kq.loi && !/permission-denied/i.test(kq.loi)) henSau = THU_LAI;
+  }finally{ datHen(u, 'tuan', Date.now() + henSau); }
+  return kq;
+}
+
+/* ═══════════ 4) KHO ẢNH — ảnh / chữ ký / link của khách & đơn đã xoá ═══════════ */
+var KT_SONG = 'tdr_hdsong_';                                         /* mã hoá đơn đã xác minh còn đơn ⇒ lần sau khỏi hỏi lại */
+function songDoc(u){ try{ var o = JSON.parse(lsDoc(KT_SONG + u) || '{}'); return (o && typeof o === 'object' && !Array.isArray(o)) ? o : {}; }catch(e){ return {}; } }
+function songGhi(u, o){
+  var k = Object.keys(o);
+  if(k.length > 3000){ var m = {}; k.slice(-3000).forEach(function(x){ m[x] = 1; }); o = m; }
+  lsGhi(KT_SONG + u, JSON.stringify(o));
+}
+async function quetKho(u){
+  var kq = { anh:0, thuMuc:0, gd:0, link:0, loi:'' }, henSau = NHIP_KHO;
+  datHen(u, 'kho', Date.now() + THU_LAI);
+  try{
+    var att = await listAll(tdrRef(kho(), 'u/' + u + '/att'));
+    var tm = (att.prefixes || []).filter(function(p){ return p.name !== '_sanpham'; });   /* ảnh SP: module aspd lo */
+    var sg = await listAll(tdrRef(kho(), 'u/' + u + '/sign'));
+    var tk = sg.prefixes || [];
+    if(!tm.length && !tk.length) return kq;
+    var cs = await getDocsFromServer(F.collection(F.db, 'users', u, 'customers'));
+    var idK = {}, tokK = {};
+    cs.forEach(function(d){ idK[d.id] = 1; var t = (d.data() || {}).shareToken; if(t) tokK[String(t)] = 1; });
+    /* 4a) Ảnh + giao dịch sót của khách đã xoá */
+    var nghi = tm.filter(function(p){ return !idK[p.name]; });
+    if(nghi.length){
+      var dung = {};
+      /* soát chéo: giao dịch của khách CÒN LẠI có trỏ vào file nào trong các thư mục này không
+         (nhập file sao lưu kiểu GỘP có thể trỏ chéo sang thư mục khách cũ) ⇒ file đó GIỮ */
+      for(var i = 0; i < cs.docs.length; i++){
+        var ts = await getDocsFromServer(F.collection(F.db, 'users', u, 'customers', cs.docs[i].id, 'transactions'));
+        ts.forEach(function(td){ var a = (td.data() || {}).att; if(a && a.p) dung[String(a.p)] = 1; });
+      }
+      for(var k = 0; k < nghi.length; k++){
+        var cid = nghi[k].name;
+        var con = await getDocFromServer(F.doc(F.db, 'users', u, 'customers', cid));   /* khách vừa tạo trên máy khác? */
+        if(con.exists()) continue;
+        kq.gd += await xoaHet(F.collection(F.db, 'users', u, 'customers', cid, 'transactions'));
+        var n = await xoaThuMuc(nghi[k].fullPath, dung, true, 'cust');
+        kq.anh += n; if(n) kq.thuMuc++;
+      }
+    }
+    /* 4b) Chữ ký + link của khách / đơn đã xoá */
+    var song = songDoc(u), cns = null, doi = false;
+    for(var m = 0; m < tk.length; m++){
+      var tok = tk[m].name;
+      if(tokK[tok] || song[tok]) continue;                           /* khách còn giữ / hoá đơn đã xác minh còn đơn */
+      var s = await getDocFromServer(F.doc(F.db, 'shares', tok));
+      var d = s.exists() ? (s.data() || {}) : null;
+      if(d && d.ownerUid && d.ownerUid !== u) continue;
+      if(!d || d.kind === 'invoice'){
+        if(!cns) cns = await dsCN(u);
+        if(await hdConDon(u, tok, cns)){ song[tok] = 1; doi = true; continue; }
+      }
+      if(await coFileMoi(tk[m].fullPath)) continue;                  /* khách vừa ký trong 24 giờ ⇒ để tháng sau */
+      kq.link += await donLink(u, tok);
+    }
+    if(doi) songGhi(u, song);
+    return kq;
+  }catch(e){
+    kq.loi = ma(e) || 'loi';
+    henSau = /permission-denied|unauthorized|unauthenticated/i.test(kq.loi) ? NHIP_KHO : THU_LAI;
+    return kq;
+  }finally{ datHen(u, 'kho', Date.now() + henSau); }
+}
+
+/* ═══════════ 5) XOÁ CỬA HÀNG — sạch bên trong ═══════════ */
+function isoHoa(v){
+  if(v === null || v === undefined || typeof v !== 'object') return v;
+  try{
+    if(typeof v.toDate === 'function') return v.toDate().toISOString();
+    if(v instanceof Date) return v.toISOString();
+  }catch(e){ return null; }
+  if(Array.isArray(v)) return v.map(isoHoa);
+  if(typeof v.seconds === 'number' && typeof v.nanoseconds === 'number' && Object.keys(v).length <= 2)
+    return new Date(v.seconds * 1000 + Math.floor(v.nanoseconds / 1e6)).toISOString();
+  var o = {}; for(var k in v) if(Object.prototype.hasOwnProperty.call(v, k)) o[k] = isoHoa(v[k]); return o;
+}
+function ngayGio(){
+  var n = new Date(), p = function(x){ return ('0' + x).slice(-2); };
+  return n.getFullYear() + '-' + p(n.getMonth() + 1) + '-' + p(n.getDate()) + '-' + p(n.getHours()) + p(n.getMinutes());
+}
+function tenFile(s){ return (String(s || '').replace(/[\\\/:*?"<>|]+/g, '').trim().replace(/\s+/g, '-').slice(0, 40)) || 'cua-hang'; }
+function taiLuuTru(obj, ten){
+  var blob = new Blob([JSON.stringify(obj)], { type:'application/json' });
+  var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = ten;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(function(){ try{ URL.revokeObjectURL(a.href); }catch(e){} }, 4000);
+}
+/* Đọc hết dữ liệu bên trong 1 cửa hàng. Kho nào Rules khoá (két ngành chưa mua…) ⇒ ghi vào 'khoa', bỏ qua */
+async function docCN(u, b){
+  var out = { kho:{}, dem:0, khoa:[] };
+  for(var i = 0; i < BR_KHO.length; i++){
+    var n = BR_KHO[i];
+    try{ var s = await getDocsFromServer(col(u, b, n)); out.kho[n] = s.docs; out.dem += s.size; }
+    catch(e){ if(/permission-denied/i.test(ma(e))){ out.kho[n] = []; out.khoa.push(n); } else throw e; }
+  }
+  return out;
+}
+function demTxt(k){
+  var t = function(n){ return (k.kho[n] || []).length; }, a = [];
+  if(t('products')) a.push(t('products') + ' hàng hoá');
+  if(t('orders')) a.push(t('orders') + ' đơn bán');
+  var con = k.dem - t('products') - t('orders');
+  if(con > 0) a.push(con + ' bản ghi khác (kho, ca, quỹ, phiếu…)');
+  return a.length ? a.join(' · ') : 'không có dữ liệu nào';
+}
+function goiLuuTru(u, b, ten, bd, k){
+  var o = { app:'sono-cuahang-luutru', version:1, exportedAt:new Date().toISOString(), ownerUid:u,
+            cuaHang:{ id:b, ten:ten || b, doc:isoHoa(bd || null) }, kho:{} };
+  BR_KHO.forEach(function(n){
+    var ds = k.kho[n] || [];
+    if(ds.length) o.kho[n] = ds.map(function(d){ return { id:d.id, data:isoHoa(d.data() || {}) }; });
+  });
+  if(k.khoa.length) o.khongDocDuoc = k.khoa.slice();
+  return o;
+}
+async function danhDau(u, b){ try{ var x = {}; x[b] = Date.now(); await F.setDoc(F.doc(F.db, 'users', u, 'meta', 'donRac'), { cnXoa:x }, { merge:true }); }catch(e){} }
+async function boDanhDau(u, b){ try{ var x = {}; x['cnXoa.' + b] = deleteField(); await F.updateDoc(F.doc(F.db, 'users', u, 'meta', 'donRac'), x); }catch(e){} }
+/* Dọn sạch 1 cửa hàng (≠ 'main'): link hoá đơn, thực đơn QR / link online, đơn & tin nhắn khách, mọi kho bên trong */
+async function donSachCN(u, b, k){
+  var r = { banGhi:0, link:0, don:0, chat:0 }, tok = {}, qr = {};
+  (k.kho.orders || []).forEach(function(d){ var h = (d.data() || {}).hdToken; if(h) tok[String(h)] = 1; });
+  (k.kho.pos_meta || []).forEach(function(d){
+    if(d.id !== 'qr') return;
+    var x = d.data() || {};
+    if(typeof x.token === 'string' && x.token) qr[x.token] = 1;
+    if(typeof x.onl === 'string' && x.onl) qr[x.onl] = 1;
+  });
+  /* thực đơn QR + link online gỡ TRƯỚC: khách hết gửi đơn / tin mới vào cửa hàng đang xoá */
+  var dq = Object.keys(qr);
+  for(var j = 0; j < dq.length; j++){
+    var sq = await getDocFromServer(F.doc(F.db, 'shares_qr', dq[j]));
+    if(sq.exists() && (sq.data() || {}).ownerUid === u){ await F.deleteDoc(sq.ref); r.link++; }
+  }
+  r.don += await xoaHet(F.query(F.collection(F.db, 'qr_don'), F.where('ownerUid', '==', u), F.where('chiNhanh', '==', b)));
+  await quetHet(F.query(F.collection(F.db, 'qr_chat'), F.where('ownerUid', '==', u), F.where('chiNhanh', '==', b)), async function(d){
+    await xoaHet(F.collection(F.db, 'qr_chat', d.id, 'tin'));
+    await F.deleteDoc(d.ref); r.chat++;
+  });
+  var dt = Object.keys(tok);
+  for(var i = 0; i < dt.length; i++) r.link += await donLink(u, dt[i], true);
+  for(var m = 0; m < BR_KHO.length; m++){
+    var n = BR_KHO[m];
+    if(k.khoa.indexOf(n) >= 0) continue;
+    var ds = k.kho[n] || [];
+    if(ds.length) r.banGhi += await xoaDocs(ds);
+    r.banGhi += await xoaHet(col(u, b, n));                          /* vét nốt bản ghi máy khác vừa ghi chen vào */
+  }
+  return r;
+}
+async function xoaCuaHang(b, ten){
+  var u = uid();
+  if(!u) return false;
+  ten = ten || b;
+  if(!laMayChu()){ alert('📱 Chỉ máy chủ shop mới xoá được cửa hàng.'); return false; }
+  if(!b || b === 'main'){ alert('Cửa hàng chính (gốc) không xoá được — muốn thì đổi tên hoặc đổi ngành.'); return false; }
+  if(navigator.onLine === false){ alert('Cần có mạng để xoá cửa hàng (phải dọn sạch dữ liệu bên trong trên máy chủ).'); return false; }
+  if(DANG_CN){ alert('Đang xoá một cửa hàng khác — đợi xong đã.'); return false; }
+  if(!confirm('🗑 XOÁ CỬA HÀNG "' + ten + '"?\n\nSẽ XOÁ VĨNH VIỄN mọi thứ bên trong: hàng hoá, đơn bán, phiếu nhập / trả, kho, ca, quỹ, đơn giữ, sơ đồ bàn, link hoá đơn + chữ ký nhận hàng, thực đơn QR, link bán online, đơn & tin nhắn khách gửi tới cửa hàng này.\n\nSổ nợ khách, nhân viên, nhà cung cấp, các cửa hàng khác KHÔNG bị đụng.\nTrước khi xoá, app tải 1 file lưu trữ về máy.\n\nTiếp tục?')) return false;
+  DANG_CN = true;
+  try{
+    noi('⏳ Đang đọc dữ liệu cửa hàng "' + ten + '"…');
+    var k = await docCN(u, b);
+    if(k.khoa.indexOf('products') >= 0 || k.khoa.indexOf('orders') >= 0){
+      if(!confirm('⚠️ Máy không đọc được dữ liệu bên trong cửa hàng "' + ten + '" (suất / gói của cửa hàng này đã hết hạn).\n\nVẫn xoá cửa hàng khỏi danh sách? Dữ liệu bên trong sẽ được chủ phần mềm dọn giúp sau.')) return false;
+      await danhDau(u, b);
+      await F.deleteDoc(F.doc(F.db, 'users', u, 'branches', b));
+      noi('🗑 Đã xoá cửa hàng "' + ten + '" — dữ liệu bên trong chờ dọn');
+      return true;
+    }
+    var bd = null;
+    try{ var bs = await getDocFromServer(F.doc(F.db, 'users', u, 'branches', b)); bd = bs.exists() ? bs.data() : null; }catch(e){ bd = null; }
+    var file = 'LuuTru-CuaHang-' + tenFile(ten) + '-' + ngayGio() + '.json';
+    try{ taiLuuTru(goiLuuTru(u, b, ten, bd, k), file); }
+    catch(e){ alert('⛔ Chưa tải được file lưu trữ — CHƯA xoá gì.\n\n' + ma(e)); return false; }
+    if(!confirm('📦 Đã tải file lưu trữ: ' + file + '\n\nSẽ xoá vĩnh viễn: ' + demTxt(k) + ' của cửa hàng "' + ten + '".\n\nXoá luôn?')) return false;
+    await danhDau(u, b);
+    noi('🧹 Đang xoá sạch cửa hàng "' + ten + '"…');
+    var r = await donSachCN(u, b, k);
+    await F.deleteDoc(F.doc(F.db, 'users', u, 'branches', b));
+    if(!k.khoa.length) await boDanhDau(u, b);
+    noi('✅ Đã xoá cửa hàng "' + ten + '" · ' + r.banGhi + ' bản ghi' + (r.link ? ' · ' + r.link + ' link' : '')
+        + ((r.don + r.chat) ? ' · ' + (r.don + r.chat) + ' đơn / tin nhắn khách' : ''));
+    return true;
+  }catch(e){
+    alert('⚠️ Xoá cửa hàng CHƯA xong: ' + ma(e) + '\n\nCửa hàng vẫn còn trong danh sách — có mạng ổn định thì bấm Xoá lại để làm tiếp.');
+    return false;
+  }finally{ DANG_CN = false; }
+}
+/* Mở cửa hàng mới mà mã cấp lại trùng mã cửa hàng đã xoá ở bản cũ (bản cũ chỉ xoá tên) ⇒ dọn dữ liệu cũ */
+async function donMaCu(b){
+  var u = uid();
+  if(!u || !b || b === 'main' || !laMayChu() || navigator.onLine === false || DANG_CN) return false;
+  var co = false;
+  try{
+    for(var i = 0; i < DO_NHANH.length && !co; i++){
+      var s = await hetGio(getDocsFromServer(F.query(col(u, b, DO_NHANH[i]), F.limit(1))), 15000);
+      if(!s.empty) co = true;
+    }
+  }catch(e){ return false; }
+  if(!co) return false;
+  if(!confirm('♻️ Mã cửa hàng "' + b + '" còn DỮ LIỆU CŨ của một cửa hàng đã xoá ở bản trước (hàng hoá, đơn…).\n\nOK = dọn sạch dữ liệu cũ để cửa hàng mới bắt đầu trống (app tải 1 file lưu trữ về máy trước).\nHuỷ = giữ lại — cửa hàng mới sẽ hiện lại hàng hoá, đơn cũ đó.')) return false;
+  DANG_CN = true;
+  try{
+    noi('⏳ Đang dọn dữ liệu cũ…');
+    var k = await docCN(u, b);
+    try{ taiLuuTru(goiLuuTru(u, b, 'Dữ liệu cũ ' + b, null, k), 'LuuTru-DuLieuCu-' + tenFile(b) + '-' + ngayGio() + '.json'); }
+    catch(e){ alert('⛔ Chưa tải được file lưu trữ — giữ nguyên dữ liệu cũ.'); return false; }
+    var r = await donSachCN(u, b, k);
+    noi('✅ Đã dọn ' + r.banGhi + ' bản ghi cũ');
+    return true;
+  }catch(e){ noi('⚠️ Chưa dọn xong dữ liệu cũ: ' + ma(e)); return false; }
+  finally{ DANG_CN = false; }
+}
+
+/* ═══════════ 6) 🧹 DỌN KHO ẢNH (bấm tay) — thay bản cũ ═══════════
+   Bản cũ: đọc qua bộ nhớ đệm (mạng chập chờn là thiếu dữ liệu ⇒ có thể xoá nhầm ảnh đang dùng), xoá nguyên
+   thư mục theo mã khách không soát giao dịch, phần dọn link bị Rules chối im lặng. Bản này: đọc thẳng máy
+   chủ, soát TỪNG file, file mới < 1 ngày không đụng, dọn chữ ký lẻ, link không còn chủ, giao dịch sót. */
+window.donKhoAnh = async function(){
+  var u = uid();
+  if(!u){ alert('Chưa đăng nhập.'); return; }
+  if(!laMayChu()){ alert('📱 Chỉ máy chủ shop mới dọn được kho ảnh.'); return; }
+  if(navigator.onLine === false){ alert('Cần có mạng để dọn kho ảnh.'); return; }
+  if(!confirm('🧹 DỌN KHO ẢNH\n\nSoát toàn bộ ảnh, chữ ký, link chia sẻ, giao dịch sót — xoá những gì KHÔNG còn ai dùng.\nĐọc thẳng máy chủ; dữ liệu đang dùng và file mới tải trong 24 giờ KHÔNG bị đụng.\n\nTiếp tục?')) return;
+  if(DANG){ alert('App đang tự dọn ngầm — đợi 1–2 phút rồi bấm lại.'); return; }
+  DANG = true;
+  var t0 = Date.now(), kq = { file:0, ky:0, link:0, gd:0, viec:0 };
+  try{
+    noi('🧹 Đang đọc sổ…');
+    var cs = await getDocsFromServer(F.collection(F.db, 'users', u, 'customers'));
+    var idK = {}, tokK = {}, dung = {};
+    cs.forEach(function(d){ idK[d.id] = 1; var t = (d.data() || {}).shareToken; if(t) tokK[String(t)] = 1; });
+    for(var i = 0; i < cs.docs.length; i++){
+      var ts = await getDocsFromServer(F.collection(F.db, 'users', u, 'customers', cs.docs[i].id, 'transactions'));
+      ts.forEach(function(td){ var a = (td.data() || {}).att; if(a && a.p) dung[String(a.p)] = 1; });
+    }
+    var cns = await dsCN(u), hd = {}, thieuDon = false;
+    for(var b = 0; b < cns.length; b++){
+      try{ await quetHet(col(u, cns[b], 'orders'), function(d){ var h = (d.data() || {}).hdToken; if(h) hd[String(h)] = 1; }); }
+      catch(e){ if(/permission-denied/i.test(ma(e))) thieuDon = true; else throw e; }
+    }
+    noi('🧹 Đang soát kho ảnh…');
+    var att = await listAll(tdrRef(kho(), 'u/' + u + '/att'));
+    for(var k = 0; k < (att.prefixes || []).length; k++){
+      var pf = att.prefixes[k];
+      if(pf.name === '_sanpham') continue;                           /* ảnh sản phẩm: module tự dọn ảnh SP lo */
+      var song = !!idK[pf.name];
+      if(!song){
+        var con = await getDocFromServer(F.doc(F.db, 'users', u, 'customers', pf.name));
+        song = con.exists();
+        if(!song) kq.gd += await xoaHet(F.collection(F.db, 'users', u, 'customers', pf.name, 'transactions'));
+      }
+      kq.file += await xoaThuMuc(pf.fullPath, dung, true, song ? null : 'cust');
+    }
+    var sg = await listAll(tdrRef(kho(), 'u/' + u + '/sign'));
+    for(var m = 0; m < (sg.prefixes || []).length; m++){
+      var sp = sg.prefixes[m], tok = sp.name;
+      if(tokK[tok] || hd[tok]){
+        /* link còn dùng ⇒ chỉ soát file chữ ký lẻ (tải lên mà ghi chữ ký hỏng) */
+        var ck = await getDocsFromServer(F.collection(F.db, 'shares', tok, 'chuky')), giu = {}, la = false;
+        ck.forEach(function(d){
+          var img = String((d.data() || {}).img || '');
+          if(img.slice(0, 5) === 'data:') return;
+          var p = duongDan(img); if(p) giu[p] = 1; else la = true;
+        });
+        if(!la) kq.ky += await xoaThuMuc(sp.fullPath, giu, true);
+        continue;
+      }
+      if(thieuDon) continue;                                         /* có cửa hàng không đọc được đơn ⇒ chưa dám kết luận */
+      var s = await getDocFromServer(F.doc(F.db, 'shares', tok));
+      if(s.exists() && (s.data() || {}).ownerUid && s.data().ownerUid !== u) continue;
+      if(await coFileMoi(sp.fullPath)) continue;
+      kq.link += await donLink(u, tok);
+    }
+    var v = await chayViec(); kq.viec = (v && v.xong) || 0;
+    alert('✅ Dọn xong sau ' + Math.round((Date.now() - t0) / 1000) + 's\n\n• Xoá ' + kq.file + ' file ảnh không còn dùng\n• Xoá '
+          + kq.ky + ' file chữ ký lẻ\n• Dọn ' + kq.link + ' link chia sẻ không còn chủ\n• Xoá ' + kq.gd
+          + ' giao dịch sót của khách đã xoá' + (kq.viec ? '\n• Làm nốt ' + kq.viec + ' việc dọn dở' : '')
+          + '\n\nKho đã sạch — dữ liệu đang dùng không bị đụng.');
+  }catch(e){
+    alert('⚠️ Dọn kho ảnh chưa xong: ' + ma(e) + '\n\nCó mạng ổn định thì bấm lại để làm tiếp.');
+  }finally{ DANG = false; }
+};
+
+/* ───────── HẸN GIỜ: 1,5 phút sau khi mở app, rồi 30 phút xem lại 1 lần ───────── */
+async function quetNgam(u){
+  if(DANG) return;
+  DANG = true;
+  try{
+    if(laMayChu() && Date.now() >= hen(u, 'tuan', NHIP_TUAN)){ var a = await quetTuan(u); try{ console.info('[tdr] tin nhắn + đơn cũ', a); }catch(e){} }
+    if(uid() === u && laMayChu() && Date.now() >= hen(u, 'kho', NHIP_KHO)){ var b = await quetKho(u); try{ console.info('[tdr] kho ảnh', b); }catch(e){} }
+  }finally{ DANG = false; }
+}
+function toi(){
+  try{
+    var u = uid();
+    if(!u || navigator.onLine === false) return;
+    if(document.visibilityState && document.visibilityState !== 'visible') return;
+    if(tkUid()) chayViec()['catch'](function(){});
+    if(!DANG && laMayChu()) quetNgam(u)['catch'](function(){});
+  }catch(e){}
+}
+setTimeout(function(){ toi(); setInterval(toi, 30 * 60000); }, TRE);
+try{ window.addEventListener('online', function(){ setTimeout(toi, 20000); }); }catch(e){}
+
+window.__TDR = { xoaCuaHang: xoaCuaHang, donMaCu: donMaCu, viec: function(){ var u = uid(); return u ? dqDoc(u) : []; } };
+window.tdrDonRac = async function(){
+  var u = uid(); if(!u) return { bo:'chưa đăng nhập' };
+  var out = { viec: await chayViec() };
+  if(laMayChu() && !DANG){
+    DANG = true;
+    try{ out.tuan = await quetTuan(u); out.kho = await quetKho(u); }finally{ DANG = false; }
+  }
+  return out;
+};
+
+}catch(e){ console.error('[tdr] module Tự dọn rác lỗi khởi động', e); }
+}
+})();
+</script>
+<!-- ═══════════════ HẾT: TỰ DỌN RÁC ═══════════════ -->
 <!-- ═══════════════ NHẮN TIN KHÁCH — link bán online + QR tại bàn (drop-in · namespace tnk-) ═══════════════
      • Khách nhắn từ link bán online (mọi ngành) hoặc mã QR tại bàn ⇒ máy chủ shop + máy nhân viên
        nhận ngay: chuông + rung + nút 💬 có số tin chưa đọc (nằm ngay trên nút trợ lý).
