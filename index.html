@@ -768,7 +768,7 @@ import { getFirestore, initializeFirestore, persistentLocalCache, persistentMult
 import { getStorage, ref as _sref, uploadBytes, getDownloadURL, deleteObject, listAll }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
 
-const APP_BUILD = "2026-10-01-QT10"; // ⬆️ ĐỔI MỖI LẦN DEPLOY (đặt TRÙNG tên cache trong sw.js) — hiện ở ⚙️ Cài đặt để biết máy đã chạy bản mới chưa
+const APP_BUILD = "2026-10-01-QT11"; // ⬆️ ĐỔI MỖI LẦN DEPLOY (đặt TRÙNG tên cache trong sw.js) — hiện ở ⚙️ Cài đặt để biết máy đã chạy bản mới chưa
 const firebaseConfig = {
   apiKey: "AIzaSyA_kjQ-CdASRkf50Glz3kQajlkD5qGWC4k",
   authDomain: "so-no-cc57a.firebaseapp.com",
@@ -19505,7 +19505,7 @@ if (window.__RMT_READY__) return; window.__RMT_READY__ = true;
 try{
 
 /* ĐỔI CHUỖI NÀY CHO TRÙNG APP_BUILD MỖI LẦN DEPLOY (chỉ để hiện ở bảng quản trị) */
-var BUILD = '2026-10-01-QT10';
+var BUILD = '2026-10-01-QT11';
 var NHIP   = 6*3600*1000;          /* báo về tối đa 6 giờ 1 lần — khỏi tốn lượt ghi */
 var KEY_HB = 'rmt_hb_v2';          /* [QT7] nhịp báo về tính RIÊNG từng tài khoản (bản v1 tính chung cả máy) */
 var KEY_XEM= 'rmt_xem_v1';
@@ -24047,5 +24047,344 @@ nhip();
 })();
 </script>
 <!-- ═══════════════ HẾT: NHẮN TIN KHÁCH ═══════════════ -->
+<!-- ═══════════════ XEM ẢNH BẰNG CHỨNG LỚN — chủ shop & khách đều bung ảnh ra toàn màn hình (drop-in · namespace xab-) ═══════════════
+     • Bung được, CẢ 2 PHÍA:
+         – Trang khách (link sổ nợ · link hoá đơn): ảnh "📄 Ảnh hoá đơn / bằng chứng" + ảnh chữ ký.
+         – Phía chủ shop: ảnh mở bằng nút "📎 Xem ảnh" + ảnh chữ ký trong "✍️ Chữ ký" (sổ nợ và đơn hàng).
+     • Phóng to: chụm 2 ngón, hoặc chạm 2 lần vào ảnh (máy tính: bấm đúp / lăn chuột). Đang phóng to thì kéo để xem từng góc.
+     • Đóng: nút ✕ · chạm ra ngoài ảnh · nút Quay lại của điện thoại (vẫn ở lại trang, khung "Xem ảnh" vẫn mở) · phím Esc.
+     • Vì sao cần: thẻ viewport đặt maximum-scale=1.0 nên điện thoại không cho chụm 2 ngón phóng to cả trang.
+     • Nằm trên mọi lớp của app (kể cả thanh cam "Mở bằng Safari/Chrome" khi khách mở link trong Zalo) ⇒ nút ✕ không bị che.
+     • Chỉ ĐỌC ảnh đang hiện sẵn — không đụng sổ nợ, giao dịch, chữ ký, Firebase. Khối này có trục trặc gì thì app
+       vẫn chạy y như cũ. KHÔNG sửa code cũ: chỉ thêm khối này.
+     ═════════════════════════════════════════════════════════════════════════════════════════════════════ -->
+<script>
+(function(){
+'use strict';
+if(window.__XAB__) return; window.__XAB__ = true;
+try{
+
+/* ═════════ CẤU HÌNH ═════════ */
+var CHON    = '.pub-proof img, #att-body img, .sign-done img';   /* ảnh hoá đơn / bằng chứng · ảnh "📎 Xem ảnh" · ảnh chữ ký */
+var VUNG    = ['public-content', 'att-body', 'signs-body', 'sk-od-sign-body'];   /* các khung chứa những ảnh đó */
+var TOI_DA  = 4;                    /* phóng to tối đa (lần) */
+var HAI_LAN = 2.5;                  /* chạm 2 lần vào ảnh ⇒ phóng to bấy nhiêu lần */
+var LOP     = 2147483600;           /* nằm TRÊN mọi lớp của app (cao nhất đang có: 2147483450). Thấp hơn thì thanh cam
+                                       "Mở bằng Safari/Chrome" (khách mở link trong Zalo · 2147483200) che mất nút ✕ */
+/* ═══════════════════════════ */
+
+var css = [
+  '.pub-proof img,#att-body img,.sign-done img{cursor:pointer;-webkit-tap-highlight-color:transparent}',
+  '@media (hover:hover) and (pointer:fine){.pub-proof img,#att-body img,.sign-done img{cursor:zoom-in}}',
+  '.pub-proof::after{content:"🔍 Bấm vào ảnh để xem lớn";display:block;margin-top:8px;font-size:.8em;color:#8a8f98;text-align:center}',
+  '#att-body:has(>img)::after{content:"🔍 Bấm vào ảnh để xem lớn";display:block;margin-top:8px;font-size:.82em;color:#6b7280;text-align:center}',
+  '.xab{position:fixed;left:0;top:0;right:0;bottom:0;z-index:' + LOP + ';display:none;margin:0;padding:0;background:rgba(0,0,0,.92);overflow:hidden;touch-action:none;-webkit-user-select:none;user-select:none;overscroll-behavior:contain;-webkit-tap-highlight-color:transparent}',
+  '.xab.on{display:block;animation:xabHien .18s ease-out}',
+  '@keyframes xabHien{from{opacity:0}to{opacity:1}}',
+  '.xab-a{position:absolute;left:8px;right:8px;top:calc(60px + env(safe-area-inset-top,0px));bottom:calc(84px + env(safe-area-inset-bottom,0px));margin:auto;padding:0;border:0;width:auto;height:auto;max-width:calc(100% - 16px);max-height:calc(100% - 144px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px));border-radius:6px;background:#fff;transform-origin:50% 50%;-webkit-user-drag:none;cursor:zoom-in}',
+  '.xab-a.muot{transition:transform .22s ease-out}',
+  '.xab.zoom .xab-a{cursor:grab}',
+  '.xab.cho .xab-a,.xab.loi .xab-a{visibility:hidden}',
+  '.xab-x{position:absolute;top:calc(8px + env(safe-area-inset-top,0px));right:10px;z-index:2;box-sizing:border-box;width:44px;height:44px;min-width:0;min-height:0;margin:0;padding:0;border:none;border-radius:50%;background:rgba(0,0,0,.5);box-shadow:0 0 0 1.5px rgba(255,255,255,.6);color:#fff;font-family:inherit;font-size:20px;font-weight:400;line-height:1;display:flex;align-items:center;justify-content:center;cursor:pointer;-webkit-tap-highlight-color:transparent}',
+  '.xab-x:focus{outline:none}',
+  '.xab-x:focus-visible{outline:2px solid rgba(255,255,255,.9);outline-offset:2px}',
+  '.xab-tt{position:absolute;left:24px;right:24px;top:50%;transform:translateY(-50%);text-align:center;color:#fff;font-size:14px;line-height:1.6;opacity:.88;pointer-events:none}',
+  '.xab-cap{position:absolute;left:16px;right:16px;bottom:calc(12px + env(safe-area-inset-bottom,0px));text-align:center;color:#fff;pointer-events:none;transition:opacity .15s}',
+  '.xab-ten{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:15px;font-weight:700;line-height:1.35;word-break:break-word}',
+  '.xab-goi{display:block;margin-top:4px;font-size:12px;line-height:1.5;opacity:.7}',
+  '.xab.zoom .xab-cap{opacity:0}',
+  '@media print{.pub-proof::after,#att-body::after{display:none!important}.xab{display:none!important}}'
+].join('\n');
+var st = document.createElement('style');
+st.id = 'xab-css';
+st.textContent = css;
+(document.head || document.documentElement).appendChild(st);
+
+/* iPhone (Safari · Zalo · app iOS): chạm vào phần tử KHÔNG có bộ lắng nghe riêng thì máy có thể không sinh sự kiện
+   click ⇒ gắn 1 bộ lắng nghe rỗng thẳng vào từng ảnh bằng chứng (không làm gì cả, chỉ để iPhone chịu báo cú chạm). */
+function rong(){}
+function ganAnh(goc){
+  try{
+    var ds = goc.querySelectorAll(CHON);
+    for(var i = 0; i < ds.length; i++) if(!ds[i].__xab){ ds[i].__xab = 1; ds[i].addEventListener('click', rong); }
+  }catch(e){}
+}
+VUNG.forEach(function(id){
+  try{
+    var el = document.getElementById(id); if(!el) return;
+    ganAnh(el);
+    if(window.MutationObserver) new MutationObserver(function(){ ganAnh(el); }).observe(el, { childList: true, subtree: true });
+  }catch(e){}
+});
+
+/* R = khung · IM = ảnh lớn · S/TX/TY = độ phóng và độ dịch · BW/BH/CX/CY = cỡ và tâm ảnh lúc chưa phóng */
+var R = null, IM = null, TT = null, TEN = null, GOI = null, NUT = null;
+var MO = false, LAN = 0, XONG = -1, MO_LUC = 0, CHAN_MO = 0, CHAN_CLICK = 0, T_MUOT = 0;
+var TOK = 0, DAY = false, TRUOC = null;
+var S = 1, TX = 0, TY = 0, BW = 0, BH = 0, CX = 0, CY = 0, VW = 0, VH = 0;
+var PT = {}, G = null, KEO = false, RECT = null, TAP = null;
+
+/* ───────── tiện ích ───────── */
+function kep(v, a, b){ return v < a ? a : (v > b ? b : v); }
+function trong(r, x, y){ return !!(r && r.width > 0 && r.height > 0 && x >= r.left && x <= r.right && y >= r.top && y <= r.bottom); }
+function dsPT(){ var a = [], k; for(k in PT) if(Object.prototype.hasOwnProperty.call(PT, k)) a.push(PT[k]); return a; }
+function laCham(){ try{ return ('ontouchstart' in window) || navigator.maxTouchPoints > 0; }catch(e){ return false; } }
+function trangThai(){ try{ return history.state; }catch(e){ return null; } }
+function gon(s){ return String(s == null ? '' : s).replace(/\s+/g, ' ').trim(); }
+function daHien(){ return MO && XONG === LAN; }      /* ảnh lớn đã tải xong và đang hiện */
+function chuDong(m){                                  /* chữ của 1 khối, mỗi dòng (<br>) cách nhau bằng " · " */
+  var o = [], cur = '';
+  (function di(n){
+    for(var c = n.firstChild; c; c = c.nextSibling){
+      if(c.nodeType === 3) cur += c.nodeValue;
+      else if(c.nodeType === 1){ if(c.tagName === 'BR'){ o.push(cur); cur = ''; } else di(c); }
+    }
+  })(m);
+  o.push(cur);
+  return o.map(gon).filter(Boolean).join(' · ');
+}
+function tenCua(img){                                 /* dòng chú thích dưới ảnh lớn */
+  try{
+    var the = img.closest('.pub-proof');                 /* trang khách: ảnh hoá đơn / bằng chứng */
+    if(the){ var h = the.firstElementChild; return (h && h !== img && gon(h.textContent)) || '📄 Ảnh hoá đơn / bằng chứng'; }
+    if(img.closest('#att-body')){                        /* chủ shop: "📎 Xem ảnh" */
+      var n = document.getElementById('att-name'); return '📎 ' + (gon(n && n.textContent) || 'Tệp đính kèm');
+    }
+    var k = img.closest('.sign-done');                   /* chữ ký (trang khách + bảng Chữ ký của chủ shop) */
+    if(k){ var m = k.querySelector('.sign-meta'), s = m ? chuDong(m) : ''; return '✍️ ' + (s || 'Chữ ký'); }
+  }catch(e){}
+  return '';
+}
+
+/* ───────── phóng · dịch ảnh ───────── */
+function ap(){
+  IM.style.transform = (S === 1 && TX === 0 && TY === 0) ? '' : 'translate(' + TX + 'px,' + TY + 'px) scale(' + S + ')';
+  R.classList.toggle('zoom', S > 1.01);
+}
+function doDac(){                                     /* đo ảnh lúc chưa phóng */
+  var cu = IM.style.transform; IM.style.transform = '';
+  BW = IM.offsetWidth; BH = IM.offsetHeight;
+  CX = IM.offsetLeft + BW / 2; CY = IM.offsetTop + BH / 2;
+  VW = R.clientWidth; VH = R.clientHeight;
+  IM.style.transform = cu;
+}
+function gioiHan(){                                   /* ảnh nhỏ hơn màn hình thì nằm giữa; lớn hơn thì không kéo trôi khỏi mép */
+  var w = S * BW, h = S * BH;
+  TX = (w <= VW) ? kep(0, w / 2 - CX, VW - CX - w / 2) : kep(TX, VW - CX - w / 2, w / 2 - CX);
+  TY = (h <= VH) ? kep(0, h / 2 - CY, VH - CY - h / 2) : kep(TY, VH - CY - h / 2, h / 2 - CY);
+}
+/* phóng tới s1: điểm ảnh đang nằm ở (fx,fy) lúc độ phóng s0 / độ dịch (t0x,t0y) sẽ nằm đúng dưới (gx,gy) */
+function zoomTai(s1, fx, fy, gx, gy, s0, t0x, t0y){
+  if(!BW || !BH) return;
+  s1 = kep(s1, 1, TOI_DA);
+  var ux = (fx - CX - t0x) / s0, uy = (fy - CY - t0y) / s0;
+  S = s1; TX = gx - CX - s1 * ux; TY = gy - CY - s1 * uy;
+  gioiHan(); ap();
+}
+function muot(){ IM.classList.add('muot'); clearTimeout(T_MUOT); T_MUOT = setTimeout(function(){ if(IM) IM.classList.remove('muot'); }, 260); }
+function dungMuot(){ clearTimeout(T_MUOT); IM.classList.remove('muot'); }
+function haiLan(x, y){                                /* chạm 2 lần: phóng to đúng chỗ chạm · đang phóng thì thu về */
+  if(!BW || !daHien()) return;
+  CHAN_CLICK = Date.now() + 400;
+  muot();
+  if(S > 1.01){ S = 1; TX = 0; TY = 0; ap(); }
+  else zoomTai(Math.min(HAI_LAN, TOI_DA), x, y, x, y, S, TX, TY);
+}
+
+/* ───────── ngón tay / chuột ───────── */
+function batDau(){                                    /* chốt mốc cử chỉ theo số ngón đang chạm */
+  var ds = dsPT();
+  if(ds.length >= 2){
+    var a = ds[0], b = ds[1];
+    KEO = true;
+    G = { k: 2, d0: Math.hypot(a.x - b.x, a.y - b.y) || 1, s0: S, tx0: TX, ty0: TY, mx: (a.x + b.x) / 2, my: (a.y + b.y) / 2 };
+  }else if(ds.length === 1){
+    G = { k: 1, x0: ds[0].x, y0: ds[0].y, t0: 0, tx0: TX, ty0: TY };
+  }else G = null;
+}
+function cham(e){
+  if(!MO) return;
+  if(e.target && e.target.closest && e.target.closest('.xab-x')) return;
+  if(e.pointerType === 'mouse' && e.button !== 0) return;
+  try{ R.setPointerCapture(e.pointerId); }catch(er){}
+  PT[e.pointerId] = { x: e.clientX, y: e.clientY };
+  dungMuot();
+  var n = dsPT().length;
+  if(n === 1){ KEO = false; RECT = daHien() ? IM.getBoundingClientRect() : null; }   /* ảnh chưa hiện ⇒ chạm đâu cũng là "ngoài ảnh" */
+  batDau();
+  if(n === 1 && G) G.t0 = Date.now();
+}
+function di(e){
+  if(!MO || !PT[e.pointerId]) return;
+  PT[e.pointerId] = { x: e.clientX, y: e.clientY };
+  if(!G) return;
+  var ds = dsPT();
+  if(G.k === 2 && ds.length >= 2){
+    var a = ds[0], b = ds[1];
+    zoomTai(G.s0 * (Math.hypot(a.x - b.x, a.y - b.y) || 1) / G.d0, G.mx, G.my, (a.x + b.x) / 2, (a.y + b.y) / 2, G.s0, G.tx0, G.ty0);
+  }else if(G.k === 1 && ds.length === 1){
+    var dx = e.clientX - G.x0, dy = e.clientY - G.y0;
+    if(!KEO && Math.abs(dx) + Math.abs(dy) > 10) KEO = true;
+    if(KEO && S > 1.01 && BW){ TX = G.tx0 + dx; TY = G.ty0 + dy; gioiHan(); ap(); }
+  }
+}
+function tha(e){
+  if(!PT[e.pointerId]) return;
+  delete PT[e.pointerId];
+  try{ R.releasePointerCapture(e.pointerId); }catch(er){}
+  if(dsPT().length){ batDau(); return; }              /* còn ngón trên màn hình ⇒ cử chỉ chạy tiếp */
+  var g = G; G = null;
+  if(!MO || e.type !== 'pointerup' || !g || g.k !== 1 || KEO || !g.t0 || Date.now() - g.t0 > 400) return;
+  var x = e.clientX, y = e.clientY, nay = Date.now();
+  if(!trong(RECT, x, y)){ TAP = null; return; }       /* chạm ra ngoài ảnh: để sự kiện click đóng lại */
+  if(TAP && nay - TAP.t < 350 && Math.abs(x - TAP.x) < 40 && Math.abs(y - TAP.y) < 40){ TAP = null; haiLan(x, y); }
+  else TAP = { t: nay, x: x, y: y };
+}
+/* Đóng khi chạm ra ngoài ảnh bằng sự kiện click (không đóng ở lúc nhấc ngón) ⇒ cú chạm đó không lọt xuống
+   nút nằm bên dưới (✅ Ký xác nhận, ✕ của khung xem ảnh…). Vị trí ảnh lấy lúc vừa đặt ngón, nên chạm 2 lần
+   để thu nhỏ không bị đóng nhầm. Ảnh chưa hiện (đang tải / tải lỗi) ⇒ chạm chỗ nào cũng đóng được. */
+function bam(e){
+  if(!MO) return;
+  if(e.target && e.target.closest && e.target.closest('.xab-x')) return;
+  var nay = Date.now();
+  if(KEO || nay < CHAN_CLICK || nay - MO_LUC < 400) return;
+  if(!daHien() || !trong(RECT || IM.getBoundingClientRect(), e.clientX, e.clientY)) dong(false);
+}
+function cuon(e){                                     /* máy tính: lăn chuột để phóng to / thu nhỏ */
+  if(!MO) return;
+  e.preventDefault();
+  if(!BW || !daHien()) return;
+  var dy = e.deltaY * (e.deltaMode === 1 ? 16 : (e.deltaMode === 2 ? 400 : 1));
+  if(!dy) return;
+  dungMuot();
+  zoomTai(S * Math.exp(-dy * 0.0015), e.clientX, e.clientY, e.clientX, e.clientY, S, TX, TY);
+}
+function phim(e){
+  if(!MO) return;
+  var k = e.key || '';
+  if(k === 'Escape' || k === 'Esc'){ e.preventDefault(); e.stopPropagation(); dong(false); }
+  else if(k === 'Tab'){ e.preventDefault(); try{ NUT.focus(); }catch(er){} }
+}
+function doLai(){                                     /* xoay máy / đổi cỡ cửa sổ ⇒ đo lại, về cỡ vừa màn hình */
+  if(!daHien()) return;
+  dungMuot();
+  S = 1; TX = 0; TY = 0; IM.style.transform = '';
+  doDac(); ap();
+}
+
+/* ───────── dựng khung (1 lần, lúc chạm ảnh đầu tiên) ───────── */
+function dung(){
+  if(R) return;
+  R = document.createElement('div');
+  R.className = 'xab';
+  R.setAttribute('role', 'dialog');
+  R.setAttribute('aria-modal', 'true');
+  R.setAttribute('aria-label', 'Xem ảnh lớn');
+  R.innerHTML = '<img class="xab-a" alt="" draggable="false">'
+              + '<div class="xab-tt" aria-live="polite"></div>'
+              + '<div class="xab-cap"><span class="xab-ten"></span><span class="xab-goi"></span></div>'
+              + '<button type="button" class="xab-x" aria-label="Đóng ảnh">✕</button>';
+  document.body.appendChild(R);
+  IM = R.querySelector('.xab-a'); TT = R.querySelector('.xab-tt');
+  TEN = R.querySelector('.xab-ten'); GOI = R.querySelector('.xab-goi'); NUT = R.querySelector('.xab-x');
+  NUT.addEventListener('click', function(){ dong(false); });
+  R.addEventListener('click', bam);
+  R.addEventListener('pointerdown', cham);
+  R.addEventListener('pointermove', di);
+  R.addEventListener('pointerup', tha);
+  R.addEventListener('pointercancel', tha);
+  R.addEventListener('wheel', cuon, { passive: false });
+  R.addEventListener('touchmove', function(e){ if(MO && e.cancelable) e.preventDefault(); }, { passive: false });
+  ['gesturestart', 'gesturechange', 'gestureend'].forEach(function(n){
+    R.addEventListener(n, function(e){ if(e.cancelable) e.preventDefault(); });   /* iPhone: chặn phóng cả trang */
+  });
+  IM.addEventListener('dragstart', function(e){ e.preventDefault(); });
+}
+
+/* ───────── mở · đóng ───────── */
+function mo(src, ten){
+  dung();
+  LAN++; var lan = LAN;
+  MO = true; MO_LUC = Date.now();
+  S = 1; TX = 0; TY = 0; BW = 0; BH = 0; PT = {}; G = null; KEO = false; RECT = null; TAP = null;
+  dungMuot(); IM.style.transform = '';
+  R.classList.remove('zoom', 'loi'); R.classList.add('cho');
+  TT.textContent = '';
+  ten = Array.from(gon(ten)).slice(0, 160).join('');
+  TEN.textContent = ten; TEN.style.display = ten ? '' : 'none';
+  GOI.textContent = laCham() ? 'Chụm 2 ngón hoặc chạm 2 lần vào ảnh để phóng to' : 'Bấm đúp hoặc lăn chuột để phóng to';
+  IM.setAttribute('alt', ten || 'Ảnh bằng chứng');
+  TRUOC = document.activeElement;
+  R.classList.add('on');
+  IM.onload = function(){ daTai(lan); };
+  IM.onerror = function(){
+    if(lan !== LAN || !MO) return;
+    R.classList.remove('cho'); R.classList.add('loi');
+    TT.textContent = 'Chưa tải được ảnh — mạng đang yếu. Bạn đóng lại rồi chạm vào ảnh lần nữa nhé.';
+  };
+  IM.setAttribute('src', src);
+  if(IM.complete && IM.naturalWidth > 0) daTai(lan);
+  setTimeout(function(){ if(lan === LAN && MO && R.classList.contains('cho')) TT.textContent = 'Đang tải ảnh…'; }, 300);
+  document.addEventListener('keydown', phim, true);
+  window.addEventListener('resize', doLai);
+  try{ NUT.focus({ preventScroll: true }); }catch(e){}
+  /* Nút Quay lại của điện thoại: đóng ảnh, KHÔNG rời trang */
+  DAY = false;
+  try{ TOK = Date.now() + Math.random(); history.pushState({ xabAnh: TOK }, ''); DAY = true; }catch(e){ DAY = false; }
+}
+function daTai(lan){
+  if(lan !== LAN || !MO || XONG === lan || !(IM.naturalWidth > 0)) return;
+  XONG = lan;
+  R.classList.remove('cho', 'loi');
+  TT.textContent = '';
+  doDac(); S = 1; TX = 0; TY = 0; ap();
+}
+function dong(tuBack){
+  if(!MO) return;
+  MO = false; LAN++;
+  PT = {}; G = null; TAP = null; RECT = null;
+  dungMuot();
+  R.classList.remove('on', 'zoom', 'cho', 'loi');
+  IM.style.transform = '';
+  IM.onload = null; IM.onerror = null;
+  TT.textContent = '';
+  document.removeEventListener('keydown', phim, true);
+  window.removeEventListener('resize', doLai);
+  var day = DAY; DAY = false;
+  if(!tuBack && day){                                 /* đóng bằng ✕ / chạm ngoài / Esc ⇒ gỡ đúng bước lịch sử đã thêm */
+    var s = trangThai();
+    if(s && s.xabAnh === TOK){ CHAN_MO = Date.now() + 450; try{ history.back(); }catch(e){} }
+  }
+  var t = TRUOC; TRUOC = null;
+  try{
+    if(t && t !== document.body && t !== document.documentElement && typeof t.focus === 'function'
+       && !/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName || '') && document.contains(t)) t.focus({ preventScroll: true });
+  }catch(e){}
+}
+
+window.addEventListener('popstate', function(){
+  if(!MO) return;
+  var s = trangThai();
+  if(!(s && s.xabAnh === TOK)) dong(true);
+});
+
+/* Chạm ảnh bằng chứng ⇒ mở. Bắt ở pha capture vì khung "📎 Xem ảnh" chặn sự kiện (stopPropagation) ở pha nổi.
+   Không chặn gì khác: cú chạm vẫn đi tiếp như cũ, mọi nút của app vẫn chạy như cũ. */
+document.addEventListener('click', function(e){
+  try{
+    if(MO) return;
+    var t = e.target, img = (t && t.closest) ? t.closest(CHON) : null;
+    if(!img || img.tagName !== 'IMG' || (R && R.contains(img))) return;
+    if(Date.now() < CHAN_MO) return;
+    var src = img.currentSrc || img.getAttribute('src') || '';
+    if(!src || (img.complete && !(img.naturalWidth > 0))) return;        /* ảnh hỏng / không có ảnh ⇒ không mở */
+    mo(src, tenCua(img));
+  }catch(er){ try{ console.warn('[xab] chưa mở được ảnh lớn', er); }catch(_){} }
+}, true);
+
+}catch(e){ try{ console.warn('[xab] khối xem ảnh bằng chứng lỗi khởi động', e); }catch(_){} }
+})();
+</script>
+<!-- ═══════════════ HẾT: XEM ẢNH BẰNG CHỨNG LỚN ═══════════════ -->
 </body>
 </html>
