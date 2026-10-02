@@ -745,7 +745,7 @@ import { getFirestore, initializeFirestore, persistentLocalCache, persistentMult
 import { getStorage, ref as _sref, uploadBytes, getDownloadURL, deleteObject, listAll }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
 
-const APP_BUILD = "2026-10-02-QM2"; // ⬆️ ĐỔI MỖI LẦN DEPLOY (đặt TRÙNG tên cache trong sw.js) — hiện ở ⚙️ Cài đặt để biết máy đã chạy bản mới chưa
+const APP_BUILD = "2026-10-02-QM4"; // ⬆️ ĐỔI MỖI LẦN DEPLOY (đặt TRÙNG tên cache trong sw.js) — hiện ở ⚙️ Cài đặt để biết máy đã chạy bản mới chưa
 const firebaseConfig = {
   apiKey: "AIzaSyA_kjQ-CdASRkf50Glz3kQajlkD5qGWC4k",
   authDomain: "so-no-cc57a.firebaseapp.com",
@@ -12522,7 +12522,7 @@ import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, getDocs, serv
 <!-- ═══════════════ HẾT: LÁ CHẮN DỮ LIỆU ═══════════════ -->
 
 <!-- ═══════════════════════════════════════════════════════════════════════
-     🤖 TRỢ LÝ AI HƯỚNG DẪN SỬ DỤNG — v3 (bản chi tiết cho người mới & người lớn tuổi)
+     🤖 TRỢ LÝ AI HƯỚNG DẪN SỬ DỤNG — v4 (bản chi tiết cho người mới & người lớn tuổi)
      • KHỐI TỰ CHỨA, CHỈ THÊM, KHÔNG SỬA 1 DÒNG NÀO CỦA CODE CŨ.
      • Namespace riêng: biến SNAI__, class/id đều bắt đầu "snai" → không đụng code cũ.
      • Chạy 100% ngoại tuyến (không cần mạng, không cần API key, không tốn phí).
@@ -12531,6 +12531,10 @@ import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, getDocs, serv
      • v3: 👆 CHỈ TẬN TAY (khoanh đúng nút thật trên màn hình, đi từng bước) · gợi ý
            đúng màn đang đứng · hiểu gõ sai 1 chữ · nhóm 🌐 Bán online (link cửa hàng,
            đặt phòng/đặt lịch, size/màu, chuông báo đơn) · sửa các mục đã cũ.
+     • v4: 💬 nhóm Tin nhắn khách (hộp thư, câu mẫu, 📋 Chốt đơn, chặn, bật/tắt) · xem ảnh lớn · luật bán theo ca,
+           nhiều ca cùng lúc, nhật ký thao tác, đọc màn đối chiếu kho · xóa cửa hàng · app tự dọn · luật dùng thử · sửa các mục đã cũ.
+           👀 nhóm Phía khách (viết từ cuahang.html + menu.html): đặt hàng qua link, theo dõi đơn, size/màu, đặt phòng,
+           gọi món tại bàn, xem ảnh lớn, các câu báo lỗi phía khách.
      • Dán NGUYÊN KHỐI ngay TRƯỚC  </body>.
      ═══════════════════════════════════════════════════════════════════════ -->
 <script>
@@ -12705,6 +12709,8 @@ var CAT={
  cn :{i:'🏪',n:'Cửa hàng & Ngành nghề'},
  onl:{i:'🌐',n:'Bán online — khách đặt qua link'},
  qr :{i:'📱',n:'Đơn QR tại bàn (quán ăn, cafe)'},
+ tn :{i:'💬',n:'Tin nhắn khách — trả lời, chốt đơn'},
+ kh :{i:'👀',n:'Phía khách — khách thấy gì, làm gì'},
  sl :{i:'💾',n:'Sao lưu & Phục hồi'},
  inn:{i:'🖨️',n:'In ấn & Chia sẻ'},
  loi:{i:'🆘',n:'Sự cố thường gặp'}
@@ -12828,7 +12834,7 @@ a:`<b class="snai-h">📲 Cài App vào máy</b>
 <div class="snai-ok">✅ <b>Biết là làm đúng khi:</b> thoát ra ngoài màn hình điện thoại, bạn thấy có thêm <b>một biểu tượng mới</b>. Bấm vào đó là app mở lên toàn màn hình, không thấy thanh địa chỉ web nữa.</div>
 <div class="snai-tip">💡 Cài xong nên <b>kéo biểu tượng đó ra trang đầu</b> màn hình cho dễ tìm, nhất là với người lớn tuổi.</div>`},
 
-{c:'bd',t:'Gia hạn tài khoản — giá bao nhiêu?',k:'gia han tra tien mua goi thanh toan phi bao nhieu tien 1 thang nam gia ca',go:'openRenew',
+{c:'bd',t:'Gia hạn tài khoản — giá bao nhiêu?',k:'gia han tra tien mua goi thanh toan phi bao nhieu tien 1 thang nam gia ca toi da chuyen khoan bao da chuyen tien nut xanh',go:'openRenew',
 a:`<b class="snai-h">💳 Gia hạn tài khoản</b>
 <b>👉 Cái này để làm gì:</b> mua thêm thời gian sử dụng khi hết 15 ngày dùng thử, hoặc khi gói cũ sắp hết hạn.
 <b>🪜 Làm từng bước:</b>
@@ -12848,7 +12854,7 @@ Cần dùng cả hai thì mua cả hai gói.</li>
 <li>Nếu chuyển bằng <b>chính máy này</b>: chụp màn hình lại, rồi mở app ngân hàng chọn "quét mã từ thư viện ảnh".</li>
 </ul></li>
 <li>Kiểm tra lại số tiền hiện trên app ngân hàng → bấm chuyển.</li>
-<li>Chuyển xong, <b>nhắn tin cho chủ phần mềm</b> báo đã chuyển, rồi chờ được kích hoạt.</li>
+<li>Chuyển xong, quay lại app, <b>kéo xuống ngay dưới mã QR</b> và bấm nút xanh <b>✅ Tôi đã chuyển khoản</b>. App báo ngay cho chủ phần mềm biết để mở hạn nhanh hơn. Sau đó chờ được kích hoạt.</li>
 </ol>
 <div class="snai-ok">🎁 <b>Mua gói năm là lợi nhất</b> — được tặng thêm tháng (số tháng tặng hiện ngay trong màn Gia hạn).</div>
 <div class="snai-tip">💡 <b>Nội dung chuyển khoản chính là email của bạn</b> — app đã điền sẵn vào trong mã QR rồi, cứ quét là đúng, <b>không cần gõ thêm gì</b>. Chủ phần mềm nhìn email là biết kích hoạt đúng tài khoản nào.</div>
@@ -12863,7 +12869,7 @@ a:`<b class="snai-h">🔒 Tài khoản chưa kích hoạt / hết hạn</b>
 <li>Ngay trên màn hình đỏ đó có nút <b>Gia hạn</b> → bấm vào.</li>
 <li><b>Chọn số tháng</b> bạn muốn mua.</li>
 <li>Màn hình hiện <b>mã QR</b> → dùng app ngân hàng quét và chuyển khoản.</li>
-<li>Chuyển xong, <b>chụp lại màn hình biên lai</b> và nhắn cho chủ phần mềm.</li>
+<li>Chuyển xong, bấm nút xanh <b>✅ Tôi đã chuyển khoản</b> ngay dưới mã QR để báo cho chủ phần mềm. Nhớ <b>chụp lại màn hình biên lai</b> giữ làm bằng chứng.</li>
 <li>Chờ được kích hoạt (thường rất nhanh), rồi <b>đóng hẳn app và mở lại</b>.</li>
 </ol>
 <div class="snai-tip">🔔 <b>Mẹo để không bao giờ bị gián đoạn:</b> app tự hiện một <b>dải cảnh báo màu vàng</b> ở đầu màn hình khi sắp hết hạn. Thấy dải vàng đó là nên gia hạn ngay trong vài ngày, đừng đợi tới lúc khóa mới làm — vì lúc đó đang bán hàng mà bị chặn thì rất mất việc.</div>`},
@@ -14229,7 +14235,7 @@ a:`<b class="snai-h">🏪 Chi nhánh</b>
 </ol>
 <div class="snai-ok">✅ <b>Mỗi chi nhánh có RIÊNG:</b> kho hàng · đơn hàng đã bán · báo cáo doanh thu · quỹ ca.
 <br><b>Nhưng dùng CHUNG:</b> danh sách khách nợ (Sổ Nợ dùng chung toàn shop, để khách mua ở chi nhánh nào cũng chung một sổ nợ).</div>
-<div class="snai-tip">💡 <b>Phân nhân viên chỉ được vào 1 chi nhánh:</b> tab <b>Báo cáo</b> → <b>👤 Quản lý nhân viên</b> → bấm vào tên nhân viên → tìm ô <b>Chi nhánh được phân</b> → chọn đúng chi nhánh của họ → Lưu.</div>
+<div class="snai-tip">💡 <b>Phân nhân viên làm ở cửa hàng nào:</b> tab <b>Báo cáo</b> → <b>👤 Quản lý nhân viên</b> → bấm vào tên nhân viên → ở mục <b>Cửa hàng được phân</b>, <b>tick vào từng cửa hàng</b> người đó được làm (tick được <b>nhiều nơi</b>) → Lưu.</div>
 <div class="snai-warn">⚠️ <b>Trước khi bán hàng, luôn nhìn nút 🏪 xem mình đang ở đúng chi nhánh chưa.</b> Bán nhầm chi nhánh sẽ làm sai tồn kho và sai doanh thu của cả hai bên.</div>`},
 
 {c:'cn',t:'Ngành nghề của cửa hàng — mỗi cửa hàng một ngành',k:'nganh nghe module nganh cua hang chi nhanh doi nganh nha hang thoi trang karaoke can ky da nang',
@@ -14270,15 +14276,15 @@ a:`<b class="snai-h">🍽️ Module F&amp;B — Sơ đồ bàn</b>
 <ol>
 <li>Bấm tab <b>🍽️ Bàn</b>.</li>
 <li>Bấm nút <b>🍽️ Quản lý bàn</b>.</li>
-<li>Thêm từng bàn: <i>Bàn 1</i>, <i>Bàn 2</i>, <i>Bàn 3</i>... Có thể chia theo khu vực: <i>Sân trước</i>, <i>Trong nhà</i>, <i>Lầu 1</i>.</li>
-<li>Lưu lại.</li>
+<li>Bấm <b>➕ Thêm bàn</b> → gõ tên bàn (ví dụ <i>Bàn 1</i>) → bấm <b>OK</b>. Làm lại cho từng bàn: <i>Bàn 2</i>, <i>Bàn 3</i>... Trong danh sách, mỗi bàn có <b>ô tên</b> và <b>ô khu vực</b> — gõ khu vào đó (ví dụ <i>Sân trước</i>, <i>Trong nhà</i>, <i>Lầu 1</i>) để sơ đồ chia bàn theo khu.</li>
+<li>Thêm xong bấm <b>Đóng</b> — bàn được lưu ngay lúc thêm.</li>
 </ol>
 <b>🪜 BƯỚC 2 — Khách vào bàn, gọi món:</b>
 <ol>
 <li>Vào tab <b>🍽️ Bàn</b> → nhìn sơ đồ.</li>
 <li><b>Chạm vào bàn trống</b> mà khách vừa ngồi.</li>
 <li>Gọi món <b>y hệt như bán hàng bình thường</b> — chạm vào món, hoặc gõ tên tìm.</li>
-<li>Gọi xong thì thoát ra, <b>đơn được giữ lại ở bàn đó</b>. Bàn có khách sẽ <b>đổi màu</b> để phân biệt với bàn trống.</li>
+<li>Gọi đủ món rồi, tìm thanh có chữ <b>🍽️ Đang phục vụ: …</b> và bấm nút <b>💾 Giữ bàn</b> trên thanh đó. Đơn được <b>giữ lại ở bàn đó</b>, màn hình quay về sơ đồ bàn. Bàn có khách hiện <b>số tiền</b> thay cho chữ "Trống".</li>
 </ol>
 <b>🪜 BƯỚC 3 — Khách gọi thêm:</b>
 <ol>
@@ -14311,11 +14317,11 @@ Nhập tồn kho thực tế cho từng thứ.</li>
 <b>🪜 BƯỚC CÀI CÔNG THỨC:</b>
 <ol>
 <li>Vào tab <b>Kho</b> → <b>mở món bán ra</b> (ví dụ <i>"Cà phê sữa đá"</i>).</li>
-<li>Tìm mục <b>định lượng NVL</b>.</li>
+<li>Trong bảng chi tiết của món, bấm <b>✎ Sửa</b> → bấm nút <b>🧾 Công thức</b>. (Món mới tạo thì phải bấm <b>Lưu</b> trước, rồi mở lại mới bấm được.)</li>
 <li><b>Gõ tên nguyên liệu</b> vào ô tìm → chọn nó → thêm vào danh sách.</li>
 <li><b>Điền số lượng dùng cho 1 ly.</b> Ví dụ: cà phê <code>20</code> gram · sữa đặc <code>30</code> ml · đá <code>10</code> viên · ly <code>1</code> cái.</li>
 <li>Làm tương tự cho các nguyên liệu còn lại.</li>
-<li>Bấm <b>Lưu</b>.</li>
+<li>Bấm <b>Lưu công thức</b>.</li>
 </ol>
 <div class="snai-ok">✅ <b>Từ giờ:</b> bán 1 ly cà phê sữa → app <b>tự động trừ</b> 20g cà phê, 30ml sữa, 10 viên đá, 1 cái ly. Bạn nhìn tồn kho là biết còn nguyên liệu pha được bao nhiêu ly nữa, khi nào cần đi mua thêm.</div>
 <div class="snai-tip">💡 Cài định lượng cũng giúp <b>tính giá vốn chính xác</b> cho từng ly, biết được món nào lời nhiều món nào lời ít.</div>`},
@@ -14327,15 +14333,15 @@ a:`<b class="snai-h">👕 Module Thời trang — Biến thể</b>
 <ol>
 <li>Đặt ngành <b>👕 Thời trang · Mỹ phẩm</b> cho cửa hàng: Vào <span class="snai-path">🛒 BÁN HÀNG</span> → bấm nút <b>🏪</b> góc trên bên phải → bấm <b>✎</b> ở cửa hàng cần đổi → chọn <b>Ngành nghề</b> → <b>Lưu</b>.</li>
 <li>Vào tab <b>Kho</b> → <b>mở sản phẩm</b> (ví dụ <i>"Áo thun cổ tròn"</i>).</li>
-<li>Tìm mục <b>biến thể</b>.</li>
+<li>Trong bảng chi tiết của sản phẩm, bấm <b>✎ Sửa</b> → bấm nút <b>👕 Biến thể</b>. (Sản phẩm mới tạo thì phải bấm <b>Lưu</b> trước, rồi mở lại mới bấm được.)</li>
 <li><b>Gõ danh sách SIZE</b>, các size <b>cách nhau bằng dấu phẩy</b>, không có khoảng trắng thừa:
 <br><code>S,M,L,XL</code></li>
 <li><b>Gõ danh sách MÀU</b>, cũng cách nhau bằng dấu phẩy:
 <br><code>Đỏ,Đen,Trắng</code></li>
-<li>App <b>tự tạo ra một bảng ma trận</b> — mỗi ô là một cặp size × màu. Ví dụ trên sẽ ra 4 size × 3 màu = <b>12 ô</b>.</li>
+<li>Bấm nút <b>🔲 Tạo / cập nhật bảng</b> — app <b>tạo ra một bảng ma trận</b> — mỗi ô là một cặp size × màu. Ví dụ trên sẽ ra 4 size × 3 màu = <b>12 ô</b>.</li>
 <li><b>Điền tồn kho cho từng ô.</b> Ô nào không có hàng thì để <b>0</b>.</li>
 <li>Nếu size lớn bán giá cao hơn thì <b>điền giá riêng</b> cho ô đó.</li>
-<li>Bấm <b>Lưu</b>.</li>
+<li>Bấm <b>Lưu biến thể</b>.</li>
 </ol>
 <div class="snai-ok">✅ <b>Khi bán:</b> chạm vào áo → app <b>hỏi chọn size và màu</b> → bạn chọn → trừ đúng ô đó. <b>Ô nào hết hàng tự mờ đi</b>, không bấm được — nên không bao giờ bán nhầm cái không có.</div>
 <div class="snai-tip">💡 Áp dụng được cả cho: <i>giày (size 38, 39, 40)</i> · <i>son môi (các mã màu)</i> · <i>túi xách (các màu)</i>.</div>`},
@@ -14346,7 +14352,7 @@ a:`<b class="snai-h">🛏️ Module Phòng tính giờ</b>
 <b>🪜 BƯỚC 1 — Chuẩn bị (làm 1 lần):</b>
 <ol>
 <li>Đặt ngành <b>🛏️ Karaoke · Spa · Nhà nghỉ</b> cho cửa hàng: Vào <span class="snai-path">🛒 BÁN HÀNG</span> → bấm nút <b>🏪</b> góc trên bên phải → bấm <b>✎</b> ở cửa hàng cần đổi → chọn <b>Ngành nghề</b> → <b>Lưu</b>.</li>
-<li>Vào tab <b>Kho</b> → <b>tạo từng phòng như một sản phẩm</b>: <i>Phòng 1</i>, <i>Phòng VIP</i>...</li>
+<li>Vào tab <b>Phòng</b> → bấm <b>🛏️ Quản lý phòng</b> → bấm <b>➕ Thêm phòng</b> → gõ <b>tên phòng</b> (ví dụ <i>Phòng 1</i>, <i>Phòng VIP</i>) → OK → gõ <b>giá mỗi giờ</b> → OK.</li>
 <li>Với mỗi phòng, đặt:
 <ul>
 <li><b>Giá theo giờ</b> — ví dụ 80.000đ/giờ.</li>
@@ -14356,14 +14362,14 @@ a:`<b class="snai-h">🛏️ Module Phòng tính giờ</b>
 <b>🪜 BƯỚC 2 — Khách vào phòng:</b>
 <ol>
 <li><b>Chạm vào phòng</b> khách sẽ ở.</li>
-<li>Bấm nút <b>Mở phòng</b>.</li>
+<li>App hỏi lại <b>"Mở phòng …? Giá …/giờ"</b> → bấm <b>OK</b>.</li>
 <li><b>App bắt đầu đếm giờ ngay từ giây đó.</b></li>
 </ol>
 <b>🪜 BƯỚC 3 — Khách gọi thêm nước, đồ ăn:</b>
 <ol>
 <li>Chạm vào phòng đang có khách.</li>
 <li>Bấm <b>🍺 Gọi thêm đồ</b>.</li>
-<li>Chọn món như bán hàng bình thường. Món được cộng vào hóa đơn của phòng.</li>
+<li>App chuyển sang tab <b>Bán</b>. Chọn món như bán hàng bình thường, xong bấm nút <b>💾 Giữ phòng</b> (trên thanh có chữ <b>🛏️ Đang gọi cho: …</b>). Món được cộng vào hóa đơn của phòng.</li>
 </ol>
 <b>🪜 BƯỚC 4 — Khách về:</b>
 <ol>
@@ -14390,13 +14396,13 @@ a:`<b class="snai-h">⚖️ Module Cân ký &amp; Giá bậc</b>
 <b>🪜 Cách cài GIÁ BẬC — làm từng bước:</b>
 <ol>
 <li>Vào tab <b>Kho</b> → <b>mở sản phẩm</b> cần cài.</li>
-<li>Tìm mục <b>bậc giá</b>.</li>
-<li><b>Thêm từng dòng</b>, mỗi dòng gồm: <b>từ số lượng bao nhiêu</b> → <b>giá bao nhiêu</b>. Ví dụ với gạo:
+<li>Trong bảng chi tiết của sản phẩm, bấm <b>✎ Sửa</b> → bấm nút <b>⚖️ Bậc giá</b>. (Sản phẩm mới tạo thì phải bấm <b>Lưu</b> trước, rồi mở lại mới bấm được.)</li>
+<li><b>Bấm <b>➕ Thêm bậc</b> để thêm từng dòng</b>, mỗi dòng gồm: <b>từ số lượng bao nhiêu</b> → <b>giá bao nhiêu</b>. Ví dụ với gạo:
 <ul>
 <li>từ <b>10</b> kg trở lên → <b>8.000đ</b> mỗi kg</li>
 <li>từ <b>50</b> kg trở lên → <b>7.500đ</b> mỗi kg</li>
 </ul></li>
-<li>Bấm <b>Lưu</b>.</li>
+<li>Bấm <b>Lưu bậc giá</b>.</li>
 </ol>
 <div class="snai-ok">✅ <b>Trong giỏ hàng, mỗi lần bạn đổi số lượng là app TỰ ÁP LẠI đúng bậc giá.</b> Khách mua 8kg thì tính giá lẻ, tăng lên 10kg là giá tự nhảy xuống 8.000đ/kg ngay. Không phải tính nhẩm, không sợ bán nhầm giá.</div>`},
 
@@ -14546,9 +14552,9 @@ a:`<b class="snai-h">🧹 Dọn kho ảnh</b>
 <ol>
 <li>Bấm <span class="snai-path">🧰 Công cụ &amp; Sao lưu</span>.</li>
 <li>Tìm nút <b>🧹 Dọn kho ảnh (xoá file mồ côi)</b> → bấm vào.</li>
-<li><b>Chờ app quét xong.</b> Kho ảnh nhiều thì quét lâu hơn, cứ để yên đừng tắt.</li>
-<li>App hiện <b>báo cáo</b>: tìm thấy bao nhiêu tệp mồ côi, tổng dung lượng bao nhiêu.</li>
-<li>Đọc báo cáo rồi bấm <b>xác nhận xóa</b>.</li>
+<li>App hỏi lại cho chắc (bảng chữ <b>🧹 DỌN KHO ẢNH</b>) → bấm <b>OK</b> để tiếp tục.</li>
+<li><b>Chờ app soát xong.</b> Kho ảnh nhiều thì lâu hơn, cứ để yên đừng tắt app.</li>
+<li>Xong, app hiện bảng <b>✅ Dọn xong</b> ghi rõ: xoá bao nhiêu file ảnh không còn dùng, bao nhiêu chữ ký lẻ, bao nhiêu link chia sẻ không còn chủ → bấm <b>OK</b>.</li><li>Lưu ý: việc này <b>chỉ làm được trên máy chủ shop</b> (không phải máy nhân viên) và <b>phải có mạng</b>.</li>
 </ol>
 <div class="snai-ok">✅ <b>Hoàn toàn an toàn.</b> App <b>chỉ xóa những tệp KHÔNG CÒN ĐƯỢC DÙNG</b> nữa. Ảnh và chữ ký của những giao dịch đang tồn tại thì <b>tuyệt đối không bị đụng tới</b>.</div>
 <div class="snai-tip">💡 Nên dọn <b>vài tháng một lần</b>, hoặc sau khi bạn vừa xóa nhiều giao dịch/khách hàng. Dọn xong sẽ tiết kiệm dung lượng lưu trữ.</div>`},
@@ -16195,6 +16201,681 @@ a:`<b class="snai-h">👆 Chỉ tận tay</b>
 <b>🔘 Các nút trên khung nhắc:</b> <b>✕ Thoát</b> — dừng hướng dẫn · <b>Bước sau ▶</b> — bỏ qua bước này · <b>📖 Xem hướng dẫn chữ</b> — đọc bài hướng dẫn đầy đủ.
 <div class="snai-tip">💡 Khung báo <b>"Có một bảng khác đang che"</b> nghĩa là đang mở một bảng khác đè lên — làm xong hoặc bấm Đóng / Hủy / ✕ trên bảng đó là mình chỉ tiếp.</div>
 <div class="snai-ok">✅ Trong mỗi bài hướng dẫn chữ, chỗ nào có nút <b>👆 Chỉ tận tay trên màn hình</b> là bấm vào được luôn. Đọc to đang bật thì mình đọc từng bước cho bạn nghe.</div>`},
+
+/* ═════════════ v4 — BỔ SUNG: 💬 TIN NHẮN KHÁCH · XEM ẢNH LỚN · LUẬT CA · XÓA CỬA HÀNG · DÙNG THỬ ═════════════ */
+/* ───────────── 💬 TIN NHẮN KHÁCH ───────────── */
+{c:'tn',t:'Tin nhắn khách là gì? Dùng làm gì?',k:'tin nhan khach nhan tin chat tro chuyen khach hoi cua hang tra loi khach hop thu la gi inbox',
+a:`<b class="snai-h">💬 Tin nhắn khách</b>
+<b>👉 Cái này để làm gì:</b> khách đang xem <b>link bán online</b> của bạn, hoặc khách ngồi tại bàn <b>quét mã QR</b>, có thể <b>nhắn tin hỏi thẳng cửa hàng</b> ngay trên trang đó — hỏi còn hàng không, xin đổi món, hẹn giờ giao… Bạn <b>trả lời ngay trong app này</b>, không cần Zalo, không cần biết số điện thoại của khách.
+<b>📖 Bạn làm được những gì:</b>
+<ul>
+<li><b>Nhận tin ngay:</b> máy kêu "ting ting", rung, hiện băng xanh ở trên cùng màn hình, và nút tròn xanh dương <b>💬 Tin nhắn</b> hiện số đỏ.</li>
+<li><b>Trả lời</b> bằng cách gõ chữ, hoặc bấm <b>câu trả lời mẫu</b> có sẵn cho nhanh.</li>
+<li><b>📋 Chốt đơn:</b> gửi cho khách một tấm thẻ ghi tổng tiền + nội dung đã thỏa thuận. Khách bấm <b>✅ Đồng ý</b> là có bằng chứng lưu lại.</li>
+<li><b>Nhắn trước cho khách</b> đã đặt đơn online (ví dụ: báo hết size, hẹn lại giờ giao).</li>
+<li><b>Cất</b> cuộc trò chuyện đã xong, <b>chặn</b> khách nhắn phá.</li>
+</ul>
+<b>📌 Điều kiện để có tính năng này:</b> tài khoản có <b>Gói Bán online</b> (đang dùng thử cũng được), và đã <b>tạo link cửa hàng</b> hoặc <b>mã QR tại bàn</b>.
+<div class="snai-ok">✅ <b>Máy chủ shop và máy nhân viên đều nhận được tin.</b> Ai rảnh thì trả lời.</div>
+<div class="snai-tip">💡 Tin nhắn <b>không tự sửa đơn hàng nào</b>. Thỏa thuận xong, bạn vẫn tự nhận đơn và bán như bình thường.</div>`},
+
+{c:'tn',t:'Biết có khách nhắn: chuông, băng xanh, nút 💬 có số đỏ',k:'co tin nhan moi chuong bao tin nhan bang xanh nut tin nhan so do chua doc rung thong bao khach dang cho tra loi',
+a:`<b class="snai-h">🔔 Nhận biết có tin nhắn mới</b>
+<b>👉 Khi khách vừa nhắn, app báo cho bạn bằng 4 cách cùng lúc:</b>
+<ol>
+<li><b>Tiếng "ting ting"</b> — hai nốt ngắn.</li>
+<li><b>Máy rung</b> (điện thoại Android).</li>
+<li><b>Băng màu xanh dương</b> trượt xuống ở <b>trên cùng màn hình</b>, ghi <i>"💬 Tên khách: nội dung tin"</i>. Băng tự ẩn sau khoảng 7 giây. <b>Chạm vào băng</b> là mở thẳng cuộc trò chuyện đó.</li>
+<li><b>Nút tròn xanh dương 💬 Tin nhắn</b> ở góc dưới bên phải (nằm <b>ngay phía trên</b> nút 🤖 TRỢ LÝ) hiện <b>số màu đỏ</b> = số cuộc chưa đọc, và <b>lắc lắc</b> để bạn chú ý.</li>
+</ol>
+<b>📍 Vừa mở app</b> mà đã có khách chờ sẵn: app hiện dòng <i>"💬 Có … khách đang chờ trả lời tin nhắn"</i>.
+<div class="snai-warn">⚠️ <b>Không nghe tiếng?</b> Trình duyệt chỉ cho phát tiếng <b>sau khi bạn chạm vào màn hình ít nhất 1 lần</b> kể từ lúc mở app — mở app xong nhớ chạm một cái. Ngoài ra vặn to âm lượng <b>Phương tiện (Media)</b>; iPhone thì gạt tắt chế độ Im lặng.</div>
+<div class="snai-tip">💡 Nút 💬 Tin nhắn <b>chỉ hiện khi đang có ít nhất một cuộc trò chuyện</b>. Chưa ai nhắn thì nút ẩn cho gọn. Lúc đó muốn mở hộp thư: vào tab <b>Bán online</b> (quán ăn, cafe: tab <b>Đơn QR</b>) → khung <b>💬 Tin nhắn khách</b> → bấm <b>💬 Mở hộp tin nhắn</b>.</div>
+<div class="snai-tip">💡 Nút 💬 cũng <b>tạm ẩn</b> khi bạn đang mở giỏ hàng, đang quét mã, hay đang mở một bảng khác. Đóng bảng đó là nút hiện lại.</div>`},
+
+{c:'tn',t:'Mở hộp tin nhắn và đọc danh sách cuộc trò chuyện',k:'mo hop tin nhan hop thu danh sach cuoc tro chuyen doc tin nhan nhan online tai ban da chan cham do chua doc',
+a:`<b class="snai-h">📬 Hộp tin nhắn</b>
+<b>🪜 Có 3 cách mở, cách nào cũng được:</b>
+<ol>
+<li>Bấm nút tròn xanh dương <b>💬 Tin nhắn</b> ở góc dưới bên phải (khi nút đang hiện).</li>
+<li>Chạm vào <b>băng xanh</b> báo tin mới ở trên cùng màn hình.</li>
+<li>Vào <span class="snai-path">🛒 BÁN HÀNG</span> → tab <b>Bán online</b> (quán ăn, cafe: tab <b>Đơn QR</b>) → khung <b>💬 Tin nhắn khách</b> → bấm nút xanh <b>💬 Mở hộp tin nhắn</b>.</li>
+</ol>
+<b>📖 Đọc danh sách — mỗi dòng là một khách:</b>
+<ul>
+<li><b>Hình tròn bên trái:</b> chữ cái đầu của tên khách. Khách ngồi tại bàn thì là hình 🍽.</li>
+<li><b>Tên khách</b> (khách tại bàn thì kèm tên bàn), bên phải là <b>giờ nhắn cuối</b>: <i>vừa xong</i> · <i>5 phút</i> · <i>14:30</i> · <i>Hôm qua</i>…</li>
+<li><b>Nhãn nhỏ:</b> <b>Online</b> = khách nhắn từ link bán online · <b>Tại bàn</b> = khách quét mã QR ở bàn · <b>Đã chặn</b> = khách bạn đã chặn.</li>
+<li><b>Dòng chữ dưới tên</b> là tin nhắn mới nhất. Có chữ <b>"Bạn:"</b> đứng trước nghĩa là tin đó do cửa hàng gửi.</li>
+<li><b>Chấm đỏ + chữ in đậm</b> = cuộc này có tin <b>chưa đọc</b>.</li>
+</ul>
+<b>👉 Chạm vào một dòng</b> để mở cuộc trò chuyện với khách đó. Cuộc nào vừa nhắn gần nhất thì nằm trên cùng.
+<b>🔙 Thoát ra:</b> bấm <b>✕</b> ở góc trên bên trái hộp thư. Đang ở trong một cuộc trò chuyện thì bấm <b>‹</b> để về danh sách. Nút <b>Quay lại</b> của điện thoại cũng dùng được.
+<div class="snai-tip">💡 Hộp thư ghi <i>"Chưa có tin nhắn nào"</i> là bình thường — chưa có khách nào nhắn. Còn nếu ghi <i>"🔒 Cần Gói Bán online…"</i> thì tài khoản chưa có gói — xem mục <b>Mở tab Bán online và dùng thử miễn phí</b>.</div>`},
+
+{c:'tn',t:'Trả lời tin nhắn của khách (gõ chữ hoặc bấm câu mẫu)',k:'tra loi tin nhan khach go chu cau mau cau tra loi nhanh gui tin nhan gui lai khach da xem goi dien cho khach',
+a:`<b class="snai-h">✍️ Trả lời khách</b>
+<b>🪜 Làm từng bước:</b>
+<ol>
+<li>Mở hộp tin nhắn → <b>chạm vào tên khách</b> cần trả lời.</li>
+<li>Màn hình hiện các tin nhắn: tin của <b>khách</b> nằm bên <b>trái</b> (nền trắng), tin của <b>cửa hàng</b> nằm bên <b>phải</b> (nền xanh).</li>
+<li><b>Cách nhanh nhất:</b> bấm một <b>câu mẫu</b> ở hàng nút ngay phía trên ô gõ (kéo ngang để xem hết). Bấm là <b>gửi đi luôn</b>, không cần gõ gì.
+<br>• Với khách online: <i>Dạ còn hàng ạ</i> · <i>Dạ hết hàng rồi ạ, mình đổi món khác nhé?</i> · <i>Dạ shop giao trong khoảng 30 phút ạ</i> · <i>Dạ shop đã nhận đơn ạ</i> · <i>Cảm ơn anh/chị ạ!</i>
+<br>• Với khách tại bàn: <i>Dạ có ngay ạ</i> · <i>Dạ nhân viên ra ngay ạ</i> · <i>Dạ món đang lên ạ</i> · <i>Cảm ơn anh/chị ạ!</i></li>
+<li><b>Muốn tự viết:</b> chạm vào ô <b>"Trả lời khách…"</b> ở dưới cùng → gõ nội dung (tối đa 500 ký tự) → bấm nút tròn xanh <b>➤</b> để gửi.</li>
+</ol>
+<b>📖 Dòng chữ nhỏ dưới mỗi tin của bạn cho biết:</b>
+<ul>
+<li><b>Đang gửi…</b> — tin đang đi.</li>
+<li><b>Giờ gửi</b> (ví dụ 14:32) — đã gửi xong.</li>
+<li><b>· Khách đã xem</b> — khách đã mở đọc tin đó.</li>
+<li><b>⚠️ Chưa gửi được</b> — thường do mất mạng. Bấm <b>Gửi lại</b> để gửi lần nữa, hoặc <b>Bỏ</b> để bỏ tin đó.</li>
+</ul>
+<div class="snai-tip">📞 Khách có để lại số điện thoại thì ở góc trên bên phải có nút <b>📞</b> — bấm là gọi thẳng cho khách.</div>
+<div class="snai-tip">⌨️ Dùng <b>máy tính</b>: bấm <b>Enter</b> là gửi, <b>Shift + Enter</b> là xuống dòng. Dùng <b>điện thoại</b>: Enter là xuống dòng, muốn gửi thì bấm nút ➤.</div>
+<div class="snai-warn">⚠️ Khách <b>ngồi tại bàn</b> (quét mã QR) thì bạn chỉ trả lời được <b>sau khi khách nhắn trước</b>. Cửa hàng không tự mở cuộc trò chuyện mới với khách tại bàn được.</div>`},
+
+{c:'tn',t:'Chốt đơn với khách bằng thẻ 📋 Chốt đơn',k:'chot don the chot don thoa thuan don hang tong tien phi ship gio giao khach dong y bang chung xac nhan don qua tin nhan gui the chot',
+a:`<b class="snai-h">📋 Chốt đơn với khách</b>
+<b>👉 Cái này để làm gì:</b> sau khi nhắn qua nhắn lại (đổi món, cộng phí ship, hẹn giờ giao…), bạn gửi cho khách <b>một tấm thẻ tóm tắt</b>: tổng tiền + nội dung đã thống nhất. Khách bấm <b>✅ Đồng ý</b> → app <b>lưu lại làm bằng chứng</b>, sau này không ai chối được.
+<b>🪜 Làm từng bước:</b>
+<ol>
+<li>Mở cuộc trò chuyện với khách.</li>
+<li>Bấm nút tròn <b>📋</b> (viền vàng) nằm <b>bên trái ô gõ tin nhắn</b>.</li>
+<li>Khung <b>"📋 Chốt đơn với khách"</b> hiện ra với 2 ô:
+<ul>
+<li><b>Tổng tiền</b> — không bắt buộc. Chỉ gõ số, ví dụ <code>450000</code>.</li>
+<li><b>Nội dung chốt</b> — <b>bắt buộc phải ghi</b>. Ghi rõ điều đã thỏa thuận, ví dụ: <i>2 áo size L màu đen, ship 20k, giao trước 5 giờ chiều</i>.</li>
+</ul></li>
+<li>Bấm nút xanh <b>Gửi thẻ chốt</b>. (Đổi ý thì bấm <b>Huỷ</b>.)</li>
+</ol>
+<b>📖 Sau khi gửi, trên thẻ có dòng trạng thái:</b>
+<ul>
+<li><b>⏳ Chờ khách bấm Đồng ý</b> — khách chưa xác nhận.</li>
+<li><b>✅ Khách đã đồng ý lúc …</b> — khách đã bấm Đồng ý, có ghi giờ bấm. Lúc này còn hiện thêm một dòng xanh <b>"✅ Khách đồng ý chốt đơn"</b>.</li>
+</ul>
+<div class="snai-warn">⚠️ Thẻ chốt <b>chỉ là bằng chứng thỏa thuận</b>. App <b>không tự sửa đơn, không tự trừ kho, không tự thu tiền</b>. Chốt xong bạn vẫn phải tự <b>nhận đơn</b> và bán như bình thường.</div>
+<div class="snai-tip">💡 Để trống ô Nội dung mà bấm gửi, app sẽ nhắc <i>"Ghi nội dung chốt (giờ giao, size, phí ship…)"</i>.</div>
+<div class="snai-tip">💡 Nếu bạn mở cuộc trò chuyện từ nút <b>💬 Nhắn khách</b> trên thẻ đơn online thì ô Tổng tiền được <b>điền sẵn</b> số tiền của đơn đó — vẫn sửa lại được.</div>`},
+
+{c:'tn',t:'Cửa hàng nhắn trước cho khách từ đơn online (nút 💬 Nhắn khách)',k:'nhan khach truoc nhan tin cho khach tu don online het size het mau doi mon hen gio nut nhan khach tren the don',
+a:`<b class="snai-h">💬 Cửa hàng nhắn trước</b>
+<b>👉 Dùng khi nào:</b> khách đã đặt đơn qua link mà bạn cần hỏi lại — hết size, hết màu, đổi món, hẹn lại giờ giao, xác nhận địa chỉ…
+<b>🪜 Làm từng bước:</b>
+<ol>
+<li>Vào <span class="snai-path">🛒 BÁN HÀNG</span> → tab <b>Bán online</b>.</li>
+<li>Tìm <b>thẻ đơn</b> của khách (thẻ có hình 🌐, đơn đặt phòng / đặt lịch thì có hình 📅).</li>
+<li>Ở hàng nút của thẻ, cạnh nút <b>Nhận đơn</b> (hoặc <b>Nhận lịch</b>, <b>Khách đến · mở phòng</b>), bấm <b>💬 Nhắn khách</b>.</li>
+<li>Cuộc trò chuyện mở ra. Nếu khách chưa nhắn gì, có dòng nền xanh nhạt ghi <i>"Khách chưa nhắn. Tin đầu tiên của bạn sẽ hiện ngay trên link đặt hàng của khách (đơn DH-…)"</i>.</li>
+<li>Gõ tin, hoặc bấm câu mẫu → gửi.</li>
+</ol>
+<div class="snai-ok">✅ Khách đang mở link đặt hàng sẽ <b>thấy tin của bạn ngay trên trang đó</b>.</div>
+<div class="snai-warn">⚠️ Nút này chỉ có ở <b>đơn online</b> (đặt qua link). <b>Đơn QR tại bàn không có</b> — khách tại bàn thì ra bàn nói trực tiếp, hoặc chờ khách nhắn trước. Nếu app báo <i>"Đơn này không nhắn qua link được — gọi / Zalo cho khách nhé"</i> thì hãy gọi điện cho khách.</div>
+<div class="snai-tip">💡 Việc gấp (sắp giao hàng, hết món) thì <b>gọi điện</b> cho chắc, vì khách đã tắt trang thì chưa thấy tin ngay.</div>`},
+
+{c:'tn',t:'Cất cuộc trò chuyện đã xong · Chặn khách nhắn phá',k:'xong cat khoi hop thu chan khach nhan pha bo chan khach quay roi tin nhan rac spam don hop thu khach nhan lai tu hien lai',
+a:`<b class="snai-h">✔ Xong · 🚫 Chặn</b>
+<b>📍 Ở đâu:</b> mở cuộc trò chuyện → bấm nút <b>⋯</b> (ba chấm) ở <b>góc trên bên phải</b> → hiện ra 2 nút.
+<b>1️⃣ ✔ Xong — cất khỏi hộp thư</b>
+<ul>
+<li><b>Dùng khi:</b> đã nói chuyện xong với khách, muốn hộp thư gọn lại.</li>
+<li>Bấm vào → app báo <i>"✔ Đã cất cuộc này khỏi hộp thư"</i> và quay về danh sách.</li>
+<li>Đây chỉ là <b>cất đi cho gọn</b>, không phải chặn. <b>Khách nhắn lại thì cuộc đó tự hiện lại</b> trong hộp thư, có chuông báo như thường.</li>
+</ul>
+<b>2️⃣ 🚫 Chặn khách này</b>
+<ul>
+<li><b>Dùng khi:</b> khách nhắn phá, nhắn bậy, quấy rối.</li>
+<li>Bấm vào → app hỏi lại <i>"Chặn khách này?"</i> → bấm <b>OK</b>.</li>
+<li>Từ đó khách này <b>không gửi được tin</b> cho cửa hàng nữa. Trong danh sách, cuộc đó mang nhãn đỏ <b>Đã chặn</b>. Phía khách sẽ thấy dòng <i>"Cửa hàng hiện không nhận tin nhắn từ bạn"</i>.</li>
+<li><b>Bỏ chặn:</b> mở lại cuộc đó → bấm <b>⋯</b> → bấm <b>✅ Bỏ chặn khách này</b>. Bỏ chặn lúc nào cũng được.</li>
+</ul>
+<div class="snai-tip">💡 Chặn ở đây là chặn <b>nhắn tin</b>. Còn chặn <b>đặt đơn ảo</b> theo số điện thoại thì xem mục <b>Khách đặt ảo, bom hàng — chặn số điện thoại</b>.</div>`},
+
+{c:'tn',t:'Bật / tắt cho khách nhắn tin',k:'bat tat nhan tin cong tac cho khach nhan tin tat tin nhan khach khong muon nhan tin dang ban',
+a:`<b class="snai-h">🔛 Bật / tắt nhắn tin</b>
+<b>👉 Cái này để làm gì:</b> lúc quá bận, hoặc không muốn khách nhắn, bạn <b>tắt</b> đi. Khách vẫn xem hàng và đặt đơn bình thường, chỉ là <b>không gửi được tin mới</b>.
+<b>🪜 Làm từng bước:</b>
+<ol>
+<li>Vào <span class="snai-path">🛒 BÁN HÀNG</span> → tab <b>Bán online</b> (quán ăn, cafe: tab <b>Đơn QR</b>).</li>
+<li>Tìm khung <b>💬 Tin nhắn khách</b>.</li>
+<li>Bấm <b>công tắc</b> ở góc phải của khung đó.</li>
+<li>Khi <b>tắt</b>, app hỏi lại <i>"Tắt nhắn tin?"</i> → bấm <b>OK</b>.</li>
+</ol>
+<b>📖 Dòng chữ trong khung cho biết đang ở trạng thái nào:</b>
+<ul>
+<li><i>Đang <b>bật</b> — khách mở link / quét mã là nhắn được cho cửa hàng.</i></li>
+<li><i>Đang <b>tắt</b> — khách không gửi được tin mới.</i></li>
+</ul>
+Ngay dưới còn ghi số <b>cuộc đang mở</b> và số cuộc <b>chưa đọc</b>.
+<div class="snai-ok">✅ Tắt rồi thì <b>tin cũ vẫn còn</b>, bạn vẫn mở ra đọc và trả lời được.</div>
+<div class="snai-warn">⚠️ <b>Chỉ máy chủ shop</b> mới có công tắc. Máy nhân viên bấm sẽ báo <i>"Chỉ chủ shop mới bật / tắt được nhắn tin"</i>. Chưa tạo link bán online / mã QR thì cũng chưa có công tắc.</div>
+<div class="snai-tip">💡 Công tắc áp dụng cho <b>cả link bán online lẫn mã QR tại bàn</b> của cửa hàng đang mở.</div>
+<div class="snai-tip">💡 Khi <b>tắt</b>: khách <b>chưa từng nhắn</b> sẽ không còn thấy nút 💬 trên trang. Khách <b>đã có cuộc trò chuyện</b> vẫn thấy nút, nhưng gửi tin thì trang báo <i>"Cửa hàng tạm thời chưa nhận được tin nhắn. Bạn gọi điện cho cửa hàng giúp nhé"</i>. Trang của khách nhận công tắc mới <b>trong khoảng 30 phút</b>.</div>`},
+
+{c:'tn',t:'Tin nhắn khi có nhiều cửa hàng — "Cửa hàng này" / "Tất cả cửa hàng"',k:'nhieu cua hang chi nhanh tin nhan loc cua hang nay tat ca cua hang bao tin theo cua hang khong bao cheo',
+a:`<b class="snai-h">🏪 Tin nhắn theo từng cửa hàng</b>
+<b>👉 Nếu bạn có nhiều cửa hàng (chi nhánh):</b> app báo tin <b>theo cửa hàng đang chọn trên máy</b>, giống như chuông báo đơn.
+<ul>
+<li>Cửa hàng đang chọn trên máy <b>có khách nhắn</b> → máy đó <b>chỉ báo và chỉ đếm tin của cửa hàng đó</b>. Nhờ vậy 2 cửa hàng dùng 2 máy không báo lẫn sang nhau.</li>
+<li>Cửa hàng đang chọn <b>chưa có tin nào</b> → máy báo tin của <b>tất cả</b> cửa hàng, để không bỏ sót khách.</li>
+</ul>
+<b>🪜 Xem tin của cửa hàng khác:</b>
+<ol>
+<li>Mở hộp tin nhắn.</li>
+<li>Phía trên danh sách có 2 nút: <b>Cửa hàng này (…)</b> và <b>Tất cả cửa hàng (…)</b>. Số trong ngoặc là số cuộc trò chuyện.</li>
+<li>Bấm <b>Tất cả cửa hàng</b> để xem hết.</li>
+</ol>
+<div class="snai-tip">💡 Hai nút này <b>chỉ hiện khi cửa hàng khác cũng đang có tin</b>. Không thấy nghĩa là chỉ cửa hàng này có tin.</div>`},
+
+{c:'tn',t:'Phía khách: khách nhắn tin cho cửa hàng thế nào?',k:'phia khach nhan tin the nao khach thay gi nut nhan cua hang nhan quan cau hoi nhanh khach bam dong y da xem hoi ve don ten cua ban',
+a:`<b class="snai-h">👀 Phía khách nhắn tin</b>
+<b>👉 Biết để chỉ lại khi khách hỏi "nhắn cho shop ở đâu?"</b>
+<b>🪜 Khách làm thế này:</b>
+<ol>
+<li>Trên <b>link bán online</b>, ở <b>góc dưới bên phải</b> có nút <b>💬 Nhắn cửa hàng</b>. Trên trang <b>thực đơn QR tại bàn</b> là nút <b>💬 Nhắn quán</b>. Khách bấm vào.</li>
+<li>Khung nhắn tin mở ra với lời chào <i>"👋 Chào bạn! Nhắn cho … để hỏi hàng, hỏi giá hay thỏa thuận đơn"</i>.</li>
+<li>Lần đầu nhắn có ô <b>Tên của bạn</b> để cửa hàng tiện xưng hô (không bắt buộc).</li>
+<li>Khách bấm một <b>câu hỏi nhanh</b>, hoặc gõ vào ô <b>Nhắn cho cửa hàng…</b> rồi bấm <b>➤</b>.</li>
+</ol>
+<b>💬 Câu hỏi nhanh có sẵn cho khách:</b>
+<ul>
+<li>Link bán online: <i>Còn hàng không ạ?</i> · <i>Giao mất bao lâu ạ?</i> · <i>Có giảm giá không ạ?</i></li>
+<li>Tại bàn: <i>Cho thêm đá</i> · <i>Tính tiền giúp mình</i> · <i>Món của mình lâu chưa ra ạ?</i> · <i>Cho xin chén đũa</i></li>
+<li>Khách vừa đặt đơn online thì có thêm nút <b>🧾 Hỏi về đơn DH-…</b>. Bấm vào, bên bạn hiện dòng <i>"🧾 Khách hỏi về Đơn DH-… · số tiền"</i>.</li>
+</ul>
+<b>📖 Khách còn thấy:</b>
+<ul>
+<li>Ở màn <b>Đã gửi đơn</b> có nút <b>💬 Nhắn cửa hàng về đơn này</b>.</li>
+<li>Khi cửa hàng trả lời: băng báo <i>"💬 Tên cửa hàng: …"</i> ở trên cùng, máy rung nhẹ, nút 💬 có <b>chấm đỏ</b>.</li>
+<li>Tin khách gửi hiện chữ <b>· Đã xem</b> khi cửa hàng đã mở đọc.</li>
+<li>Thẻ <b>📋 Cửa hàng chốt đơn</b> kèm nút <b>✅ Đồng ý</b>. Bấm xong thẻ ghi <b>✅ Bạn đã đồng ý</b>.</li>
+<li>Trên link bán online, nếu bạn đã điền số điện thoại cửa hàng thì khung nhắn tin có nút <b>📞</b> để gọi.</li>
+</ul>
+<div class="snai-ok">✅ Khách <b>không cần cài app, không cần đăng ký</b>. Trang ghi rõ <i>"Tin nhắn chỉ bạn và cửa hàng xem được"</i> — mỗi khách một cuộc riêng, khách khác không đọc được.</div>
+<div class="snai-warn">⚠️ <b>Khách thấy các dòng báo sau thì nghĩa là:</b>
+<br>• <i>"Cửa hàng hiện không nhận tin nhắn từ bạn"</i> → bạn đã <b>chặn</b> khách đó.
+<br>• <i>"Cửa hàng tạm thời chưa nhận được tin nhắn. Bạn gọi điện cho cửa hàng giúp nhé"</i> → bạn đang <b>tắt nhắn tin</b>, hoặc gói Bán online đã hết hạn.
+<br>• <i>"Đang mất mạng — có mạng lại tin sẽ tự gửi"</i> → mạng của khách.
+<br>• <i>"Cuộc trò chuyện đã quá dài — bạn gọi điện cho cửa hàng giúp nhé"</i> → khách đã gửi quá nhiều tin trong một cuộc.</div>
+<div class="snai-tip">💡 Khách phải <b>đang mở trang</b> mới thấy tin trả lời ngay. Khách tắt trang rồi thì lần sau mở lại link mới thấy — việc gấp nên gọi điện.</div>`},
+
+{c:'tn',t:'Tin nhắn khách: không thấy nút 💬, không nghe chuông, không gửi được',k:'su co tin nhan khong thay nut tin nhan khong nghe chuong tin nhan khong gui duoc loi chua gui duoc khach khong nhan duoc khong thay khung tin nhan',
+a:`<b class="snai-h">🆘 Sự cố tin nhắn khách</b>
+<b>📌 1 — Không thấy nút tròn 💬 Tin nhắn:</b>
+<ul>
+<li>Nút chỉ hiện khi <b>đang có ít nhất một cuộc trò chuyện</b>. Chưa ai nhắn → không có nút. Vào tab <b>Bán online</b> → khung <b>💬 Tin nhắn khách</b> để mở hộp thư.</li>
+<li>Đang mở giỏ hàng, bảng quét mã, bảng in, hoặc một hộp thoại khác → nút tạm ẩn. Đóng bảng đó lại.</li>
+<li>Tài khoản <b>chưa có Gói Bán online</b> → chưa có tính năng này.</li>
+</ul>
+<b>📌 2 — Không thấy khung 💬 Tin nhắn khách trong tab Bán online:</b> gói Bán online chưa mở, hoặc đang tải. Chờ vài giây. Vẫn không có thì xem mục <b>Mở tab Bán online và dùng thử miễn phí</b>.
+<b>📌 3 — Có tin mà không nghe tiếng:</b>
+<ul>
+<li>Mở app xong phải <b>chạm vào màn hình ít nhất 1 lần</b> thì máy mới cho phát tiếng.</li>
+<li>Vặn to âm lượng <b>Phương tiện (Media)</b>. iPhone thì tắt chế độ Im lặng.</li>
+<li>App phải <b>đang mở trên màn hình</b>. Máy để ở quầy nên bật <b>Giữ màn hình luôn sáng</b> (xem mục <b>Chuông báo đơn</b>).</li>
+</ul>
+<b>📌 4 — Gửi tin mà báo "⚠️ Chưa gửi được":</b>
+<ul>
+<li><i>"…kiểm tra mạng"</i> → xem lại wifi / 4G rồi bấm <b>Gửi lại</b>.</li>
+<li><i>"…gói Bán online còn hạn không, hoặc máy này chưa được cấp quyền"</i> → gói đã hết hạn (cần gia hạn), hoặc đây là máy nhân viên chưa được cấp quyền (báo chủ shop).</li>
+</ul>
+<b>📌 5 — Khung trò chuyện báo "Chưa tải được cuộc trò chuyện — đang thử lại…":</b> mạng yếu. App tự thử lại, bạn không cần bấm gì.
+<b>📌 6 — Khách nói không nhắn được:</b> kiểm tra công tắc ở khung 💬 Tin nhắn khách có đang <b>tắt</b> không, và bạn có lỡ <b>chặn</b> khách đó không. Trang của khách báo chữ gì thì xem mục <b>Phía khách: khách nhắn tin cho cửa hàng thế nào?</b>
+<div class="snai-tip">📞 Làm hết các cách trên vẫn không được thì gọi hỗ trợ <b>0977 823 979</b>.</div>`},
+
+{c:'tn',t:'Tin nhắn và đơn online cũ được giữ bao lâu? (app tự dọn)',k:'tin nhan giu bao lau tu xoa tin nhan cu don online cu tu don don qr cu bien mat tu don rac 30 ngay phieu don mat',
+a:`<b class="snai-h">🧹 App tự dọn dữ liệu cũ</b>
+<b>👉 Vì sao có chuyện này:</b> tin nhắn và phiếu đặt hàng của khách dồn lại lâu ngày sẽ thành rác. Nên app <b>tự dọn ngầm</b>, bạn không phải bấm gì.
+<b>📖 App tự xóa những thứ sau:</b>
+<ul>
+<li><b>Tin nhắn khách:</b> giữ <b>30 ngày</b>. Cuộc nào <b>30 ngày không ai nhắn gì</b> thì xóa cả cuộc. Cuộc còn đang nhắn thì chỉ xóa những tin <b>cũ hơn 30 ngày</b>. Khách đã bị chặn thì <b>lệnh chặn vẫn được giữ</b>.</li>
+<li><b>Phiếu đơn QR / đơn online đã xử lý xong:</b> xóa sau <b>3 ngày</b>.</li>
+<li><b>Phiếu đơn chờ mãi không ai xử lý:</b> đơn online sau <b>7 ngày</b>, đơn QR tại bàn sau <b>2 ngày</b>.</li>
+<li><b>Lịch đặt phòng / đặt lịch:</b> xóa khi đã <b>qua giờ hẹn 2 ngày</b>.</li>
+<li><b>Ảnh, chữ ký, link chia sẻ không còn ai dùng</b> (của khách, giao dịch, đơn đã xóa).</li>
+</ul>
+<div class="snai-ok">✅ <b>Tuyệt đối KHÔNG đụng tới sổ sách đang dùng:</b> khách hàng, sổ nợ, hàng hóa, <b>đơn đã bán</b>, kho, ca, quỹ. Doanh thu và báo cáo <b>không mất gì</b>. Thứ bị dọn chỉ là "phiếu khách gửi tới". Đơn bạn đã bán thì vẫn nằm nguyên trong <b>↩️ Đơn &amp; trả hàng</b>.</div>
+<div class="snai-warn">⚠️ Cần giữ một thỏa thuận với khách lâu hơn 30 ngày? Hãy <b>chụp màn hình</b> cuộc trò chuyện (nhất là thẻ 📋 Chốt đơn đã có chữ ✅ Khách đã đồng ý) rồi cất ảnh lại.</div>
+<div class="snai-tip">💡 Việc dọn chạy trên <b>máy chủ shop</b>: tin nhắn và phiếu đơn khoảng 7 ngày một lần, kho ảnh khoảng 30 ngày một lần. File mới tải lên <b>chưa tới 1 ngày thì không bao giờ bị dọn</b>. Muốn dọn kho ảnh ngay thì xem mục <b>Dọn kho ảnh — xóa file mồ côi</b>.</div>`},
+
+/* ───────────── 🔍 XEM ẢNH LỚN ───────────── */
+{c:'sn',t:'Phóng to ảnh chứng từ, chữ ký ra toàn màn hình',k:'phong to anh xem anh lon toan man hinh chum 2 ngon zoom anh chung tu hoa don chu ky anh nho kho nhin bang chung cham 2 lan',
+a:`<b class="snai-h">🔍 Xem ảnh lớn toàn màn hình</b>
+<b>👉 Cái này để làm gì:</b> ảnh hóa đơn, giấy nợ, ảnh chuyển khoản, chữ ký… hiện nhỏ nên khó nhìn. Chạm vào là ảnh <b>bung ra toàn màn hình</b>, phóng to được để soi từng chữ, từng con số.
+<b>📍 Dùng được ở những chỗ nào:</b>
+<ul>
+<li><b>Phía chủ shop:</b> ảnh mở bằng nút <b>📎 Xem ảnh</b> ở giao dịch; ảnh chữ ký trong bảng <b>✍️ Chữ ký</b> (cả chữ ký sổ nợ lẫn chữ ký nhận hàng của đơn).</li>
+<li><b>Phía khách:</b> trên <b>link công nợ</b> và <b>link hóa đơn</b> — ảnh <b>📄 Ảnh hoá đơn / bằng chứng</b> và ảnh chữ ký.</li>
+</ul>
+<b>🪜 Cách dùng:</b>
+<ol>
+<li><b>Chạm vào ảnh</b> → ảnh bung ra toàn màn hình.</li>
+<li><b>Phóng to:</b> đặt 2 ngón tay lên ảnh rồi <b>kéo dang ra</b>, hoặc <b>chạm nhanh 2 lần</b> vào đúng chỗ muốn xem. Phóng to được tối đa 4 lần.</li>
+<li>Đang phóng to thì <b>dùng 1 ngón kéo</b> ảnh qua lại để xem từng góc.</li>
+<li><b>Thu về cỡ cũ:</b> chạm nhanh 2 lần nữa.</li>
+<li><b>Đóng ảnh:</b> bấm nút <b>✕</b>, hoặc chạm ra <b>vùng ngoài ảnh</b>, hoặc bấm nút <b>Quay lại</b> của điện thoại.</li>
+</ol>
+<div class="snai-tip">🖥️ Trên <b>máy tính</b>: <b>bấm đúp chuột</b> hoặc <b>lăn bánh xe chuột</b> để phóng to; bấm phím <b>Esc</b> để đóng.</div>
+<div class="snai-ok">✅ Bấm Quay lại để đóng ảnh thì <b>vẫn ở nguyên trang đang xem</b>, không bị thoát ra ngoài.</div>
+<div class="snai-warn">⚠️ Hiện chữ <i>"Chưa tải được ảnh — mạng đang yếu"</i> thì đóng lại rồi chạm vào ảnh lần nữa.</div>`},
+
+/* ───────────── 🏪 XÓA CỬA HÀNG ───────────── */
+{c:'cn',t:'Xóa một cửa hàng (chi nhánh) — đọc kỹ trước khi xóa',k:'xoa cua hang xoa chi nhanh bo cua hang dong cua hang file luu tru xoa sach du lieu cua hang tao nham cua hang',
+a:`<b class="snai-h">🗑 Xóa cửa hàng</b>
+<b>👉 Dùng khi nào:</b> đóng hẳn một cửa hàng / chi nhánh, hoặc lỡ tạo nhầm.
+<div class="snai-warn">⚠️ <b>Việc này KHÔNG hoàn tác được.</b> Xóa cửa hàng là <b>xóa vĩnh viễn mọi thứ bên trong</b> nó: hàng hóa, đơn bán, phiếu nhập / trả, kho, ca, quỹ, đơn giữ, sơ đồ bàn, link hóa đơn + chữ ký nhận hàng, thực đơn QR, link bán online, đơn và tin nhắn khách gửi tới cửa hàng đó.</div>
+<div class="snai-ok">✅ <b>KHÔNG bị đụng tới:</b> sổ nợ khách, nhân viên, nhà cung cấp, và các cửa hàng khác.</div>
+<b>📌 Điều kiện:</b> làm trên <b>máy chủ shop</b> (máy nhân viên không xóa được) · <b>phải có mạng</b> · <b>cửa hàng chính (gốc) không xóa được</b>, chỉ đổi tên hoặc đổi ngành.
+<b>🪜 Làm từng bước:</b>
+<ol>
+<li>Vào <span class="snai-path">🛒 BÁN HÀNG</span> → bấm nút <b>🏪 ▾</b> ở góc trên bên phải.</li>
+<li>Bấm <b>✎</b> ở cửa hàng muốn xóa.</li>
+<li>Bấm nút đỏ <b>Xóa</b> ở góc dưới bên trái.</li>
+<li>App hiện bảng cảnh báo <b>"🗑 XOÁ CỬA HÀNG …?"</b>. Đọc kỹ → chắc chắn thì bấm <b>OK</b>.</li>
+<li>App <b>tự tải về máy một file lưu trữ</b> (tên bắt đầu bằng <code>LuuTru-CuaHang-</code>) chứa dữ liệu của cửa hàng đó, phòng khi cần xem lại.</li>
+<li>App hỏi lần cuối <b>"📦 Đã tải file lưu trữ … Xoá luôn?"</b>, ghi rõ sẽ xóa bao nhiêu hàng hóa, bao nhiêu đơn bán → bấm <b>OK</b>.</li>
+<li>Chờ app xóa. Xong hiện <i>"✅ Đã xoá cửa hàng …"</i>.</li>
+</ol>
+<div class="snai-tip">💡 <b>Giữ kỹ file lưu trữ</b> vừa tải (gửi vào Zalo "Cloud của tôi" hoặc email). Đó là bản duy nhất còn lại của cửa hàng đã xóa.</div>
+<div class="snai-warn">⚠️ Báo <i>"⛔ Chưa tải được file lưu trữ — CHƯA xoá gì"</i> → app chưa xóa gì cả, cứ thử lại. Báo <i>"⚠️ Xoá cửa hàng CHƯA xong"</i> → cửa hàng vẫn còn trong danh sách; có mạng ổn định thì bấm <b>Xóa</b> lại để làm tiếp.</div>`},
+
+/* ───────────── 💰 QUỸ CA NHIỀU NGƯỜI ───────────── */
+{c:'bc',t:'Luật bán theo ca — mỗi người một ca riêng',k:'luat ban theo ca moi nguoi mot ca rieng nhan vien khong ban duoc chua co ca chu shop ban ngoai ca khong phai ca cua ban bi chan thanh toan',
+a:`<b class="snai-h">🧭 Luật bán theo ca</b>
+<b>👉 Nắm 5 điều này là hiểu hết quỹ ca:</b>
+<ol>
+<li><b>Mỗi người một ca riêng.</b> Ai bán thì tiền vào ca của người đó. Cuối buổi chốt ca và nộp tiền <b>riêng từng người</b>.</li>
+<li><b>Chủ shop:</b> bán được <b>mọi lúc</b>, chưa mở ca cũng bán được.</li>
+<li><b>Nhân viên:</b> <b>chưa có ca của mình thì KHÔNG bán được</b>. Phải có ca mang tên mình rồi mới bán.</li>
+<li><b>Trong một ca, chỉ đúng người được chọn làm "Người trực ca" mới bán được.</b> Người khác vào ca đó sẽ thấy dòng đỏ <i>"🔒 Đây không phải ca của bạn … nên bạn không bán được. Hãy báo chủ mở ca riêng cho bạn"</i>.</li>
+<li><b>Đơn bán lúc chưa có ca</b> vẫn ghi rõ <b>người bán</b>, nhưng nằm <b>ngoài mọi ca</b> — không tính vào quỹ của ca nào.</li>
+</ol>
+<b>💡 Muốn tiền của chính chủ cũng vào ca:</b> mở <b>một ca cho chính chủ</b> (chọn tên mình ở ô Người trực ca), rồi ở tab Bán bấm <b>👤 Đổi người</b> và chọn đúng tên mình.
+<b>👀 Chủ mở ca của nhân viên ra xem</b> sẽ thấy dòng <i>"👀 Bạn đang xem ca của … bằng quyền Chủ. Đơn bạn tự bán KHÔNG tính vào ca này"</i>.
+<b>🔑 Ai được mở ca:</b> Chủ mở ca được cho <b>bất kỳ ai</b>. Nhân viên có quyền mở ca thì <b>chỉ mở được cho chính mình</b>. Nhân viên không có quyền thì báo chủ mở ca <b>trước khi bán đơn đầu tiên</b>.
+<div class="snai-ok">✅ Luật này để <b>quy đúng trách nhiệm</b>: thiếu tiền ở ca nào thì biết ngay của ai.</div>
+<div class="snai-tip">📍 Bảng luật này cũng hiện ngay trong <b>💰 Quỹ / Chốt ca</b>, ở dòng <b>🧭 Luật bán</b>.</div>`},
+
+{c:'bc',t:'Nhiều ca mở cùng lúc — chủ xem tiền và chốt hộ ca của nhân viên',k:'nhieu ca cung luc ca song song danh sach ca dang mo mo ca nay ra xem tien chot ho ca may dang online chua co tin hieu hai nguoi cung ban',
+a:`<b class="snai-h">👥 Nhiều ca mở cùng lúc</b>
+<b>👉 Cái này để làm gì:</b> một cửa hàng có 2–3 người cùng bán thì <b>mỗi người một ca</b> chạy song song. Chủ nhìn một bảng là thấy hết ai đang mở ca.
+<b>🪜 Xem danh sách ca đang mở:</b>
+<ol>
+<li>Vào <span class="snai-path">🛒 BÁN HÀNG</span> → tab <b>Bán</b> → bấm <b>💰 Quỹ / Chốt ca</b>.</li>
+<li>Khung <b>"Đang có … ca mở tại cửa hàng này"</b> liệt kê từng ca: <b>tên người trực</b>, <b>giờ mở</b>, và tình trạng máy của người đó:
+<ul>
+<li><b>🟢 Máy đang online</b> — máy người đó đang có mạng.</li>
+<li><b>📵 Chưa có tín hiệu …</b> — máy người đó mất mạng hoặc đã tắt app một lúc. Có thể kèm <i>"còn … đơn chưa gửi"</i>.</li>
+</ul></li>
+<li>Bấm <b>▶️ Mở ca này ra — xem tiền / CHỐT CA</b> để xem chi tiết ca của người đó: tiền vào két, tiền ra khỏi két, <b>tiền mặt phải có</b>. Chủ <b>chốt hộ</b> ca đó được ngay tại đây.</li>
+<li>Xem xong bấm <b>‹ Quay lại danh sách ca đang mở</b>.</li>
+</ol>
+<div class="snai-tip">📦 <b>Ca song song và ảnh kho:</b> ca mở <b>đầu tiên</b> được app <b>chụp ảnh kho đầu ca</b> (ghi lại số tồn từng mặt hàng làm bằng chứng). Ca mở <b>khi đã có ca khác</b> gọi là <b>ca song song</b> — kho dùng chung nên app <b>không chụp ảnh kho riêng</b>, nhưng <b>tiền của ca vẫn tính riêng đầy đủ</b>.</div>
+<div class="snai-warn">⚠️ Thấy <b>📵 Chưa có tín hiệu</b> kéo dài: nhắc người đó mở app ở chỗ có mạng để đơn gửi về đủ, <b>rồi hãy chốt ca</b>. Lỡ chốt lúc đơn chưa về thì số liệu bị thiếu — khi đó vào lịch sử ca bấm <b>🔄 Tính lại ca</b>.</div>`},
+
+{c:'bc',t:'Sửa quỹ đầu ca · Hủy ca mở nhầm',k:'sua quy dau ca nhap sai quy dau huy ca mo nham xoa ca dang mo ca thu mo ca sai nguoi',
+a:`<b class="snai-h">✏️ Sửa quỹ đầu · 🗑 Hủy ca</b>
+<b>📍 Ở đâu:</b> <span class="snai-path">🛒 BÁN HÀNG</span> → tab <b>Bán</b> → <b>💰 Quỹ / Chốt ca</b> → mở ca đang chạy → kéo xuống <b>cuối bảng</b> có hàng 3 nút: <b>✏️ Sửa quỹ đầu</b> · <b>🕘 Lịch sử</b> · <b>🗑 Hủy ca</b>.
+<div class="snai-warn">⚠️ Sửa quỹ đầu và Hủy ca <b>chỉ CHỦ shop</b> mới làm được.</div>
+<b>1️⃣ ✏️ Sửa quỹ đầu</b> — dùng khi lúc mở ca gõ nhầm số tiền thối.
+<ol>
+<li>Bấm <b>✏️ Sửa quỹ đầu</b>.</li>
+<li>Hộp nhỏ hiện ra <i>"Sửa QUỸ ĐẦU CA (₫) — nhập số"</i> → gõ lại số đúng → bấm <b>OK</b>.</li>
+<li>App báo <i>"✅ Đã sửa quỹ đầu ca"</i>. Số tiền mặt phải có tự tính lại.</li>
+</ol>
+<b>2️⃣ 🗑 Hủy ca</b> — dùng khi mở ca nhầm người, mở thử, mở trùng.
+<ol>
+<li>Bấm <b>🗑 Hủy ca</b>.</li>
+<li>App hỏi <i>"HỦY ca đang mở?"</i> → đọc kỹ → bấm <b>OK</b>.</li>
+</ol>
+<b>📖 Hủy ca thì:</b>
+<ul>
+<li>Ca bị <b>xóa hẳn</b>, <b>không lưu vào lịch sử</b>.</li>
+<li>Các khoản thu / chi đã ghi trong ca đó (chi vặt, nộp chủ, thêm quỹ) <b>cũng bị xóa</b>.</li>
+<li><b>Đơn hàng đã bán KHÔNG bị ảnh hưởng</b> — doanh thu và kho vẫn nguyên.</li>
+<li><b>Không hoàn tác được.</b></li>
+</ul>
+<div class="snai-tip">💡 Cả hai việc đều được ghi vào <b>📋 Nhật ký thao tác</b> — ai sửa, ai hủy, lúc nào đều có dấu vết.</div>`},
+
+{c:'bc',t:'Nhật ký thao tác — xem ai đã xóa, sửa gì',k:'nhat ky thao tac ai xoa don ai sua cong no lich su xoa sua kiem tra nhan vien gian lan dau vet ai huy ca',
+a:`<b class="snai-h">📋 Nhật ký thao tác</b>
+<b>👉 Cái này để làm gì:</b> app <b>tự ghi lại</b> những thao tác nhạy cảm — ai xóa đơn, ai sửa công nợ, ai hủy ca… Chủ mở ra là biết <b>ai làm, lúc nào, trên máy nào</b>.
+<b>🪜 Mở ở đâu:</b>
+<ol>
+<li><span class="snai-path">🛒 BÁN HÀNG</span> → tab <b>Bán</b> → <b>💰 Quỹ / Chốt ca</b>.</li>
+<li>Bấm <b>🕘 Lịch sử chốt ca</b> (đang trong ca thì nút ghi <b>🕘 Lịch sử</b>).</li>
+<li>Bấm nút <b>📋 Nhật ký thao tác (xoá / sửa)</b> ở đầu bảng.</li>
+</ol>
+<b>📖 Nhật ký ghi lại những việc sau:</b>
+<ul>
+<li>Xoá đơn hàng.</li>
+<li>Huỷ ca đang mở · Xoá ca đã chốt.</li>
+<li>Xoá khoản quỹ · Sửa quỹ đầu ca.</li>
+<li>Đổi một khoản thu nợ giữa <b>tiền mặt</b> và <b>chuyển khoản</b>.</li>
+<li><b>SỬA công nợ khách</b> — ghi rõ số tiền trước → sau.</li>
+<li>Tạo / gỡ tài khoản nhân viên.</li>
+<li>Kiểm kho cuối ca — đếm bao nhiêu mặt hàng, thiếu / thừa bao nhiêu.</li>
+</ul>
+Mỗi dòng có <b>giờ</b>, <b>người làm</b>, và làm trên <b>📱 máy NV</b> hay <b>💼 máy Chủ</b>.
+<div class="snai-ok">✅ Nhật ký <b>chỉ ghi thêm, không ghi đè</b>. Bảng hiện <b>200 thao tác gần nhất</b>.</div>
+<div class="snai-warn">⚠️ Phải có quyền mới xem được. Không có quyền thì app báo <i>"🔒 Bạn không có quyền xem nhật ký"</i>.</div>
+<div class="snai-tip">💡 Bảng ghi <i>"Chưa có thao tác nào được ghi"</i> là bình thường — nghĩa là chưa ai xóa, sửa gì.</div>`},
+
+/* ───────────── 📊 BÁO CÁO — ĐỌC SÂU HƠN ───────────── */
+{c:'bc',t:'Báo cáo: Nhận định nhanh và Chỉ số chuyên sâu (ROI, số ngày còn tồn kho)',k:'nhan dinh nhanh chi so chuyen sau roi tren von lai trung binh don von trung binh don so ngay con ton kho don trung binh dong tien bien loi nhuan theo san pham',
+a:`<b class="snai-h">📈 Nhận định nhanh · Chỉ số chuyên sâu</b>
+<b>📍 Ở đâu:</b> <span class="snai-path">🛒 BÁN HÀNG</span> → tab <b>Báo cáo</b> → chọn kỳ → kéo xuống.
+<b>1️⃣ Khung "Nhận định nhanh"</b> — app <b>tự đọc số liệu rồi nói thành lời</b> cho bạn. Ví dụ:
+<ul>
+<li>✅ <i>Biên lợi nhuận tốt</i> (từ 40% trở lên) · ⚠️ <i>Biên lợi nhuận thấp — nên xem lại giá bán hoặc giá nhập</i> (dưới 15%).</li>
+<li>🎯 <i>Một mặt hàng chiếm …% doanh thu — khá phụ thuộc một mặt hàng</i>.</li>
+<li>💤 <i>… mặt hàng chưa bán trong kỳ · vốn đọng …</i></li>
+<li>📌 <i>Đang có … phải thu từ … khách</i>.</li>
+<li>📅 <i>Bán tốt nhất vào thứ …</i> hoặc 🔥 <i>Đông khách nhất lúc … giờ</i>.</li>
+<li>💳 <i>…% doanh thu qua tiền mặt / chuyển khoản / bán nợ</i>.</li>
+<li>🏷️ <i>Đã giảm giá …</i> · ↩️ <i>Tỷ lệ hàng trả …%</i>.</li>
+</ul>
+<b>2️⃣ Bốn ô số:</b> <b>Đơn bán</b> (kèm số món) · <b>Đơn trung bình</b> (mỗi đơn bao nhiêu tiền, mấy món) · <b>Giảm giá</b> · <b>Hàng trả</b>.
+<b>3️⃣ Khung "Chỉ số chuyên sâu":</b>
+<ul>
+<li><b>ROI trên vốn</b> = lãi ÷ vốn. Bỏ 100đ vốn thì lời mấy đồng. Số càng cao càng tốt; <b>số âm là đang lỗ</b>.</li>
+<li><b>Lãi TB/đơn</b> — trung bình mỗi đơn lời bao nhiêu.</li>
+<li><b>Vốn TB/đơn</b> — trung bình mỗi đơn tốn bao nhiêu tiền vốn.</li>
+<li><b>Số ngày còn tồn kho</b> — với nhịp bán của kỳ này, hàng trong kho đủ bán <b>khoảng bao nhiêu ngày nữa</b>. Số quá lớn = đang ôm nhiều hàng. Số quá nhỏ = sắp phải nhập.</li>
+</ul>
+<b>4️⃣ Các khung khác bên dưới:</b> <b>Dòng tiền</b> · biểu đồ lãi / vốn theo ngày (📈 Cao nhất · ➗ TB/ngày · 💰 Tổng lãi) · <b>Chi tiết theo ngày</b> · <b>Nhịp bán theo thứ</b> · <b>Giờ bán chạy</b> · <b>Sản phẩm bán chạy</b> · <b>Phân tích ABC</b> · <b>Biên lợi nhuận theo sản phẩm</b> (▲ Lãi cao nhất · ▼ Lãi thấp nhất) · hàng bán chậm.
+<div class="snai-warn">⚠️ Mọi con số lãi, ROI, biên lời <b>chỉ đúng khi bạn đã nhập đúng giá vốn</b> cho sản phẩm. Xem mục <b>Giá vốn — vì sao bắt buộc phải điền đúng</b>.</div>`},
+
+{c:'bc',t:'Báo cáo Sổ Nợ: Nợ ròng, Dòng tiền trong kỳ, Tuổi nợ phải thu',k:'no rong hien tai tuoi no phai thu no qua 30 ngay dong tien trong ky no rong phat sinh khach no nhieu nhat bao cao so no nhan dinh no lau',
+a:`<b class="snai-h">📒 Đọc Báo cáo Sổ Nợ</b>
+<b>📍 Ở đâu:</b> <span class="snai-path">🛒 BÁN HÀNG</span> → tab <b>Báo cáo</b> → kéo xuống cuối, dưới dải xanh <b>📒 Báo cáo Sổ Nợ chi tiết</b>.
+<b>📖 Từ trên xuống:</b>
+<ul>
+<li><b>NỢ RÒNG HIỆN TẠI</b> — con số to nhất = <b>Khách nợ mình − Mình nợ khách</b>. Đây là số tiền thật sự đang nằm ngoài đường. Nếu hiện <i>"Mình nợ …"</i> nghĩa là mình đang nợ khách nhiều hơn khách nợ mình.</li>
+<li><b>4 ô:</b> <b>Khách đang nợ</b> (số người + số tiền) · <b>Mình đang nợ</b> · <b>Đã xong</b> (đã tất toán) · <b>Tổng khách</b> trong sổ.</li>
+<li><b>Nhận định nhanh</b> — app nói thành lời: đang phải thu bao nhiêu, ai nợ nhiều nhất · ⏰ bao nhiêu tiền <b>nợ trên 30 ngày</b> chưa trả · 📈 kỳ này nợ ròng <b>tăng</b> hay ✅ <b>thu hồi</b> được · 🕒 khách nào lâu không giao dịch mà còn nợ · 💸 mình còn nợ khách bao nhiêu · 🆕 có mấy khách mới.</li>
+<li><b>Dòng tiền trong kỳ:</b> 🛒 <b>Bán chịu (ghi nợ)</b> · 💰 <b>Thu tiền (khách trả)</b> · <b>Nợ ròng phát sinh</b> = bán chịu − thu về. <b>Số dương</b> = nợ đang phình ra. <b>Số âm</b> = đang thu hồi được nợ.</li>
+<li><b>Tuổi nợ phải thu</b> — chia tiền nợ theo độ "già": <b>0–7 ngày</b> · <b>8–30 ngày</b> · <b>31–90 ngày</b> · <b>trên 90 ngày</b>. Tuổi nợ tính theo <b>ngày giao dịch gần nhất</b> của khách.</li>
+<li><b>Khách nợ mình nhiều nhất</b> — xếp từ cao xuống thấp.</li>
+<li><b>Giao dịch gần nhất</b>.</li>
+</ul>
+<div class="snai-warn">⚠️ <b>Nợ càng lâu càng khó thu.</b> Ưu tiên nhắc nhóm <b>trên 30 ngày</b> trước.</div>
+<div class="snai-tip">💡 Muốn app chỉ rõ <b>nên đòi ai trước</b>, xem thêm mục <b>Chấm điểm rủi ro nợ — nên đòi ai trước</b> trong tab 🧠 Cố vấn.</div>`},
+
+/* ───────────── 🚀 TÀI KHOẢN — BỔ SUNG ───────────── */
+{c:'bd',t:'Không mở được dùng thử — mỗi máy, mỗi hộp thư chỉ thử 1 lần',k:'khong mo duoc dung thu may nay da co tai khoan khac hop thu da dung thu email co dau cong bi danh moi may chi dung thu 1 lan chua mo duoc dung thu',
+a:`<b class="snai-h">🎁 Vì sao không mở được dùng thử?</b>
+<b>👉 Luật dùng thử:</b> mỗi <b>điện thoại</b> và mỗi <b>hộp thư email</b> chỉ được dùng thử miễn phí <b>1 lần</b>. Khi bị từ chối, app báo 1 trong 3 câu sau:
+<b>1️⃣ "📱 Điện thoại này đã có tài khoản Sổ Nợ khác"</b>
+<ul>
+<li><b>Nghĩa là:</b> máy này trước đó đã đăng nhập một tài khoản chủ shop khác.</li>
+<li><b>Cách xử lý:</b> đăng nhập lại <b>tài khoản cũ</b> để dùng tiếp; hoặc gọi hotline để <b>mua gói</b> cho tài khoản mới.</li>
+</ul>
+<b>2️⃣ "✉️ Email có dấu + (email bí danh) không mở được dùng thử"</b>
+<ul>
+<li><b>Nghĩa là:</b> email kiểu <code>ten+1@gmail.com</code> không được dùng thử.</li>
+<li><b>Cách xử lý:</b> đăng ký bằng <b>email thường</b> (không có dấu +), hoặc gọi hotline để mua gói.</li>
+</ul>
+<b>3️⃣ "✉️ Hộp thư email này đã dùng thử ở một tài khoản khác"</b>
+<ul>
+<li><b>Nghĩa là:</b> Gmail coi <code>ten@gmail.com</code>, <code>t.en@gmail.com</code> và <code>ten+1@gmail.com</code> là <b>cùng một hộp thư</b>, nên chỉ được thử 1 lần.</li>
+<li><b>Cách xử lý:</b> đăng nhập lại tài khoản cũ, hoặc gọi hotline để mua gói.</li>
+</ul>
+<div class="snai-ok">✅ Không dùng thử được <b>không có nghĩa là bị khóa</b> — bạn <b>vẫn mua gói và dùng bình thường</b>.</div>
+<div class="snai-tip">💡 <b>Máy nhân viên</b> không bị tính vào luật "mỗi máy 1 lần".</div>
+<div class="snai-tip">📞 Hotline: <b>0977 823 979</b>.</div>`},
+
+{c:'bd',t:'App bắt đăng nhập lại — "Chủ phần mềm yêu cầu đăng nhập lại"',k:'bat dang nhap lai bi dang xuat chu phan mem yeu cau dang nhap lai tu dang xuat buoc dang xuat moi may lo mat khau mat may bi vang ra',
+a:`<b class="snai-h">🔐 App yêu cầu đăng nhập lại</b>
+<b>👉 Bạn thấy gì:</b> đang dùng thì hiện bảng <i>"🔐 Chủ phần mềm yêu cầu đăng nhập lại trên máy này"</i>. Bấm OK thì app quay về màn hình đăng nhập.
+<b>✅ Đừng lo:</b> <b>dữ liệu vẫn còn nguyên</b>. Đây là <b>biện pháp an toàn</b>: khi nghi lộ mật khẩu, mất máy, hoặc tài khoản bị dùng ở máy lạ, chủ phần mềm ra lệnh <b>đăng xuất mọi máy</b> để người lạ không vào được nữa.
+<b>🪜 Việc cần làm:</b>
+<ol>
+<li>Bấm <b>OK</b>.</li>
+<li>Gõ lại <b>email + mật khẩu</b> của bạn → bấm <b>Đăng nhập</b>.</li>
+<li>Dùng tiếp như bình thường. Lệnh cũ <b>không đẩy bạn ra lần nữa</b>.</li>
+</ol>
+<div class="snai-tip">💡 Nếu chính bạn nghi <b>lộ mật khẩu</b> hoặc <b>mất điện thoại</b>: (1) <b>đổi mật khẩu</b> ngay — xem mục <b>Đổi mật khẩu</b>; (2) gọi hotline <b>0977 823 979</b> nhờ <b>buộc đăng xuất mọi máy</b>.</div>
+<div class="snai-warn">⚠️ Quên mật khẩu nên không đăng nhập lại được? Xem mục <b>Quên mật khẩu phải làm sao?</b></div>`},
+
+{c:'bd',t:'Máy nhân viên không gia hạn / mua gói được',k:'may nhan vien khong gia han duoc khong mua goi duoc day la may nhan vien gia han tren may chu shop nhan vien bam gia han',
+a:`<b class="snai-h">📱 Máy nhân viên không gia hạn được</b>
+<b>👉 Bạn thấy gì:</b> bấm Gia hạn trên máy nhân viên, app hiện khung xanh <i>"📱 Đây là máy nhân viên. Gia hạn phải làm trên máy của chủ shop…"</i>.
+<b>📖 Vì sao:</b> mã QR gia hạn mang <b>email của tài khoản đang đăng nhập</b>. Chuyển tiền từ máy nhân viên thì nội dung mang email nhân viên → chủ phần mềm <b>không biết tiền đó của shop nào</b>, shop vẫn bị khóa.
+<b>🪜 Cách làm đúng:</b>
+<ol>
+<li>Dùng <b>máy của chủ shop</b> (đăng nhập bằng email chủ shop).</li>
+<li>Bấm <span class="snai-path">🧰 Công cụ &amp; Sao lưu</span> → <b>💳 Gia hạn tài khoản</b>.</li>
+<li>Chọn gói, chọn số tháng, quét mã QR để chuyển khoản.</li>
+<li>Chuyển xong bấm nút xanh <b>✅ Tôi đã chuyển khoản</b>.</li>
+</ol>
+<div class="snai-tip">💡 Nút <b>✅ Tôi đã chuyển khoản</b> bấm trên máy nhân viên cũng không gửi được — app nhắc <i>"nhờ chủ shop gia hạn trên máy chủ shop"</i>.</div>`},
+
+{c:'bd',t:'Có gì mới trong app? (tính năng vừa thêm)',k:'co gi moi tinh nang moi vua them ban moi cap nhat nang cap moi nhat',
+a:`<b class="snai-h">🆕 Tính năng mới thêm gần đây</b>
+<b>👉 Chạm vào nút bên dưới mỗi mục để đọc hướng dẫn chi tiết:</b>
+<ul>
+<li><b>💬 Tin nhắn khách</b> — khách xem link bán online / quét mã QR tại bàn nhắn hỏi cửa hàng; bạn trả lời ngay trong app, gửi thẻ <b>📋 Chốt đơn</b> để khách bấm Đồng ý.</li>
+<li><b>🔍 Xem ảnh lớn</b> — chạm vào ảnh chứng từ, chữ ký để bung toàn màn hình, chụm 2 ngón để phóng to.</li>
+<li><b>✅ Tôi đã chuyển khoản</b> — nút báo ngay cho chủ phần mềm sau khi chuyển tiền gia hạn.</li>
+<li><b>🗑 Xóa cửa hàng an toàn</b> — app tải file lưu trữ về máy trước khi xóa.</li>
+<li><b>🧹 Tự dọn dữ liệu cũ</b> — tin nhắn, phiếu đơn online đã cũ được app tự dọn.</li>
+<li><b>📋 Nhật ký thao tác</b> — xem ai đã xóa đơn, sửa công nợ, hủy ca.</li>
+<li><b>👀 Phía khách</b> — nhóm mục mới tả đúng những gì khách thấy khi đặt hàng qua link, gọi món tại bàn, xem ảnh lớn.</li>
+</ul>
+<button type="button" class="snai-sg" data-snaiq="Tin nhắn khách là gì? Dùng làm gì?">💬 Tin nhắn khách là gì?</button>
+<button type="button" class="snai-sg" data-snaiq="Chốt đơn với khách bằng thẻ 📋 Chốt đơn">📋 Chốt đơn với khách</button>
+<button type="button" class="snai-sg" data-snaiq="Phóng to ảnh chứng từ, chữ ký ra toàn màn hình">🔍 Phóng to ảnh chứng từ, chữ ký</button>
+<button type="button" class="snai-sg" data-snaiq="Xóa một cửa hàng (chi nhánh) — đọc kỹ trước khi xóa">🗑 Xóa một cửa hàng</button>
+<button type="button" class="snai-sg" data-snaiq="Tin nhắn và đơn online cũ được giữ bao lâu? (app tự dọn)">🧹 App tự dọn những gì?</button>
+<button type="button" class="snai-sg" data-snaiq="Nhật ký thao tác — xem ai đã xóa, sửa gì">📋 Nhật ký thao tác</button>
+<button type="button" class="snai-sg" data-snaiq="Phía khách: đặt hàng qua link cửa hàng online — từng bước">👀 Phía khách đặt hàng qua link</button>`},
+
+/* ───────────── 🧠 CỐ VẤN — BỔ SUNG ───────────── */
+{c:'cv',t:'Gõ lệnh bán hàng — các nút hiện ra sau khi gõ',k:'go lenh ban hang chot ghi no chon khach de ghi no mo gio thanh toan y ban la mon nao co van ban ho ra lenh ban',
+a:`<b class="snai-h">⌨️ Gõ lệnh bán hàng</b>
+<b>📍 Ở đâu:</b> <span class="snai-path">🛒 BÁN HÀNG</span> → tab <b>🧠 Cố vấn</b> → ô gõ ở trên cùng.
+<b>🪜 Ví dụ:</b> gõ <i>"bán 2 thùng bia sài gòn cho anh Tuấn ghi nợ"</i> rồi bấm <b>➤</b>.
+<b>📖 App trả lời tùy tình huống:</b>
+<ul>
+<li><b>Tìm thấy đúng món</b> → báo <i>"Đã thêm vào giỏ"</i> kèm số lượng, tên món, thành tiền.</li>
+<li><b>Có nhiều món tên gần giống</b> → hỏi <i>"Ý bạn là món nào?"</i> và hiện các nút tên món — bấm vào món đúng.</li>
+<li><b>Không có món đó</b> → báo <i>"Không tìm thấy sản phẩm … trong kho"</i>.</li>
+</ul>
+<b>🔘 Sau khi hàng đã vào giỏ, có các nút để bạn chốt:</b>
+<ul>
+<li><b>✅ Chốt ghi nợ: [tên khách]</b> — khi app tìm thấy khách trùng tên bạn gõ.</li>
+<li><b>✅ Chốt ghi nợ cho khách mới "…"</b> — khi tên khách chưa có trong sổ.</li>
+<li><b>📒 Chọn khách để ghi nợ</b> — khi câu lệnh không nói tên khách.</li>
+<li><b>🛒 Mở giỏ</b> / <b>🛒 Mở giỏ · thanh toán</b> — mở giỏ hàng để kiểm tra rồi thu tiền như thường.</li>
+</ul>
+<div class="snai-ok">✅ <b>Máy không tự bán khi bạn chưa xác nhận.</b> Gõ lệnh chỉ mới bỏ hàng vào giỏ; phải bấm nút chốt thì đơn mới được ghi.</div>
+<div class="snai-tip">💡 Gõ câu app chưa hiểu, app báo <i>"Mình chưa hiểu…"</i> kèm câu mẫu để thử: <i>"tồn coca còn bao nhiêu"</i> · <i>"giá mì hảo hảo"</i> · <i>"hôm nay lời bao nhiêu"</i> · <i>"ai nợ nhiều nhất"</i> · <i>"hàng nào sắp hết"</i> · <i>"hàng nào bán chạy"</i>.</div>`},
+
+/* ───────────── 👀 PHÍA KHÁCH — KHÁCH THẤY GÌ, LÀM GÌ (viết từ chính trang khách: link bán online + thực đơn QR) ───────────── */
+{c:'kh',t:'Phía khách: đặt hàng qua link cửa hàng online — từng bước',k:'phia khach dat hang qua link the nao khach thay gi tren link cua hang online gio hang ten nguoi nhan so dien thoai giao tan noi den lay tien mat chuyen khoan chi khach dat hang huong dan khach',
+a:`<b class="snai-h">🛍️ Khách đặt hàng qua link</b>
+<b>👉 Đọc mục này để:</b> biết khách bấm vào link của bạn thì thấy gì, làm gì. Khi khách hỏi "đặt sao đây chị?" là bạn chỉ được ngay.
+<b>🪜 Khách làm 6 bước:</b>
+<ol>
+<li><b>Bấm vào link</b> bạn gửi (hoặc quét mã QR cửa hàng). Trang mở ra, trên cùng là <b>tên cửa hàng</b> và các nhãn nhỏ: <i>● Đang nhận đơn</i> (kèm giờ nhận đơn nếu bạn có cài) · <i>🛵 Giao tận nơi</i> · <i>🏪 Đến lấy</i>.</li>
+<li><b>Tìm hàng:</b> gõ vào ô <b>Tìm hàng…</b>, hoặc bấm tên <b>nhóm hàng</b> ở hàng nút ngay dưới (nút <b>Tất cả</b> để xem hết).</li>
+<li><b>Chọn hàng:</b> bấm nút tròn <b>+</b> ở món muốn mua. Bấm <b>+</b> / <b>−</b> để tăng giảm; <b>chạm vào con số</b> để gõ thẳng số lượng. Món có nhiều đơn vị (lon / lốc / thùng) thì bấm chọn đơn vị ngay trên thẻ món đó.</li>
+<li>Bấm thanh ở dưới cùng <b>Xem giỏ &amp; đặt hàng</b> (thanh ghi số món và số tiền).</li>
+<li><b>Điền thông tin:</b> <b>Tên người nhận</b> · <b>Số điện thoại</b> (bắt đầu bằng số 0) · chọn <b>🛵 Giao tận nơi</b> rồi ghi <b>Địa chỉ giao hàng</b>, hoặc chọn <b>🏪 Tôi đến lấy</b> · chọn <b>💵 Tiền mặt khi nhận</b> hoặc <b>💳 Chuyển khoản</b> · ghi chú cho cửa hàng nếu cần.</li>
+<li>Bấm <b>Đặt hàng</b>. Trang hiện <b>✓ Đã gửi đơn</b> kèm <b>Mã đơn DH-…</b> và số tiền.</li>
+</ol>
+<b>📖 Mấy điều khách hay hỏi:</b>
+<ul>
+<li><b>"Giá tạm tính" là sao?</b> Giá trên link là tạm tính — cửa hàng <b>xác nhận lại khi nhận đơn</b> (app tính theo giá trong Kho lúc bạn bấm Nhận đơn).</li>
+<li><b>Ghi chú riêng từng món:</b> trong giỏ, dưới mỗi món có ô <i>Ghi chú món này…</i>.</li>
+<li><b>Lỡ tắt trang:</b> mở lại link thì <b>giỏ hàng vẫn còn</b>. Tên, số điện thoại, địa chỉ cũng được nhớ cho lần đặt sau.</li>
+<li><b>Món ghi "Tạm hết"</b> thì không đặt được.</li>
+<li>Mỗi đơn tối đa <b>40 mặt hàng</b>.</li>
+</ul>
+<div class="snai-ok">✅ Khách <b>không cần cài app, không cần đăng ký tài khoản</b>. Chỉ xem hàng thì không cần làm gì cả.</div>
+<div class="snai-tip">💡 Nhãn <i>Giao tận nơi / Đến lấy</i>, nút <i>Chuyển khoản</i>, giờ nhận đơn… có hiện hay không là do bạn cài ở mục <b>Cài đặt cửa hàng online: giờ nhận đơn, giao hàng, chuyển khoản</b>.</div>`},
+
+{c:'kh',t:'Phía khách: theo dõi đơn đã đặt — trạng thái, mã chuyển khoản',k:'khach theo doi don da dat trang thai don cua hang da nhan don chua nhan ma chuyen khoan qr khach xem lai don dang cho xac nhan khach hoi don toi dau roi',
+a:`<b class="snai-h">📦 Khách theo dõi đơn đã đặt</b>
+<b>👉 Sau khi bấm Đặt hàng</b>, trang của khách hiện màn <b>Đã gửi đơn</b>, ghi <b>Mã đơn DH-…</b> và số tiền. Dòng trạng thái <b>tự đổi</b> theo việc bạn làm bên app:
+<ul>
+<li><b>⏳ Đang chờ cửa hàng xác nhận…</b> — bạn chưa bấm gì. Khách được nhắc <i>"Giữ trang này mở để xem cửa hàng trả lời"</i>.</li>
+<li><b>✓ Cửa hàng đã nhận đơn</b> — bạn đã bấm <b>Nhận đơn</b>. Khách thấy thêm <i>"Bạn ghé cửa hàng lấy hàng nhé"</i> hoặc <i>"Cửa hàng sẽ giao tới địa chỉ của bạn"</i>.</li>
+<li><b>✕ Cửa hàng chưa nhận được đơn này</b> — bạn đã bấm <b>Không nhận</b>. Khách được nhắc gọi cửa hàng để hỏi thêm.</li>
+</ul>
+<b>💳 Khách chọn Chuyển khoản:</b> lúc còn chờ, trang ghi <i>"Mã chuyển khoản sẽ hiện khi cửa hàng nhận đơn"</i>. Bạn bấm Nhận đơn xong thì khách thấy <b>mã QR chuyển khoản</b>, <b>số tiền</b> và <b>nội dung chuyển khoản</b> (chính là mã đơn).
+<b>📞 Gọi cửa hàng:</b> nếu bạn đã điền số điện thoại cửa hàng trong Cài đặt, khách có nút <b>📞 Gọi cửa hàng …</b>.
+<b>🔁 Khách tắt trang rồi mở lại link:</b> trong <b>3 ngày</b>, đầu trang có dải <i>"Đơn DH-… · ⏳ đang chờ xác nhận"</i> (hoặc <i>✅ cửa hàng đã nhận</i>) kèm chữ <b>Xem</b> — bấm vào là xem lại đơn.
+<div class="snai-warn">⚠️ Vì vậy <b>đừng để đơn chờ lâu</b>. Khách đang nhìn chữ "Đang chờ…" — bạn bấm <b>Nhận đơn</b> hoặc <b>Không nhận</b> càng sớm, khách càng yên tâm.</div>
+<div class="snai-tip">💡 Số tiền trên mã QR của khách là <b>tạm tính theo giá trên link</b>. Trang có dặn khách: nếu cửa hàng báo số khác thì chuyển theo số cửa hàng báo. Có thêm phí ship hay đổi món thì nên gửi thẻ <b>📋 Chốt đơn</b> trong tin nhắn để báo số tiền cuối cùng.</div>`},
+
+{c:'kh',t:'Phía khách: chọn size, màu khi đặt hàng',k:'phia khach chon size mau khay chon size mau het size them vao gio khach dat quan ao giay dep my pham',
+a:`<b class="snai-h">👕 Khách chọn size, màu</b>
+<b>👉 Món có size / màu</b> thì thẻ hàng trên link ghi sẵn các size (ví dụ <i>Size S · M · L</i>) và số màu. Mỗi size / màu một giá thì giá hiện chữ <i>Từ …</i>.
+<b>🪜 Khách làm từng bước:</b>
+<ol>
+<li>Bấm nút tròn <b>+</b> ở món đó → một khay trượt lên, có ảnh và tên món.</li>
+<li>Bấm chọn <b>Size</b>. Size nào đã hết thì nút mờ đi, không bấm được.</li>
+<li>Bấm chọn <b>Màu</b>. (Size đó chỉ còn một màu thì trang tự chọn giúp.)</li>
+<li>Chỉnh <b>Số lượng</b> bằng nút <b>−</b> / <b>+</b>.</li>
+<li>Nút dưới cùng đổi từ <i>Chọn size</i> / <i>Chọn màu</i> thành <b>Thêm vào giỏ · [số tiền]</b> → bấm vào.</li>
+</ol>
+<b>📖 Chữ trên thẻ hàng:</b>
+<ul>
+<li><b>Trong giỏ: …</b> — khách đã bỏ bao nhiêu cái vào giỏ.</li>
+<li><b>Hết size</b> — mọi size / màu của món đó đều hết.</li>
+<li><b>Tạm hết</b> — bạn đã bấm Tạm hết cho cả món.</li>
+</ul>
+<div class="snai-tip">💡 Cách cài size / màu và báo hết riêng một size: xem mục <b>Thời trang: khách chọn size, màu khi đặt online</b>.</div>`},
+
+{c:'kh',t:'Phía khách: đặt phòng, đặt lịch qua link',k:'phia khach dat phong dat lich qua link ngay den gio den du kien dung gio chon phong nay dat lich toi den karaoke spa nha nghi khach hen gio',
+a:`<b class="snai-h">📅 Khách đặt phòng, đặt lịch</b>
+<b>👉 Chỉ có ở cửa hàng ngành Karaoke · Spa · Nhà nghỉ.</b> Trên đầu trang có nhãn <i>📅 Đặt lịch trước</i>.
+<b>🪜 Khách đặt phòng — từng bước:</b>
+<ol>
+<li>Mở link → thấy nhóm <b>Đặt phòng</b> liệt kê từng phòng, giá <b>/ giờ</b> (có thể kèm <i>Tối thiểu … giờ</i>).</li>
+<li>Bấm nút <b>Đặt</b> ở phòng muốn đặt → khay đặt phòng trượt lên.</li>
+<li>Chọn <b>Ngày đến</b> (bấm <b>Hôm nay</b>, <b>Ngày mai</b>, hoặc chọn ngày khác) · chọn <b>Giờ đến</b> · chỉnh <b>Dự kiến dùng (giờ)</b> bằng nút − / +.</li>
+<li>Bấm <b>Chọn phòng này</b>.</li>
+<li>Muốn đặt kèm đồ uống, dịch vụ thì bấm <b>+</b> ở các món bên dưới.</li>
+<li>Bấm thanh dưới cùng <b>Xem &amp; đặt lịch</b> → điền <b>Tên của bạn</b>, <b>Số điện thoại</b> → bấm <b>Đặt lịch</b>.</li>
+</ol>
+<b>💆 Không cần phòng</b> (ví dụ hẹn làm dịch vụ spa): khách chọn dịch vụ, mở giỏ, chọn <b>📅 Đặt lịch, tôi đến</b>, chọn <b>Ngày đến</b> và <b>Giờ đến</b> rồi bấm <b>Đặt lịch</b>.
+<b>📖 Sau khi gửi, khách thấy:</b> <b>Đã gửi lịch đặt</b> → khi bạn bấm Nhận lịch: <i>"Cửa hàng đã nhận lịch đặt — Hẹn bạn [giờ] · [phòng]"</i>. Bạn <b>đổi giờ</b> thì khách mở link thấy giờ mới. Bạn <b>huỷ lịch</b> thì khách thấy <i>"Cửa hàng đã huỷ lịch đặt này"</i>.
+<b>📌 Giới hạn:</b> mỗi lịch <b>1 phòng</b> (chọn phòng khác là thay phòng cũ) · đặt trước tối đa <b>60 ngày</b> · không chọn được giờ đã qua · phòng ghi <b>Tạm ngưng</b> thì không đặt được.
+<div class="snai-tip">💡 Tiền phòng trên link chỉ là <b>tạm tính</b> — trang ghi rõ <i>"trả phòng tính theo giờ dùng thực tế"</i>. Phía cửa hàng xử lý lịch thế nào: xem mục <b>Karaoke, Spa, Nhà nghỉ: khách đặt phòng, đặt lịch online</b>.</div>`},
+
+{c:'kh',t:'Phía khách: gọi món tại bàn bằng mã QR — từng bước',k:'phia khach goi mon tai ban quet ma qr tren ban thuc don gui bep xem gio goi them mon khach thay gi chi khach goi mon',
+a:`<b class="snai-h">🍽️ Khách gọi món tại bàn</b>
+<b>👉 Đọc mục này để:</b> chỉ cho khách lần đầu dùng mã QR trên bàn.
+<b>🪜 Khách làm từng bước:</b>
+<ol>
+<li><b>Mở camera điện thoại</b>, rê vào mã QR dán trên bàn → bấm vào đường link hiện lên.</li>
+<li>Trang thực đơn mở ra. Trên cùng là <b>tên quán</b> và chữ <b>Bàn …</b> — đúng bàn khách đang ngồi.</li>
+<li>Tìm món bằng ô <b>Tìm món…</b>, hoặc kéo xuống xem theo từng nhóm món.</li>
+<li>Bấm nút tròn <b>+</b> ở món muốn gọi. Bấm <b>+</b> / <b>−</b> để tăng giảm số lượng.</li>
+<li>Bấm thanh dưới cùng <b>Xem giỏ &amp; gửi bếp</b>.</li>
+<li>Trong bảng <b>Đơn của bạn</b>: muốn dặn riêng từng món thì ghi vào ô <i>Ghi chú món này…</i>; dặn chung thì ghi ô <i>Ghi chú cho cả đơn (không cay, ít đá…)</i>.</li>
+<li>Bấm <b>Gửi bếp</b>. Trang hiện <b>✓ Đã gửi bếp</b> — <i>"Nhân viên sẽ ra xác nhận đơn của bàn … trong ít phút"</i>.</li>
+<li>Muốn gọi tiếp thì bấm <b>Gọi thêm món</b>.</li>
+</ol>
+<b>📖 Khách cần biết:</b>
+<ul>
+<li>Món gửi đi <b>chưa tính tiền ngay</b>. Trang có ghi rõ: <i>"Gửi xong, nhân viên sẽ ra xác nhận rồi mới tính vào hoá đơn bàn"</i>.</li>
+<li>Vừa gửi xong phải <b>chờ khoảng 15 giây</b> mới gửi được đơn tiếp theo (chống bấm nhầm 2 lần).</li>
+<li>Lỡ tắt trang, quét lại mã thì <b>giỏ vẫn còn</b>.</li>
+</ul>
+<div class="snai-ok">✅ Khách <b>không cần cài app</b>. Khách cũng nhắn được cho quán bằng nút <b>💬 Nhắn quán</b> — xem mục <b>Phía khách: khách nhắn tin cho cửa hàng thế nào?</b></div>
+<div class="snai-tip">💡 Phía quán nhận đơn ra sao: xem mục <b>Nhận đơn khách gửi vào bàn</b>.</div>`},
+
+{c:'kh',t:'Phía khách: chạm vào ảnh hàng, ảnh món để xem lớn',k:'phia khach xem anh lon anh san pham anh mon anh phong phong to anh hang tren link ban online thuc don qr cham vao anh chum 2 ngon',
+a:`<b class="snai-h">🔍 Khách xem ảnh hàng thật to</b>
+<b>👉 Cái này để làm gì:</b> ảnh trên thẻ hàng nhỏ, khách khó nhìn rõ. Nay khách <b>chạm vào ảnh</b> là ảnh bung ra <b>toàn màn hình</b>, kèm <b>tên hàng</b> — nhìn rõ mới dễ chốt mua.
+<b>📍 Có ở đâu:</b>
+<ul>
+<li><b>Link bán online:</b> ảnh hàng, ảnh phòng, và ảnh trong khay chọn size / màu.</li>
+<li><b>Thực đơn QR tại bàn:</b> ảnh món.</li>
+</ul>
+<b>🪜 Khách dùng thế này:</b>
+<ol>
+<li><b>Chạm vào ảnh</b> → ảnh lớn hiện ra.</li>
+<li><b>Phóng to:</b> đặt 2 ngón tay lên ảnh rồi kéo dang ra, hoặc <b>chạm nhanh 2 lần</b> vào chỗ muốn xem.</li>
+<li>Đang phóng to thì <b>dùng 1 ngón kéo</b> để xem từng góc.</li>
+<li><b>Đóng:</b> bấm <b>✕</b>, hoặc chạm ra ngoài ảnh, hoặc bấm nút <b>Quay lại</b> của điện thoại.</li>
+</ol>
+<div class="snai-ok">✅ Đóng ảnh bằng nút Quay lại thì khách <b>vẫn ở nguyên trang</b>, <b>giỏ hàng còn nguyên</b>.</div>
+<div class="snai-tip">💡 Muốn khách xem được ảnh thì bạn phải gắn ảnh cho sản phẩm trước — xem mục <b>Ảnh minh họa cho sản phẩm</b>. Ảnh chụp <b>rõ, đủ sáng</b> thì phóng to mới đẹp.</div>`},
+
+{c:'kh',t:'Khách nói không đặt được qua link — các câu báo và cách xử lý',k:'khach khong dat duoc qua link bao loi link cua hang chua dung link khong con dung duoc tam ngung nhan don ngoai gio nhan don chua mo duoc cua hang so dien thoai chua dung link nay khong con dung duoc cua hang da doi link moi cua hang chua dua hang nao len',
+a:`<b class="snai-h">🆘 Khách không đặt được qua link</b>
+<b>👉 Hỏi khách "màn hình đang ghi chữ gì?"</b> rồi dò theo bảng dưới.
+<b>📌 Nhóm 1 — Do cài đặt của cửa hàng (bạn sửa được):</b>
+<ul>
+<li><b>● Tạm ngưng nhận đơn</b> / <i>"Cửa hàng đang tạm ngưng nhận đơn online"</i> → bạn đang <b>tắt nhận đơn</b>. Xem mục <b>Bật / tắt nhận đơn online</b>.</li>
+<li><b>● Ngoài giờ</b> / <i>"Ngoài giờ nhận đơn — cửa hàng nhận đơn từ … đến …"</i> → do <b>Giờ nhận đơn</b> bạn cài. Khách vẫn xem hàng được, chỉ chưa đặt được.</li>
+<li><i>"Link này không còn dùng được — Cửa hàng đã đổi link mới"</i> → bạn đã bấm <b>Đổi link</b>. Gửi <b>link mới</b> cho khách.</li>
+<li><i>"Cửa hàng chưa đưa hàng nào lên"</i> → link chưa có hàng. Vào <b>Chọn hàng hiện online</b> tick hàng, rồi <b>Cập nhật hàng lên link</b>.</li>
+<li>Món ghi <b>Tạm hết</b> / phòng ghi <b>Tạm ngưng</b> → bạn đã bấm tạm hết cho món đó.</li>
+<li><i>"Cửa hàng vừa tạm ngưng nhận đơn online. Bạn gọi cửa hàng giúp nhé"</i> (hiện lúc khách bấm Đặt hàng) → máy chủ không nhận đơn: bạn vừa tắt nhận đơn, hoặc <b>gói Bán online đã hết hạn</b>.</li>
+</ul>
+<b>📌 Nhóm 2 — Do link hoặc mạng của khách:</b>
+<ul>
+<li><i>"🔎 Link cửa hàng chưa đúng"</i> → link bị thiếu chữ, hoặc gửi nhầm link. Gửi lại bằng nút <b>Sao chép link</b> / <b>Gửi link</b>, đừng gõ tay.</li>
+<li><i>"📶 Chưa mở được cửa hàng — Mạng đang chập chờn"</i> → khách bấm <b>Thử lại</b>.</li>
+<li>Dải <i>"Đang xem danh sách hàng đã lưu — mạng yếu"</i> → khách đang xem bản lưu cũ vì mạng yếu.</li>
+<li><i>"Chưa gửi được — mạng đang chập chờn"</i> / <i>"Máy đang mất mạng"</i> → khách bật mạng rồi bấm đặt lại. <b>Giỏ hàng vẫn còn nguyên.</b></li>
+</ul>
+<b>📌 Nhóm 3 — Khách điền thiếu:</b>
+<ul>
+<li><i>"Số điện thoại chưa đúng (10 số, bắt đầu bằng 0)"</i> → gõ lại số điện thoại.</li>
+<li><i>"Bạn ghi tên người nhận giúp nhé"</i> · <i>"Bạn ghi địa chỉ giao hàng giúp nhé"</i> → điền cho đủ.</li>
+<li><i>"Bạn chọn ngày và giờ đến giúp nhé"</i> · <i>"Giờ đến đã qua"</i> → chọn lại ngày giờ (đặt lịch).</li>
+</ul>
+<div class="snai-tip">💡 Tự kiểm nhanh: <b>lấy điện thoại của bạn mở chính link đó</b>. Bạn thấy sao thì khách thấy vậy.</div>`},
+
+{c:'kh',t:'Khách nói không gọi món được bằng mã QR — các câu báo trên trang',k:'khach khong goi mon duoc ma ban chua dung quan chua mo dat mon qua ma nay quan tam ngung nhan don qua ma qr chua mo duoc thuc don ban khong con trong so do',
+a:`<b class="snai-h">🆘 Trang gọi món báo lỗi</b>
+<b>👉 Hỏi khách "màn hình đang ghi chữ gì?"</b> rồi dò theo bảng dưới.
+<ul>
+<li><i>"🔎 Mã bàn chưa đúng — Bạn thử quét lại mã dán trên bàn"</i> → link bị thiếu. Bảo khách <b>quét lại mã</b>. Vẫn vậy thì thẻ mã bị mờ, rách → <b>in lại</b>.</li>
+<li><i>"🔎 Mã bàn chưa đúng — Bàn này không còn trong sơ đồ của quán"</i> → bàn đó <b>đã bị xóa</b> khỏi sơ đồ bàn. Tạo lại bàn, in mã mới cho bàn đó.</li>
+<li><i>"🍽️ Quán chưa mở đặt món qua mã này"</i> → mã này <b>không còn dùng</b> (thường do bạn đã bấm <b>Đổi mã</b> mà chưa dán mã mới), hoặc khách mất mạng ngay lần đầu mở.</li>
+<li><i>"🕘 Quán tạm ngưng nhận đơn qua mã QR"</i> → bạn đang <b>tắt nhận đơn</b>. Vào tab Đơn QR bật lại.</li>
+<li><i>"📶 Chưa mở được thực đơn — Mạng đang chập chờn"</i> → khách bấm <b>Thử lại</b>.</li>
+<li>Dải <i>"Đang dùng thực đơn đã lưu — mạng yếu"</i> → khách đang xem thực đơn lưu từ lần trước.</li>
+<li><i>"Quán chưa đưa món nào lên thực đơn"</i> → bạn chưa bấm <b>Cập nhật thực đơn lên mã</b>.</li>
+<li>Lúc bấm Gửi bếp báo <i>"Quán đang tạm ngưng nhận đơn qua mã QR. Bạn gọi nhân viên gọi món giúp nhé"</i> → máy chủ không nhận đơn: bạn vừa tắt nhận đơn, hoặc <b>gói đã hết hạn</b>.</li>
+<li><i>"Đơn vừa gửi xong rồi. Chờ … giây nữa hãy gửi tiếp nhé"</i> → bình thường, chờ vài giây.</li>
+</ul>
+<div class="snai-tip">💡 Các cách xử lý phía quán: xem thêm mục <b>Khách quét mã không được — xử lý</b>. Trong lúc chờ sửa, nhân viên cứ ghi món bằng tay vào bàn như thường.</div>`},
+
+/* ───────────── 📦 ĐỐI CHIẾU KHO — ĐỌC MÀN HÌNH ───────────── */
+{c:'bc',t:'Màn Đối chiếu kho: Ảnh kho · cột ĐẦU CA / HIỆN TẠI / ĐẾM · lưu kết quả',k:'man doi chieu kho anh kho dau ca cuoi ca hien tai dem co bien dong khong bien dong luu ket qua kiem kho thieu thua ban khong kiem kho cuoi ca',
+a:`<b class="snai-h">📦 Đọc màn Đối chiếu kho</b>
+<b>📍 Ở đâu:</b> <span class="snai-path">🛒 BÁN HÀNG</span> → tab <b>Bán</b> → <b>💰 Quỹ / Chốt ca</b> → mở ca cần soát → bấm <b>📦 Đối chiếu kho — soát hàng bán khống</b>.
+<b>📖 Từ trên xuống, màn hình có:</b>
+<ul>
+<li><b>Khung "Ảnh kho":</b> <b>Đầu ca</b> (số mặt hàng và số đơn vị lúc mở ca) · <b>Cuối ca</b> (nếu ca đã chốt) hoặc <b>Tồn hiện tại theo app</b> (nếu ca đang mở) · <b>Vốn tồn</b> đầu ca → cuối ca.</li>
+<li>Dòng <b>🧾 Đã kiểm lúc … bởi …</b> — hiện khi ca này đã được kiểm, ghi rõ đếm bao nhiêu mặt hàng, <b>thiếu</b> bao nhiêu, <b>thừa</b> bao nhiêu.</li>
+<li>Ô <b>🔎 Gõ tên hàng để tìm nhanh…</b> và 3 nút lọc: <b>Tất cả</b> · <b>Có biến động</b> · <b>Không biến động</b>.</li>
+<li>Mỗi mặt hàng một dòng, có 3 ô: <b>ĐẦU CA</b> · <b>HIỆN TẠI</b> (ca đã chốt thì là <b>CUỐI CA</b>) · ô <b>đếm</b> để bạn gõ số đếm tay.</li>
+<li>Nhiều hàng thì cuối danh sách có nút <b>⬇️ Xem thêm — đang hiện …/… mặt hàng</b>.</li>
+</ul>
+<b>🪜 Cách kiểm cho nhanh:</b>
+<ol>
+<li>Bấm lọc <b>Có biến động</b> — chỉ còn những món có thay đổi trong ca, đỡ phải đếm cả kho.</li>
+<li>Ra kệ <b>đếm số hàng thật</b> của từng món.</li>
+<li>Gõ số vừa đếm vào ô <b>đếm</b> của món đó. App so ngay với số theo app.</li>
+<li>Đếm xong bấm <b>💾 Lưu kết quả kiểm kho</b> (chỉ <b>Chủ</b> mới lưu được).</li>
+</ol>
+<b>📖 Đọc kết quả:</b>
+<ul>
+<li><b>Thiếu</b> (màu đỏ) = hàng ra khỏi kho mà <b>KHÔNG ghi đơn</b> — nghi bán khống.</li>
+<li><b>Thừa</b> (màu vàng) = nhập hàng chưa ghi vào app, hoặc đếm nhầm.</li>
+</ul>
+<div class="snai-warn">⚠️ Báo <i>"Ca này không có ảnh kho đầu ca"</i>: ca được mở bằng bản cũ, hoặc lúc đó máy mất mạng. Ca <b>song song</b> (mở khi đã có ca khác) cũng không có ảnh kho riêng. Từ ca sau app tự chụp lúc mở ca.</div>
+<div class="snai-tip">💡 Kết quả kiểm kho được ghi vào <b>📋 Nhật ký thao tác</b>. Thiếu hàng chưa chắc là gian lận — hỏi lại nhân viên xem có quên ghi <b>xuất hủy</b> hàng hỏng không.</div>`},
 ];
 
 /* ═════════════ 3) BỘ MÁY HIỂU TIẾNG VIỆT ═════════════ */
@@ -17454,6 +18135,90 @@ build=function(){ _v2build(); try{ v3Wire(); }catch(e){} };
 /* Cho phép gọi từ nơi khác: window.SNAI_TOUR('ghi-no') */
 window.SNAI_TOUR=function(k){ try{ trStart(k); }catch(e){} };
 
+
+/* ═════════════ 5d) NÂNG CẤP v4 — 💬 TIN NHẮN KHÁCH · MỤC MỚI · THÊM BÀI CHỈ TẬN TAY ═════════════
+   Cách làm y như v2, v3: chỉ BỔ SUNG vào các bảng đã khai báo ở trên, phần còn lại giữ nguyên.
+   • Nhóm mới 💬 Tin nhắn khách (hộp thư, câu mẫu, 📋 Chốt đơn, ✔ Xong, 🚫 Chặn, công tắc bật/tắt).
+   • Mục mới: xem ảnh lớn · luật bán theo ca · nhiều ca cùng lúc · nhật ký thao tác · xóa cửa hàng ·
+     app tự dọn dữ liệu cũ · luật dùng thử · đọc sâu báo cáo.
+   • Nhóm mới 👀 Phía khách: tả đúng những gì khách thấy trên link bán online và thực đơn QR tại bàn.
+   • 👆 Chỉ tận tay thêm 2 bài: mở hộp tin nhắn · bật/tắt nhắn tin.                                  */
+
+/* ---- từ đồng nghĩa bổ sung ---- */
+try{
+  SYN.chat   ='tin nhan khach tro chuyen';
+  SYN.inbox  ='hop tin nhan khach';
+  SYN.tin    ='tin nhan khach';
+  SYN.chot   ='chot don chot ca';
+  SYN.zoom   ='phong to anh';
+  SYN.luat   ='luat ban theo ca';
+  SYN.roi    ='chi so chuyen sau';
+  SYN.spam   ='chan khach nhan pha';
+}catch(e){}
+
+HOT=['Cách ghi nợ cho khách','Bán hàng thế nào','Bán online là gì','Trả lời tin nhắn khách','Sao lưu dữ liệu',
+     'Chia sẻ link cho khách','Thêm sản phẩm','Chốt ca','Xem báo cáo lãi','Gọi hỗ trợ khi bí'];
+
+/* ---- 👆 Chỉ tận tay: thêm bài cho Tin nhắn khách ---- */
+try{
+  TOURS['tn-hop']={n:'Mở hộp tin nhắn · trả lời khách',e:'Trả lời tin nhắn của khách (gõ chữ hoặc bấm câu mẫu)',g:'tn',st:[S_POS,S_QRD,
+    {s:'#tnk-sec [data-tnk="hop"]',t:'Bấm nút xanh <b>💬 Mở hộp tin nhắn</b> trong khung Tin nhắn khách.',
+     skip:function(){ return openM('#tnk-k.on'); },
+     miss:'Chưa thấy khung 💬 Tin nhắn khách — tài khoản chưa có Gói Bán online, hoặc đang tải. Chờ vài giây rồi bấm Thử lại.'},
+    {s:'#tnk-k .tnk-hop.on .tnk-row',any:'#tnk-k .tnk-row',t:'Chạm vào <b>tên khách</b> muốn trả lời.',
+     skip:function(){ return openM('#tnk-k .tnk-cuoc.on'); },
+     miss:'Chưa có khách nào nhắn. Khi khách mở link bán online hoặc quét mã QR tại bàn rồi nhắn, tên khách sẽ hiện ở đây.'},
+    {s:'#tnk-k .tnk-cuoc.on .tnk-ta',w:'see',t:'Chạm vào ô này, gõ câu trả lời rồi bấm nút <b>➤</b>. Hoặc bấm một <b>câu mẫu</b> ngay phía trên.'}],
+    done:'Muốn chốt đơn với khách thì bấm nút 📋 bên trái ô gõ. Xong việc bấm ⋯ rồi bấm ✔ Xong để cất cuộc trò chuyện.'};
+  TOURS['tn-bat']={n:'Bật / tắt cho khách nhắn tin',e:'Bật / tắt cho khách nhắn tin',g:'tn',st:[S_POS,S_QRD,
+    {s:'#tnk-sec [data-tnk="sw"]',t:'Bấm <b>công tắc</b> ở góc phải khung 💬 Tin nhắn khách để bật hoặc tắt.',
+     miss:'Chưa thấy công tắc. Công tắc chỉ hiện trên <b>máy chủ shop</b>, và khi đã tạo <b>link bán online</b> hoặc <b>mã QR tại bàn</b>.'}],
+    done:'Dòng chữ trong khung cho biết đang bật hay tắt. Tắt rồi thì tin cũ vẫn đọc và trả lời được.'};
+  TGR.splice(3,0,['tn','💬 TIN NHẮN KHÁCH']);
+  var _t4={
+    'Trả lời tin nhắn của khách (gõ chữ hoặc bấm câu mẫu)':'tn-hop',
+    'Mở hộp tin nhắn và đọc danh sách cuộc trò chuyện':'tn-hop',
+    'Tin nhắn khách là gì? Dùng làm gì?':'tn-hop',
+    'Chốt đơn với khách bằng thẻ 📋 Chốt đơn':'tn-hop',
+    'Cất cuộc trò chuyện đã xong · Chặn khách nhắn phá':'tn-hop',
+    'Bật / tắt cho khách nhắn tin':'tn-bat',
+    'Luật bán theo ca — mỗi người một ca riêng':'quy-ca',
+    'Nhiều ca mở cùng lúc — chủ xem tiền và chốt hộ ca của nhân viên':'quy-ca',
+    'Sửa quỹ đầu ca · Hủy ca mở nhầm':'quy-ca',
+    'Nhật ký thao tác — xem ai đã xóa, sửa gì':'quy-ca',
+    'Báo cáo: Nhận định nhanh và Chỉ số chuyên sâu (ROI, số ngày còn tồn kho)':'bao-cao',
+    'Báo cáo Sổ Nợ: Nợ ròng, Dòng tiền trong kỳ, Tuổi nợ phải thu':'bao-cao',
+    'Màn Đối chiếu kho: Ảnh kho · cột ĐẦU CA / HIỆN TẠI / ĐẾM · lưu kết quả':'quy-ca',
+    'Phía khách: khách nhắn tin cho cửa hàng thế nào?':'tn-hop'
+  };
+  for(var _k4 in _t4){ if(_t4.hasOwnProperty(_k4)&&!TOURBY[_k4]&&byTitle(_k4)&&TOURS[_t4[_k4]]) TOURBY[_k4]=_t4[_k4]; }
+}catch(e){}
+
+/* ---- Hướng dẫn đúng chỗ đang đứng: thêm việc mới vào từng màn ---- */
+try{
+  CTX.qrd.tr=['onl-mo','onl-gui','onl-chon','chuong','tn-hop'];
+  CTX.qrd.q.splice(3,0,'Trả lời tin nhắn của khách (gõ chữ hoặc bấm câu mẫu)','Chốt đơn với khách bằng thẻ 📋 Chốt đơn');
+  CTX.sell.q.push('Luật bán theo ca — mỗi người một ca riêng');
+  CTX.sono.q.push('Phóng to ảnh chứng từ, chữ ký ra toàn màn hình');
+  CTX.report.q.push('Báo cáo: Nhận định nhanh và Chỉ số chuyên sâu (ROI, số ngày còn tồn kho)','Báo cáo Sổ Nợ: Nợ ròng, Dòng tiền trong kỳ, Tuổi nợ phải thu');
+  CTX.aib.q.push('Gõ lệnh bán hàng — các nút hiện ra sau khi gõ');
+  CTX.qrd.q.push('Phía khách: đặt hàng qua link cửa hàng online — từng bước','Khách nói không đặt được qua link — các câu báo và cách xử lý');
+  CTX.fnb.q.push('Phía khách: gọi món tại bàn bằng mã QR — từng bước');
+  CTX.rm.q.push('Phía khách: đặt phòng, đặt lịch qua link');
+}catch(e){}
+
+/* ---- GHI ĐÈ: lời chào có thêm nút "🆕 Có gì mới" ở hàng gợi ý ---- */
+var _v3welcome=welcome;
+welcome=function(){
+  _v3welcome();
+  try{
+    var t4='Có gì mới trong app? (tính năng vừa thêm)';
+    if(byTitle(t4)&&chips){
+      var b4=E('button','','🆕 Có gì mới'); b4.type='button'; b4.setAttribute('data-snaiq',t4);
+      chips.insertBefore(b4,chips.firstChild);
+    }
+  }catch(x){}
+};
 
 /* ═════════════ 6) KHỞI ĐỘNG ═════════════ */
 function boot(){ try{ build(); }catch(e){} }
@@ -19555,7 +20320,7 @@ if (window.__RMT_READY__) return; window.__RMT_READY__ = true;
 try{
 
 /* ĐỔI CHUỖI NÀY CHO TRÙNG APP_BUILD MỖI LẦN DEPLOY (chỉ để hiện ở bảng quản trị) */
-var BUILD = '2026-10-02-QM2';
+var BUILD = '2026-10-02-QM4';
 var NHIP   = 6*3600*1000;          /* báo về tối đa 6 giờ 1 lần — khỏi tốn lượt ghi */
 var KEY_HB = 'rmt_hb_v2';          /* [QT7] nhịp báo về tính RIÊNG từng tài khoản (bản v1 tính chung cả máy) */
 var KEY_XEM= 'rmt_xem_v1';
