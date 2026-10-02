@@ -297,6 +297,26 @@ const KKH   = 'olkhach_v1';           // tên / SĐT / địa chỉ của khách
 let SHOP=null, MENU=[], MAP={}, GIO=[], NHOM='', DVC={}, dangGui=false;
 let GIAO='giao', TTOAN='tm', DON_XEM=null, TT_DON='', UNSUB=null, daNapKH=false;
 let db=null, auth=null;
+
+/* ═════════ [ĐN TRỄ 2026-10-02] ĐĂNG NHẬP VÔ DANH ĐÚNG LÚC CẦN ═════════
+   Trước đây cứ mở trang là tạo ngay 1 tài khoản vô danh, kể cả khách chỉ ghé xem. Firebase chỉ cho
+   100 tài khoản mới mỗi giờ trên một địa chỉ mạng ⇒ quán đông, nhiều khách chung wifi / chung mạng 4G
+   là đụng trần, khách KHÔNG XEM NỔI hàng. Nay: xem thì không cần tài khoản (dữ liệu công khai); tới lúc
+   GỬI ĐƠN hoặc MỞ NHẮN TIN mới đăng nhập. Máy đã có tài khoản (từng gửi đơn / nhắn tin) thì dùng lại
+   đúng tài khoản đó. Các lượt gọi trùng nhau gộp làm MỘT ⇒ không bao giờ sinh 2 tài khoản cho 1 máy. */
+let _dnCho = null;
+function dangNhapKhach(){
+  if(!auth) return Promise.reject(new Error('chua-san-sang'));
+  if(auth.currentUser) return Promise.resolve(auth.currentUser);
+  if(_dnCho) return _dnCho;
+  /* chờ SDK nhớ lại phiên cũ xong đã — máy đang có tài khoản thì dùng lại, không tạo đè */
+  const san = (typeof auth.authStateReady === 'function') ? auth.authStateReady().catch(() => {}) : Promise.resolve();
+  _dnCho = san.then(() => auth.currentUser ? { user: auth.currentUser } : signInAnonymously(auth)).then(
+    c => { _dnCho = null; return (c && c.user) || auth.currentUser; },
+    e => { _dnCho = null; throw e; });
+  return _dnCho;
+}
+window.__khachDangNhap = dangNhapKhach;
 let PHONG=[], PMAP={}, HEN=null, HEN_MOI=0, BT=null, DP=null, chonGiao=false;   /* [ĐỢT 2] */
 const KHEN = 'olhen_' + TK;
 const NHOM_PHONG = '🛏️ Phòng';
@@ -878,12 +898,13 @@ async function chay(){
     return;
   }
 
-  /* Đăng nhập vô danh — khách không phải tạo tài khoản gì cả */
-  try{ await signInAnonymously(auth); }
-  catch(e){
-    bao('📶', 'Chưa mở được cửa hàng', 'Mạng đang chập chờn. Bạn bấm thử lại giúp nhé.', true);
-    return;
-  }
+  /* [ĐN TRỄ 2026-10-02] KHÔNG đăng nhập lúc mở trang nữa — xem hàng là đọc dữ liệu công khai, không cần
+     tài khoản. Ở đây chỉ chờ SDK nhớ lại tài khoản cũ của máy này (máy đã từng gửi đơn / nhắn tin).
+     Tài khoản mới chỉ tạo khi khách bấm gửi đơn hoặc mở nhắn tin — xem dangNhapKhach() ở trên. */
+  try{
+    if(typeof auth.authStateReady === 'function')
+      await Promise.race([auth.authStateReady(), new Promise(r => setTimeout(r, 5000))]);
+  }catch(e){}
 
   /* Đọc cửa hàng — chỉ 1 lượt đọc */
   let d = null, coMang = true;
@@ -960,6 +981,21 @@ $('#gui').onclick = async () => {
   const con = CHO_GUI_LAI - (Date.now() - truoc);
   if(con > 0){ alert('Đơn vừa gửi xong rồi. Chờ ' + Math.ceil(con / 1000) + ' giây nữa hãy gửi tiếp nhé.'); return; }
   try{ if(navigator.onLine === false){ alert('Máy đang mất mạng. Bạn bật mạng rồi bấm đặt hàng lại nhé — giỏ hàng vẫn còn nguyên.'); return; } }catch(e){}
+
+  /* [ĐN TRỄ 2026-10-02] Khách mới (chưa từng đặt / nhắn tin trên máy này) ⇒ đăng nhập vô danh NGAY LÚC NÀY.
+     Xong thì CHẠY LẠI TỪ ĐẦU hàm này: mọi ô nhập được đọc lại, không dùng số liệu lấy trước lúc chờ. */
+  if(!(auth && auth.currentUser)){
+    dangGui = true;
+    $('#gui').disabled = true;
+    $('#gui').textContent = 'Đang kết nối…';
+    let okDN = false;
+    try{ okDN = !!(await dangNhapKhach()) && !!auth.currentUser; }catch(e){ okDN = false; }
+    dangGui = false;
+    $('#gui').disabled = false;
+    $('#gui').textContent = GIAO === 'hen' ? 'Đặt lịch' : 'Đặt hàng';
+    if(!okDN){ alert('Chưa kết nối được để gửi đơn. Giỏ hàng vẫn còn nguyên — bạn bấm đặt lại sau ít phút, hoặc gọi cửa hàng giúp nhé.'); return; }
+    return $('#gui').onclick();
+  }
 
   const don = {
     token:    TK,
@@ -1328,7 +1364,7 @@ document.addEventListener('click', function(e){
      ═════════════════════════════════════════════════════════════════════════════════════ -->
 <script type="module">
 import { getApps, getApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+import { getAuth, onAuthStateChanged, signInAnonymously } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 import { getFirestore, doc, getDoc, collection, query, orderBy, limit, onSnapshot,
          writeBatch, updateDoc, serverTimestamp, increment }
   from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
@@ -1541,7 +1577,7 @@ function capNhatNut(){
   if(db && !unCuoc && canNghe()) ngheCuoc();
   if(db && KHUNG_MO && CUOC && !unTin) ngheTin();
   if(KHUNG_MO && CHAT === false && Date.now() - lanKiemChat > 60000) kiemChat(true);   /* đang mở khung mà thấy tắt ⇒ 1 phút hỏi lại 1 lần */
-  const dung = !!(S && UID && db) && (CHAT === true || !!CUOC);
+  const dung = !!(S && db) && (CHAT === true || !!CUOC);   /* [ĐN TRỄ] khách mới chưa có tài khoản vẫn thấy nút 💬 — bấm vào mới đăng nhập */
   const hien = dung && !biChe();
   if(document.body.classList.contains('chk-co') !== dung) document.body.classList.toggle('chk-co', dung);
   NUT.classList.toggle('on', hien);
@@ -1816,8 +1852,30 @@ function veTatCa(){
 function coDanTa(){ TA.style.height = 'auto'; TA.style.height = Math.min(120, Math.max(44, TA.scrollHeight)) + 'px'; }
 
 /* ───────── MỞ / ĐÓNG KHUNG ───────── */
+/* [ĐN TRỄ 2026-10-02] Khách chỉ xem hàng thì chưa có tài khoản. Bấm 💬 mới đăng nhập vô danh rồi mở khung.
+   Dùng chung hàm của trang (window.__khachDangNhap) ⇒ không bao giờ tạo 2 tài khoản cho 1 máy.
+   Đăng nhập chưa được (mạng yếu / quá đông) ⇒ hiện dòng báo, chạm vào là thử lại. */
+let dangDN = false;
+async function dangNhapRoiMo(){
+  if(dangDN) return;
+  dangDN = true;
+  NUT.style.opacity = '.55';
+  let u = null;
+  try{
+    const f = window.__khachDangNhap;
+    if(typeof f === 'function') u = await f();
+    else{ const a = getAuth(getApp()); u = a.currentUser || (await signInAnonymously(a)).user; }
+  }catch(e){ u = null; }
+  dangDN = false;
+  NUT.style.opacity = '';
+  if(u && u.uid){ doiNguoi(u); if(UID){ moKhung(); return; } }
+  BAO.textContent = '💬 Chưa mở được tin nhắn — bạn chạm vào đây để thử lại nhé.';
+  BAO.classList.add('on');
+  clearTimeout(henBao); henBao = setTimeout(() => BAO.classList.remove('on'), 6000);
+}
 function moKhung(){
-  if(KHUNG_MO || !S || !UID || !db) return;
+  if(KHUNG_MO || !S || !db) return;
+  if(!UID){ dangNhapRoiMo(); return; }                /* [ĐN TRỄ] khách mới: tạo tài khoản đúng lúc mở nhắn tin */
   KHUNG_MO = true; dauLan = true;
   K.classList.add('on'); NUT.classList.remove('on'); BAO.classList.remove('on');
   try{ ST = Date.now() + Math.random(); history.pushState({ chkKhung: ST }, ''); }catch(e){ ST = 0; }
