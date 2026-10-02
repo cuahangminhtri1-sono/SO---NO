@@ -395,7 +395,7 @@
   <header>
     <h1>📒 Sổ Nợ</h1>
     <div style="display:flex;gap:6px;align-items:center">
-      <button class="btn-icon" id="admin-btn" onclick="openAdmin()" style="display:none">👑 Khách</button>
+      <!-- [QM2 2026-10-02] nút 👑 Khách đã bỏ: bảng 👑 không còn trong app này -->
       <button class="btn-icon" onclick="openPOS()" style="background:#0d7a5f;color:#fff;font-weight:600">🛒 Bán hàng</button>
       <button class="btn-icon" onclick="openSettings()">⚙️</button>
       <button class="btn-icon" onclick="doLogout()">Đăng xuất</button>
@@ -431,30 +431,7 @@
   </div>
 </div>
 
-<!-- ADMIN: Quản lý khách -->
-<div id="admin-view" style="display:none;min-height:100vh;background:#f4f6f8;">
-  <!-- [QT6] Bảng 👑 chỉ còn để XEM: ẩn mọi nút GHI (chốt chặn thật nằm trong từng hàm) -->
-  <style>
-    #admin-list button[onclick^="adminGrant"],#admin-list button[onclick^="adminActivate"],#admin-list button[onclick^="adminLock"],
-    #admin-list button[onclick^="adminUnlock"],#admin-list button[onclick^="adminDismiss"],#admin-list button[onclick^="skAdminPos"],
-    #admin-list button[onclick^="ngaAdmCap"],#admin-list button[onclick^="ngaAdmTat"],#admin-list button[onclick^="ngaAdmLuuGia"]{display:none!important}
-    #admin-list [id^="ngp-"]{pointer-events:none;background:#f3f5f7}
-  </style>
-  <header style="background:#1a6b3c;color:#fff;padding:14px 16px;display:flex;align-items:center;gap:10px;">
-    <button onclick="closeAdmin()" style="background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:8px;padding:8px 12px;font-size:.95em;cursor:pointer">← Quay lại</button>
-    <h1 style="margin:0;font-size:1.15em">👑 Quản lý khách</h1>
-  </header>
-  <div style="padding:14px;max-width:640px;margin:0 auto">
-    <div style="background:#eef4ff;border:1px solid #bcd0ff;border-radius:12px;padding:12px 14px;font-size:.9em;color:#1d4ed8;margin-bottom:12px">
-      👑 Bảng này nay <b>chỉ để XEM</b>. Duyệt đơn, gia hạn, khoá / mở khoá, đặt giá, tài khoản nhận tiền: làm trong <b>app Quản trị (Sổ doanh thu)</b> — một nơi duy nhất, chống duyệt trùng một khoản tiền.
-    </div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px">
-      <button onclick="loadAdminList()" style="background:#fff;border:1px solid #e4e8ec;border-radius:8px;padding:8px 12px;font-size:.88em;cursor:pointer">🔄 Tải lại danh sách</button>
-      <button onclick="loadRevenue()" style="background:#0a5f4a;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-size:.88em;font-weight:600;cursor:pointer">💰 Doanh thu</button>
-    </div>
-    <div id="admin-list"><div style="padding:20px;text-align:center;color:#888">Đang tải...</div></div>
-  </div>
-</div>
+<!-- [QM2 2026-10-02] Bảng 👑 Quản lý khách đã BỎ HẲN khỏi app này — mọi việc quản trị làm ở app Quản trị (indexadmin.html). -->
 
 <!-- MODAL: Cài đặt -->
 <div class="modal-overlay" id="modal-tools">
@@ -768,7 +745,7 @@ import { getFirestore, initializeFirestore, persistentLocalCache, persistentMult
 import { getStorage, ref as _sref, uploadBytes, getDownloadURL, deleteObject, listAll }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
 
-const APP_BUILD = "2026-10-01-DON1"; // ⬆️ ĐỔI MỖI LẦN DEPLOY (đặt TRÙNG tên cache trong sw.js) — hiện ở ⚙️ Cài đặt để biết máy đã chạy bản mới chưa
+const APP_BUILD = "2026-10-02-QM2"; // ⬆️ ĐỔI MỖI LẦN DEPLOY (đặt TRÙNG tên cache trong sw.js) — hiện ở ⚙️ Cài đặt để biết máy đã chạy bản mới chưa
 const firebaseConfig = {
   apiKey: "AIzaSyA_kjQ-CdASRkf50Glz3kQajlkD5qGWC4k",
   authDomain: "so-no-cc57a.firebaseapp.com",
@@ -924,9 +901,9 @@ window.donKhoAnh=async function(){
 // ===== CẤU HÌNH DÙNG THỬ & NHẬN TIỀN GIA HẠN =====
 let TRIAL_DAYS = 14;            // số ngày dùng thử miễn phí cho khách mới (app Quản trị đổi được: billing/info.ngayThu)
 let POS_TRIAL_DAYS = 14;        // số ngày dùng thử miễn phí gói Bán hàng (POS) — theo cùng billing/info.ngayThu
-const RENEW_PRICE = 10000;      // giá mặc định 1 tháng (đồng) — có thể đổi trong 👑 Quản lý khách
+const RENEW_PRICE = 10000;      // giá mặc định 1 tháng (đồng) — giá thật đặt trong app Quản trị
 // (Tuỳ chọn) điền cứng tài khoản NHẬN TIỀN gia hạn của bạn vào đây nếu không muốn cấu hình trong app.
-// Nên để trống và dùng nút "💳 Cấu hình nhận tiền" trong 👑 Quản lý khách cho tiện.
+// Nên để trống và cấu hình trong app Quản trị (bảng 👑 trong app này đã bỏ).
 const RENEW_BANK = { bin:'', bankName:'', account:'', accName:'' };
 let BILLING = null;             // nạp từ Firestore billing/info nếu admin đã cấu hình
 let _GR = null;                 // GIÁ RIÊNG của tài khoản này — accounts/{uid}.giaRieng (chỉ app Quản trị ghi được)
@@ -1830,8 +1807,11 @@ function admStatus(L,a){
   if('paidUntil' in a){const r=_admOne(a,' · cũ');if(r)return r;}
   return{t:'⏳ Chờ kích hoạt',c:'#a05a00'};
 }
-window.openAdmin=function(){document.getElementById('app').style.display='none';document.getElementById('admin-view').style.display='block';window.loadAdminList();};
-window.closeAdmin=function(){document.getElementById('admin-view').style.display='none';document.getElementById('app').style.display='block';};
+/* [QM2 2026-10-02] ĐÃ BỎ HẲN bảng 👑 Quản lý khách khỏi app này (nút mở + khung bảng). Mọi việc quản trị làm ở
+   app Quản trị. Hai hàm dưới giữ tên nhưng không mở gì nữa — để lời gọi cũ nào còn sót cũng không báo lỗi.
+   Các hàm tải / duyệt cũ của bảng (loadAdminList, adminGrantApp, loadRevenue…) không còn đường nào chạy tới. */
+window.openAdmin=function(){ try{ toast('👑 Bảng quản lý khách đã bỏ khỏi app này — việc quản trị làm ở app Quản trị.'); }catch(e){} };
+window.closeAdmin=function(){};
 /* [VÁ v2.1] loadAdminList / adminActivate / adminLock đã chuyển lên BỘ CÔNG CỤ GIA HẠN phía trên. */
 
 if(!viewToken){
@@ -2197,11 +2177,11 @@ function buildRenew(){
     return;
   }
   if(isPos&&unit<=0){
-    box.innerHTML='<div style="background:#fff3cd;border:1px solid #ffe08a;border-radius:10px;padding:14px;color:#8a6d00;font-size:.9em;line-height:1.5">Chủ phần mềm chưa đặt <b>giá gói Bán hàng (POS)</b>.<br>Vui lòng liên hệ để nâng cấp. (Nếu bạn là chủ: 👑 Quản lý khách → 💳 Cấu hình nhận tiền → ô “Giá POS 1 tháng”.)</div>';
+    box.innerHTML='<div style="background:#fff3cd;border:1px solid #ffe08a;border-radius:10px;padding:14px;color:#8a6d00;font-size:.9em;line-height:1.5">Chủ phần mềm chưa đặt <b>giá gói Bán hàng (POS)</b>.<br>Vui lòng liên hệ để nâng cấp. (Nếu bạn là chủ phần mềm: đặt giá trong app Quản trị.)</div>';
     return;
   }
   if(!bank){
-    box.innerHTML='<div style="background:#fff3cd;border:1px solid #ffe08a;border-radius:10px;padding:14px;color:#8a6d00;font-size:.9em;line-height:1.5">Chủ phần mềm chưa cấu hình tài khoản nhận tiền gia hạn.<br>Vui lòng liên hệ trực tiếp để gia hạn. (Nếu bạn là chủ: vào 👑 Quản lý khách → 💳 Cấu hình nhận tiền.)</div>';
+    box.innerHTML='<div style="background:#fff3cd;border:1px solid #ffe08a;border-radius:10px;padding:14px;color:#8a6d00;font-size:.9em;line-height:1.5">Chủ phần mềm chưa cấu hình tài khoản nhận tiền gia hạn.<br>Vui lòng liên hệ trực tiếp để gia hạn. (Nếu bạn là chủ phần mềm: cấu hình trong app Quản trị.)</div>';
     if(isPos)logPosRequest(renewMonths,total); else logRenewRequest(renewMonths,total); return;
   }
   const info=isPos?(email+' POS'):email;
@@ -11190,10 +11170,22 @@ body.la-nv #pos-screen [data-act="ca-cancel"]{display:none!important}
       .then(function(r){ return (r && r.ok) ? readTag(r) : null; })
       .catch(function(){ return null; });
   }
+  /* [QM1 2026-10-02] GIÃN NHỊP DÒ BẢN MỚI. Trước đây mỗi máy đang mở cứ 60 giây (và mỗi lần chạm lại app)
+     là hỏi máy chủ web 2 lượt. Đông khách thì riêng việc "hỏi" đã ngốn hết hạn mức của nơi đặt web.
+     Nay hỏi thật tối đa 10 phút 1 lần cho mỗi máy; trong khoảng đó chỉ xét bản mới đã nằm chờ sẵn trong máy.
+     Dò hỏng (mất mạng) ⇒ lượt sau dò lại ngay. Mở app / tải lại trang vẫn luôn lấy bản mới nhất như cũ. */
+  var CHK_GIAN=600000, _chkLuc=0;
   function checkForUpdate(){
     if (document.hidden) return;
+    var _nay=Date.now();
+    if (_chkLuc && _nay>=_chkLuc && _nay-_chkLuc<CHK_GIAN){
+      if (swReg && swReg.waiting){ pendingUpdate=true; maybeApply(); }
+      return;
+    }
+    _chkLuc=_nay;
     if (swReg && swReg.update){ try { var _up=swReg.update(); if (_up && _up.catch) _up.catch(function(){}); } catch(e){} }
     fetchTag().then(function(tag){
+      if (!tag) _chkLuc=0;          /* [QM1] dò hỏng ⇒ lượt sau dò lại ngay */
       if (tag){
         if (baseTag===null) baseTag=tag;
         else if (tag!==baseTag) pendingUpdate=true;
@@ -19563,7 +19555,7 @@ if (window.__RMT_READY__) return; window.__RMT_READY__ = true;
 try{
 
 /* ĐỔI CHUỖI NÀY CHO TRÙNG APP_BUILD MỖI LẦN DEPLOY (chỉ để hiện ở bảng quản trị) */
-var BUILD = '2026-10-01-DON1';
+var BUILD = '2026-10-02-QM2';
 var NHIP   = 6*3600*1000;          /* báo về tối đa 6 giờ 1 lần — khỏi tốn lượt ghi */
 var KEY_HB = 'rmt_hb_v2';          /* [QT7] nhịp báo về tính RIÊNG từng tài khoản (bản v1 tính chung cả máy) */
 var KEY_XEM= 'rmt_xem_v1';
