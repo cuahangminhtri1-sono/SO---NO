@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0d7a5f">
+<meta name="robots" content="noindex,nofollow">
+<title>Đặt hàng online</title>
+<link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
+<link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     LINK CỐ ĐỊNH CỦA CỬA HÀNG ONLINE — trang chuyển hướng
+     Link: shop.html?c=<mã cố định>        (ví dụ: shop.html?c=minhtri)
+
+     VÌ SAO CÓ TRANG NÀY
+       Link cửa hàng thường (cuahang.html?t=<mã>) ĐỔI mỗi khi chủ shop bấm "Đổi link".
+       Link cố định thì KHÔNG BAO GIỜ đổi: gắn vào app khác, trang web, mã QR đã in…
+       Khách mở link cố định ⇒ trang này hỏi máy chủ "mã hiện tại của cửa hàng là gì"
+       rồi chuyển khách sang đúng cuahang.html?t=<mã hiện tại>.
+
+     CÁCH CHẠY
+       • Đọc ĐÚNG 1 doc công khai shares_qr/cd-<mã cố định> (kieu:'codinh', den:<mã hiện tại>).
+         Doc này do app Sổ Nợ + Bán hàng tự cập nhật mỗi lần chủ shop tạo / đổi link.
+       • Đường nhanh: hỏi thẳng máy chủ (không tải thư viện). Đường dự phòng: thư viện
+         Firebase y như trang cuahang.html. Cả hai hỏng ⇒ báo mạng yếu + nút Thử lại.
+       • LUÔN hỏi máy chủ, không dùng mã đã nhớ ⇒ không bao giờ đưa khách tới link cũ.
+       • Chủ shop GỠ link cố định ⇒ doc con trỏ vẫn còn nhưng đích (den) rỗng ⇒ trang báo "Link này đang tạm ngưng".
+       • Chỉ chuyển tới cuahang.html cùng thư mục, mã đã soát ký tự ⇒ không thể bị lợi
+         dụng để dẫn khách sang trang lạ.
+       • KHÔNG sửa gì ở cuahang.html / menu.html / app chính. Không cần sửa Rules.
+     ═══════════════════════════════════════════════════════════════════════════ -->
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{background:#eef3f1;color:#15302a;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:15px;line-height:1.5}
+#khung{max-width:460px;margin:0 auto;padding:calc(64px + env(safe-area-inset-top,0px)) 26px 40px;text-align:center;color:#43635b}
+#khung .ic{font-size:44px;line-height:1;margin-bottom:14px}
+#khung h1{font-size:17px;font-weight:800;color:#15302a;margin:0 0 8px}
+#khung p{margin:0 0 18px;font-size:14px;line-height:1.65}
+#khung .nho{font-size:12px;color:#7d8d87;margin-top:26px;line-height:1.6}
+.xoay{width:42px;height:42px;margin:0 auto 18px;border-radius:50%;border:4px solid #cfe3db;border-top-color:#0d7a5f;animation:xoay .9s linear infinite}
+@keyframes xoay{to{transform:rotate(360deg)}}
+.nut{display:inline-block;border:none;background:#0d7a5f;color:#fff;border-radius:12px;padding:13px 26px;font-size:15px;font-weight:800;font-family:inherit;cursor:pointer;text-decoration:none}
+.nut:active{opacity:.85}
+:focus-visible{outline:3px solid #16a34a;outline-offset:2px}
+@media (prefers-reduced-motion:reduce){.xoay{animation-duration:2.4s}}
+</style>
+</head>
+<body>
+<div id="khung" role="status" aria-live="polite">
+  <div class="xoay" aria-hidden="true"></div>
+  <h1>Đang mở cửa hàng…</h1>
+  <p>Bạn chờ một chút nhé.</p>
+  <noscript><p>Trình duyệt đang tắt JavaScript nên chưa mở được cửa hàng. Bạn bật JavaScript rồi tải lại trang giúp nhé.</p></noscript>
+</div>
+
+<script>
+(function(){
+'use strict';
+
+/* ═════════ CẤU HÌNH ═════════ */
+var DU_AN     = 'so-no-cc57a';                 /* mã dự án Firebase — y như cuahang.html */
+var CFG = {                                    /* chỉ dùng cho đường dự phòng (thư viện Firebase) */
+  apiKey: "AIzaSyA_kjQ-CdASRkf50Glz3kQajlkD5qGWC4k",
+  authDomain: "so-no-cc57a.firebaseapp.com",
+  projectId: "so-no-cc57a",
+  storageBucket: "so-no-cc57a.firebasestorage.app",
+  messagingSenderId: "571694791559",
+  appId: "1:571694791559:web:8e409728a520e2d370b122"
+};
+var THU_VIEN  = 'https://www.gstatic.com/firebasejs/10.12.0/';
+var TRANG_CH  = 'cuahang.html';                /* trang cửa hàng — cùng thư mục với file này */
+var TIEN_TO   = 'cd-';                         /* doc con trỏ: shares_qr/cd-<mã cố định> */
+var CHO_NHANH = 7000;                          /* đường nhanh: chờ tối đa 7 giây */
+var CHO_DU    = 15000;                         /* đường dự phòng: chờ tối đa 15 giây */
+/* ═══════════════════════════ */
+
+var KHUNG = document.getElementById('khung');
+var daDi = false, loiMang = false, daBao = false;
+
+/* ───────── vẽ ───────── */
+function the(ten, chu, lop){
+  var e = document.createElement(ten);
+  if(lop) e.className = lop;
+  if(chu != null) e.textContent = chu;          /* luôn textContent ⇒ không bao giờ chèn HTML lạ */
+  return e;
+}
+function bao(ic, tieuDe, noiDung, thuLai, ghiChu){
+  if(daDi) return;
+  daBao = true;
+  KHUNG.innerHTML = '';
+  KHUNG.appendChild(the('div', ic, 'ic'));
+  KHUNG.appendChild(the('h1', tieuDe));
+  KHUNG.appendChild(the('p', noiDung));
+  if(thuLai){
+    var b = the('button', 'Thử lại', 'nut'); b.type = 'button';
+    b.onclick = function(){ try{ location.reload(); }catch(e){} };
+    KHUNG.appendChild(b);
+  }
+  if(ghiChu) KHUNG.appendChild(the('div', ghiChu, 'nho'));
+}
+function baoMang(){
+  loiMang = true;
+  bao('📶', 'Chưa mở được cửa hàng', 'Mạng đang chập chờn. Bạn bấm thử lại giúp nhé.', true);
+}
+
+/* ───────── đọc mã cố định trên địa chỉ ─────────
+   Trả về: chuỗi mã hợp lệ · '' = link không có mã · null = có mã nhưng sai ký tự */
+function docMa(){
+  var s = '';
+  try{ s = new URLSearchParams(location.search).get('c') || ''; }
+  catch(e){
+    var m = /[?&]c=([^&#]*)/.exec(location.search || '');
+    if(m){ try{ s = decodeURIComponent(m[1].replace(/\+/g, ' ')); }catch(e2){ s = m[1]; } }
+  }
+  s = String(s).replace(/^\s+|\s+$/g, '').toLowerCase();
+  if(!s) return '';
+  return /^[a-z0-9][a-z0-9-]{1,28}[a-z0-9]$/.test(s) ? s : null;
+}
+/* Mã cửa hàng hiện tại do máy chủ trả về: chỉ nhận chữ, số, _ và - ; không nhận mã cố định khác */
+function maHopLe(t){
+  return typeof t === 'string' && /^[A-Za-z0-9_-]{6,80}$/.test(t) && t.indexOf(TIEN_TO) !== 0;
+}
+
+/* ───────── chờ có hạn ───────── */
+function coHan(p, ms){
+  return new Promise(function(ok, hong){
+    var xong = false;
+    var h = setTimeout(function(){ if(!xong){ xong = true; hong(new Error('qua-han')); } }, ms);
+    p.then(function(v){ if(!xong){ xong = true; clearTimeout(h); ok(v); } },
+           function(e){ if(!xong){ xong = true; clearTimeout(h); hong(e); } });
+  });
+}
+
+/* ───────── ĐƯỜNG NHANH: hỏi thẳng máy chủ, không tải thư viện ─────────
+   Trả về { co:false } khi không có doc · { co:true, kieu, den } khi có. Lỗi khác ⇒ ném lỗi. */
+function hoiNhanh(ma){
+  if(typeof fetch !== 'function') return Promise.reject(new Error('khong-fetch'));
+  var url = 'https://firestore.googleapis.com/v1/projects/' + DU_AN
+          + '/databases/(default)/documents/shares_qr/' + TIEN_TO + encodeURIComponent(ma);
+  var tuy = { method: 'GET', mode: 'cors', credentials: 'omit', cache: 'no-store' };
+  var huy = null;
+  try{ if(typeof AbortController === 'function'){ huy = new AbortController(); tuy.signal = huy.signal; } }catch(e){ huy = null; }
+  var p = fetch(url, tuy).then(function(r){
+    if(r.status === 404){
+      /* chỉ tin là "không có doc" khi chính máy chủ dữ liệu nói vậy — 404 lạ thì sang đường dự phòng */
+      return r.json().then(function(j){
+        if(j && j.error && j.error.status === 'NOT_FOUND') return { co: false };
+        throw new Error('404-la');
+      });
+    }
+    if(r.status !== 200) throw new Error('http-' + r.status);
+    return r.json().then(function(j){
+      var f = j && j.fields;
+      if(!f || typeof f !== 'object') throw new Error('du-lieu-la');
+      function chu(x){ return (x && typeof x.stringValue === 'string') ? x.stringValue : ''; }
+      return { co: true, kieu: chu(f.kieu), den: chu(f.den) };
+    });
+  });
+  return coHan(p, CHO_NHANH).catch(function(e){ try{ if(huy) huy.abort(); }catch(e2){} throw e; });
+}
+
+/* ───────── ĐƯỜNG DỰ PHÒNG: thư viện Firebase (y như cuahang.html) ───────── */
+function hoiDuPhong(ma){
+  var nap;
+  try{ nap = new Function('u', 'return import(u)'); }catch(e){ return Promise.reject(e); }
+  var p = Promise.all([nap(THU_VIEN + 'firebase-app.js'), nap(THU_VIEN + 'firebase-firestore.js')]).then(function(m){
+    var A = m[0], F = m[1], app;
+    try{ app = A.getApp(); }catch(e){ app = A.initializeApp(CFG); }
+    return F.getDoc(F.doc(F.getFirestore(app), 'shares_qr', TIEN_TO + ma));
+  }).then(function(s){
+    if(!s.exists()){
+      if(s.metadata && s.metadata.fromCache) throw new Error('mat-mang');   /* chưa hỏi được máy chủ ⇒ không kết luận bừa */
+      return { co: false };
+    }
+    var d = s.data() || {};
+    return { co: true, kieu: String(d.kieu == null ? '' : d.kieu), den: String(d.den == null ? '' : d.den) };
+  });
+  return coHan(p, CHO_DU);
+}
+
+/* ───────── chuyển khách sang cửa hàng ───────── */
+function di(den){
+  if(daDi) return; daDi = true;
+  var url = TRANG_CH + '?t=' + encodeURIComponent(den);
+  /* Phòng trình duyệt chặn tự chuyển trang (hoặc mạng quá chậm): sau 4 giây hiện nút để khách bấm tay */
+  setTimeout(function(){
+    try{
+      KHUNG.innerHTML = '';
+      KHUNG.appendChild(the('div', '🛒', 'ic'));
+      KHUNG.appendChild(the('h1', 'Đang chuyển tới cửa hàng…'));
+      KHUNG.appendChild(the('p', 'Nếu chờ lâu mà trang chưa tự chuyển, bạn bấm nút dưới đây nhé.'));
+      var a = the('a', 'Vào cửa hàng', 'nut'); a.href = url;
+      KHUNG.appendChild(a);
+    }catch(e){}
+  }, 4000);
+  try{ location.replace(url); }catch(e){ try{ location.href = url; }catch(e2){} }
+}
+
+function xuLy(k){
+  if(!k || !k.co){
+    bao('🔎', 'Link này chưa dùng được',
+        'Cửa hàng chưa mở link này. Bạn xem lại link, hoặc hỏi cửa hàng link mới giúp nhé.', false,
+        'Chủ cửa hàng: mở app → 🛒 Bán hàng → tab Bán online → khung 🔗 Link cố định để tạo hoặc xem lại mã.');
+    return;
+  }
+  if(k.kieu !== 'codinh'){
+    bao('🔎', 'Link cửa hàng chưa đúng', 'Bạn mở lại đúng link cửa hàng gửi, hoặc hỏi cửa hàng link mới nhé.');
+    return;
+  }
+  if(!maHopLe(k.den)){
+    /* đích rỗng = chủ shop đã GỠ link cố định (doc con trỏ được giữ lại, chỉ cho ngưng, để không cửa hàng nào khác lấy mất mã) */
+    bao('⏸️', 'Link này đang tạm ngưng', 'Cửa hàng đang tạm ngưng link đặt hàng này. Bạn liên hệ cửa hàng để lấy link mới giúp nhé.', true);
+    return;
+  }
+  di(k.den);
+}
+
+function chay(){
+  var ma = docMa();
+  if(ma === '' || ma === null){
+    bao('🔎', 'Link cửa hàng chưa đúng', 'Bạn mở lại đúng link cửa hàng gửi, hoặc hỏi cửa hàng link mới nhé.');
+    return;
+  }
+  /* Mạng chậm: 6 giây chưa xong thì nhắn khách chờ thêm, khỏi tưởng trang bị treo */
+  setTimeout(function(){
+    try{
+      if(daDi || daBao) return;
+      var p = KHUNG.querySelector('p');
+      if(p) p.textContent = 'Mạng hơi chậm — bạn chờ thêm một chút nhé.';
+    }catch(e){}
+  }, 6000);
+  /* KHÔNG chặn theo navigator.onLine: vài trình duyệt nhúng báo sai. Cứ hỏi máy chủ; mất mạng thật thì cả hai đường hỏng ngay. */
+  hoiNhanh(ma).catch(function(){ return hoiDuPhong(ma); })
+    .then(function(k){ try{ xuLy(k); }catch(e){ baoMang(); } }, baoMang);
+}
+
+/* Đang báo mạng yếu mà máy vừa có mạng lại ⇒ tự thử lại, khách khỏi phải bấm */
+try{
+  window.addEventListener('online', function(){
+    if(loiMang && !daDi){ loiMang = false; try{ location.reload(); }catch(e){} }
+  });
+}catch(e){}
+
+try{ chay(); }catch(e){ baoMang(); }
+})();
+</script>
+</body>
+</html>
