@@ -745,7 +745,7 @@ import { getFirestore, initializeFirestore, persistentLocalCache, persistentMult
 import { getStorage, ref as _sref, uploadBytes, getDownloadURL, deleteObject, listAll }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
 
-const APP_BUILD = "2026-10-08-SN1"; // ⬆️ ĐỔI MỖI LẦN DEPLOY (đặt TRÙNG tên cache trong sw.js) — hiện ở ⚙️ Cài đặt để biết máy đã chạy bản mới chưa
+const APP_BUILD = "2026-10-08-SN2"; // ⬆️ ĐỔI MỖI LẦN DEPLOY (đặt TRÙNG tên cache trong sw.js) — hiện ở ⚙️ Cài đặt để biết máy đã chạy bản mới chưa
 const firebaseConfig = {
   apiKey: "AIzaSyA_kjQ-CdASRkf50Glz3kQajlkD5qGWC4k",
   authDomain: "so-no-cc57a.firebaseapp.com",
@@ -2776,16 +2776,16 @@ window.runImport=async()=>{
     const existing=new Map();
     if(mode!=='replace'){
       const cur=await getDocs(collection(db,'users',UID,'customers'));
-      cur.docs.forEach(cd=>{const c=cd.data();existing.set(String(c.name||'').toLowerCase(),{id:cd.id});});
+      cur.docs.forEach(cd=>{const c=cd.data();existing.set(String(c.name||'').toLowerCase(),{id:cd.id,tok:c.shareToken||null});});   /* [SN2] nhớ cả mã link khách đang dùng */
     }
     let addedC=0,updatedC=0,addedT=0,skipT=0;const total=_impParsed.customers.length;let idx=0;
     const _usedId=new Set(),_idOk=v=>typeof v==='string'&&/^[A-Za-z0-9_-]{1,100}$/.test(v);   /* [TỰ DỌN] ghi đè: dựng lại khách ĐÚNG mã cũ */
     for(const inc of _impParsed.customers){
-      idx++;const key=inc.name.toLowerCase();let custId;const exKeys=new Map();   /* [SN1] ĐẾM số dòng ĐÃ CÓ theo từng khoá (trước là Set: 2 giao dịch giống hệt cùng ngày trong file chỉ nạp được 1) */
+      idx++;const key=inc.name.toLowerCase();let custId;const exKeys=new Map();let _cuTok=null,_tongCo=null,_tongThem=0,_soCo=0;   /* [SN1] ĐẾM số dòng ĐÃ CÓ theo từng khoá (trước là Set: 2 giao dịch giống hệt cùng ngày trong file chỉ nạp được 1) · [SN2] khách ĐÃ CÓ: mã link đang dùng + tổng & số dòng đang có */
       if(existing.has(key)){
-        custId=existing.get(key).id;updatedC++;
+        custId=existing.get(key).id;_cuTok=existing.get(key).tok||null;_tongCo=0;updatedC++;
         const ex=await getDocs(collection(db,'users',UID,'customers',custId,'transactions'));
-        ex.docs.forEach(td=>{const t=td.data();const _k=`${ymd(t.date)}|${t.type}|${Number(t.amount)||0}|${(t.note||'').trim()}`;exKeys.set(_k,(exKeys.get(_k)||0)+1);});
+        ex.docs.forEach(td=>{const t=td.data();const _k=`${ymd(t.date)}|${t.type}|${Number(t.amount)||0}|${(t.note||'').trim()}`;exKeys.set(_k,(exKeys.get(_k)||0)+1);_tongCo+=(t.type==='mua'?1:-1)*(Number(t.amount)||0);_soCo++;});
       }else{
         let ref;
         if(mode==='replace'&&_idOk(inc.id)&&!_usedId.has(inc.id)){ref=doc(db,'users',UID,'customers',inc.id);await setDoc(ref,{name:inc.name,phone:inc.phone,address:inc.address,debt:inc.debt,createdAt:serverTimestamp()});_usedId.add(inc.id);}
@@ -2798,17 +2798,27 @@ window.runImport=async()=>{
         const td2={type:t.type,amount:t.amount,note:t.note,memo:t.memo||'',date:t.date,createdAt:serverTimestamp()};
         if(attHas(t.att))td2.att=t.att;
         await addDoc(collection(db,'users',UID,'customers',custId,'transactions'),td2);
+        addedT++;_tongThem+=(t.type==='mua'?1:-1)*(Number(t.amount)||0);
+      }
+      /* [SN2] (1) File KHÔNG có dòng giao dịch nào của khách mà có SỐ NỢ (vd file Excel chỉ có trang "Danh sách khách nợ"), và sổ
+             của khách trên máy cũng CHƯA CÓ dòng nào (khách mới, hoặc khách đã nhập bằng bản cũ): ghi thêm 1 dòng "Nợ cũ chuyển sang"
+             đúng bằng số nợ đó. Trước đây sổ không có dòng nào ⇒ lần đầu mở khách ra, bộ tự soát kéo nợ về 0 — MẤT NỢ mà không ai hay.
+         (2) Số nợ = tổng các dòng THẬT đang có trong sổ (dòng cũ + dòng vừa thêm), KHÔNG lấy số ghi trong file: gộp một file
+             sao lưu CŨ hơn dữ liệu đang có thì số trong file đã lỗi thời (trước đây phải mở khách ra mới tự đúng lại).
+         (3) Trang khách xem nợ: dựng lại từ sổ THẬT bằng syncShare (trước đây chép nguyên danh sách trong file). */
+      let _moDau=0;
+      if((_tongCo===null||_soCo===0)&&!inc.transactions.length&&Math.round(Number(inc.debt)||0)!==0){
+        _moDau=Math.round(Number(inc.debt)||0);
+        await addDoc(collection(db,'users',UID,'customers',custId,'transactions'),{type:(_moDau>0?'mua':'tra'),amount:Math.abs(_moDau),note:'Nợ cũ chuyển sang (nhập từ file)',memo:'',date:new Date(),createdAt:serverTimestamp()});
         addedT++;
       }
-      const cd2={name:inc.name,phone:inc.phone,address:inc.address,debt:inc.debt};
+      const _noMoi=(_tongCo||0)+_tongThem+_moDau;
+      const cd2={name:inc.name,phone:inc.phone,address:inc.address,debt:_noMoi};
       if(inc.shareToken)cd2.shareToken=inc.shareToken;
       await setDoc(doc(db,'users',UID,'customers',custId),cd2,{merge:true});
-      if(inc.shareToken){try{
-        const now=new Date();const upd=`${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')} ngày ${now.toLocaleDateString('vi-VN')}`;
-        const txS=inc.transactions.slice().sort((a,b)=>b.date-a.date).map(t=>({type:t.type,amount:t.amount,note:t.note,memo:t.memo||'',date:t.date.toLocaleDateString('vi-VN')}));
-        await setDoc(doc(db,'shares',inc.shareToken),{name:inc.name,phone:inc.phone||'',debt:inc.debt,transactions:txS,updatedAt:upd,ownerUid:UID});
-      }catch(e){}}
-      impLog(`(${idx}/${total}) ${inc.name} ✓`);
+      const _tokKhach=inc.shareToken||_cuTok;
+      if(_tokKhach){try{await syncShare(_tokKhach,custId,inc.name,inc.phone,_noMoi);}catch(e){}}
+      impLog(`(${idx}/${total}) ${inc.name} ✓`+(_moDau?(' · thêm dòng "Nợ cũ chuyển sang" '+fmt(Math.abs(_moDau))):''));
     }
     if(_impParsed.settings&&_impParsed.settings.bankBin){
       try{await setDoc(doc(db,'users',UID,'meta','shopSettings'),_impParsed.settings,{merge:true});impLog('⚙️ Đã phục hồi cài đặt ngân hàng.');}catch(e){}
@@ -3979,7 +3989,7 @@ let skOdId=null;
    thiếu là cho trả TRÙNG ⇒ trừ nợ 2 lần. Chưa hỏi được (mất mạng) thì chỉ cho XEM, chặn trả hàng / xoá đơn.
    Đơn cũ KHÔNG có bộ lắng nghe (danh sách ngày chỉ tải 1 lần) ⇒ ngay trước khi GHI (trả hàng / xoá đơn) máy hỏi lại
    máy chủ "đơn này còn không" — phòng máy khác vừa xoá đơn đó. */
-let skOrdOld=[],skRetOld=[],skRetOk={},skOrdDay='',skOrdDayReq=0,skOrdDayTT='',skXoaCu='';   /* skOrdDayTT: '' xong · 'tai' đang tải · 'loi' không tải được · 'may' chỉ đọc được bộ đệm trong máy (mất mạng) · skXoaCu: mã ĐƠN CŨ đang xoá dở (chặn bấm chồng) */
+let skOrdOld=[],skRetOld=[],skRetOk={},skOrdDay='',skOrdDayReq=0,skOrdDayTT='',skXoaCu='';   /* skOrdDayTT: '' xong · 'tai' đang tải · 'loi' không tải được · 'may' chỉ đọc được bộ đệm trong máy (mất mạng) · skXoaCu: đang xoá dở một đơn (chặn bấm "Xóa đơn" chồng lên nhau) */
 function skOrderById(id){return skOrders.find(x=>x.id===id)||skOrdOld.find(x=>x.id===id)||null;}
 function skDonCu(id){return !skOrders.find(x=>x.id===id)&&!!skOrdOld.find(x=>x.id===id);}   /* đơn nằm NGOÀI 300 đơn mới nhất */
 function skReturnsOf(id){const co={};return (skReturns||[]).concat(skRetOld).filter(r=>{if(!r||r.orderId!==id)return false;if(r.id){if(co[r.id])return false;co[r.id]=1;}return true;});}
@@ -4103,14 +4113,34 @@ async function skShowOrderSigns(){
     if(body)body.innerHTML='<div class="sk-mut" style="margin-bottom:10px">Tổng <b>'+qs.size+'</b> chữ ký xác nhận. Bấm giữ ảnh để lưu về máy làm bằng chứng.</div>'+rows;
   }catch(e){if(body)body.innerHTML='<div class="sk-empty" style="color:#c0392b">Không tải được chữ ký: '+((e&&(e.code||e.message))||e)+'</div>';}
 }
+/* ── [SN2] CHỐNG BẤM "Xóa đơn" CHỒNG LÊN NHAU ────────────────────────────────────────────────
+   Đang xoá dở một đơn (đang hỏi máy chủ / đang đọc sổ khách / hộp hỏi đang mở) thì mọi lần bấm Xóa khác đều bỏ qua.
+   Trước đây đơn ghi nợ phải chờ đọc sổ khách SAU khi bấm OK ⇒ bấm Xóa + OK lần nữa là xoá 2 lần: kho cộng hàng 2 lần. */
 async function skDeleteOrder(){
+  if(skXoaCu)return;skXoaCu='1';
+  try{await skDeleteOrder1();}finally{skXoaCu='';}
+}
+/* [SN2] Đơn ghi nợ KIỂU CŨ (bán từ trước khi app gắn mã đơn vào dòng Mua trong sổ khách): tìm đúng dòng Mua của đơn.
+   Phải ĐÚNG số tiền đơn, chưa gắn mã đơn nào, VÀ (ghi cách giờ bán không quá 10 phút, HOẶC cùng ngày + đúng dòng ghi chú
+   hàng hoá app tự ghi lúc bán). Không chắc chắn thì KHÔNG đoán (trả null) — để khỏi trừ nhầm vào dòng nợ khác. */
+function skMuaDonCu(o,muas){
+  const want=Math.round(Number(o.total)||0),t0=skOrderDate(o).getTime();
+  const note=(o.items||[]).map(i=>i.name+' '+skN(i.qty)+i.unit).join(', ').trim();
+  let best=null,gapMin=Infinity;
+  (muas||[]).forEach(d=>{const x=d.data()||{};if(x.orderId||Math.round(Number(x.amount)||0)!==want)return;
+    const tm=txMs(x.date),gap=Math.abs(tm-t0);
+    const ok=(gap<=600000)||(new Date(tm).toDateString()===new Date(t0).toDateString()&&String(x.note||'').trim()===note);
+    if(ok&&gap<gapMin){best=d;gapMin=gap;}});
+  return best;
+}
+async function skDeleteOrder1(){
   const id=skOdId;const o=skOrderById(id);if(!o){toast('Không tìm thấy đơn');return;}
   if(skDonCu(id)&&!skRetOk[id]){toast('📡 Đơn cũ: chưa kiểm tra được phiếu trả (thường do mất mạng) nên chưa xoá được. Bật mạng rồi mở lại đơn.');return;}   /* [SN1] thiếu phiếu trả là cộng kho DƯ */
-  if(skDonCu(id)){   /* [SN1] ĐƠN CŨ không có bộ lắng nghe ⇒ hỏi lại máy chủ trước khi xoá: đơn còn không (máy khác có thể vừa xoá — xoá thêm lần nữa là kho cộng DƯ). skXoaCu chặn bấm chồng cho tới khi xong. */
-    if(skXoaCu===id)return;skXoaCu=id;
-    const _brXoa=skBranch;toast('⏳ Đang kiểm tra lại đơn cũ…');
+  const _brXoa=skBranch;
+  if(skDonCu(id)){   /* [SN1] ĐƠN CŨ không có bộ lắng nghe ⇒ hỏi lại máy chủ trước khi xoá: đơn còn không (máy khác có thể vừa xoá — xoá thêm lần nữa là kho cộng DƯ) */
+    toast('⏳ Đang kiểm tra lại đơn cũ…');
     const _k=await skDocCon(bdoc('orders',id));
-    if(_k!=='co'||skOdId!==id||_brXoa!==skBranch){skXoaCu='';
+    if(_k!=='co'||skOdId!==id||_brXoa!==skBranch){
       if(_k==='mat'){if(_brXoa===skBranch){skOrdOld=skOrdOld.filter(x=>x.id!==id);if(skOdId===id){skCloseModal('#sk-od');skOdId=null;}try{skRenderOrders();}catch(_){}}alert('Đơn #'+String(id||'').slice(-6).toUpperCase()+' đã bị XOÁ từ trước (ở máy khác) — không cần xoá nữa.');}
       else if(_k==='')toast('📡 Chưa kiểm tra lại được đơn cũ này (thường do mất mạng) nên chưa xoá. Bật mạng rồi bấm lại.');
       return;}
@@ -4119,13 +4149,31 @@ async function skDeleteOrder(){
   const rets=skReturnsOf(id);
   const soldBase={};(o.items||[]).forEach(it=>{const pid=it.id;if(!pid)return;soldBase[pid]=(soldBase[pid]||0)+(Number(it.baseQty)||((Number(it.qty)||0)*(Number(it.ratio)||1)));});
   const retBase={};rets.forEach(r=>{(r.items||[]).forEach(li=>{const pid=li.id;if(!pid)return;retBase[pid]=(retBase[pid]||0)+(Number(li.baseQty)||((Number(li.qty)||0)*(Number(li.ratio)||1)));});});
-  let warn='Xóa đơn '+so+' ('+fmt(o.total||0)+')?\n\nHàng sẽ được TRẢ LẠI KHO. Đơn sẽ biến mất khỏi lịch sử & báo cáo. Không thể hoàn tác.';
-  if(o.method==='debt'&&o.customerId)warn+='\n\n⚠️ Đây là đơn GHI NỢ — công nợ của khách sẽ được GIẢM phần chưa trả tương ứng.';
-  if(rets.length)warn+='\n\n⚠️ Đơn này đã có '+rets.length+' phiếu trả — các phiếu trả cũng sẽ bị xóa.';
-  if(!confirm(warn)){skXoaCu='';return;}
   const cust=(o.method==='debt'&&o.customerId)?(customers||[]).find(x=>x.id===o.customerId):null;
-  let muaAmount=0,muaRef=null,_muaP=null;
-  if(o.method==='debt'&&o.customerId){try{const tsnap=await getDocs(collection(db,'users',UID,'customers',o.customerId,'transactions'));const md=tsnap.docs.filter(d=>d.data().type==='mua').find(d=>d.data().orderId===id)||null;if(md){muaAmount=Math.round(Number(md.data().amount)||0);muaRef=doc(db,'users',UID,'customers',o.customerId,'transactions',md.id);_muaP=((md.data()||{}).att||{}).p||null;}}catch(e){}}
+  /* [SN2] ĐỌC SỔ KHÁCH TRƯỚC khi hỏi ⇒ hộp hỏi nói ĐÚNG nợ giảm bao nhiêu. Trước đây hộp hỏi luôn hứa "sẽ GIẢM" rồi mới đi
+     tìm dòng Mua; đơn kiểu cũ (dòng Mua chưa gắn mã đơn) không tìm ra ⇒ nợ đứng yên mà không ai hay.
+     Mất mạng mà máy chưa có sẵn sổ của khách ⇒ CHƯA xoá (xoá lúc đó là nợ không giảm). */
+  let muaAmount=0,muaRef=null,_muaP=null,_muaTT='';   /* _muaTT: '' có dòng Mua · 'khong' sổ không có · 'cutra' đơn kiểu cũ đã từng trả hàng · 'may' chỉ đọc được bộ đệm · 'loi' không đọc được */
+  const _tenKh=(o.customerName||(cust&&cust.name)||'');
+  if(o.method==='debt'&&o.customerId){
+    toast('⏳ Đang đọc sổ nợ của khách…');
+    try{const tsnap=await getDocs(collection(db,'users',UID,'customers',o.customerId,'transactions'));const muas=tsnap.docs.filter(d=>d.data().type==='mua');
+      let md=muas.find(d=>d.data().orderId===id)||null;
+      if(!md){md=skMuaDonCu(o,muas);if(md&&rets.length){md=null;_muaTT='cutra';}}   /* đơn kiểu cũ đã từng trả hàng (bản cũ ghi dòng "Hoàn trả hàng" riêng) ⇒ không tự trừ được */
+      if(md){muaAmount=Math.round(Number(md.data().amount)||0);muaRef=doc(db,'users',UID,'customers',o.customerId,'transactions',md.id);_muaP=((md.data()||{}).att||{}).p||null;}
+      else if(!_muaTT)_muaTT=(tsnap.metadata&&tsnap.metadata.fromCache)?'may':'khong';
+    }catch(e){_muaTT='loi';}
+    if(skOdId!==id||_brXoa!==skBranch)return;   /* trong lúc đọc sổ đã mở đơn khác / đổi cửa hàng ⇒ thôi */
+    if(_muaTT==='may'||_muaTT==='loi'){toast('📡 Chưa đọc được sổ nợ của khách "'+_tenKh+'" (thường do mất mạng) nên chưa xoá đơn. Bật mạng rồi bấm Xóa lại.');return;}
+  }
+  let warn='Xóa đơn '+so+' ('+fmt(o.total||0)+')?\n\nHàng sẽ được TRẢ LẠI KHO. Đơn sẽ biến mất khỏi lịch sử & báo cáo. Không thể hoàn tác.';
+  if(o.method==='debt'&&o.customerId){
+    if(muaRef)warn+='\n\n⚠️ Đây là đơn GHI NỢ — nợ của khách "'+_tenKh+'" sẽ GIẢM '+fmt(muaAmount)+' (đúng số tiền đơn này đang ghi trong sổ khách).';
+    else if(_muaTT==='cutra')warn+='\n\n⚠️ Đây là đơn GHI NỢ kiểu cũ, đã từng trả hàng ⇒ app KHÔNG tự trừ nợ được. Xoá xong, bạn mở khách "'+_tenKh+'" bên Sổ Nợ và tự sửa dòng Mua của đơn này.';
+    else warn+='\n\n⚠️ Đây là đơn GHI NỢ nhưng KHÔNG tìm thấy dòng Mua của đơn này trong sổ khách "'+_tenKh+'" (có thể đã xoá / sửa tay) ⇒ nợ của khách KHÔNG đổi.';
+  }
+  if(rets.length)warn+='\n\n⚠️ Đơn này đã có '+rets.length+' phiếu trả — các phiếu trả cũng sẽ bị xóa.';
+  if(!confirm(warn))return;
   const batch=writeBatch(db);
   Object.keys(soldBase).forEach(pid=>{if(!skProducts.find(x=>x.id===pid))return;const net=Math.max(0,(soldBase[pid]||0)-(retBase[pid]||0));if(net>0){batch.update(bdoc('products',pid),{stock:increment(net)});const pn=(o.items.find(x=>x.id===pid)||{}).name||(skProducts.find(x=>x.id===pid)||{}).name||'';batch.set(doc(bcol('stock_moves')),{productId:pid,productName:pn,delta:+net,reason:'void',orderId:id,note:'Hủy đơn '+so,at:serverTimestamp()});}});
   rets.forEach(r=>{if(r.id)batch.delete(bdoc('returns',r.id));});
@@ -4141,20 +4189,34 @@ async function skDeleteOrder(){
     .catch(e=>skErr(e,'Xóa đơn'));   /* xoá cả chuky + file chữ ký, không để mồ côi */
   if(o.method==='debt'&&o.customerId&&navigator.onLine&&cust&&cust.shareToken){(async()=>{try{const nd=await recomputeDebtOnline(o.customerId);await updateDoc(doc(db,'users',UID,'customers',o.customerId),{debt:nd});await syncShare(cust.shareToken,cust.id,cust.name,cust.phone,nd);}catch(e){}})();}
   skCloseModal('#sk-od');toast('🗑 Đã xóa đơn '+so+' · hàng đã trả về kho');markDirty();skOdId=null;
-  skXoaCu='';if(skOrdOld.find(x=>x.id===id)){skOrdOld=skOrdOld.filter(x=>x.id!==id);try{skRenderOrders();}catch(_){}}   /* [SN1] đơn cũ không có bộ lắng nghe ⇒ tự gỡ khỏi danh sách đang xem */
+  if(skOrdOld.find(x=>x.id===id)){skOrdOld=skOrdOld.filter(x=>x.id!==id);try{skRenderOrders();}catch(_){}}   /* [SN1] đơn cũ không có bộ lắng nghe ⇒ tự gỡ khỏi danh sách đang xem */
 }
 function skStartReturn(orderId){const o=skOrderById(orderId);if(!o)return;
   if(skDonCu(orderId)&&!skRetOk[orderId]){toast('📡 Đơn cũ: chưa kiểm tra được đã trả hàng bao nhiêu (thường do mất mạng). Bật mạng, mở lại đơn rồi trả.');return;}   /* [SN1] chưa biết chắc đã trả bao nhiêu ⇒ chặn, tránh trả TRÙNG */
   skRetOrder=JSON.parse(JSON.stringify(o));skRetOrder.id=orderId;
   const done={};skReturnsOf(orderId).forEach(r=>{(r.items||[]).forEach(li=>{const k=(li.id||'')+'|'+(li.unit||'');done[k]=(done[k]||0)+(Number(li.qty)||0);});}); // đã trả bao nhiêu ở các phiếu trước
   skRetOrder._ret={};skRetOrder._max={};skRetOrder._done={};
+  {let _h=0,_n=0;skReturnsOf(orderId).forEach(r=>{_h+=Math.round(Number(r.refund)||0);_n++;});skRetOrder._daHoan=_h;skRetOrder._soPhieu=_n;}   /* [SN2] tiền ĐÃ hoàn ở các phiếu trước của đơn này — xem skTienHoan */
   (skRetOrder.items||[]).forEach((it,i)=>{const k=(it.id||'')+'|'+(it.unit||'');const dq=done[k]||0;skRetOrder._done[i]=dq;skRetOrder._max[i]=Math.max(0,(Number(it.qty)||0)-dq);skRetOrder._ret[i]=0;}); // còn trả được = đã mua − đã trả
   skCloseModal('#sk-orders');skRenderReturn();skModalOpen('#sk-ret');}
-function skRenderReturn(){const o=skRetOrder;if(!o)return;let refundRaw=0;(o.items||[]).forEach((it,i)=>{refundRaw+=(o._ret[i]||0)*it.price;});const _st=Number(o.subtotal)||0,_f=_st>0?Math.max(0,Math.min(1,(Number(o.total)||0)/_st)):1;const refund=Math.round(refundRaw*_f);skq('#sk-ret-body').innerHTML=(o.items||[]).map((it,i)=>{const done=(o._done&&o._done[i])||0;const max=(o._max&&o._max[i]!=null)?o._max[i]:(it.qty||0);const sub='đã mua '+skN(it.qty)+' '+escHtml(it.unit||'')+' × '+fmt(it.price)+(done>0?(' · đã trả '+skN(done)+' · còn trả được '+skN(max)):'');return '<div class="sk-ret-row"><div class="sk-ret-name">'+escHtml(it.name)+'<span class="sk-sess-sub">'+sub+'</span></div><div class="sk-qbox"><button data-act="ret-qty" data-i="'+i+'" data-d="-1">−</button><button class="sk-qnum" data-act="ret-set" data-i="'+i+'">'+skN(o._ret[i]||0)+'</button><button data-act="ret-qty" data-i="'+i+'" data-d="1"'+(max<=0?' disabled style="opacity:.4"':'')+'>+</button></div></div>';}).join('')+'<div class="sk-sum-r grand" style="margin-top:10px"><span>Hoàn trả</span><span>'+fmt(refund)+'</span></div>';}
+/* ── [SN2] SỐ TIỀN HOÀN của phiếu trả đang soạn (màn trả hàng hiện số này, bấm "Xác nhận trả" ghi đúng số này) ──────
+   Trả LẺ nhiều lần trên đơn có giảm giá: mỗi lần làm tròn riêng ⇒ cộng lại có thể lệch tổng đơn 1–2 đồng
+   (vd đơn 10.000đ, trả 3 lần × 3.333đ = 9.999đ ⇒ sổ nợ còn dư 1 đồng). Nay: lần trả nào làm đơn HẾT HÀNG thì hoàn đúng
+   PHẦN CÒN LẠI = tổng đơn − các lần đã hoàn ⇒ cộng lại khớp đúng tổng đơn. Chỉ áp khi chênh nhỏ (đúng kiểu làm tròn). */
+function skTienHoan(o){
+  let raw=0;(o.items||[]).forEach((it,i)=>{const q=o._ret[i]||0;if(q>0)raw+=q*it.price;});
+  const _st=Number(o.subtotal)||0,_f=_st>0?Math.max(0,Math.min(1,(Number(o.total)||0)/_st)):1;
+  let refund=Math.round(raw*_f);
+  const its=o.items||[];
+  const het=its.some((it,i)=>(o._ret[i]||0)>0)&&its.every((it,i)=>(o._ret[i]||0)>=((o._max&&o._max[i]!=null)?o._max[i]:(Number(it.qty)||0))-1e-9);
+  if(het&&o._daHoan!=null){const _conHoan=Math.round(Number(o.total)||0)-(Number(o._daHoan)||0);if(_conHoan>=0&&Math.abs(_conHoan-refund)<=(Number(o._soPhieu)||0)+1)refund=_conHoan;}
+  return refund;
+}
+function skRenderReturn(){const o=skRetOrder;if(!o)return;const refund=skTienHoan(o);skq('#sk-ret-body').innerHTML=(o.items||[]).map((it,i)=>{const done=(o._done&&o._done[i])||0;const max=(o._max&&o._max[i]!=null)?o._max[i]:(it.qty||0);const sub='đã mua '+skN(it.qty)+' '+escHtml(it.unit||'')+' × '+fmt(it.price)+(done>0?(' · đã trả '+skN(done)+' · còn trả được '+skN(max)):'');return '<div class="sk-ret-row"><div class="sk-ret-name">'+escHtml(it.name)+'<span class="sk-sess-sub">'+sub+'</span></div><div class="sk-qbox"><button data-act="ret-qty" data-i="'+i+'" data-d="-1">−</button><button class="sk-qnum" data-act="ret-set" data-i="'+i+'">'+skN(o._ret[i]||0)+'</button><button data-act="ret-qty" data-i="'+i+'" data-d="1"'+(max<=0?' disabled style="opacity:.4"':'')+'>+</button></div></div>';}).join('')+'<div class="sk-sum-r grand" style="margin-top:10px"><span>Hoàn trả</span><span>'+fmt(refund)+'</span></div>';}
 function skRetQty(i,d){if(!skRetOrder)return;const max=(skRetOrder._max&&skRetOrder._max[i]!=null)?skRetOrder._max[i]:((skRetOrder.items[i]||{}).qty||0);let v=(skRetOrder._ret[i]||0)+d;if(v<0)v=0;if(v>max)v=max;skRetOrder._ret[i]=v;skRenderReturn();}
 async function skDoReturn(){ try{ if(window.caChoPhepBan && window.caChoPhepBan()===false) return; }catch(_){} /* [CA] trả hàng rút tiền khỏi quỹ ca ⇒ chỉ NGƯỜI TRỰC CA mới được làm */
   const o=skRetOrder;if(!o)return;const lines=[];let refundRaw=0;(o.items||[]).forEach((it,i)=>{const q=o._ret[i]||0;if(q>0){const ratio=it.ratio||1;lines.push({id:it.id,name:it.name,qty:q,unit:it.unit,baseQty:q*ratio,price:it.price,cost:(it.cost||0)});refundRaw+=q*it.price;}});if(!lines.length){toast('Chọn số lượng trả');return;}
-  const _st=Number(o.subtotal)||0,_f=_st>0?Math.max(0,Math.min(1,(Number(o.total)||0)/_st)):1;const refund=Math.round(refundRaw*_f);
+  const refund=skTienHoan(o);   /* [SN2] y hệt số đang hiện trên màn trả hàng — lần trả làm đơn HẾT HÀNG thì hoàn đúng phần còn lại */
   /* ── [SN1] CHỐT CHẶN trước khi ghi phiếu trả ─────────────────────────────────────────────
      (1) Bấm "Xác nhận trả" 2 lần liền: đơn ghi nợ phải chờ đọc sổ khách nên lượt bấm thứ hai lọt vào ⇒ trước đây
          ghi 2 phiếu trả (kho cộng dư, nợ trừ 2 lần). Nay lượt bấm thứ hai bị bỏ.
@@ -6292,15 +6354,18 @@ window.runFullRestore=async()=>{
         await deleteDoc(doc(db,'users',UID,'customers',cd.id));}
     }
     const existing=new Map();
-    if(mode!=='replace'){const cur=await getDocs(collection(db,'users',UID,'customers'));cur.docs.forEach(cd=>{const c=cd.data();existing.set(String(c.name||'').toLowerCase(),{id:cd.id});});}
+    if(mode!=='replace'){const cur=await getDocs(collection(db,'users',UID,'customers'));cur.docs.forEach(cd=>{const c=cd.data();existing.set(String(c.name||'').toLowerCase(),{id:cd.id,tok:c.shareToken||null});});}   /* [SN2] nhớ cả mã link khách đang dùng */
     let addedC=0,updatedC=0,addedT=0,skipT=0;
     const _usedId=new Set(),_idOk=v=>typeof v==='string'&&/^[A-Za-z0-9_-]{1,100}$/.test(v);   /* [TỰ DỌN] ghi đè: dựng lại khách ĐÚNG mã cũ */
     for(const inc of custs){
-      const key=inc.name.toLowerCase();let custId;const exKeys=new Map();   /* [SN1] ĐẾM số dòng đã có theo từng khoá — xem runImport */
-      if(existing.has(key)){custId=existing.get(key).id;updatedC++;const ex=await getDocs(collection(db,'users',UID,'customers',custId,'transactions'));ex.docs.forEach(td=>{const t=td.data();const _k=`${ymd(t.date)}|${t.type}|${Number(t.amount)||0}|${(t.note||'').trim()}`;exKeys.set(_k,(exKeys.get(_k)||0)+1);});}
+      const key=inc.name.toLowerCase();let custId;const exKeys=new Map();let _cuTok=null,_tongCo=null,_tongThem=0,_soCo=0;   /* [SN1] ĐẾM số dòng đã có theo từng khoá — xem runImport · [SN2] khách ĐÃ CÓ: mã link + tổng & số dòng đang có */
+      if(existing.has(key)){custId=existing.get(key).id;_cuTok=existing.get(key).tok||null;_tongCo=0;updatedC++;const ex=await getDocs(collection(db,'users',UID,'customers',custId,'transactions'));ex.docs.forEach(td=>{const t=td.data();const _k=`${ymd(t.date)}|${t.type}|${Number(t.amount)||0}|${(t.note||'').trim()}`;exKeys.set(_k,(exKeys.get(_k)||0)+1);_tongCo+=(t.type==='mua'?1:-1)*(Number(t.amount)||0);_soCo++;});}
       else{let ref;if(mode==='replace'&&_idOk(inc.id)&&!_usedId.has(inc.id)){ref=doc(db,'users',UID,'customers',inc.id);await setDoc(ref,{name:inc.name,phone:inc.phone,address:inc.address,debt:inc.debt,createdAt:serverTimestamp()});_usedId.add(inc.id);}else ref=await addDoc(collection(db,'users',UID,'customers'),{name:inc.name,phone:inc.phone,address:inc.address,debt:inc.debt,createdAt:serverTimestamp()});custId=ref.id;addedC++;existing.set(key,{id:custId});}
-      for(const t of inc.transactions){const k=`${ymd(t.date)}|${t.type}|${t.amount}|${(t.note||'').trim()}`;if((exKeys.get(k)||0)>0){exKeys.set(k,exKeys.get(k)-1);skipT++;continue;}const td2={type:t.type,amount:t.amount,note:t.note,memo:t.memo||'',date:t.date,createdAt:serverTimestamp()};if(attHas(t.att))td2.att=t.att;await addDoc(collection(db,'users',UID,'customers',custId,'transactions'),td2);addedT++;}
-      const cd2={name:inc.name,phone:inc.phone,address:inc.address,debt:inc.debt};if(inc.shareToken)cd2.shareToken=inc.shareToken;await setDoc(doc(db,'users',UID,'customers',custId),cd2,{merge:true});
+      for(const t of inc.transactions){const k=`${ymd(t.date)}|${t.type}|${t.amount}|${(t.note||'').trim()}`;if((exKeys.get(k)||0)>0){exKeys.set(k,exKeys.get(k)-1);skipT++;continue;}const td2={type:t.type,amount:t.amount,note:t.note,memo:t.memo||'',date:t.date,createdAt:serverTimestamp()};if(attHas(t.att))td2.att=t.att;await addDoc(collection(db,'users',UID,'customers',custId,'transactions'),td2);addedT++;_tongThem+=(t.type==='mua'?1:-1)*(Number(t.amount)||0);}
+      let _moDau=0;if((_tongCo===null||_soCo===0)&&!inc.transactions.length&&Math.round(Number(inc.debt)||0)!==0){_moDau=Math.round(Number(inc.debt)||0);await addDoc(collection(db,'users',UID,'customers',custId,'transactions'),{type:(_moDau>0?'mua':'tra'),amount:Math.abs(_moDau),note:'Nợ cũ chuyển sang (nhập từ file)',memo:'',date:new Date(),createdAt:serverTimestamp()});addedT++;}   /* [SN2] xem runImport */
+      const _noMoi=(_tongCo||0)+_tongThem+_moDau;   /* [SN2] số nợ = tổng các dòng THẬT trong sổ — xem runImport */
+      const cd2={name:inc.name,phone:inc.phone,address:inc.address,debt:_noMoi};if(inc.shareToken)cd2.shareToken=inc.shareToken;await setDoc(doc(db,'users',UID,'customers',custId),cd2,{merge:true});
+      const _tokKhach=inc.shareToken||_cuTok;if(_tokKhach){try{await syncShare(_tokKhach,custId,inc.name,inc.phone,_noMoi);}catch(e){}}   /* [SN2] trang khách xem dựng lại từ sổ thật */
     }
     fullLog(`  ✓ Khách mới ${addedC} · cập nhật ${updatedC} · GD thêm ${addedT} · bỏ trùng ${skipT}`);
     if(_fullParsed.settings&&_fullParsed.settings.bankBin){try{await setDoc(doc(db,'users',UID,'meta','shopSettings'),_fullParsed.settings,{merge:true});fullLog('  ⚙️ Đã phục hồi cài đặt.');}catch(e){}}
@@ -20470,7 +20535,7 @@ if (window.__RMT_READY__) return; window.__RMT_READY__ = true;
 try{
 
 /* ĐỔI CHUỖI NÀY CHO TRÙNG APP_BUILD MỖI LẦN DEPLOY (chỉ để hiện ở bảng quản trị) */
-var BUILD = '2026-10-08-SN1';
+var BUILD = '2026-10-08-SN2';
 var NHIP   = 6*3600*1000;          /* báo về tối đa 6 giờ 1 lần — khỏi tốn lượt ghi */
 var KEY_HB = 'rmt_hb_v2';          /* [QT7] nhịp báo về tính RIÊNG từng tài khoản (bản v1 tính chung cả máy) */
 var KEY_XEM= 'rmt_xem_v1';
