@@ -745,7 +745,7 @@ import { getFirestore, initializeFirestore, persistentLocalCache, persistentMult
 import { getStorage, ref as _sref, uploadBytes, getDownloadURL, deleteObject, listAll }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
 
-const APP_BUILD = "2026-10-08-SN3"; // ⬆️ ĐỔI MỖI LẦN DEPLOY (đặt TRÙNG tên cache trong sw.js) — hiện ở ⚙️ Cài đặt để biết máy đã chạy bản mới chưa
+const APP_BUILD = "2026-10-08-SN4"; // ⬆️ ĐỔI MỖI LẦN DEPLOY (đặt TRÙNG tên cache trong sw.js) — hiện ở ⚙️ Cài đặt để biết máy đã chạy bản mới chưa
 const firebaseConfig = {
   apiKey: "AIzaSyA_kjQ-CdASRkf50Glz3kQajlkD5qGWC4k",
   authDomain: "so-no-cc57a.firebaseapp.com",
@@ -16328,6 +16328,34 @@ a:`<b class="snai-h">♻️ Đổi link cửa hàng</b>
 <div class="snai-warn">⚠️ Link cũ (đã gửi khách, mã QR đã in dán) <b>ngưng ngay lập tức</b>. Khách bấm link cũ sẽ không đặt được nữa — nhớ báo khách quen.</div>
 <div class="snai-ok">✅ Quán ăn yên tâm: <b>mã QR dán bàn KHÔNG bị ảnh hưởng</b> khi đổi link online.</div>`},
 
+/* ═════════ BỔ SUNG 2026-10-08 — 🔗 LINK CỐ ĐỊNH (link bán online không bao giờ đổi) ═════════ */
+{c:'onl',t:'Link cố định — gắn vào app, trang web',k:'link co dinh link khong doi link khong bao gio doi gan link vao app website doi link khong phai gan lai ma co dinh tao link co dinh go link co dinh sao chep link co dinh link dang tam ngung shop.html',
+a:`<b class="snai-h">🔗 Link cố định</b>
+<b>👉 Cái này để làm gì:</b> link cửa hàng thường sẽ <b>đổi</b> mỗi lần bạn bấm <b>Đổi link</b> — nơi nào đã gắn link cũ (app khác, trang web, bài đăng) đều hết dùng được. <b>Link cố định thì không bao giờ đổi</b>: gắn một lần là dùng mãi. Khách bấm link cố định → được đưa thẳng tới đúng link cửa hàng bạn đang dùng.
+<b>📍 Ở đâu:</b> vào <span class="snai-path">🛒 BÁN HÀNG</span> → tab <b>Bán online</b> (quán ăn: <b>Đơn QR</b>) → kéo xuống <b>cuối tab</b> → khung <b>🔗 Link cố định</b>. Khung chỉ hiện khi cửa hàng <b>đã có link</b> (đã bấm Tạo link cửa hàng).
+<b>🪜 Tạo link cố định — làm từng bước:</b>
+<ol>
+<li>Bấm nút xanh <b>Tạo link cố định</b>.</li>
+<li>Ô nhập hiện ra → gõ <b>mã</b> bạn muốn, VD <code>taphoacoba</code>. Mã dài 3–30 ký tự, chỉ gồm <b>chữ thường không dấu, số, dấu gạch ngang</b>. App gợi ý sẵn một mã theo tên cửa hàng — thích thì để nguyên.</li>
+<li>Bấm <b>OK</b> → chờ vài giây.</li>
+</ol>
+<div class="snai-ok">✅ <b>Biết là làm đúng khi:</b> app báo "Đã tạo link cố định" và khung hiện đường link có đuôi <code>shop.html?c=</code> kèm mã của bạn.</div>
+<b>🪜 Dùng link cố định:</b>
+<ul>
+<li><b>Sao chép link cố định</b> — rồi dán vào app, trang web, bài đăng… nơi bạn muốn gắn lâu dài.</li>
+<li><b>Gửi link</b> — gửi thẳng qua Zalo, Messenger.</li>
+</ul>
+<div class="snai-tip">💡 Sau này bấm <b>Đổi link</b> ở khung Cửa hàng online: link cố định <b>tự chạy theo link mới</b> — không phải gửi lại, không phải gắn lại.</div>
+<div class="snai-warn">⚠️ App báo <b>"Mã … đã có cửa hàng khác dùng"</b> → mã đó đã có người đặt trước, bạn chọn mã khác (thêm tên khu vực hoặc vài con số).</div>
+<b>🪜 Gỡ link cố định (khi không muốn dùng nữa) — làm từng bước:</b>
+<ol>
+<li>Bấm nút đỏ <b>Gỡ link cố định</b>.</li>
+<li>Đọc lời nhắc → bấm <b>OK</b>.</li>
+</ol>
+<div class="snai-ok">✅ Từ lúc đó, mọi nơi đang gắn link này sẽ báo <b>"Link này đang tạm ngưng"</b>. <b>Mã vẫn giữ cho bạn, không ai lấy mất</b>: sau này bấm <b>Tạo link cố định</b> rồi gõ lại đúng mã cũ (app gợi ý sẵn mã cũ trong ô nhập) là mọi nơi đã gắn link chạy lại.</div>
+<div class="snai-warn">⚠️ Ai có link cố định thì <b>luôn vào được cửa hàng</b>, kể cả sau khi bạn đổi link. Bị đặt phá: bấm <b>Chặn số này</b> trên đơn. Muốn cắt hẳn kẻ phá: <b>Gỡ link cố định</b> rồi tạo lại với <b>mã khác</b>.</div>
+<div class="snai-tip">💡 Chỉ <b>máy chủ shop</b> thấy khung này. Mỗi cửa hàng (chi nhánh) đặt một mã riêng.</div>`},
+
 {c:'onl',t:'Đổi tên cửa hàng hiện cho khách',k:'doi ten cua hang ten quan hien cho khach ten tren link sua ten cua hang online',
 a:`<b class="snai-h">✏️ Đổi tên hiện cho khách</b>
 <b>🪜 Làm từng bước:</b>
@@ -20535,7 +20563,7 @@ if (window.__RMT_READY__) return; window.__RMT_READY__ = true;
 try{
 
 /* ĐỔI CHUỖI NÀY CHO TRÙNG APP_BUILD MỖI LẦN DEPLOY (chỉ để hiện ở bảng quản trị) */
-var BUILD = '2026-10-08-SN3';
+var BUILD = '2026-10-08-SN4';
 var NHIP   = 6*3600*1000;          /* báo về tối đa 6 giờ 1 lần — khỏi tốn lượt ghi */
 var KEY_HB = 'rmt_hb_v2';          /* [QT7] nhịp báo về tính RIÊNG từng tài khoản (bản v1 tính chung cả máy) */
 var KEY_XEM= 'rmt_xem_v1';
@@ -26100,5 +26128,535 @@ document.addEventListener('click', function(e){
 })();
 </script>
 <!-- ═══════════════ HẾT: XEM ẢNH BẰNG CHỨNG LỚN ═══════════════ -->
+<!-- ═══════════════ LINK CỐ ĐỊNH — link bán online KHÔNG BAO GIỜ ĐỔI (drop-in · namespace lcd-) ═══════════════
+     VÌ SAO CÓ KHỐI NÀY
+       Link cửa hàng online (cuahang.html?t=<mã>) ĐỔI mỗi khi chủ shop bấm "Đổi link" ⇒ nơi nào đã gắn link cũ
+       (app khác, trang web, mã QR đã in, bài đăng) đều chết theo. Link cố định giải quyết việc đó:
+           https://…/SO---NO/shop.html?c=<mã cố định>        ← không bao giờ đổi
+       Khách mở link cố định ⇒ trang shop.html hỏi máy chủ "mã hiện tại là gì" rồi chuyển sang đúng cửa hàng.
+
+     CÁCH CHẠY
+       • Mỗi cửa hàng (chi nhánh) tự đặt 1 MÃ CỐ ĐỊNH (vd "minhtri"). App ghi 1 doc CON TRỎ công khai
+         shares_qr/cd-<mã> = { ownerUid, kieu:'codinh', chiNhanh, den:<mã link hiện tại>, chat:false, nhanDon:false }
+         và nhớ mã vào pos_meta/qr.cd của cửa hàng đó.  SỔ pos_meta/qr LÀ GỐC — con trỏ luôn được chỉnh cho khớp sổ.
+       • Khối này NGHE pos_meta/qr: hễ mã link online (onl) đổi là ghi ngay con trỏ sang mã mới. Lệnh ghi này
+         xếp hàng TRƯỚC lệnh xoá link cũ của module Đơn QR ⇒ link cố định không có lúc nào trỏ vào link đã chết.
+       • Tự soát lại con trỏ: lúc mở app, lúc máy có mạng lại, và 6 giờ một lần nếu app mở liên tục
+         (phòng máy khác còn chạy bản cũ đã đổi link, hoặc lệnh ghi cũ kẹt lại lúc mất mạng nay mới lên máy chủ).
+       • GỠ link cố định = cho con trỏ NGƯNG (den rỗng), KHÔNG xoá doc ⇒ mã vẫn đứng tên chủ shop, không cửa hàng
+         nào khác lấy được mã rồi hứng khách của mình. Tạo lại đúng mã đó là link chạy lại. (pos_meta/qr.cdCu nhớ mã đã gỡ.)
+       • KHÔNG cần sửa Rules: doc con trỏ nằm trong kho shares_qr sẵn có (ai cũng đọc được 1 doc theo mã; chỉ chủ
+         shop còn hạn Gói Bán online mới ghi được; shop khác không ghi đè được mã của mình).
+         kieu ≠ 'online' + nhanDon:false + chat:false ⇒ không ai gửi đơn / nhắn tin "qua" doc con trỏ được.
+       • Chỉ MÁY CHỦ SHOP thấy khung này (máy nhân viên không ghi được link). Khung nằm cuối tab Bán online / Đơn QR,
+         chỉ hiện khi cửa hàng đã có link.
+       • Không sửa code cũ: chỉ thêm khối này. Khối này hỏng gì thì bán hàng, link thường, đơn online vẫn chạy y như cũ.
+     ═════════════════════════════════════════════════════════════════════════════════════════════════════ -->
+<script type="module">
+import { getApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getAuth } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { getDocFromServer } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import * as LCD_FS from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+(function(){
+if(window.__LCD_READY__) return; window.__LCD_READY__ = true;
+
+var _lan = 0;
+(function cho(){
+  try{ if(window.SKMOD && window.SKMOD.core && window.SKMOD.fb && window.SKMOD.fb.db){ chay(window.SKMOD); return; } }catch(e){}
+  if(++_lan < 240) setTimeout(cho, 500);
+})();
+
+function chay(M){
+try{
+var C = M.core, F = M.fb;
+if(!M.reg('linkcd', { ns:'lcd', name:'Link cố định — link bán online không bao giờ đổi', ver:'1.1' })) return;
+
+/* ═════════ CẤU HÌNH — SỬA Ở ĐÂY LÀ XONG ═════════ */
+var LINK_CD  = 'https://cuahangminhtri1-sono.github.io/SO---NO/shop.html';   /* trang chuyển hướng của link cố định */
+var TIEN_TO  = 'cd-';                  /* doc con trỏ: shares_qr/cd-<mã cố định> — mã link thường không bao giờ có dấu "-" nên không đụng nhau */
+var KEY_BIET = 'lcd_biet_v1';          /* máy này đã biết cửa hàng nào có link cố định ⇒ mở app là canh ngay, khỏi chờ mở tab */
+var SOAT_LAI = 6 * 3600 * 1000;        /* app mở liên tục: 6 giờ soát lại con trỏ trên máy chủ 1 lần */
+/* ════════════════════════════════════════════════ */
+
+/* ───────── TIỆN ÍCH ───────── */
+function uid(){ try{ return C.uid(); }catch(e){ return null; } }
+function chiNhanh(){ try{ return C.branch() || 'main'; }catch(e){ return 'main'; } }
+function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]; }); }
+function noi(m){ try{ C.toast(m); }catch(e){} }
+function maLoi(e){ return String((e && e.code) || ''); }
+function matMang(){ try{ return navigator.onLine === false; }catch(e){ return false; } }
+function appChinh(){
+  var app = null;
+  try{ app = getApp(); }catch(e){ app = null; }
+  if(!app){
+    var a = []; try{ a = getApps() || []; }catch(e2){ a = []; }
+    for(var i = 0; i < a.length; i++) if(a[i] && a[i].name !== 'errlog' && a[i].name !== 'pub'){ app = a[i]; break; }
+  }
+  return app;
+}
+function authUid(){ try{ var a = appChinh(); var u = a ? getAuth(a).currentUser : null; return u ? u.uid : null; }catch(e){ return null; } }
+function laMayNV(){ try{ return !!(document.body && document.body.classList.contains('la-nv')); }catch(e){ return false; } }
+/* Chỉ CHỦ SHOP đăng nhập bằng chính tài khoản chủ mới ghi được link (Rules: ownerUid == người đang đăng nhập) */
+function laChu(){ var u = uid(), a = authUid(); return !!(u && a && a === u && !laMayNV()); }
+function refMeta(u, cn){ return cn === 'main' ? F.doc(F.db, 'users', u, 'pos_meta', 'qr') : F.doc(F.db, 'users', u, 'branches', cn, 'pos_meta', 'qr'); }
+function refPtr(ma){ return F.doc(F.db, 'shares_qr', TIEN_TO + ma); }
+function linkCD(ma){ return LINK_CD + '?c=' + encodeURIComponent(ma); }
+/* Chờ có hạn: mạng treo thì báo cho chủ shop biết, không để nút quay mãi. (Lệnh ghi đã phát vẫn tự hoàn tất khi có mạng.) */
+function han(p, ms){
+  return new Promise(function(ok, hong){
+    var xong = false;
+    var h = setTimeout(function(){ if(!xong){ xong = true; var e = new Error('qua-han'); e.code = 'qua-han'; hong(e); } }, ms);
+    Promise.resolve(p).then(function(v){ if(!xong){ xong = true; clearTimeout(h); ok(v); } },
+                            function(e){ if(!xong){ xong = true; clearTimeout(h); hong(e); } });
+  });
+}
+/* Chờ các lệnh ghi còn xếp hàng lên tới máy chủ (kể cả lệnh kẹt lại từ lần mở app trước, lúc mất mạng) rồi mới đọc con trỏ
+   ⇒ thứ đọc được là trạng thái SAU CÙNG. Quá hạn (mất mạng, mạng chậm) thì cứ đi tiếp. */
+function choGhiXong(ms){
+  var p = null;
+  try{ if(typeof LCD_FS.waitForPendingWrites === 'function') p = LCD_FS.waitForPendingWrites(F.db); }catch(e){ p = null; }
+  if(!p) return Promise.resolve();
+  return han(p, ms).then(function(){}, function(){});
+}
+
+/* ───────── MÃ ───────── */
+var KHUON_MA = /^[a-z0-9][a-z0-9-]{1,28}[a-z0-9]$/;      /* 3–30 ký tự: chữ thường, số, gạch ngang; đầu & cuối là chữ / số */
+function boDau(s){ return String(s == null ? '' : s).normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\u0111/g, 'd').replace(/\u0110/g, 'D'); }
+/* Mã chủ shop GÕ ⇒ mã chuẩn (bỏ dấu, chữ thường, bỏ khoảng trắng). Không hợp lệ ⇒ '' */
+function chuanMa(v){ var s = boDau(v).toLowerCase().replace(/\s+/g, ''); return KHUON_MA.test(s) ? s : ''; }
+/* Mã ĐÃ LƯU trên máy chủ: đúng khuôn mới nhận, không tự sửa */
+function maLuu(v){ return (typeof v === 'string' && KHUON_MA.test(v)) ? v : ''; }
+/* Mã link cửa hàng thường (đích mà link cố định dẫn tới) */
+function tk(v){ return (typeof v === 'string' && /^[A-Za-z0-9_-]{6,80}$/.test(v) && v.indexOf(TIEN_TO) !== 0) ? v : ''; }
+/* Gợi ý mã theo tên cửa hàng đang hiện cho khách ("Tạp hóa Cô Ba" ⇒ taphoacoba). Tên mặc định chung chung thì không gợi ý. */
+function goiY(){
+  var ten = '';
+  try{ var b = document.querySelector('#qrd-w .qrd-onl .qrd-st b'); ten = b ? (b.textContent || '') : ''; }catch(e){ ten = ''; }
+  var s = boDau(ten).toLowerCase().replace(/[^a-z0-9]+/g, '').slice(0, 30);
+  if(s === 'cuahang' || s === 'thucdon' || s === 'shop' || s === 'quan') return '';
+  return KHUON_MA.test(s) ? s : '';
+}
+
+/* ───────── MÁY NÀY ĐÃ BIẾT CỬA HÀNG NÀO CÓ LINK CỐ ĐỊNH ───────── */
+var BIET = null;                  /* đọc bộ nhớ máy đúng 1 lần, sau đó giữ trong RAM */
+function docBiet(){
+  if(BIET) return BIET;
+  try{ var o = JSON.parse(localStorage.getItem(KEY_BIET) || '{}'); BIET = (o && typeof o === 'object' && !Array.isArray(o)) ? o : {}; }catch(e){ BIET = {}; }
+  return BIET;
+}
+function ghiBiet(u, cn, ma){
+  try{
+    var o = docBiet(), k = u + '|' + cn;
+    if((o[k] || '') === (ma || '')) return;
+    if(ma) o[k] = ma; else delete o[k];
+    try{ localStorage.setItem(KEY_BIET, JSON.stringify(o)); }catch(e2){}
+  }catch(e){}
+}
+function daBiet(u, cn){ try{ return !!docBiet()[u + '|' + cn]; }catch(e){ return false; } }
+
+/* ───────── TRẠNG THÁI ───────── */
+var U = null, CN = null;          /* cửa hàng đang canh */
+var META;                         /* undefined = chưa đọc được pos_meta/qr · { cd, onl, cdCu } = đã đọc */
+var unMeta = null, loiMeta = 0, treMeta = 0;
+var metaCache = false, metaCacheTu = 0;      /* kênh nghe mới chỉ có bản nhớ trong máy (chưa khớp máy chủ) — và từ lúc nào */
+var metaDocLuc = 0;                          /* lần gần nhất đọc THẲNG máy chủ được sổ này */
+var PTR = null;                   /* null = chưa đọc con trỏ · { ma, tt:'co'|'mat'|'khac', den, cn, luc } */
+var ptrDang = false, loiPtr = 0, trePtr = 0;
+var GHI = { dang: false, lan: 0, loi: '', soLoi: 0, tre: 0 };
+var BAN = false;                  /* đang tạo / gỡ ⇒ khoá nút */
+var DA_SOAT = {};                 /* mã ĐÃ GỠ nào đã được soát "con trỏ đang ngưng" trong lần mở app này */
+var noiLai = 0, lanNoiLai = 0;    /* máy vừa có mạng lại ⇒ soát lại con trỏ (không quá 1 lần / 3 phút) */
+
+function boNghe(){ try{ if(unMeta) unMeta(); }catch(e){} unMeta = null; }
+function boHet(){
+  boNghe();
+  META = undefined; loiMeta = 0; treMeta = 0; metaCache = false; metaCacheTu = 0; metaDocLuc = 0;
+  PTR = null; ptrDang = false; loiPtr = 0; trePtr = 0;
+  GHI = { dang: false, lan: GHI.lan + 1, loi: '', soLoi: 0, tre: 0 };
+  goSec();
+}
+
+/* ───────── NGHE pos_meta/qr CỦA CỬA HÀNG ĐANG MỞ ─────────
+   Có 2 việc: biết cửa hàng có link cố định chưa (cd) và mã link online hiện tại (onl).
+   Lệnh ghi của CHÍNH máy này báo về đây ngay tức thì (trước cả khi máy chủ trả lời).
+   includeMetadataChanges: để biết lúc nào bản đang cầm là bản máy chủ đã xác nhận (không phải bản nhớ cũ trong máy). */
+function ngheMeta(){
+  var u = U, cn = CN;
+  if(!u || unMeta || Date.now() < treMeta) return;
+  try{
+    metaCache = false; metaCacheTu = Date.now();
+    unMeta = F.onSnapshot(refMeta(u, cn), { includeMetadataChanges: true }, function(s){
+      try{
+        if(U !== u || CN !== cn) return;
+        loiMeta = 0;
+        var d = (s.exists() && s.data()) || {};
+        var truoc = META;
+        var tuMay = !!(s.metadata && s.metadata.fromCache);
+        if(tuMay && !metaCache) metaCacheTu = Date.now();
+        metaCache = tuMay;
+        META = { cd: maLuu(d.cd), onl: tk(d.onl), cdCu: maLuu(d.cdCu) };
+        ghiBiet(u, cn, META.cd);
+        if(truoc && !BAN && laChu()){
+          /* (1) Mã link vừa đổi ngay trước mắt ⇒ ghi con trỏ LIỀN (đã biết chắc con trỏ là của cửa hàng này).
+                 Chưa đọc được con trỏ ⇒ đọc ngay rồi mới ghi — không bao giờ ghi mò lên con trỏ chưa rõ của ai. */
+          if(META.cd && truoc.cd === META.cd && truoc.onl !== META.onl){
+            var p0 = (PTR && PTR.ma === META.cd) ? PTR : null;
+            if(p0){ if(p0.tt === 'co' && p0.den !== META.onl) ghiPtr(META.cd, META.onl); }
+            else docPtr();
+          }
+          /* (2) Máy khác vừa GỠ link cố định ⇒ máy này cũng soát cho chắc là con trỏ đã ngưng */
+          if(truoc.cd && !META.cd && META.cdCu === truoc.cd) soatNgung(truoc.cd, false);
+        }
+        hienSec(); dongBo(); ve();
+      }catch(e){}
+    }, function(e){
+      if(U !== u || CN !== cn) return;
+      unMeta = null; loiMeta++;
+      treMeta = Date.now() + (maLoi(e) === 'permission-denied' ? 600000 : Math.min(120000, 3000 * Math.pow(2, Math.min(loiMeta, 5))));
+    });
+  }catch(e){ unMeta = null; treMeta = Date.now() + 30000; }
+}
+/* Sổ đang cầm đã CHẮC là bản máy chủ chưa: kênh nghe báo đã khớp máy chủ, hoặc vừa đọc thẳng máy chủ xong (trong 15 giây) */
+function metaChac(){ return !metaCache || (Date.now() - metaDocLuc < 15000); }
+/* Kênh nghe mới chỉ có bản nhớ trong máy: chờ nó khớp máy chủ tối đa 3 giây; quá thì app tự đọc thẳng máy chủ */
+function metaCho(){ return !metaChac() && (Date.now() - metaCacheTu < 3000); }
+
+/* ───────── ĐỌC CON TRỎ TRÊN MÁY CHỦ ─────────
+   Sổ đang cầm chưa chắc là bản máy chủ (mới có bản nhớ trong máy) ⇒ đọc thẳng máy chủ LUÔN CẢ SỔ, để cặp
+   (mã link hiện tại, đích của con trỏ) đem ra so là cặp đúng cùng một lúc — không bao giờ so bản nhớ cũ với con trỏ mới. */
+function docPtr(){
+  var u = U, cn = CN, ma = META && META.cd;
+  if(!u || !ma || ptrDang || Date.now() < trePtr) return;
+  ptrDang = true;
+  var caSo = !metaChac();
+  choGhiXong(6000).then(function(){
+    return Promise.all([ getDocFromServer(refPtr(ma)), caSo ? getDocFromServer(refMeta(u, cn)) : null ]);
+  }).then(function(r){
+    if(U !== u || CN !== cn || !META || META.cd !== ma) return;
+    if(r[1]){
+      var dm = (r[1].exists() && r[1].data()) || {};
+      metaDocLuc = Date.now();
+      if(maLuu(dm.cd) !== ma){                               /* máy chủ nói cửa hàng không còn dùng mã này (máy khác vừa gỡ / đổi mã) */
+        META = { cd: maLuu(dm.cd), onl: tk(dm.onl), cdCu: maLuu(dm.cdCu) };
+        ghiBiet(u, cn, META.cd); PTR = null; loiPtr = 0; trePtr = 0;
+        return;
+      }
+      META.onl = tk(dm.onl); META.cdCu = maLuu(dm.cdCu);
+    }
+    var s = r[0];
+    var d = s.exists() ? (s.data() || {}) : null;
+    if(!d) PTR = { ma: ma, tt: 'mat', luc: Date.now() };
+    else if(d.ownerUid !== u || d.kieu !== 'codinh' || String(d.chiNhanh || 'main') !== cn) PTR = { ma: ma, tt: 'khac', luc: Date.now() };
+    else PTR = { ma: ma, tt: 'co', den: tk(d.den), cn: cn, luc: Date.now() };
+    loiPtr = 0; trePtr = 0;
+  }, function(){
+    if(U !== u || CN !== cn) return;
+    loiPtr++; trePtr = Date.now() + Math.min(120000, 4000 * Math.pow(2, Math.min(loiPtr, 5)));
+  }).then(function(){ ptrDang = false; hienSec(); dongBo(); ve(); });
+}
+
+/* ───────── GHI ĐÍCH CỦA CON TRỎ ─────────
+   Chỉ ghi ĐÍCH (den): chủ, cửa hàng, kiểu… đã đặt lúc tạo, lệnh này không đụng tới.
+   updateDoc: con trỏ không còn trên máy chủ thì KHÔNG tự tạo lại (máy chủ trả not-found) — tạo là việc chủ shop bấm nút. */
+function ghiPtr(ma, den){
+  var u = U, cn = CN, lan = ++GHI.lan;
+  if(!u || !ma) return;
+  GHI.dang = true;
+  var p;
+  try{ p = F.updateDoc(refPtr(ma), { den: den, capNhat: F.serverTimestamp() }); }catch(e){ p = Promise.reject(e); }
+  p.then(function(){
+    if(U !== u || CN !== cn) return;
+    PTR = { ma: ma, tt: 'co', den: den, cn: cn, luc: Date.now() };
+    if(lan === GHI.lan){ GHI.dang = false; GHI.loi = ''; GHI.soLoi = 0; GHI.tre = 0; }
+  }, function(e){
+    if(U !== u || CN !== cn || lan !== GHI.lan) return;
+    GHI.dang = false;
+    var c = maLoi(e);
+    if(c === 'not-found'){ PTR = { ma: ma, tt: 'mat', luc: Date.now() }; GHI.loi = ''; GHI.soLoi = 0; GHI.tre = 0; }
+    else if(c === 'permission-denied'){ GHI.loi = 'quyen'; GHI.soLoi++; GHI.tre = Date.now() + 300000; PTR = null; trePtr = 0; }   /* đọc lại con trỏ: hết hạn gói hay mã đã về tay shop khác */
+    else { GHI.loi = 'mang'; GHI.soLoi++; GHI.tre = Date.now() + Math.min(60000, 3000 * Math.pow(2, Math.min(GHI.soLoi, 4))); }
+  }).then(function(){ dongBo(); ve(); });
+}
+
+/* ───────── GIỮ CON TRỎ LUÔN KHỚP VỚI MÃ LINK HIỆN TẠI ─────────
+   Chỉ ghi khi: sổ pos_meta/qr đang cầm CHẮC là bản máy chủ + đã ĐỌC máy chủ thấy con trỏ là của đúng cửa hàng này. */
+function dongBo(){
+  if(!META || !META.cd || BAN || !laChu()) return;
+  var ma = META.cd;
+  if(!PTR || PTR.ma !== ma){ if(!metaCho()) docPtr(); return; }
+  if(PTR.tt !== 'co' || PTR.den === META.onl) return;
+  if(GHI.dang || Date.now() < GHI.tre) return;
+  if(!metaChac()){                                           /* sổ chưa chắc ⇒ đọc lại cả sổ lẫn con trỏ từ máy chủ rồi mới tính */
+    if(!metaCho() && !ptrDang){ PTR = null; docPtr(); }
+    return;
+  }
+  ghiPtr(ma, META.onl);
+}
+
+/* ───────── MÃ ĐÃ GỠ THÌ CON TRỎ PHẢI NGƯNG ─────────
+   Đọc THẲNG máy chủ cả sổ lẫn con trỏ ngay trước khi ghi (không tin bản nhớ trong máy): chỉ cho ngưng khi sổ nói mã này
+   KHÔNG còn dùng VÀ con trỏ vẫn là của đúng cửa hàng này mà còn đang trỏ tới một link. */
+function soatNgung(ma, cuaLenhGo){
+  var u = U, cn = CN;
+  if(!u || !ma || !laChu()) return Promise.resolve();
+  return choGhiXong(6000).then(function(){
+    return Promise.all([ han(getDocFromServer(refMeta(u, cn)), 15000), han(getDocFromServer(refPtr(ma)), 15000) ]);
+  }).then(function(r){
+    if(U !== u || CN !== cn) return;
+    if(BAN && !cuaLenhGo) return;                          /* máy này đang tạo / gỡ ⇒ để lệnh đó tự lo */
+    var m = (r[0].exists() && r[0].data()) || {};
+    if(maLuu(m.cd) === ma) return;                         /* sổ trên máy chủ nói mã này ĐANG DÙNG ⇒ không đụng */
+    var d = r[1].exists() ? (r[1].data() || {}) : null;
+    if(d && d.ownerUid === u && d.kieu === 'codinh' && String(d.chiNhanh || 'main') === cn && tk(d.den))
+      return han(F.updateDoc(refPtr(ma), { den: '', capNhat: F.serverTimestamp() }), 20000);
+  }).then(function(){}, function(){});
+}
+
+/* ───────── TẠO LINK CỐ ĐỊNH ───────── */
+var NHAC_MA = 'ĐẶT MÃ CHO LINK CỐ ĐỊNH\n\n'
+  + 'Mã là phần đuôi của link. Ví dụ đặt mã  minhtri  thì link cố định là:\n' + LINK_CD + '?c=minhtri\n\n'
+  + '• Dài 3–30 ký tự: chữ thường KHÔNG dấu, số, dấu gạch ngang (-)\n'
+  + '• Nên đặt theo tên cửa hàng cho dễ nhớ\n\n'
+  + 'Gõ mã vào ô dưới rồi bấm OK:';
+var SAI_MA = 'Mã chưa đúng.\n\nMã phải dài 3–30 ký tự, chỉ gồm chữ thường KHÔNG dấu, số và dấu gạch ngang (-); bắt đầu và kết thúc bằng chữ hoặc số.\n\nVí dụ: minhtri · taphoa-coba · quanoc88';
+
+async function taoCD(maSan){
+  if(BAN) return;
+  if(!laChu()){ noi('📱 Chỉ máy chủ shop mới tạo được link cố định'); return; }
+  var u = U, cn = CN;
+  if(!u || !META){ noi('⏳ Đang tải — chờ vài giây rồi bấm lại'); return; }
+  if(!META.onl){ noi('Chưa có link cửa hàng — bấm "Tạo link cửa hàng" ở khung trên trước nhé'); return; }
+  if(matMang()){ noi('📶 Cần có mạng để tạo link cố định — bật mạng rồi bấm lại'); return; }
+  var ma = maSan ? maLuu(maSan) : '';
+  if(!ma){
+    var nhap = null;
+    try{ nhap = prompt(NHAC_MA, META.cdCu || goiY()); }catch(e){ nhap = null; }      /* từng có mã ⇒ gợi ý lại đúng mã đó */
+    if(nhap === null) return;
+    ma = chuanMa(nhap);
+    if(!ma){ try{ alert(SAI_MA); }catch(e){} return; }
+  }
+  BAN = true; ve();
+  try{
+    /* 1) Đọc lại sổ trên máy chủ — máy khác có thể vừa tạo link cố định cho cửa hàng này */
+    var sm = await han(getDocFromServer(refMeta(u, cn)), 15000);
+    if(U !== u || CN !== cn) return;
+    var dm = (sm.exists() && sm.data()) || {};
+    var onl = tk(dm.onl), cu = maLuu(dm.cd);
+    if(!onl){ noi('Chưa có link cửa hàng — bấm "Tạo link cửa hàng" ở khung trên trước nhé'); return; }
+    if(cu && cu !== ma){
+      alert('Cửa hàng này ĐÃ CÓ link cố định, mã "' + cu + '" (tạo từ máy khác).\n\nMuốn đổi sang mã khác thì bấm "Gỡ link cố định" trước, rồi tạo lại.');
+      return;
+    }
+    /* 2) Mã đã có ai dùng chưa */
+    var sp = await han(getDocFromServer(refPtr(ma)), 15000);
+    if(U !== u || CN !== cn) return;
+    var duLieu = { ownerUid: u, kieu: 'codinh', chiNhanh: cn, den: onl, chat: false, nhanDon: false, capNhat: F.serverTimestamp() };
+    if(sp.exists()){
+      var p = sp.data() || {};
+      if(p.ownerUid !== u || p.kieu !== 'codinh'){
+        alert('Mã "' + ma + '" đã có cửa hàng khác dùng.\n\nBạn chọn mã khác nhé — ví dụ thêm tên khu vực hoặc vài con số.');
+        return;
+      }
+      var cnKia = String(p.chiNhanh || 'main');
+      if(cnKia !== cn){
+        /* Mã của chính mình nhưng đang gắn cửa hàng khác: cửa hàng kia còn dùng thì thôi; đã xoá / đã gỡ thì lấy lại.
+           Không đọc được sổ cửa hàng kia (đã xoá mà hết suất, hoặc đang khoá) ⇒ HỎI chủ shop rồi mới chuyển. */
+        var kiaCon = null;
+        try{
+          var sk = await han(getDocFromServer(refMeta(u, cnKia)), 15000);
+          kiaCon = maLuu(((sk.exists() && sk.data()) || {}).cd) === ma;
+        }catch(e3){ if(maLoi(e3) === 'permission-denied') kiaCon = null; else throw e3; }
+        if(U !== u || CN !== cn) return;
+        if(kiaCon === true){
+          alert('Mã "' + ma + '" bạn đang dùng cho một cửa hàng khác của mình.\n\nMỗi cửa hàng một mã riêng: chọn mã khác, hoặc sang cửa hàng kia bấm "Gỡ link cố định" trước.');
+          return;
+        }
+        if(kiaCon === null){
+          var chuyen = false;
+          try{ chuyen = confirm('Mã "' + ma + '" đang gắn với một cửa hàng khác của bạn mà máy không mở được (cửa hàng đã xoá, hoặc đang bị khoá).\n\nChuyển mã này sang cửa hàng đang mở?'); }catch(e4){ chuyen = false; }
+          if(!chuyen) return;
+        }
+      }
+      /* mã của mình (đang ngưng vì đã gỡ, hoặc tạo dở lần trước) ⇒ bật lại, trỏ về cửa hàng này */
+      await han(F.updateDoc(refPtr(ma), duLieu), 20000);
+    }else{
+      await han(F.setDoc(refPtr(ma), duLieu), 20000);
+    }
+    /* 3) Nhớ mã vào sổ của cửa hàng */
+    await han(F.setDoc(refMeta(u, cn), { cd: ma }, { merge: true }), 20000);
+    if(U !== u || CN !== cn) return;
+    PTR = { ma: ma, tt: 'co', den: onl, cn: cn, luc: Date.now() };
+    if(META){ META.cd = ma; if(!META.onl) META.onl = onl; }
+    GHI.loi = ''; GHI.soLoi = 0; GHI.tre = 0;
+    ghiBiet(u, cn, ma);
+    noi('✅ Đã tạo link cố định — bấm "Sao chép link cố định" để lấy link');
+  }catch(e){
+    var c = maLoi(e);
+    if(c === 'permission-denied'){
+      try{ alert('Chưa tạo được link cố định.\n\nCó thể mã "' + ma + '" vừa có cửa hàng khác lấy, hoặc Gói Bán online đã hết hạn.\nBạn thử mã khác, hoặc kiểm tra lại gói nhé.'); }catch(e2){}
+    }else noi('⚠️ Chưa tạo được link cố định — mạng yếu, bấm lại sau ít giây');
+  }finally{ BAN = false; dongBo(); ve(); }
+}
+
+/* ───────── GỠ LINK CỐ ĐỊNH ─────────
+   Gỡ = cho con trỏ NGƯNG (den rỗng) rồi xoá mã khỏi sổ. KHÔNG xoá doc con trỏ: mã vẫn đứng tên chủ shop nên không cửa hàng
+   nào khác lấy được mã rồi hứng khách bấm vào link cũ. Sổ nhớ mã vừa gỡ (cdCu) để lần sau gợi ý tạo lại đúng mã đó.
+   chiBo = true: con trỏ đã mất / đã về tay shop khác ⇒ chỉ xoá mã khỏi sổ, không hỏi lại */
+async function goCD(chiBo){
+  if(BAN) return;
+  if(!laChu()){ noi('📱 Chỉ máy chủ shop mới gỡ được link cố định'); return; }
+  var u = U, cn = CN, ma = META && META.cd;
+  if(!u || !ma) return;
+  if(matMang()){ noi('📶 Cần có mạng để gỡ link cố định — bật mạng rồi bấm lại'); return; }
+  if(!chiBo){
+    var dongY = false;
+    try{ dongY = confirm('GỠ LINK CỐ ĐỊNH "' + ma + '"?\n\nMọi nơi đang gắn link này (app, trang web, bài đăng…) sẽ KHÔNG mở được cửa hàng nữa.\nLink cửa hàng thường ở khung trên không bị ảnh hưởng.\n\nMã "' + ma + '" vẫn GIỮ cho cửa hàng của bạn, không ai lấy mất: sau này tạo lại đúng mã này là mọi nơi đã gắn link chạy lại.\n\nTiếp tục?'); }catch(e){ dongY = false; }
+    if(!dongY) return;
+  }
+  BAN = true; ve();
+  try{
+    var sp = await han(getDocFromServer(refPtr(ma)), 15000);
+    if(U !== u || CN !== cn) return;
+    var p = sp.exists() ? (sp.data() || {}) : null;
+    /* chỉ đụng đúng con trỏ CỦA MÌNH đang gắn ĐÚNG cửa hàng này */
+    var cuaMinh = !!(p && p.ownerUid === u && p.kieu === 'codinh' && String(p.chiNhanh || 'main') === cn);
+    if(cuaMinh){
+      await han(F.updateDoc(refPtr(ma), { den: '', capNhat: F.serverTimestamp() }), 20000);
+      if(U !== u || CN !== cn) return;
+      PTR = { ma: ma, tt: 'co', den: '', cn: cn, luc: Date.now() };      /* lỡ bước sau hỏng: sổ còn mã ⇒ app tự bật lại, khớp với lời báo "chưa gỡ được" */
+    }
+    await han(F.setDoc(refMeta(u, cn), cuaMinh ? { cd: '', cdCu: ma } : { cd: '' }, { merge: true }), 20000);
+    if(U !== u || CN !== cn) return;
+    PTR = null; if(META){ META.cd = ''; if(cuaMinh) META.cdCu = ma; }
+    GHI.loi = ''; GHI.soLoi = 0; GHI.tre = 0;
+    ghiBiet(u, cn, '');
+    /* soát lại 1 lần: máy chủ shop khác vừa mở app đúng lúc đó có thể đã bật con trỏ lại */
+    if(cuaMinh){ DA_SOAT[u + '|' + cn + '|' + ma] = 1; await soatNgung(ma, true); }
+    noi(chiBo ? '✅ Đã bỏ mã link cố định cũ' : (cuaMinh ? '🗑 Đã gỡ link cố định — mã "' + ma + '" vẫn giữ cho bạn' : '🗑 Đã gỡ link cố định'));
+  }catch(e){
+    if(maLoi(e) === 'permission-denied'){ try{ alert('Chưa gỡ được link cố định.\n\nCó thể Gói Bán online vừa hết hạn. Gia hạn xong bạn bấm gỡ lại nhé.'); }catch(e2){} }
+    else noi('⚠️ Chưa gỡ được link cố định — kiểm tra mạng rồi bấm lại');
+  }finally{ BAN = false; dongBo(); ve(); }
+}
+
+/* ───────── SAO CHÉP · GỬI ───────── */
+function linkHT(){ return (META && META.cd) ? linkCD(META.cd) : ''; }
+async function chepCD(){
+  var l = linkHT(); if(!l){ noi('Chưa có link cố định'); return; }
+  try{ await navigator.clipboard.writeText(l); noi('✅ Đã sao chép link cố định — dán vào nơi cần gắn'); return; }catch(e){}
+  try{ prompt('Sao chép link cố định:', l); }catch(e){}
+}
+async function guiCD(){
+  var l = linkHT(); if(!l){ noi('Chưa có link cố định'); return; }
+  if(navigator.share){
+    try{ await navigator.share({ title: 'Đặt hàng online', text: 'Đặt hàng online tại cửa hàng:', url: l }); return; }
+    catch(e){ if(e && e.name === 'AbortError') return; }
+  }
+  chepCD();
+}
+
+/* ───────── GIAO DIỆN ───────── */
+M.css('lcd',
+  '#pos-screen .lcd-lnk{margin-top:9px;background:#f3f7f5;border:1px dashed #b8d8cc;border-radius:9px;padding:8px 10px;font-size:12px;color:#0a5f4a;word-break:break-all;-webkit-user-select:all;user-select:all}'
+ +'#pos-screen #lcd-sec{margin-top:-10px}'
+ +'#pos-screen #lcd-sec .qrd-warn{margin:9px 0 0}'
+ +'#pos-screen #lcd-sec .lcd-tt{margin-top:8px;font-size:12px;color:#7d8d87;line-height:1.6}'
+);
+var SEC = document.createElement('div');
+SEC.className = 'qrd-box'; SEC.id = 'lcd-sec';
+var secHtml = null;
+
+function htmlSec(){
+  var khoa = BAN ? ' disabled' : '';
+  var h = '<div class="qrd-hd"><b>🔗 Link cố định</b></div>';
+  if(!META.cd){
+    return h + '<div class="qrd-st">Link ở khung "Cửa hàng online" sẽ <b>đổi</b> mỗi khi bạn bấm "Đổi link". Link cố định thì <b>không bao giờ đổi</b>: gắn vào app, trang web, bài đăng… một lần là dùng mãi — khách bấm vào luôn tới đúng cửa hàng này.</div>'
+      + (META.cdCu ? '<div class="lcd-tt">Mã cửa hàng đã dùng trước đây: <b>' + esc(META.cdCu) + '</b> (đang ngưng, vẫn giữ cho bạn). Tạo lại đúng mã này thì mọi nơi đã gắn link sẽ chạy lại.</div>' : '')
+      + '<div class="qrd-row"><button type="button" class="qrd-b green" data-act="lcd-tao"' + khoa + '>' + (BAN ? '⏳ Đang tạo…' : 'Tạo link cố định') + '</button></div>';
+  }
+  var ma = META.cd, p = (PTR && PTR.ma === ma) ? PTR : null;
+  if(p && p.tt === 'mat'){
+    return h + '<div class="qrd-warn">⚠️ Link cố định mã <b>' + esc(ma) + '</b> không còn trên máy chủ (đã bị thu hồi). Khách bấm link này sẽ không vào được cửa hàng.</div>'
+      + '<div class="qrd-row"><button type="button" class="qrd-b green" data-act="lcd-lai"' + khoa + '>' + (BAN ? '⏳ Đang làm…' : 'Tạo lại mã này') + '</button>'
+      + '<button type="button" class="qrd-b grey" data-act="lcd-bo"' + khoa + '>Bỏ mã này</button></div>';
+  }
+  if(p && p.tt === 'khac'){
+    return h + '<div class="qrd-warn">⚠️ Mã <b>' + esc(ma) + '</b> hiện không còn gắn với cửa hàng này, nên link cố định cũ không dẫn khách về đây nữa. Bấm "Bỏ mã này" rồi tạo link cố định với mã khác.</div>'
+      + '<div class="qrd-row"><button type="button" class="qrd-b grey" data-act="lcd-bo"' + khoa + '>' + (BAN ? '⏳ Đang làm…' : 'Bỏ mã này') + '</button></div>';
+  }
+  h += '<div class="qrd-st">Link này <b>không bao giờ đổi</b> — gắn vào app, trang web, bài đăng một lần là dùng mãi. Bấm "Đổi link" ở khung trên thì link cố định <b>tự dẫn khách sang link mới</b>, không phải gửi lại hay gắn lại.</div>'
+     + '<div class="lcd-lnk">' + esc(linkCD(ma)) + '</div>';
+  if(p && p.tt === 'co' && p.den !== META.onl){
+    if(GHI.loi === 'quyen') h += '<div class="qrd-warn">⚠️ Chưa cập nhật được link cố định sang link mới — Gói Bán online còn hạn không? App sẽ tự thử lại.</div>';
+    else if(GHI.loi === 'mang') h += '<div class="qrd-warn">⚠️ Mạng yếu — app sẽ tự cập nhật link cố định sang link mới khi có mạng.</div>';
+    else h += '<div class="lcd-tt">⏳ Đang cập nhật link cố định sang link mới…</div>';
+  }
+  h += '<div class="qrd-row">'
+     + '<button type="button" class="qrd-b green" data-act="lcd-chep">Sao chép link cố định</button>'
+     + '<button type="button" class="qrd-b" data-act="lcd-gui">Gửi link</button>'
+     + '<button type="button" class="qrd-b red" data-act="lcd-go"' + khoa + '>' + (BAN ? '⏳ Đang gỡ…' : 'Gỡ link cố định') + '</button></div>'
+     + '<div class="lcd-tt">Lưu ý: ai có link cố định thì luôn vào được cửa hàng, kể cả sau khi bạn đổi link. Bị đặt phá thì bấm "Chặn số này" trên đơn; cần cắt hẳn thì gỡ link cố định rồi tạo mã khác.</div>';
+  return h;
+}
+function ve(){
+  if(!SEC.isConnected || !META) return;
+  var h = htmlSec();
+  if(h !== secHtml){ secHtml = h; SEC.innerHTML = h; }
+}
+function ganSec(){
+  var w = document.getElementById('qrd-w');
+  if(!w || !w.parentNode) return;
+  if(SEC.parentNode !== w.parentNode || SEC.previousSibling !== w) w.parentNode.insertBefore(SEC, w.nextSibling);
+}
+function goSec(){ if(SEC.isConnected) SEC.remove(); }
+/* Khung chỉ hiện khi tab Bán online đang mở VÀ cửa hàng đã có link (thẻ "Cửa hàng online" đang hiện link) */
+function thayTab(){
+  try{ var w = document.getElementById('qrd-w'); return !!(w && w.offsetParent !== null && w.querySelector('.qrd-lnk')); }catch(e){ return false; }
+}
+function hienSec(){ if(META && thayTab()) ganSec(); else goSec(); }
+
+M.act('lcd-tao',  function(){ taoCD(''); });
+M.act('lcd-lai',  function(){ taoCD((META && META.cd) || ''); });
+M.act('lcd-chep', function(){ chepCD(); });
+M.act('lcd-gui',  function(){ guiCD(); });
+M.act('lcd-go',   function(){ goCD(false); });
+M.act('lcd-bo',   function(){ goCD(true); });
+
+/* Máy vừa có mạng lại: lệnh ghi cũ kẹt lúc mất mạng có thể vừa lên máy chủ ⇒ lát nữa soát lại con trỏ */
+try{ window.addEventListener('online', function(){ noiLai = Date.now() + 4000; }); }catch(e){}
+
+/* ───────── VÒNG KIỂM (đổi tài khoản / đổi cửa hàng / nối lại / mở tab) ───────── */
+function nhip(){
+  try{
+    var u = uid(), cn = chiNhanh();
+    if(u !== U || cn !== CN){ boHet(); U = u; CN = cn; }
+    if(!u || !laChu()){ boNghe(); goSec(); return; }
+    var thay = thayTab();
+    if(!unMeta && (thay || daBiet(u, cn))) ngheMeta();
+    hienSec();
+    /* Bản đọc con trỏ đã cũ (6 giờ), hoặc máy vừa có mạng lại ⇒ bỏ bản cũ để dongBo() đọc lại máy chủ */
+    var bay = Date.now();
+    if(!PTR){ if(noiLai && bay > noiLai) noiLai = 0; }                       /* chưa có bản nào ⇒ đằng nào cũng sắp đọc */
+    else if(!ptrDang && !GHI.dang && !BAN){
+      if(bay - (PTR.luc || 0) > SOAT_LAI) PTR = null;
+      else if(noiLai && bay > noiLai && bay - lanNoiLai > 180000){ noiLai = 0; lanNoiLai = bay; PTR = null; }
+    }
+    /* Cửa hàng đã GỠ link cố định: mỗi lần mở app, lúc chủ shop mở tab này thì soát 1 lần là con trỏ cũ đang ngưng thật */
+    if(thay && META && !META.cd && META.cdCu && !BAN){
+      var kS = u + '|' + cn + '|' + META.cdCu;
+      if(!DA_SOAT[kS]){ DA_SOAT[kS] = 1; soatNgung(META.cdCu, false); }
+    }
+    dongBo();
+    ve();
+  }catch(e){}
+}
+setInterval(nhip, 700);
+nhip();
+
+}catch(e){ try{ console.error('[lcd] khối Link cố định lỗi khởi động', e); }catch(_){} }
+}
+})();
+</script>
+<!-- ═══════════════ HẾT: LINK CỐ ĐỊNH ═══════════════ -->
 </body>
 </html>
