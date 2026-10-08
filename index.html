@@ -745,7 +745,7 @@ import { getFirestore, initializeFirestore, persistentLocalCache, persistentMult
 import { getStorage, ref as _sref, uploadBytes, getDownloadURL, deleteObject, listAll }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
 
-const APP_BUILD = "2026-10-08-SN4"; // ⬆️ ĐỔI MỖI LẦN DEPLOY (đặt TRÙNG tên cache trong sw.js) — hiện ở ⚙️ Cài đặt để biết máy đã chạy bản mới chưa
+const APP_BUILD = "2026-10-09-SN5"; // ⬆️ ĐỔI MỖI LẦN DEPLOY (đặt TRÙNG tên cache trong sw.js) — hiện ở ⚙️ Cài đặt để biết máy đã chạy bản mới chưa
 const firebaseConfig = {
   apiKey: "AIzaSyA_kjQ-CdASRkf50Glz3kQajlkD5qGWC4k",
   authDomain: "so-no-cc57a.firebaseapp.com",
@@ -5135,9 +5135,46 @@ function skBranchSubs(){
      cửa hàng mới đọc kho lỗi / chưa về là màn hình còn nguyên hàng của cửa
      hàng trước ⇒ nhìn y như hai cửa hàng chung kho. */
   try{skRenderGrid();}catch(e){} try{skRenderKho();}catch(e){}
-  try{const _brSP=skBranch;skUnsubBP=onSnapshot(bcol('products'),s=>{skProducts=s.docs.map(d=>Object.assign({id:d.id},d.data()));skSpMayChu(_brSP,s);skRenderGrid();skRenderKho();skRenderNpPick();if(skView==='report')skRenderReport();},(e)=>skErr(e,'Đọc kho'));}catch(e){}
-  try{skUnsubBO=onSnapshot(query(bcol('orders'),orderBy('createdAt','desc'),limit(300)),s=>{skOrders=s.docs.map(d=>Object.assign({id:d.id},d.data()));if(skView==='report')skRenderReport();},(e)=>skErr(e,'Đọc đơn hàng'));}catch(e){}
-  try{skUnsubBR=onSnapshot(query(bcol('returns'),orderBy('at','desc'),limit(300)),s=>{skReturns=s.docs.map(d=>Object.assign({id:d.id},d.data()));if(skView==='report')skRenderReport();},()=>{});}catch(e){}
+  try{const _brSP=skBranch;skUnsubBP=onSnapshot(bcol('products'),s=>{skProducts=s.docs.map(d=>Object.assign({id:d.id},d.data()));skSpMayChu(_brSP,s);skRenderGrid();skRenderKho();skRenderNpPick();if(skView==='report')skRenderReport();skDetailLive();},(e)=>skErr(e,'Đọc kho'));}catch(e){}
+  try{skUnsubBO=onSnapshot(query(bcol('orders'),orderBy('createdAt','desc'),limit(300)),s=>{skOrders=s.docs.map(d=>Object.assign({id:d.id},d.data()));if(skView==='report')skRenderReport();skOrdersLive(1);},(e)=>skErr(e,'Đọc đơn hàng'));}catch(e){}
+  try{skUnsubBR=onSnapshot(query(bcol('returns'),orderBy('at','desc'),limit(300)),s=>{skReturns=s.docs.map(d=>Object.assign({id:d.id},d.data()));if(skView==='report')skRenderReport();skOrdersLive(2);},()=>{});}catch(e){}
+}
+/* ── [SN5] CẬP NHẬT LIỀN hai bảng ĐANG MỞ: 📦 chi tiết sản phẩm + 📋 Đơn hàng & trả hàng ────────────────────────
+   Trước đây 3 bộ lắng nghe ngay trên nhận số mới xong chỉ vẽ lại lưới bán / danh sách kho / báo cáo; hai bảng này
+   đang mở thì ĐỨNG YÊN ⇒ bấm Nhập / Xuất hủy xong chữ "Tồn" vẫn là số cũ, xoá đơn xong đơn vẫn nằm trong danh sách —
+   phải đóng bảng rồi mở lại mới thấy. Nay số mới về là vẽ lại NGAY bảng đang mở.
+   CHỈ vẽ lại bằng số ĐÃ CÓ SẴN trong máy (skProducts / skOrders / skReturns) — KHÔNG đọc máy chủ thêm lượt nào.
+   Bọc kín try/catch: trục trặc gì cũng không cản kho, đơn hàng hiển thị. */
+function skDetailLive(){
+  try{
+    const md=skq('#sk-detail'),b=skq('#sk-detail-body');if(!md||!b||!md.classList.contains('on')||!skDetailId)return;
+    const nut=b.querySelector('[data-act="prod-edit"][data-id]');if(!nut||nut.getAttribute('data-id')!==skDetailId)return;   /* bảng phải đang vẽ ĐÚNG sản phẩm này */
+    const p=skProducts.find(x=>x.id===skDetailId);if(!p)return;
+    /* 3 khối đầu bảng (tên · Tồn · mã–giá–đơn vị): ghép chữ Y NGUYÊN như trong skOpenDetail — sửa bên đó thì sửa cả ở đây */
+    const units=skUnitOpts(p).map(u=>u.base?(u.name+' (gốc) — '+fmt(u.price)):(u.name+' = '+u.ratio+' '+(p.baseUnit||'')+' — '+fmt(u.price))).join('<br>');
+    const moi=[['.sk-dt-name',escHtml(p.name)],
+      ['.sk-dt-stock','Tồn: <b>'+skN(p.stock||0)+' '+escHtml(p.baseUnit||'')+'</b>'+((p.stock||0)<=(p.minStock||0)?' <span class="sk-mut">(≤ tối thiểu '+skN(p.minStock||0)+')</span>':'')],
+      ['.sk-dt-info',(p.barcode?'Mã vạch: '+escHtml(p.barcode)+'<br>':'')+(p.sku?'SKU: '+escHtml(p.sku)+'<br>':'')+'Vốn '+fmt(p.cost||0)+' · Bán '+fmt(p.price||0)+'<br>Đơn vị: '+units]];
+    const tam=document.createElement('div');
+    moi.forEach(m=>{const el=b.querySelector(m[0]);if(!el)return;tam.innerHTML=m[1];if(el.innerHTML!==tam.innerHTML)el.innerHTML=m[1];});   /* chỉ ghi khi THẬT SỰ đổi */
+    try{if(window.SKMOD&&window.SKMOD.fire)window.SKMOD.fire('detail:live',{id:skDetailId});}catch(e){}   /* báo module cắm thêm (Ảnh sản phẩm) vẽ lại phần của nó: ảnh lớn + nút 📷 */
+  }catch(e){}
+}
+let skLiveO=null,skLiveR=null,skLiveT=0;   /* bộ lắng nghe ĐƠN / PHIẾU TRẢ nào đã về lượt đầu · giờ lượt ĐƠN đầu tiên của lần nối này về */
+function skOrdersLive(k){   /* k=1: bộ lắng nghe ĐƠN vừa về · k=2: bộ lắng nghe PHIẾU TRẢ vừa về */
+  try{
+    if(k===1&&skLiveO!==skUnsubBO){skLiveO=skUnsubBO;skLiveT=Date.now();}
+    if(k===2)skLiveR=skUnsubBR;
+    /* Mỗi lần NỐI LẠI bộ lắng nghe (mở Bán hàng / đổi cửa hàng) máy xoá trắng skOrders + skReturns rồi nạp lại TỪNG THỨ MỘT.
+       Chờ về ĐỦ CẢ HAI của lần nối này rồi mới vẽ — vẽ sớm là ra danh sách trống, hoặc mất nhãn "↩ đã trả" trong chốc lát.
+       Phiếu trả mãi không về (bộ lắng nghe hỏng) thì quá 3 giây thôi không chờ nó nữa. */
+    if(skLiveO!==skUnsubBO)return;
+    if(skLiveR!==skUnsubBR&&Date.now()-skLiveT<3000)return;
+    const md=skq('#sk-orders');if(!md||!md.classList.contains('on'))return;
+    const box=skq('#sk-orders-list'),y=box?box.scrollTop:0;
+    skRenderOrders();
+    if(box&&y)box.scrollTop=y;   /* giữ nguyên chỗ đang cuộn */
+  }catch(e){}
 }
 /* [VÁ SẢN PHẨM MA] Báo cho KHO CỨU HỘ OFFLINE biết lượt kho vừa về có CHẮC CHẮN đúng không.
    Chắc chắn = máy chủ xác nhận (không đọc từ bộ đệm) HOẶC lượt này có sản phẩm bị xoá khỏi
@@ -20563,7 +20600,7 @@ if (window.__RMT_READY__) return; window.__RMT_READY__ = true;
 try{
 
 /* ĐỔI CHUỖI NÀY CHO TRÙNG APP_BUILD MỖI LẦN DEPLOY (chỉ để hiện ở bảng quản trị) */
-var BUILD = '2026-10-08-SN4';
+var BUILD = '2026-10-09-SN5';
 var NHIP   = 6*3600*1000;          /* báo về tối đa 6 giờ 1 lần — khỏi tốn lượt ghi */
 var KEY_HB = 'rmt_hb_v2';          /* [QT7] nhịp báo về tính RIÊNG từng tài khoản (bản v1 tính chung cả máy) */
 var KEY_XEM= 'rmt_xem_v1';
@@ -24048,6 +24085,10 @@ try{
   var dtb = $('sk-detail-body');
   if(dtb && window.MutationObserver) new MutationObserver(function(){ try{ veCT(); }catch(e){} }).observe(dtb, { childList:true });
 }catch(e){}
+/* [SN5] Kho trong máy vừa về số mới mà bảng chi tiết SP đang mở ⇒ vẽ lại ảnh lớn + nút 📷 theo ảnh mới nhất.
+   Lần ĐẦU gắn ảnh bằng nút 📷 nhanh: khung ảnh vừa chèn bị chính bộ theo dõi ngay trên gỡ liền (lúc đó kho trong máy
+   CHƯA kịp có ảnh mới) ⇒ trước đây báo "Đã gắn ảnh" mà bảng vẫn trống, nút vẫn ghi "Thêm ảnh", phải đóng bảng mở lại mới thấy. */
+try{ M.on('detail:live', function(){ try{ veCT(); }catch(e){} }); }catch(e){}
 
 }catch(e){ console.error('[asp] module Ảnh sản phẩm lỗi khởi động', e); }
 }
