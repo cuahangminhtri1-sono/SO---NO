@@ -1424,10 +1424,13 @@ css.textContent =
  +'.chk-nut b{position:absolute;top:-2px;right:-2px;width:14px;height:14px;border-radius:50%;background:#e53935;border:2px solid #fff;display:none}'
  +'.chk-nut.moi b{display:block}'
  +'#xong button.chk-xn{display:block;margin:12px auto 0;background:#e6efeb;color:#0a5f4a}'
+ /* [VẠCH XANH 2026-10-08] Lúc ẨN thanh báo phải TRONG SUỐT hẳn (opacity:0) + không bắt chạm. Trước đây chỉ đẩy nó lên 140% chiều cao
+    của chính nó; thanh đang rỗng chỉ cao 22px ⇒ đẩy được có ~31px. Trình duyệt nhúng trong app (mở link trong Zalo…) cộng thêm lề
+    thanh trạng thái (~35px) vào top ⇒ thanh rỗng tụt hẳn xuống màn hình thành một vạch xanh nằm ngang. */
  +'.chk-bao{position:fixed;left:50%;top:calc(10px + env(safe-area-inset-top,0px));transform:translate(-50%,-140%);z-index:130;'
  +'width:min(94vw,440px);background:#0a5f4a;color:#fff;border-radius:14px;padding:11px 14px;font-size:14px;line-height:1.4;'
- +'box-shadow:0 10px 26px rgba(0,0,0,.28);transition:transform .25s;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}'
- +'.chk-bao.on{transform:translate(-50%,0)}'
+ +'box-shadow:0 10px 26px rgba(0,0,0,.28);transition:transform .25s,opacity .25s;opacity:0;pointer-events:none;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}'
+ +'.chk-bao.on{transform:translate(-50%,0);opacity:1;pointer-events:auto}'
  +'.chk-k{position:fixed;left:0;top:0;width:100%;height:100%;z-index:120;display:none;flex-direction:column;background:#eef3f1;color:#16302a}'
  +'.chk-k.on{display:flex}'
  +'.chk-h{flex:none;display:flex;align-items:center;gap:6px;background:#0d7a5f;color:#fff;'
