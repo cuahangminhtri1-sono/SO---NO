@@ -12773,7 +12773,7 @@ import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, getDocs, serv
 <!-- ═══════════════ HẾT: LÁ CHẮN DỮ LIỆU ═══════════════ -->
 
 <!-- ═══════════════════════════════════════════════════════════════════════
-     🤖 TRỢ LÝ AI HƯỚNG DẪN SỬ DỤNG — v4 (bản chi tiết cho người mới & người lớn tuổi)
+     🤖 TRỢ LÝ AI HƯỚNG DẪN SỬ DỤNG — v5 (bản chi tiết cho người mới & người lớn tuổi)
      • KHỐI TỰ CHỨA, CHỈ THÊM, KHÔNG SỬA 1 DÒNG NÀO CỦA CODE CŨ.
      • Namespace riêng: biến SNAI__, class/id đều bắt đầu "snai" → không đụng code cũ.
      • Chạy 100% ngoại tuyến (không cần mạng, không cần API key, không tốn phí).
@@ -12786,6 +12786,11 @@ import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, getDocs, serv
            nhiều ca cùng lúc, nhật ký thao tác, đọc màn đối chiếu kho · xóa cửa hàng · app tự dọn · luật dùng thử · sửa các mục đã cũ.
            👀 nhóm Phía khách (viết từ cuahang.html + menu.html): đặt hàng qua link, theo dõi đơn, size/màu, đặt phòng,
            gọi món tại bàn, xem ảnh lớn, các câu báo lỗi phía khách.
+     • v5 (2026-10-09): +25 mục — ✏️ sửa tên khách · 👁 ảnh bằng chứng cho khách xem · số nợ sau từng giao dịch · gõ số tiền có dấu chấm ·
+           sửa nợ quá 15 phút (nhật ký) · danh bạ · luật xóa khách · link nợ rút gọn · chặn nhập khi dùng thử · file thuộc tài khoản khác ·
+           "Nợ cũ chuyển sang" · trần bán offline theo ca · chốt ca lúc mất mạng · ⏰ đồng hồ lệch · → CK · dòng 🪪 · nút Tháng này/Tháng trước/Năm nay ·
+           xóa / trả đơn ghi nợ · thêm SP lúc nhập · bảng chọn ngành · ♻️ mã cửa hàng cũ · link cố định báo ⚠️ · các câu báo khi mất mạng.
+           👆 Chỉ tận tay thêm bài Sửa tên khách.
      • Dán NGUYÊN KHỐI ngay TRƯỚC  </body>.
      ═══════════════════════════════════════════════════════════════════════ -->
 <script>
@@ -16935,6 +16940,15 @@ a:`<b class="snai-h">📱 Máy nhân viên không gia hạn được</b>
 a:`<b class="snai-h">🆕 Tính năng mới thêm gần đây</b>
 <b>👉 Chạm vào nút bên dưới mỗi mục để đọc hướng dẫn chi tiết:</b>
 <ul>
+<li><b>✏️ Sửa tên khách</b> — đổi tên, số điện thoại, địa chỉ của khách ngay trong bảng chi tiết; số nợ và giao dịch giữ nguyên.</li>
+<li><b>👁 Ảnh bằng chứng</b> — chọn 1 ảnh hóa đơn / giấy nợ để khách thấy luôn trên link công nợ.</li>
+<li><b>🧮 Số nợ sau từng giao dịch</b> — mỗi dòng giao dịch ghi sẵn <b>Còn nợ</b> / <b>Mình nợ</b> / <b>✅ Hết nợ</b>.</li>
+<li><b>🔢 Gõ số tiền có dấu chấm</b> — gõ <code>150.000</code> hay <code>150000</code> app đều hiểu đúng.</li>
+<li><b>⏱️ Sửa nợ quá 15 phút</b> — app hỏi lại và ghi vào nhật ký ai sửa, số cũ → số mới.</li>
+<li><b>📵 Bán khi mất mạng theo ca</b> — máy nhân viên dồn quá 50 đơn / 180 phút thì ngưng bán; chốt ca lúc mất mạng có dấu nhắc Tính lại ca.</li>
+<li><b>🏦 Thu nợ bằng chuyển khoản trong ca</b> — bấm <b>→ CK</b> để két không báo thiếu oan.</li>
+<li><b>🛒 Bảng chọn ngành</b> — đọc các nhãn ĐANG DÙNG · DÙNG THỬ · ÂN HẠN · HẾT HẠN dưới từng ngành.</li>
+<li><b>🔗 Link cố định</b> — link bán online không bao giờ đổi, và các câu cảnh báo ⚠️ kèm cách xử lý.</li>
 <li><b>💬 Tin nhắn khách</b> — khách xem link bán online / quét mã QR tại bàn nhắn hỏi cửa hàng; bạn trả lời ngay trong app, gửi thẻ <b>📋 Chốt đơn</b> để khách bấm Đồng ý.</li>
 <li><b>🔍 Xem ảnh lớn</b> — chạm vào ảnh chứng từ, chữ ký để bung toàn màn hình, chụm 2 ngón để phóng to.</li>
 <li><b>✅ Tôi đã chuyển khoản</b> — nút báo ngay cho chủ phần mềm sau khi chuyển tiền gia hạn.</li>
@@ -16943,6 +16957,16 @@ a:`<b class="snai-h">🆕 Tính năng mới thêm gần đây</b>
 <li><b>📋 Nhật ký thao tác</b> — xem ai đã xóa đơn, sửa công nợ, hủy ca.</li>
 <li><b>👀 Phía khách</b> — nhóm mục mới tả đúng những gì khách thấy khi đặt hàng qua link, gọi món tại bàn, xem ảnh lớn.</li>
 </ul>
+<button type="button" class="snai-sg" data-snaiq="Sửa tên, số điện thoại, địa chỉ của khách (✏️ Sửa tên)">✏️ Sửa tên khách</button>
+<button type="button" class="snai-sg" data-snaiq="Ảnh bằng chứng trên link nợ — nút 👁 Cho khách xem">👁 Ảnh bằng chứng cho khách xem</button>
+<button type="button" class="snai-sg" data-snaiq="Dòng Còn nợ / Mình nợ / ✅ Hết nợ ở từng lần mua trả nghĩa là gì?">🧮 Số nợ sau từng giao dịch</button>
+<button type="button" class="snai-sg" data-snaiq="Gõ số tiền thế nào cho đúng? (150000 hay 150.000 đều được)">🔢 Gõ số tiền thế nào cho đúng</button>
+<button type="button" class="snai-sg" data-snaiq="Quá 15 phút mới sửa số tiền nợ — app hỏi lại và ghi vào nhật ký">⏱️ Sửa nợ quá 15 phút</button>
+<button type="button" class="snai-sg" data-snaiq="Máy nhân viên mất mạng — bán quá 50 đơn hoặc 180 phút thì app ngưng cho bán">📵 Máy nhân viên mất mạng</button>
+<button type="button" class="snai-sg" data-snaiq="Khách chuyển khoản trả nợ trong ca — bấm → CK để két không báo thiếu oan">🏦 Thu nợ bằng chuyển khoản trong ca</button>
+<button type="button" class="snai-sg" data-snaiq="Bảng chọn ngành khi vào Bán hàng — đọc các nhãn trên từng ngành">🛒 Bảng chọn ngành</button>
+<button type="button" class="snai-sg" data-snaiq="Link cố định — gắn vào app, trang web">🔗 Link cố định</button>
+<button type="button" class="snai-sg" data-snaiq="Link cố định báo ⚠️ — từng câu cảnh báo và cách xử lý">⚠️ Link cố định báo lỗi</button>
 <button type="button" class="snai-sg" data-snaiq="Tin nhắn khách là gì? Dùng làm gì?">💬 Tin nhắn khách là gì?</button>
 <button type="button" class="snai-sg" data-snaiq="Chốt đơn với khách bằng thẻ 📋 Chốt đơn">📋 Chốt đơn với khách</button>
 <button type="button" class="snai-sg" data-snaiq="Phóng to ảnh chứng từ, chữ ký ra toàn màn hình">🔍 Phóng to ảnh chứng từ, chữ ký</button>
@@ -17156,6 +17180,658 @@ a:`<b class="snai-h">📦 Đọc màn Đối chiếu kho</b>
 </ul>
 <div class="snai-warn">⚠️ Báo <i>"Ca này không có ảnh kho đầu ca"</i>: ca được mở bằng bản cũ, hoặc lúc đó máy mất mạng. Ca <b>song song</b> (mở khi đã có ca khác) cũng không có ảnh kho riêng. Từ ca sau app tự chụp lúc mở ca.</div>
 <div class="snai-tip">💡 Kết quả kiểm kho được ghi vào <b>📋 Nhật ký thao tác</b>. Thiếu hàng chưa chắc là gian lận — hỏi lại nhân viên xem có quên ghi <b>xuất hủy</b> hàng hỏng không.</div>`},
+
+/* ═════════════ v5 — BỔ SUNG 2026-10-09: ✏️ SỬA TÊN KHÁCH · 👁 ẢNH BẰNG CHỨNG · SỐ DƯ TỪNG GIAO DỊCH · GÕ SỐ TIỀN ·
+   SỬA NỢ QUÁ 15 PHÚT · DANH BẠ · LUẬT XÓA KHÁCH · NHẬP DỮ LIỆU · BÁN OFFLINE THEO CA · → CK · XÓA / TRẢ ĐƠN GHI NỢ ·
+   BẢNG CHỌN NGÀNH · LINK CỐ ĐỊNH BÁO ⚠️ · CÁC CÂU BÁO KHI MẤT MẠNG ═════════════ */
+
+/* ───────────── v5 · 📒 SỔ NỢ ───────────── */
+{c:'sn',t:'Sửa tên, số điện thoại, địa chỉ của khách (✏️ Sửa tên)',k:'sua ten khach doi ten khach hang sua so dien thoai khach sua dia chi khach ghi sai ten ghi nham ten doi so dien thoai cap nhat thong tin khach sua ho so khach nut sua ten may chu tu choi sua ten',
+a:`<b class="snai-h">✏️ Sửa tên khách hàng</b>
+<b>👉 Dùng khi nào:</b> lúc thêm khách lỡ <b>gõ sai tên</b>, khách <b>đổi số điện thoại</b>, khách <b>chuyển nhà</b>, hoặc muốn ghi thêm dấu hiệu nhận biết vào tên (VD đổi <i>Chị Lan</i> thành <i>Chị Lan — Xóm 3</i>).
+<div class="snai-ok">✅ <b>Yên tâm:</b> việc này <b>chỉ đổi tên và thông tin liên hệ</b>. <b>Số nợ và toàn bộ giao dịch giữ nguyên</b>, không mất một dòng nào. Không cần xóa khách rồi tạo lại.</div>
+<b>🪜 Làm từng bước:</b>
+<ol>
+<li>Nhìn lên trên cùng, bấm <span class="snai-path">📒 SỔ NỢ</span> để chắc chắn đang ở màn Sổ Nợ.</li>
+<li>Trong danh sách, <b>bấm vào tên người khách</b> cần sửa → bảng chi tiết của khách mở ra.</li>
+<li>Nhìn <b>hàng nút phía trên</b> của bảng chi tiết (🛒 Mua · 💰 Trả · 📤 Chia sẻ · ✍️ Chữ ký · 🖨️ In A4/A5…). Tìm nút <b>✏️ Sửa tên</b> → bấm vào.</li>
+<li>Bảng <b>✏️ Sửa tên khách hàng</b> hiện ra, có <b>3 ô đã điền sẵn thông tin cũ</b>:
+<ul>
+<li><b>Tên khách hàng</b> — <b>bắt buộc phải có</b>, không được để trống.</li>
+<li><b>Số điện thoại</b> — có thì điền, không có thì để trống.</li>
+<li><b>Địa chỉ / Ghi chú</b> — điền nếu cần.</li>
+</ul></li>
+<li>Bấm vào ô cần sửa → xóa chữ cũ → gõ chữ mới. Ô nào không sửa thì <b>để nguyên</b>.</li>
+<li>Bấm nút <b>Lưu</b>. (Đổi ý không sửa nữa thì bấm <b>Hủy</b>.)</li>
+</ol>
+<div class="snai-ok">✅ <b>Biết là làm đúng khi:</b> bảng sửa tự đóng, dưới màn hình hiện dòng <i>"✅ Đã sửa tên khách: …"</i>, và <b>tên mới hiện ngay</b> trên đầu bảng chi tiết cũng như trong danh sách khách.</div>
+<div class="snai-ok">🔗 <b>Khách đã có link chia sẻ công nợ?</b> Trang của khách <b>tự đổi sang tên mới</b>. Link cũ <b>vẫn dùng được</b>, bạn <b>không phải gửi lại</b>.</div>
+<div class="snai-tip">💡 <b>App hỏi <i>"⚠️ Trong sổ đã có khách tên … Vẫn lưu tên này chứ?"</i></b> — nghĩa là tên mới <b>trùng với một khách khác</b> đang có trong sổ. Bấm <b>OK</b> nếu đúng là hai người khác nhau trùng tên. Bấm <b>Hủy</b> để quay lại ghi thêm dấu hiệu cho dễ phân biệt (VD thêm tên xóm, tên nghề).</div>
+<div class="snai-tip">📴 <b>Đang mất mạng vẫn sửa được.</b> Tên mới hiện ngay trên máy, có mạng lại app tự gửi lên máy chủ.</div>
+<div class="snai-warn">⚠️ <b>Không thấy nút ✏️ Sửa tên?</b> Nút này <b>tự ẩn</b> trong 2 trường hợp:
+<ol>
+<li><b>Sổ Nợ đang KHÓA 🔒</b> → mở khóa trước (xem mục <b>Khóa sổ — chống sửa công nợ</b>).</li>
+<li>Người đang dùng máy <b>không có quyền sửa công nợ</b> (nhân viên chỉ được thu nợ) → nhờ <b>Chủ</b> sửa giúp.</li>
+</ol>
+Khi đó nếu vẫn bấm được, app sẽ báo <i>"🔒 Sổ nợ đang khoá sửa — máy này không có quyền sửa tên khách."</i></div>
+<div class="snai-warn">⚠️ Hiện bảng <b>"MÁY CHỦ TỪ CHỐI SỬA TÊN — đã trả lại thông tin cũ"</b>: app đã <b>tự trả về tên cũ</b>, chưa có gì bị đổi. Chụp màn hình bảng báo (có <b>mã lỗi</b>) rồi gọi hỗ trợ — xem mục <b>Gọi hỗ trợ khi bí</b>.</div>`},
+
+{c:'sn',t:'Ảnh bằng chứng trên link nợ — nút 👁 Cho khách xem',k:'anh bang chung cho khach xem anh hoa don giay no hien anh tren link no khach thay anh go anh bang chung khach dang xem anh nay chon anh cho khach xem chi co the chon anh de cho khach xem lam bang chung',
+a:`<b class="snai-h">👁 Ảnh bằng chứng cho khách xem</b>
+<b>👉 Cái này để làm gì:</b> bạn đã đính kèm ảnh <b>tờ hóa đơn / giấy nợ có chữ ký</b> vào một giao dịch. Bấm thêm một nút là <b>tấm ảnh đó hiện luôn trên link công nợ</b> gửi cho khách. Khách mở link thấy ngay giấy tờ — <b>khỏi cãi "tôi đâu có mua"</b>.
+<b>📌 Cần có trước:</b> giao dịch đó phải <b>đã đính kèm ẢNH</b> (xem mục <b>Đính kèm ảnh chứng từ vào giao dịch</b>). Tệp <b>PDF thì không chọn được</b>.
+<b>🪜 Làm từng bước:</b>
+<ol>
+<li>Ở màn <span class="snai-path">📒 SỔ NỢ</span>, bấm vào <b>tên khách</b> để mở bảng chi tiết.</li>
+<li><b>Kéo xuống</b> phần danh sách giao dịch.</li>
+<li>Tìm giao dịch có ảnh — dòng đó có nút <b>📎 Xem ảnh</b>. Ngay cạnh là nút <b>👁 Cho khách xem</b>.</li>
+<li>Bấm <b>👁 Cho khách xem</b>.</li>
+<li>App báo <i>"✅ Đã chọn ảnh này cho khách xem làm bằng chứng."</i> → bấm <b>OK</b>.</li>
+</ol>
+<div class="snai-ok">✅ <b>Biết là làm đúng khi:</b> ở dòng giao dịch đó, nút vừa bấm đổi thành dòng chữ <b>👁 Khách đang xem ảnh này</b>, kèm nút nhỏ <b>Gỡ</b>.</div>
+<b>👀 Khách thấy ảnh ở đâu?</b> Khách mở link công nợ → dưới số nợ (và mã QR chuyển khoản nếu có) là khung <b>📄 Ảnh hoá đơn / bằng chứng</b> → rồi mới tới <b>📋 Lịch sử giao dịch</b>. Khách <b>chạm vào ảnh</b> để xem lớn.
+<b>📖 Vài điều cần biết:</b>
+<ul>
+<li><b>Mỗi khách chỉ hiện 1 ảnh.</b> Bấm <b>👁 Cho khách xem</b> ở giao dịch khác thì ảnh mới <b>thay</b> ảnh cũ.</li>
+<li><b>Khách chưa có link?</b> App nhắc <i>"Ảnh sẽ xuất hiện trên trang khách khi bạn bấm 📤 Chia sẻ."</i> — tức là ảnh đã được chọn sẵn, khi nào bạn bấm <b>📤 Chia sẻ</b> tạo link thì ảnh có mặt luôn.</li>
+<li><b>Khách đã có link rồi?</b> Ảnh hiện lên trang của khách <b>ngay</b>, không cần gửi lại link.</li>
+</ul>
+<b>🪜 Muốn khách thôi không thấy ảnh nữa:</b> bấm nút <b>Gỡ</b> ngay cạnh dòng <i>"👁 Khách đang xem ảnh này"</i> → app báo <i>"✅ Đã gỡ. Khách sẽ không còn thấy ảnh bằng chứng nữa."</i>. Ảnh <b>vẫn còn trong sổ của bạn</b>, chỉ là khách không thấy nữa.
+<div class="snai-tip">💡 App <b>tự gỡ giùm</b> khi bạn <b>xóa giao dịch đó</b>, hoặc sửa giao dịch và <b>bỏ ảnh</b> đi.</div>
+<div class="snai-warn">⚠️ Báo <i>"Chỉ có thể chọn ẢNH để cho khách xem làm bằng chứng."</i> → tệp đính kèm của giao dịch đó là <b>PDF</b>, không phải ảnh. Hãy <b>chụp lại tờ giấy bằng camera</b> rồi đính kèm ảnh đó.</div>
+<div class="snai-warn">⚠️ <b>Ai cầm link cũng thấy ảnh này.</b> Đừng chọn tấm ảnh có thông tin riêng tư của bạn (số tài khoản người khác, giấy tờ cá nhân…) mà bạn không muốn lộ ra.</div>`},
+
+{c:'sn',t:'Dòng Còn nợ / Mình nợ / ✅ Hết nợ ở từng lần mua trả nghĩa là gì?',k:'con no minh no het no dong chu nho duoi giao dich so du sau moi giao dich so du luy ke chot no tung lan gio ghi giao dich doc danh sach giao dich doi chieu tung lan',
+a:`<b class="snai-h">🧮 Số nợ sau từng lần giao dịch</b>
+<b>👉 Cái này để làm gì:</b> trong bảng chi tiết của một khách, <b>mỗi dòng giao dịch</b> đều ghi sẵn <b>sau lần đó khách còn nợ bao nhiêu</b>. Nhờ vậy bạn đối chiếu với khách <b>từng lần một</b>, không phải bấm máy tính cộng trừ.
+<b>📍 Xem ở đâu:</b> màn <span class="snai-path">📒 SỔ NỢ</span> → bấm vào <b>tên khách</b> → kéo xuống danh sách giao dịch → nhìn <b>bên phải mỗi dòng</b>.
+<b>📖 Bên phải mỗi dòng có 3 hàng chữ, từ trên xuống:</b>
+<ol>
+<li><b>Số tiền của lần đó</b> — <b style="color:#c0392b">+ màu đỏ</b> là khách <b>mua chịu</b> (nợ tăng) · <b style="color:#1a6b3c">− màu xanh</b> là khách <b>trả tiền</b> (nợ giảm).</li>
+<li><b>Ngày · giờ ghi</b> — VD <i>05/10/2026 · 14:32</i>. Có cả giờ nên dễ biết lần nào ghi trước, lần nào ghi sau.</li>
+<li><b>Số nợ SAU lần đó</b> — là 1 trong 3 kiểu:
+<ul>
+<li><b style="color:#c0392b">Còn nợ: …</b> (màu đỏ) — sau lần đó khách <b>còn nợ mình</b> chừng đó tiền.</li>
+<li><b style="color:#1d4ed8">Mình nợ: …</b> (màu xanh dương) — khách <b>trả dư</b>, mình đang giữ thừa tiền của khách chừng đó.</li>
+<li><b style="color:#1a6b3c">✅ Hết nợ</b> (màu xanh lá) — sau lần đó hai bên <b>vừa đủ</b>, không ai nợ ai.</li>
+</ul></li>
+</ol>
+<b>📖 Ví dụ cho dễ hiểu</b> (dòng mới nhất nằm trên cùng):
+<ul>
+<li><i>💰 Trả −200.000 · ngày 10 · <b>✅ Hết nợ</b></i></li>
+<li><i>💰 Trả −300.000 · ngày 8 · <b>Còn nợ: 200.000</b></i></li>
+<li><i>🛒 Mua +500.000 · ngày 5 · <b>Còn nợ: 500.000</b></i></li>
+</ul>
+Đọc từ <b>dưới lên trên</b> là thấy đúng diễn biến: mua 500 nghìn → trả 300 còn 200 → trả nốt 200 là hết.
+<div class="snai-ok">✅ <b>Dòng trên cùng</b> (giao dịch mới nhất) luôn <b>bằng đúng số Công nợ</b> ghi ở đầu bảng chi tiết.</div>
+<div class="snai-tip">💡 <b>Mẹo tìm chỗ ghi nhầm:</b> khách nói "sao nợ nhiều vậy" → dò từ dưới lên, tới dòng nào số <b>Còn nợ</b> nhảy lên bất thường thì giao dịch đó có vấn đề. <b>Bấm vào dòng đó</b> để sửa (xem mục <b>Sửa lại một giao dịch đã ghi</b>).</div>
+<div class="snai-tip">💡 Bạn sửa <b>số tiền</b> hoặc <b>ngày</b> của một giao dịch cũ thì các dòng số nợ phía trên nó <b>tự tính lại hết</b>, không phải làm gì thêm.</div>`},
+
+{c:'sn',t:'Gõ số tiền thế nào cho đúng? (150000 hay 150.000 đều được)',k:'go so tien nhap so tien dau cham dau phay 150.000 150000 50.000 so tien chua dung app hieu la ban go so le phan nghin nhap tien sai go tien co dau cham duoc khong nhap so tien',
+a:`<b class="snai-h">🔢 Gõ số tiền trong Sổ Nợ</b>
+<b>👉 Áp dụng cho:</b> ô <b>Số tiền (đồng)</b> trong bảng <b>🛒 Mua hàng</b> / <b>💰 Trả tiền</b> của Sổ Nợ.
+<b>✅ Những cách gõ app hiểu ĐÚNG</b> (ví dụ một trăm năm chục nghìn):
+<ul>
+<li><code>150000</code> — gõ liền số. <b>Dễ nhất, khuyên dùng.</b></li>
+<li><code>150.000</code> — có <b>dấu chấm</b> ngăn hàng nghìn.</li>
+<li><code>150,000</code> — có <b>dấu phẩy</b> ngăn hàng nghìn.</li>
+<li><code>1.250.000</code> — một triệu hai trăm năm chục nghìn, nhiều dấu chấm cũng được.</li>
+<li><code>150.000đ</code> — lỡ gõ thêm chữ <b>đ</b> ở cuối cũng không sao.</li>
+</ul>
+<div class="snai-ok">✅ Tức là bạn gõ <code>50.000</code> thì app ghi đúng <b>năm chục nghìn</b>, không bị thành 50 đồng.</div>
+<b>⚠️ App HỎI LẠI khi số có phần lẻ:</b> nếu sau dấu chấm / dấu phẩy <b>không đủ đúng 3 chữ số</b> (VD gõ <code>150.5</code> hoặc <code>50.00</code>), app coi đó là <b>số lẻ</b> và hiện bảng:
+<br><i>"Bạn gõ: … · App hiểu là: … · ĐÚNG thì bấm OK. SAI thì bấm Hủy rồi gõ lại"</i>
+<ul>
+<li>Đọc dòng <b>App hiểu là</b>. Nếu <b>không đúng ý bạn</b> → bấm <b>Hủy</b> → gõ lại <b>liền số</b>, VD <code>150500</code>.</li>
+<li>Nếu đúng → bấm <b>OK</b>.</li>
+</ul>
+<b>❌ Những cách gõ app KHÔNG nhận:</b>
+<ul>
+<li><code>150k</code> · <code>1tr5</code> · <code>một trăm rưỡi</code> — có chữ lẫn trong số.</li>
+</ul>
+Khi đó app báo <i>"Số tiền chưa đúng! Chỉ gõ số, ví dụ: 150000 (gõ 150.000 cũng được)"</i> → bấm OK rồi gõ lại chỉ bằng số. Để trống ô thì app báo <i>"Nhập số tiền!"</i>.
+<div class="snai-tip">💡 <b>Quy tắc dễ nhớ nhất cho người mới:</b> <b>chỉ bấm các phím số, không bấm gì khác</b>. Một trăm rưỡi nghìn thì bấm 1-5-0-0-0-0. Vậy là không bao giờ sai.</div>
+<div class="snai-tip">💡 Sau khi bấm <b>Lưu</b>, nhìn lại dòng giao dịch vừa ghi: số tiền hiện có dấu chấm ngăn cách rõ ràng (VD <b>150.000đ</b>). Thấy sai thì <b>bấm vào dòng đó</b> sửa lại ngay.</div>
+<div class="snai-ok">✅ Mở một giao dịch cũ ra sửa mà <b>không đụng tới ô Số tiền</b> thì số tiền <b>giữ nguyên y như cũ</b>.</div>`},
+
+{c:'sn',t:'Quá 15 phút mới sửa số tiền nợ — app hỏi lại và ghi vào nhật ký',k:'qua 15 phut moi sua so tien no app hoi lai ghi vao nhat ky sua no cu sua no len nhan vien sua no ai sua so cu so moi thao tac nay se duoc ghi vao nhat ky doi mua thanh tra sua giao dich da ghi hon 15 phut truoc',
+a:`<b class="snai-h">⏱️ Sửa nợ sau 15 phút — có ghi dấu vết</b>
+<b>👉 Luật của app:</b>
+<ul>
+<li><b>Trong 15 phút đầu</b> sau khi ghi một giao dịch: sửa <b>thoải mái</b>, app <b>không hỏi gì</b>. (Vì ghi nhầm rồi sửa liền là chuyện thường.)</li>
+<li><b>Quá 15 phút</b> mà còn sửa <b>số tiền</b>, hoặc đổi <b>Mua ↔ Trả</b>: app <b>hỏi lại</b> và <b>ghi vào nhật ký</b> — ai sửa, từ số nào sang số nào, lúc nào.</li>
+</ul>
+<b>👉 Để làm gì:</b> chống chuyện <b>sửa nợ lén</b>. Chủ shop mở nhật ký ra là thấy hết.
+<b>🪜 Khi sửa một giao dịch cũ, bạn sẽ gặp:</b>
+<ol>
+<li>Mở khách → <b>bấm vào dòng giao dịch</b> cần sửa → sửa số tiền → bấm <b>Lưu</b>.</li>
+<li>App hiện bảng hỏi:
+<br><i>"SỬA giao dịch đã ghi hơn 15 phút trước.</i>
+<br><i>Số tiền: (số cũ) → (số mới)</i>
+<br><i>Thao tác này sẽ được GHI VÀO NHẬT KÝ (ai sửa, số cũ → số mới). Tiếp tục?"</i></li>
+<li><b>Đọc kỹ 2 con số</b> cũ → mới xem đã đúng chưa.</li>
+<li>Đúng → bấm <b>OK</b>: giao dịch được sửa, số nợ tự tính lại, và nhật ký ghi thêm 1 dòng.
+<br>Chưa chắc → bấm <b>Hủy</b>: <b>chưa có gì bị sửa</b>, bảng sửa vẫn mở để bạn gõ lại.</li>
+</ol>
+<b>📖 Sửa những thứ sau thì app KHÔNG hỏi, KHÔNG ghi nhật ký</b> (dù đã quá 15 phút):
+<ul>
+<li>Ô <b>Số kg / mặt hàng</b> và ô <b>Ghi chú</b>.</li>
+<li><b>Ngày</b> của giao dịch.</li>
+<li>Thêm / đổi / bỏ <b>ảnh đính kèm</b>.</li>
+</ul>
+<b>🪜 Chủ xem lại ai đã sửa nợ:</b>
+<ol>
+<li><span class="snai-path">🛒 BÁN HÀNG</span> → tab <b>Bán</b> → <b>💰 Quỹ / Chốt ca</b>.</li>
+<li>Bấm <b>🕘 Lịch sử chốt ca</b> (đang trong ca thì nút ghi <b>🕘 Lịch sử</b>).</li>
+<li>Bấm <b>📋 Nhật ký thao tác (xoá / sửa)</b> → tìm dòng <b>sửa công nợ</b>: có tên khách, <b>số tiền trước → sau</b>, người sửa, giờ sửa.</li>
+</ol>
+<div class="snai-tip">💡 Giao dịch <b>rất cũ</b> (ghi từ bản trước, app không biết giờ ghi) cũng được coi là <b>đã quá 15 phút</b> — sửa số tiền là app hỏi lại.</div>
+<div class="snai-tip">💡 <b>Dặn nhân viên:</b> ghi nhầm thì <b>sửa ngay trong 15 phút</b>. Để lâu mới sửa cũng được, nhưng sẽ có tên trong nhật ký — đó là chuyện bình thường, không phải lỗi.</div>
+<div class="snai-warn">⚠️ Muốn <b>không ai sửa được nợ</b> khi bạn vắng mặt thì dùng <b>🔒 Khóa sổ</b> — xem mục <b>Khóa sổ — chống sửa công nợ</b>.</div>`},
+
+{c:'sn',t:'Lấy tên và số điện thoại khách từ danh bạ máy (📇 Chọn nhanh từ danh bạ)',k:'danh ba chon nhanh tu danh ba may lay ten so dien thoai tu danh ba them khach tu danh ba khong chon duoc danh ba thiet bi chua ho tro chon tu danh ba iphone khong co danh ba',
+a:`<b class="snai-h">📇 Thêm khách từ danh bạ điện thoại</b>
+<b>👉 Cái này để làm gì:</b> khách đã có sẵn trong <b>danh bạ điện thoại</b> của bạn → bấm chọn là app <b>tự điền tên và số</b>, khỏi gõ tay, khỏi sai số.
+<b>🪜 Làm từng bước:</b>
+<ol>
+<li>Ở màn <span class="snai-path">📒 SỔ NỢ</span>, bấm nút <b>+ Thêm</b> (bên phải ô tìm khách).</li>
+<li>Bảng <b>➕ Thêm khách hàng</b> hiện ra. <b>Ngay trên cùng</b> có nút <b>📇 Chọn nhanh từ danh bạ máy</b> → bấm vào.</li>
+<li>Điện thoại mở <b>danh bạ</b>. Lần đầu máy có thể hỏi cho phép → bấm <b>Cho phép</b>.</li>
+<li><b>Chạm vào tên người</b> cần thêm (mỗi lần chọn <b>1 người</b>) → bấm <b>Xong</b> nếu máy có hỏi.</li>
+<li>Quay lại bảng thêm khách: ô <b>Tên khách hàng</b> và ô <b>Số điện thoại</b> đã <b>tự điền sẵn</b>.</li>
+<li>Xem lại, sửa tên cho dễ nhận ra nếu cần, điền thêm <b>Địa chỉ / Ghi chú</b>.</li>
+<li>Bấm <b>Lưu</b>.</li>
+</ol>
+<div class="snai-ok">✅ Số lưu trong danh bạ kiểu <code>+84 90 123 4567</code> được app <b>tự đổi</b> thành <code>0901234567</code> cho gọn.</div>
+<div class="snai-ok">🔒 App <b>chỉ nhận đúng người bạn chọn</b>, không đọc cả danh bạ của bạn.</div>
+<div class="snai-warn">⚠️ <b>Nút này chỉ chạy trên điện thoại Android, mở app bằng Chrome, đang có mạng.</b>
+<br><b>Chưa hỗ trợ:</b> iPhone (Safari), máy tính. Khi đó app báo <i>"📇 Thiết bị/trình duyệt này chưa hỗ trợ chọn từ danh bạ"</i> → bấm OK rồi <b>gõ tay</b> tên và số vào các ô bên dưới — vẫn lưu đầy đủ như thường.</div>
+<div class="snai-tip">💡 Báo <i>"Danh bạ này không có tên/số"</i> hoặc <i>"Không lấy được danh bạ"</i> → người đó trong danh bạ chưa lưu đủ thông tin, hoặc bạn chưa cho phép. Cứ <b>gõ tay</b> là xong.</div>`},
+
+{c:'sn',t:'Không xóa được khách — app báo chỉ xoá được khi công nợ = 0',k:'khong xoa duoc khach chua xoa duoc khach chi xoa duoc khi cong no bang 0 khach con no minh minh con no khach cong no da ve 0 xoa han khach may chu tu choi xoa khach xoa khach bi chan',
+a:`<b class="snai-h">🗑 Vì sao chưa xóa được khách?</b>
+<b>👉 Luật của app:</b> để tránh <b>lỡ tay xóa mất một khoản nợ</b>, app <b>chỉ cho xóa khách khi công nợ đã về 0</b>. Còn nợ dù chỉ 1 đồng là app chặn.
+<b>📖 Khi bị chặn, app hiện bảng:</b>
+<br><i>"⚠️ Chưa xoá được khách … Để tránh lỡ tay, chỉ xoá được khi công nợ = 0."</i> — kèm 1 trong 2 dòng:
+<ul>
+<li><b>• Khách còn NỢ MÌNH: …</b> — khách chưa trả hết.</li>
+<li><b>• MÌNH còn nợ khách: …</b> — khách trả dư, mình đang giữ thừa tiền của khách.</li>
+</ul>
+<b>🪜 Cách xử lý — chọn đúng trường hợp của bạn:</b>
+<ol>
+<li><b>Khách thật, nợ thật</b> → <b>đừng xóa</b>. Khi nào khách trả hết thì ghi <b>💰 Trả</b>; khách trả đủ app tự chuyển họ sang tab <b>Xong</b>.</li>
+<li><b>Tạo nhầm khách, ghi nhầm giao dịch</b> → mở khách đó → <b>bấm vào từng giao dịch ghi nhầm</b> → bấm nút <b>🗑 Xóa</b> ở góc trên bảng sửa → bấm OK. Xóa hết giao dịch nhầm là công nợ về 0.</li>
+<li><b>Mình còn giữ thừa tiền của khách</b> → trả lại tiền cho khách rồi ghi <b>🛒 Mua</b> đúng số đó (ghi chú: <i>hoàn tiền thừa</i>) để sổ về 0.</li>
+</ol>
+<b>🪜 Khi công nợ đã về 0, xóa như sau:</b>
+<ol>
+<li>Mở khách → bấm nút đỏ <b>🗑</b> ở hàng nút phía trên.</li>
+<li>App hỏi <i>"Công nợ đã về 0 ✅ Xoá hẳn khách … khỏi sổ?"</i> → bấm <b>OK</b>.</li>
+<li>App báo <i>"🧹 Đang xoá khách &amp; dọn sạch dữ liệu liên quan..."</i> → chờ vài giây.</li>
+</ol>
+<div class="snai-ok">✅ <b>Biết là làm đúng khi:</b> hiện <i>"✅ Đã xoá sạch khách, giao dịch, ảnh &amp; link chia sẻ"</i> và tên khách biến mất khỏi danh sách.</div>
+<div class="snai-warn">⚠️ Báo <i>"Không đọc được giao dịch của khách nên DỪNG LẠI, chưa xoá gì cả"</i> → thường do <b>mất mạng</b>. Chưa có gì bị xóa. Bật mạng rồi làm lại.</div>
+<div class="snai-warn">⚠️ Báo <b>"MÁY CHỦ TỪ CHỐI XOÁ KHÁCH"</b> → thường do máy này <b>không được quyền xóa</b>, hoặc tài khoản <b>đã hết hạn</b>. Chưa có gì bị xóa. Nhờ <b>Chủ</b> xóa trên máy chủ shop; vẫn không được thì chụp màn hình bảng báo (có <b>mã lỗi</b>) rồi gọi hỗ trợ.</div>
+<div class="snai-tip">💡 Khách đã trả hết nợ thì <b>không cần xóa</b> — họ tự nằm ở tab <b>Xong</b>, không làm rối danh sách, lỡ quay lại mua tiếp thì còn sẵn lịch sử.</div>`},
+
+{c:'sn',t:'Trang công nợ của khách bị rút gọn — chỉ hiện các lần mua trả gần nhất',k:'link no khong hien het giao dich hien thi giao dich gan nhat lien he chu shop de xem day du link hien gd gan nhat khach khong thay giao dich cu da cap nhat trang khach cap nhat trang khach chua duoc hoa don hien thi mat hang dau',
+a:`<b class="snai-h">🔗 Vì sao link nợ không hiện hết giao dịch?</b>
+<b>👉 Chuyện gì xảy ra:</b> khách mua bán với bạn <b>rất lâu, rất nhiều lần</b> → trang công nợ gửi cho khách <b>không chứa nổi toàn bộ</b>. App tự <b>giữ lại các giao dịch MỚI NHẤT</b>, bỏ bớt các giao dịch cũ nhất <b>trên trang của khách</b>.
+<b>📖 Dấu hiệu nhận biết:</b>
+<ul>
+<li><b>Phía khách:</b> trên đầu khung <b>📋 Lịch sử giao dịch</b> có dòng chữ nhỏ <i>"Hiển thị … giao dịch gần nhất (tổng …). Liên hệ chủ shop để xem đầy đủ."</i></li>
+<li><b>Phía bạn:</b> sau mỗi lần ghi nợ, dưới màn hình hiện <i>"🔗 Đã cập nhật trang khách: … (link hiện …/… GD gần nhất)"</i>.</li>
+</ul>
+<div class="snai-ok">✅ <b>Yên tâm 3 điều:</b>
+<br><b>1)</b> <b>Sổ gốc trong app của bạn KHÔNG mất gì</b> — mở khách ra vẫn thấy đủ từng giao dịch từ đầu.
+<br><b>2)</b> <b>Số nợ trên link vẫn ĐÚNG</b> — là tổng thật của toàn bộ, không phải chỉ cộng phần đang hiện.
+<br><b>3)</b> Chuyện này <b>chỉ xảy ra với khách có rất nhiều giao dịch</b>. Khách bình thường luôn thấy đủ.</div>
+<b>🪜 Khách muốn xem đầy đủ từ đầu:</b>
+<ol>
+<li>Mở khách đó trong app → bấm <b>🖨️ In A4/A5</b>.</li>
+<li>Ở mục <b>Thời gian</b> chọn <b>Tất cả</b> (hoặc chọn khoảng ngày khách cần xem).</li>
+<li>Bấm <b>🖨 In máy tính (A4/A5)</b> → in ra giấy, hoặc trong hộp thoại in chọn <b>Lưu thành PDF</b> rồi gửi tệp đó cho khách.</li>
+</ol>
+Xem thêm mục <b>In bảng kê công nợ khổ A4 / A5</b>.
+<div class="snai-tip">💡 Sau mỗi lần ghi mua / trả cho khách đã có link, app tự báo <i>"🔗 Đã cập nhật trang khách: (số nợ mới)"</i> — nghĩa là khách mở link ra sẽ thấy số mới ngay, <b>không cần gửi lại link</b>.</div>
+<div class="snai-warn">⚠️ Báo <i>"⚠️ Cập nhật trang khách CHƯA ĐƯỢC: …"</i> → thường do <b>mạng yếu</b>. Sổ của bạn vẫn ghi đúng, chỉ là <b>trang của khách chưa có số mới</b>. Khi có mạng, mở khách đó ra và bấm <b>📤 Chia sẻ</b> một lần để app đẩy số mới lên.</div>
+<div class="snai-tip">🧾 <b>Link hóa đơn bán hàng cũng vậy:</b> đơn có quá nhiều dòng thì trang hóa đơn của khách ghi <i>"Hiển thị …/… mặt hàng đầu — liên hệ cửa hàng để xem đầy đủ"</i>. Tổng tiền trên hóa đơn vẫn đúng.</div>`},
+
+/* ───────────── v5 · 💾 SAO LƯU & PHỤC HỒI ───────────── */
+{c:'sl',t:'Tài khoản dùng thử chưa nhập / phục hồi được dữ liệu',k:'tai khoan dang dung thu nen chua nhap duoc du lieu dung thu khong nhap duoc khong phuc hoi duoc xoay vong tai khoan nhap excel bi chan phuc hoi bi chan mang du lieu cu sang tai khoan moi',
+a:`<b class="snai-h">🎁 Đang dùng thử thì chưa nhập được dữ liệu</b>
+<b>👉 Bạn gặp câu báo này:</b>
+<br><i>"Tài khoản đang DÙNG THỬ nên chưa nhập được dữ liệu. Đây là cách chặn việc xoay vòng tài khoản để dùng thử vô hạn."</i>
+<b>📖 Nghĩa là gì:</b> tài khoản <b>chưa mua gói nào</b> (còn đang 15 ngày dùng thử) thì <b>chưa đưa dữ liệu từ tệp bên ngoài vào</b> được. Luật này áp dụng cho <b>cả 3 đường nhập</b>:
+<ul>
+<li><b>📤 Nhập / Phục hồi dữ liệu</b> bằng tệp <b>.json</b>.</li>
+<li><b>📤 Nhập / Phục hồi dữ liệu</b> bằng tệp <b>Excel (.xlsx)</b>.</li>
+<li><b>♻️ Phục hồi CỨU HỘ (toàn bộ)</b>.</li>
+</ul>
+<div class="snai-ok">✅ <b>Những việc khác vẫn làm bình thường khi dùng thử:</b> thêm khách, ghi nợ, bán hàng, <b>sao lưu</b>, <b>xuất Excel</b>. Chỉ riêng việc <b>nhập tệp vào</b> là phải chờ.</div>
+<b>🪜 Cách xử lý — chọn đúng trường hợp:</b>
+<ol>
+<li><b>Bạn muốn dùng lâu dài và mang dữ liệu cũ sang</b> → <b>mua gói</b> trước (xem mục <b>Gia hạn tài khoản — giá bao nhiêu?</b>). Sau khi được mở hạn, vào <span class="snai-path">🧰 Công cụ &amp; Sao lưu</span> nhập lại là được.</li>
+<li><b>Bạn ĐÃ mua gói rồi mà vẫn báo câu này</b> → gần như chắc chắn do <b>mất mạng</b>: app phải hỏi máy chủ xem bạn đã mua chưa, không hỏi được thì tạm coi là chưa. <b>Bật wifi / 4G</b>, chờ vài giây rồi bấm nhập lại.</li>
+<li><b>Chỉ đổi điện thoại</b> → <b>không cần nhập tệp gì cả</b>. Đăng nhập đúng email + mật khẩu cũ là dữ liệu tự về (xem mục <b>Chuyển sang điện thoại / máy mới</b>).</li>
+<li><b>Cần chuyển dữ liệu sang một tài khoản khác</b> → gọi hotline <b>0977 823 979</b> để được hỗ trợ.</li>
+</ol>
+<div class="snai-tip">💡 Trong lúc dùng thử, bạn cứ <b>nhập tay vài khách và vài món hàng</b> để tập cho quen. Dữ liệu nhập tay này <b>giữ nguyên</b> khi bạn mua gói, không mất.</div>`},
+
+{c:'sl',t:'Phục hồi CỨU HỘ báo File này thuộc tài khoản KHÁC',k:'file nay thuoc tai khoan khac phuc hoi cuu ho bi tu choi file sao luu cua tai khoan khac ban dang dang nhap bang chuyen sang tai khoan moi cap phep chuyen file sao luu phien ban cu khong xac minh duoc chi nhan file json file khong phai sao luu toan bo',
+a:`<b class="snai-h">♻️ Phục hồi cứu hộ — các câu báo khi chọn tệp</b>
+<b>👉 Luật của app:</b> tệp <b>🛟 Sao lưu CỨU HỘ</b> có ghi sẵn <b>nó thuộc tài khoản nào</b>. App <b>chỉ cho phục hồi vào đúng tài khoản đã tạo ra tệp</b> — để dữ liệu của shop này không bị đổ nhầm vào shop khác.
+<b>1️⃣ "File này thuộc tài khoản KHÁC (…)" · "Bạn đang đăng nhập bằng: …"</b>
+<ul>
+<li><b>Nghĩa là:</b> email ghi trong tệp <b>khác</b> email bạn đang đăng nhập. Bảng báo ghi rõ cả 2 email để bạn so.</li>
+<li><b>Bạn chỉ ĐỔI MÁY:</b> <b>không cần tệp này</b>. Đăng xuất → đăng nhập bằng <b>đúng email cũ</b> là dữ liệu tự về đầy đủ.</li>
+<li><b>Bạn đăng nhập nhầm tài khoản:</b> bấm <b>⚙️ Cài đặt → Đăng xuất</b> → đăng nhập lại bằng email ghi trong tệp → phục hồi lại.</li>
+<li><b>Bạn thật sự muốn CHUYỂN dữ liệu sang tài khoản mới:</b> gọi hotline <b>0977 823 979</b> để chủ phần mềm <b>cấp phép chuyển</b>. Được cấp phép rồi thì chọn lại đúng tệp đó là phục hồi được.</li>
+</ul>
+<b>2️⃣ "File sao lưu này thuộc phiên bản cũ, không ghi tài khoản chủ nên không xác minh được"</b>
+<ul>
+<li><b>Nghĩa là:</b> tệp được tạo từ bản app rất cũ, trong tệp không có tên tài khoản.</li>
+<li><b>Cách xử lý:</b> đăng nhập <b>tài khoản cũ</b> → bấm <b>🛟 Sao lưu CỨU HỘ</b> để <b>xuất một tệp mới</b> → dùng tệp mới đó để phục hồi.</li>
+</ul>
+<b>3️⃣ "Chỉ nhận file .json (sao lưu toàn bộ)"</b> → bạn chọn nhầm tệp Excel hoặc tệp khác. Chọn lại tệp có tên bắt đầu bằng <code>SoNo-BanHang-ToanBo-</code>, đuôi <code>.json</code>.
+<b>4️⃣ "File không phải sao lưu TOÀN BỘ…"</b> → đó là tệp <b>sao lưu Sổ Nợ thường</b>. Tệp này phải nhập bằng nút <b>📤 Nhập / Phục hồi dữ liệu</b>, không phải nút cứu hộ.
+<b>5️⃣ "Tài khoản đang DÙNG THỬ nên chưa nhập được dữ liệu"</b> → xem mục <b>Tài khoản dùng thử chưa nhập / phục hồi được dữ liệu</b>.
+<div class="snai-ok">✅ Khi app báo các câu trên, <b>chưa có gì bị ghi hay bị xóa</b>. Dữ liệu hiện tại của bạn còn nguyên.</div>`},
+
+{c:'sl',t:'Dòng Nợ cũ chuyển sang (nhập từ file) trong sổ khách là gì?',k:'no cu chuyen sang nhap tu file dong la trong so khach sau khi nhap excel sau khi phuc hoi gop them dong no cu so no sau khi nhap file co nen xoa dong no cu chuyen sang',
+a:`<b class="snai-h">📥 Dòng "Nợ cũ chuyển sang (nhập từ file)"</b>
+<b>👉 Bạn thấy ở đâu:</b> sau khi <b>📤 Nhập / Phục hồi dữ liệu</b>, mở một khách ra thấy có <b>một dòng giao dịch</b> ghi chú <i>"Nợ cũ chuyển sang (nhập từ file)"</i> mà bạn <b>không hề tự ghi</b>.
+<b>📖 Vì sao có dòng này:</b> tệp bạn nhập (thường là tệp <b>Excel chỉ có danh sách khách và số nợ</b>) <b>không kèm từng lần mua – trả</b>. App không có giao dịch nào để cộng, nên nó <b>tự ghi 1 dòng đúng bằng số nợ trong tệp</b> — để sổ của khách <b>có gốc</b> và <b>số nợ đứng đúng</b>.
+<ul>
+<li>Khách <b>đang nợ mình</b> → dòng đó là <b>🛒 Mua</b>, số tiền = số nợ.</li>
+<li><b>Mình đang nợ khách</b> → dòng đó là <b>💰 Trả</b>, số tiền = số mình nợ.</li>
+</ul>
+Trong lúc nhập, bảng tiến trình cũng ghi rõ: <i>"… ✓ · thêm dòng "Nợ cũ chuyển sang" …"</i>.
+<div class="snai-warn">⚠️ <b>ĐỪNG xóa dòng này.</b> Nó chính là <b>khoản nợ cũ</b> của khách. Xóa đi là <b>số nợ của khách tụt về 0</b>.</div>
+<div class="snai-ok">✅ Từ đó về sau, bạn cứ ghi <b>🛒 Mua</b> / <b>💰 Trả</b> như bình thường — số mới cộng trừ tiếp vào khoản nợ cũ này.</div>
+<b>📖 Thêm 2 điều về chế độ Gộp:</b>
+<ul>
+<li>Sau khi gộp, <b>số nợ của mỗi khách = tổng các dòng giao dịch thật đang có trong sổ</b> (dòng cũ + dòng vừa nhập thêm). App <b>không lấy con số ghi trong tệp</b> — vì tệp cũ thì con số đó có thể đã lỗi thời.</li>
+<li>Giao dịch <b>giống hệt nhau</b> (cùng ngày, cùng loại, cùng số tiền, cùng ghi chú) đã có sẵn thì app <b>bỏ qua</b>, không nhập trùng. Cuối bảng tiến trình ghi <i>"Giao dịch thêm: … | Bỏ qua trùng: …"</i>.</li>
+</ul>
+<div class="snai-tip">💡 Muốn ghi rõ hơn khoản nợ cũ đó gồm những gì: <b>bấm vào dòng đó</b> → sửa ô <b>Ghi chú</b> (VD: <i>nợ sổ giấy tới hết tháng 9</i>) → <b>Lưu</b>. Sửa ghi chú thì số nợ không đổi.</div>`},
+
+/* ───────────── v5 · 📊 BÁO CÁO & QUỸ CA ───────────── */
+{c:'bc',t:'Máy nhân viên mất mạng — bán quá 50 đơn hoặc 180 phút thì app ngưng cho bán',k:'may nhan vien mat mang ngung cho ban may chua gui duoc ve may chu 50 don 180 phut ban offline tran ban offline don chua gui ve may chu bat mang roi ban tiep nhan vien khong thanh toan duoc khi mat mang chua nhan tin hieu',
+a:`<b class="snai-h">📵 Giới hạn bán khi máy nhân viên mất mạng</b>
+<b>👉 Cái này để làm gì:</b> máy nhân viên mất mạng thì đơn <b>chỉ nằm trong máy đó</b>, chủ shop <b>chưa thấy</b>. Nếu để dồn cả trăm đơn mà chủ không hay biết thì rất khó kiểm soát tiền. Vì vậy app đặt <b>một mức trần</b>.
+<b>📖 Luật cụ thể:</b>
+<ul>
+<li>Quá <b>6 phút</b> máy không liên lạc được với máy chủ → app coi là <b>đang mất mạng</b>.</li>
+<li>Mỗi đơn bán trong lúc đó được đếm là <b>"đơn chưa gửi về máy chủ"</b>.</li>
+<li>Dồn tới <b>50 đơn chưa gửi</b>, <b>HOẶC</b> còn đơn chưa gửi mà mất mạng đã quá <b>180 phút (3 tiếng)</b> → app <b>ngưng cho bán</b> trên máy đó.</li>
+</ul>
+<b>👤 Áp dụng cho ai:</b> <b>nhân viên đang trực ca</b> (shop có danh sách nhân viên và đang bật hỏi PIN). <b>Chủ shop KHÔNG bị giới hạn này</b> — chủ bán được mọi lúc.
+<b>📖 Bạn sẽ thấy gì trên máy nhân viên:</b>
+<ol>
+<li><b>Lúc mới mất mạng</b> — vào <b>💰 Quỹ / Chốt ca</b> có ô đỏ: <i>"📵 Máy đang MẤT MẠNG … · đã bán … đơn chưa gửi về máy chủ. Đơn vẫn lưu trong máy và sẽ tự gửi khi có mạng, nhưng chủ shop chưa thấy được. Bán quá 50 đơn hoặc mất mạng quá 180 phút thì app sẽ ngưng cho bán tới khi có mạng."</i></li>
+<li><b>Khi chạm trần</b> — bấm thanh toán thì bị chặn, hiện dòng: <i>"📵 Máy chưa gửi được về máy chủ … đơn · mất mạng … BẬT MẠNG rồi bán tiếp — hoặc báo CHỦ SHOP vào bán bằng quyền Chủ."</i></li>
+</ol>
+<b>🪜 Cách xử lý:</b>
+<ol>
+<li><b>Bật wifi hoặc 4G</b> trên máy đó.</li>
+<li><b>Để app mở trên màn hình</b> một vài phút. App tự đẩy các đơn đang chờ lên máy chủ.</li>
+<li>Máy chủ nhận được là app <b>tự gỡ chặn</b> — bán tiếp bình thường. <b>Không mất đơn nào.</b></li>
+</ol>
+<div class="snai-tip">💡 <b>Chỗ bán không thể có mạng lúc này?</b> Báo <b>Chủ shop</b> vào bán bằng quyền Chủ:
+<ul>
+<li>Máy đó <b>đăng nhập bằng email của chủ</b> → bấm <b>👤 Đổi người</b> → chọn tên có vai <b>Chủ</b> → nhập PIN của chủ → bán tiếp.</li>
+<li>Máy đó <b>đăng nhập bằng tài khoản nhân viên</b> → máy này <b>không có quyền Chủ</b>. Chủ bán tạm trên <b>máy của chủ</b> cho tới khi máy nhân viên có mạng lại.</li>
+</ul></div>
+<b>👀 Phía chủ shop thấy gì:</b> mở ca của nhân viên đó ra, có ô đỏ <i>"⏱ Chưa nhận tín hiệu từ máy của … đã … Hoặc máy đó chưa mở app, hoặc đang bán offline (lần cuối báo về: còn … đơn chưa gửi). Nên qua xem máy đó ngay."</i>
+<div class="snai-ok">✅ Đơn bán lúc mất mạng <b>vẫn an toàn trong máy</b> và tự lên máy chủ khi có mạng — miễn là <b>đừng gỡ app, đừng xóa dữ liệu trình duyệt</b> trong lúc chờ.</div>
+<div class="snai-warn">⚠️ Còn đơn chưa gửi mà <b>chốt ca</b> thì số liệu ca sẽ thiếu — xem mục <b>Đang mất mạng mà vẫn chốt — app hỏi lại, chốt xong phải Tính lại ca</b>.</div>`},
+
+{c:'bc',t:'Đang mất mạng mà vẫn chốt — app hỏi lại, chốt xong phải Tính lại ca',k:'chot ca luc mat mang may dang mat mang van chot ca so lieu co the thieu don chot luc mat mang ca nay duoc chot luc may mat mang don ve tre tinh lai ca don ve sau khi da chot khong co don ve tre',
+a:`<b class="snai-h">📵 Chốt ca khi đang mất mạng</b>
+<b>👉 Vấn đề:</b> đang mất mạng thì có thể <b>còn đơn nằm trong máy chưa lên máy chủ</b>. Chốt ca lúc đó, app tính <b>thiếu</b> những đơn này → số "tiền phải có" bị <b>thấp hơn thực tế</b>.
+<b>📖 App nhắc bạn 2 lần:</b>
+<ol>
+<li>Ngay trên màn <b>🔒 Chốt ca</b> có ô vàng: <i>"⚠️ Đang mất mạng — số liệu tính từ dữ liệu đã lưu trong máy, có thể thiếu đơn của máy khác."</i></li>
+<li>Bấm <b>✔ XÁC NHẬN CHỐT CA</b> thì hiện bảng hỏi:
+<br><i>"📵 MÁY ĐANG MẤT MẠNG — còn … đơn chưa gửi về máy chủ. Chốt lúc này số liệu có thể THIẾU đơn của ca. Nên: bật mạng, đợi đồng bộ xong rồi hãy chốt. Vẫn chốt ca?"</i></li>
+</ol>
+<b>🪜 Cách làm ĐÚNG NHẤT:</b>
+<ol>
+<li>Bấm <b>Hủy</b> ở bảng hỏi.</li>
+<li><b>Bật wifi / 4G</b>, để app mở vài phút cho đơn lên hết.</li>
+<li>Vào lại <b>💰 Quỹ / Chốt ca</b> → không còn ô báo mất mạng → chốt ca như bình thường.</li>
+</ol>
+<b>🪜 Nếu buộc phải chốt ngay (không có mạng):</b>
+<ol>
+<li>Bấm <b>OK</b> ở bảng hỏi → ca vẫn chốt được, và app <b>đóng dấu</b> là ca chốt lúc mất mạng.</li>
+<li>Trong <b>🕘 Lịch sử chốt ca</b>, ca đó có dòng đỏ <b>📵 chốt lúc mất mạng</b>.</li>
+<li>Mở ca đó ra thấy ô đỏ: <i>"📵 Ca này được chốt lúc máy mất mạng — lúc đó còn … đơn chưa gửi về. Số liệu có thể thiếu — bấm Tính lại ca sau khi máy đó đã đồng bộ xong."</i></li>
+<li>Khi máy bán đã có mạng và đẩy đơn lên xong, nếu có đơn về muộn thì ca hiện thêm: <i>"⚠️ Có … đơn của ca này về sau khi đã chốt"</i> (ngoài danh sách ghi <i>"⚠️ +… đơn về trễ — cần Tính lại ca"</i>).</li>
+<li><b>Chủ</b> bấm nút <b>🔄 Tính lại ca (khi đơn bán offline về trễ)</b>.</li>
+<li>App hiện bảng so sánh <b>Tiền phải có: cũ → mới</b> và <b>Chênh lệch: cũ → mới</b> → bấm <b>OK</b>.</li>
+</ol>
+<div class="snai-ok">✅ <b>Biết là làm đúng khi:</b> hiện <i>"✅ Đã tính lại ca — chênh lệch mới: …"</i>. Nếu hiện <i>"✅ Không có đơn về trễ — số liệu ca đã đúng"</i> thì ca vốn đã đúng, dấu 📵 tự biến mất.</div>
+<div class="snai-ok">✅ Tính lại ca <b>chỉ tính lại "tiền phải có"</b>. <b>Số tiền ĐẾM ĐƯỢC</b> bạn nhập lúc chốt <b>giữ nguyên</b>, không ai đổi được.</div>
+<div class="snai-warn">⚠️ <b>Chỉ vai trò Chủ</b> mới bấm được Tính lại ca (người khác bị báo <i>"🔒 Chỉ Chủ mới tính lại được ca"</i>), và <b>phải có mạng</b> (mất mạng báo <i>"⚠️ Mất mạng — chưa tính lại được, thử lại khi có mạng"</i>).</div>`},
+
+{c:'bc',t:'Dòng ⏰ giờ bán đi trước giờ máy chủ · 🐢 đơn đồng bộ trễ — nghĩa là gì?',k:'gio ban di truoc gio may chu dong ho may ban da bi chinh chinh gio dien thoai don dong bo tre hon so voi luc ban canh bao dong ho gian lan gio lech gio may chot ca bao dong ho',
+a:`<b class="snai-h">⏰ Cảnh báo giờ trên màn chốt ca</b>
+<b>👉 Bạn thấy ở đâu:</b> vào <b>💰 Quỹ / Chốt ca</b> → bấm <b>🔒 CHỐT CA</b> → phía trên bảng tiền có thể hiện 1 trong 2 ô ghi chú dưới đây. Bình thường <b>không có ô nào</b>.
+<b>1️⃣ Ô màu cam — ⏰ "… đơn ghi giờ bán đi trước giờ máy chủ tới …"</b>
+<ul>
+<li><b>Nghĩa là:</b> có đơn mà <b>giờ trên điện thoại lúc bán</b> lại <b>muộn hơn</b> giờ máy chủ nhận được đơn. Bán xong mới gửi đi, nên chuyện này <b>không thể tự nhiên xảy ra</b> — nhiều khả năng <b>đồng hồ của máy bán đã bị chỉnh sai</b>. (App đã trừ hao 5 phút, lệch ít không báo.)</li>
+<li><b>Vì sao đáng lo:</b> ca tính đơn theo <b>giờ máy lúc bán</b>. Đồng hồ bị chỉnh lệch có thể làm đơn <b>rơi ra ngoài khung giờ của ca</b> → tiền của đơn đó không được tính vào ca.</li>
+<li><b>Cách xử lý:</b>
+<ol>
+<li><b>Khoan chốt.</b> Cầm máy bán đó lên xem đồng hồ có đúng giờ không.</li>
+<li>Vào <b>Cài đặt của điện thoại</b> → <b>Ngày &amp; giờ</b> → bật <b>Tự động đặt giờ</b> (dùng giờ do nhà mạng cung cấp).</li>
+<li>Hỏi lại người bán, mở <b>↩️ Đơn &amp; trả hàng</b> đối chiếu các đơn trong buổi.</li>
+<li>Ổn rồi mới chốt ca.</li>
+</ol></li>
+</ul>
+<b>2️⃣ Ô màu xanh nhạt — 🐢 "… đơn đồng bộ trễ hơn … so với lúc bán. Bình thường nếu máy đó mất mạng lâu."</b>
+<ul>
+<li><b>Nghĩa là:</b> có đơn bán xong <b>hơn 12 tiếng sau</b> mới lên tới máy chủ — thường do máy đó <b>mất mạng lâu</b>.</li>
+<li><b>Có phải lỗi không:</b> <b>KHÔNG.</b> Đây chỉ là ghi chú cho bạn biết. Đơn vẫn được tính đầy đủ.</li>
+</ul>
+<div class="snai-ok">✅ Cả 2 ô này <b>chỉ để báo cho bạn biết</b>. App <b>không tự đổi một con số nào</b> của ca.</div>
+<div class="snai-tip">💡 <b>Mẹo phòng xa:</b> máy bán hàng nào cũng nên bật sẵn <b>Tự động đặt giờ</b> trong cài đặt điện thoại. Như vậy giờ luôn đúng và ô ⏰ không bao giờ hiện oan.</div>`},
+
+{c:'bc',t:'Khách chuyển khoản trả nợ trong ca — bấm → CK để két không báo thiếu oan',k:'thu no bang chuyen khoan trong ca nut ck danh dau khoan thu no la chuyen khoan dua tro lai thanh tien mat thu no chuyen khoan ket bao thieu oan tra no bang ck khong nam trong ket doi tien mat sang chuyen khoan',
+a:`<b class="snai-h">🏦 Thu nợ bằng chuyển khoản trong ca</b>
+<b>👉 Vấn đề:</b> trong lúc đang mở ca, bạn ghi <b>💰 Trả</b> cho một khách bên Sổ Nợ. App tự đưa khoản đó vào <b>sổ quỹ của ca</b> với nhãn <b>Thu nợ</b>, và <b>mặc định coi là TIỀN MẶT</b> — tức là coi như tiền đã nằm trong két.
+<br>Nhưng nếu khách <b>chuyển khoản</b> thì tiền <b>vào ngân hàng</b>, không vào két. Cuối ca đếm tiền sẽ bị báo <b>THIẾU oan</b> đúng bằng số đó.
+<b>🪜 Cách sửa — làm TRƯỚC khi chốt ca:</b>
+<ol>
+<li>Vào <span class="snai-path">🛒 BÁN HÀNG</span> → tab <b>Bán</b> → bấm <b>💰 Quỹ / Chốt ca</b>.</li>
+<li>Bấm <b>📜 Chi tiết các khoản thu / chi trong ca</b>.</li>
+<li>Tìm dòng có nhãn <b>Thu nợ</b> của khách đã chuyển khoản. Cuối dòng đó có nút nhỏ <b>→ CK</b>.</li>
+<li>Bấm <b>→ CK</b>.</li>
+<li>App hỏi <i>"Đánh dấu khoản thu nợ … là CHUYỂN KHOẢN (không nằm trong két)?"</i> → bấm <b>OK</b>.</li>
+</ol>
+<div class="snai-ok">✅ <b>Biết là làm đúng khi:</b> dòng đó đổi sang <b>màu xanh dương</b>, có thêm chữ <b>(CK)</b> sau tên, và nút đổi thành <b>→ Tiền mặt</b>. Quay lại màn ca: khoản này đã chuyển xuống khung <b>"Không phải tiền mặt (không nằm trong két)"</b>, ở dòng <b>Khách trả nợ bằng CK</b> — và <b>TIỀN MẶT PHẢI CÓ</b> giảm đúng số đó.</div>
+<b>🪜 Lỡ bấm nhầm (khách đưa tiền mặt thật):</b> bấm nút <b>→ Tiền mặt</b> ở chính dòng đó → app hỏi <i>"Đưa khoản … trở lại thành TIỀN MẶT?"</i> → bấm <b>OK</b>.
+<div class="snai-tip">📋 Mỗi lần đổi qua lại giữa tiền mặt và chuyển khoản đều được ghi vào <b>📋 Nhật ký thao tác</b> — chủ xem lại được ai đã đổi.</div>
+<div class="snai-warn">⚠️ <b>Ca đã chốt rồi thì không còn nút này.</b> Vì vậy cuối buổi, <b>trước khi bấm Chốt ca</b>, hãy mở <b>📜 Chi tiết các khoản thu / chi</b> rà một lượt các dòng <b>Thu nợ</b>: khoản nào khách chuyển khoản thì bấm <b>→ CK</b>.</div>
+<div class="snai-tip">💡 Để khỏi quên: lúc ghi <b>💰 Trả</b> bên Sổ Nợ, gõ vào ô <b>Ghi chú</b> chữ <i>CK</i> (VD: <i>CK Vietcombank</i>). Cuối ca nhìn ghi chú là biết dòng nào cần bấm → CK.</div>`},
+
+{c:'bc',t:'Dòng 🪪 Máy này đang đăng nhập… ở màn Quỹ ca — đọc thế nào?',k:'may nay dang dang nhap tai khoan chu tai khoan nhan vien vai dang dung quyen mo chot ca co khong quyen chu co khong dong chan doan quy ca vi sao khong mo ca duoc vi sao khong chot ca duoc',
+a:`<b class="snai-h">🪪 Dòng "Máy này đang đăng nhập…"</b>
+<b>👉 Cái này để làm gì:</b> khi bạn thắc mắc <i>"sao máy này không mở ca / không chốt ca được?"</i> — dòng này trả lời ngay: app đang coi máy này là <b>ai</b>, có <b>quyền gì</b>.
+<b>📍 Ở đâu:</b> <span class="snai-path">🛒 BÁN HÀNG</span> → tab <b>Bán</b> → <b>💰 Quỹ / Chốt ca</b> → kéo xuống gần cuối. (Màn <b>chưa mở ca</b> luôn có dòng này. Màn <b>ca đang mở</b> chỉ hiện khi người đang dùng <b>không có quyền chốt ca</b>.)
+<b>📖 Dòng đó gồm 4 thông tin:</b>
+<ul>
+<li><b>Máy này đang đăng nhập: TÀI KHOẢN CHỦ</b> hoặc <b>TÀI KHOẢN NHÂN VIÊN</b> — tức là máy đăng nhập bằng email của chủ, hay bằng tài khoản riêng chủ tạo cho nhân viên.</li>
+<li><b>vai đang dùng:</b> <b>Chủ (toàn quyền)</b> · <b>Quản lý</b> · <b>Thu ngân</b> — là vai của <b>người vừa chọn tên và nhập PIN</b>.</li>
+<li><b>Quyền mở / chốt ca: CÓ</b> (chữ xanh) hoặc <b>KHÔNG</b> (chữ đỏ).</li>
+<li><b>quyền Chủ: CÓ</b> hoặc <b>KHÔNG</b>.</li>
+</ul>
+<b>🪜 Đọc và xử lý theo từng trường hợp:</b>
+<ol>
+<li><b>TÀI KHOẢN NHÂN VIÊN · quyền Chủ: KHÔNG</b>
+<br>→ Đúng thiết kế. <b>Máy nhân viên không bao giờ có quyền Chủ</b>, kể cả khi chọn tên Chủ ở cổng PIN. Mở ca cho người khác, tính lại ca, hủy ca… phải làm trên <b>máy đăng nhập bằng email của chủ</b>.</li>
+<li><b>TÀI KHOẢN CHỦ · vai đang dùng: Thu ngân</b> (hoặc Quản lý) <b>· quyền Chủ: KHÔNG</b>
+<br>→ Máy đúng là của chủ, nhưng <b>người đang chọn ở cổng PIN là nhân viên</b>. Bấm <b>👤 Đổi người</b> → chọn tên có vai <b>Chủ</b> → nhập PIN là có lại toàn quyền.</li>
+<li><b>Quyền mở / chốt ca: KHÔNG</b>
+<br>→ Vai đó chưa được giao việc mở / chốt ca. App khuyên <b>để vậy</b>: <b>chủ mở ca</b> lúc giao tiền thối, <b>chủ chốt ca</b> lúc nhận tiền về. Nếu vẫn muốn giao cho nhân viên: vào <b>👤 Quản lý nhân viên → ⚙️ Tùy chỉnh quyền chi tiết</b> → tick dòng <b>Mở ca / Chốt ca (Quỹ ca)</b> → <b>💾 Lưu phân quyền</b>.</li>
+<li><b>Tất cả đều CÓ mà vẫn không làm được</b>
+<br>→ Xem câu báo cụ thể app hiện ra, hoặc kiểm tra mạng. Vẫn bí thì chụp màn hình có dòng 🪪 này gửi cho hỗ trợ — nhìn là biết ngay vướng ở đâu.</li>
+</ol>
+<div class="snai-tip">💡 Khi gọi hỗ trợ về chuyện mở ca / chốt ca, <b>chụp màn hình có dòng 🪪</b> gửi kèm là nhanh nhất.</div>`},
+
+{c:'bc',t:'Nút bấm nhanh Tháng này · Tháng trước · Năm nay trong Báo cáo',k:'thang nay thang truoc nam nay nut bam nhanh bao cao xem bao cao ca thang xem doanh thu thang truoc xem ca nam chon nhanh khoang ngay bao cao thang',
+a:`<b class="snai-h">📅 Xem nhanh cả tháng, cả năm</b>
+<b>👉 Cái này để làm gì:</b> muốn xem doanh thu – lãi của <b>cả tháng này</b>, <b>cả tháng trước</b>, hoặc <b>từ đầu năm tới giờ</b> mà <b>không phải tự chọn ngày</b>.
+<b>🪜 Làm từng bước:</b>
+<ol>
+<li>Vào <span class="snai-path">🛒 BÁN HÀNG</span> → nhìn thanh dưới cùng → bấm tab <b>Báo cáo</b>.</li>
+<li>Trong hàng nút chọn thời gian (<b>Hôm nay · 7 ngày · 30 ngày · Tùy chọn</b>), bấm <b>Tùy chọn</b>.</li>
+<li>Hiện ra 2 ô <b>Từ ngày</b> – <b>Đến ngày</b>. <b>Ngay bên dưới</b> có 3 nút bấm nhanh:
+<ul>
+<li><b>Tháng này</b> — từ <b>ngày 1 tháng này</b> tới <b>hôm nay</b>.</li>
+<li><b>Tháng trước</b> — <b>trọn tháng trước</b>, từ ngày 1 tới ngày cuối tháng.</li>
+<li><b>Năm nay</b> — từ <b>ngày 1 tháng 1</b> tới <b>hôm nay</b>.</li>
+</ul></li>
+<li>Bấm vào nút bạn cần.</li>
+</ol>
+<div class="snai-ok">✅ <b>Biết là làm đúng khi:</b> hai ô <b>Từ ngày – Đến ngày</b> <b>tự điền sẵn</b>, và báo cáo bên dưới <b>tính lại ngay</b> theo đúng khoảng đó.</div>
+<div class="snai-tip">💡 <b>Cuối tháng tính sổ:</b> bấm <b>Tháng trước</b> là có ngay doanh thu, lãi gộp, hàng bán chạy của trọn tháng vừa qua — khỏi nhớ tháng đó có 30 hay 31 ngày.</div>
+<div class="snai-tip">💡 Bảng <b>🖨️ In A4/A5</b> của Sổ Nợ cũng có sẵn các nút <b>Tất cả · Tháng này · Tháng trước · Năm nay</b> ở mục <b>Thời gian</b>, dùng y như vậy.</div>
+<div class="snai-warn">⚠️ Xem khoảng dài (cả năm) cần <b>có mạng</b> và có thể <b>chờ vài giây</b> để app tải đủ đơn hàng. Thấy dòng <i>"⏳ Đang tải báo cáo…"</i> thì cứ đợi.</div>`},
+
+/* ───────────── v5 · 🛒 BÁN HÀNG ───────────── */
+{c:'bh',t:'Đơn GHI NỢ bị xóa — nợ của khách tự giảm thế nào?',k:'xoa don ghi no no cua khach giam xoa don ban chiu day la don ghi no no cua khach se giam don ghi no kieu cu khong tu tru no khong tim thay dong mua cua don chua doc duoc so no cua khach xoa don co tru no khong',
+a:`<b class="snai-h">🗑 Xóa đơn bán ghi nợ</b>
+<b>👉 Câu hỏi hay gặp:</b> <i>"Đơn này tôi bán ghi nợ cho khách. Giờ xóa đơn thì số nợ bên Sổ Nợ có tự trừ không?"</i>
+<b>✅ Trả lời:</b> <b>CÓ</b> — trong hầu hết trường hợp app <b>tự trừ nợ giùm</b>. Trước khi xóa, app <b>nói rõ</b> trong bảng hỏi. Bạn chỉ cần <b>đọc kỹ dòng có dấu ⚠️</b>.
+<b>🪜 Cách xóa (chỉ làm được trên máy chủ shop):</b>
+<ol>
+<li><span class="snai-path">🛒 BÁN HÀNG</span> → tab <b>Bán</b> → <b>↩️ Đơn &amp; trả hàng</b> → chạm vào đơn cần xóa.</li>
+<li>Kéo xuống cuối, bấm <b>🗑 Xóa đơn</b>.</li>
+<li>App hiện bảng: <i>"Xóa đơn … ? Hàng sẽ được TRẢ LẠI KHO. Đơn sẽ biến mất khỏi lịch sử &amp; báo cáo. Không thể hoàn tác."</i> — với đơn ghi nợ sẽ có <b>thêm 1 trong 3 dòng</b> dưới đây.</li>
+</ol>
+<b>📖 3 trường hợp — đọc dòng ⚠️ là biết:</b>
+<ul>
+<li><b>1️⃣ "Đây là đơn GHI NỢ — nợ của khách … sẽ GIẢM …"</b>
+<br>→ <b>Trường hợp thường gặp nhất.</b> Bấm OK là app <b>trừ đúng số tiền đơn này</b> khỏi nợ của khách, và dòng <b>🛒 Mua</b> của đơn đó bên Sổ Nợ cũng <b>biến mất</b>. Bạn <b>không phải làm gì thêm</b>.</li>
+<li><b>2️⃣ "Đây là đơn GHI NỢ kiểu cũ, đã từng trả hàng ⇒ app KHÔNG tự trừ nợ được"</b>
+<br>→ Đơn bán từ <b>bản app cũ</b> và đã từng trả hàng. Xóa xong, bạn phải <b>tự sửa tay</b>: về <b>📒 SỔ NỢ</b> → mở đúng khách đó → bấm vào dòng <b>🛒 Mua</b> của đơn này → sửa số tiền hoặc bấm <b>🗑 Xóa</b>.</li>
+<li><b>3️⃣ "Đây là đơn GHI NỢ nhưng KHÔNG tìm thấy dòng Mua của đơn này trong sổ khách … ⇒ nợ của khách KHÔNG đổi"</b>
+<br>→ Dòng Mua của đơn này bên Sổ Nợ <b>đã bị ai đó xóa hoặc sửa tay</b> từ trước. Xóa đơn sẽ <b>không đụng tới số nợ</b>. Xóa xong nên mở khách đó ra <b>kiểm lại số nợ</b> cho chắc.</li>
+</ul>
+<div class="snai-tip">💡 Đơn đã có <b>phiếu trả hàng</b> thì bảng hỏi ghi thêm: <i>"⚠️ Đơn này đã có … phiếu trả — các phiếu trả cũng sẽ bị xóa."</i></div>
+<div class="snai-warn">⚠️ Báo <i>"📡 Chưa đọc được sổ nợ của khách … (thường do mất mạng) nên chưa xoá đơn. Bật mạng rồi bấm Xóa lại."</i>
+<br>→ App <b>cố ý không cho xóa</b> khi chưa đọc được sổ của khách — vì xóa lúc đó thì <b>nợ không giảm</b>, sổ bị lệch. Chưa có gì bị xóa. Bật mạng rồi làm lại.</div>
+<div class="snai-warn">⚠️ Với <b>đơn bán đã lâu</b> (tìm theo ngày bán), nếu báo <i>"📡 Đơn cũ: chưa kiểm tra được phiếu trả … nên chưa xoá được"</i> → cũng là do mất mạng. Bật mạng rồi <b>mở lại đơn</b>.</div>
+<div class="snai-tip">💡 <b>Nhớ lại nguyên tắc:</b> khách <b>trả lại hàng</b> thì dùng <b>↩️ Trả hàng</b>, không dùng Xóa đơn. Xóa đơn chỉ dành cho <b>đơn bấm nhầm</b>.</div>`},
+
+{c:'bh',t:'Đơn GHI NỢ trả hàng — nợ giảm thế nào, và các câu báo khi trả hàng',k:'tra hang don ghi no giam no tra bot hang da tra hang giam no da tra hang hoan khach da bi xoa khoi so no mon khong con trong kho khong cong lai ton kho chua tra hang duoc phieu tra hang chua luu duoc hoan tra hang lay tien trong ket de hoan',
+a:`<b class="snai-h">↩️ Trả hàng với đơn ghi nợ</b>
+<b>👉 Cách làm</b> y như trả hàng bình thường (xem mục <b>Trả hàng / hoàn tiền cho khách</b>). Mục này nói rõ <b>app xử lý tiền và nợ thế nào</b>, và <b>các câu báo</b> bạn có thể gặp.
+<b>📖 Sau khi bấm xác nhận trả, app báo 1 trong 2 câu:</b>
+<ul>
+<li><i>"Đã trả hàng · <b>hoàn</b> …"</i> — đơn khách đã trả <b>tiền mặt / chuyển khoản</b>. Bạn <b>đưa lại tiền</b> cho khách đúng số đó. Nếu đang mở ca, khoản này tự nằm ở dòng <b>Hoàn tiền khách trả hàng</b> của ca.</li>
+<li><i>"Đã trả hàng · <b>giảm nợ</b> …"</i> — đơn <b>ghi nợ</b>. <b>Không đưa tiền</b> cho khách; app <b>tự trừ số đó khỏi nợ</b> của khách.</li>
+</ul>
+<b>📖 Bên Sổ Nợ của khách đổi thế nào (đơn ghi nợ):</b>
+<ul>
+<li><b>Trả HẾT cả đơn</b> → dòng <b>🛒 Mua</b> của đơn đó <b>biến mất</b> khỏi sổ khách.</li>
+<li><b>Trả MỘT PHẦN</b> → dòng <b>🛒 Mua</b> đó <b>giảm số tiền</b> xuống, và ghi chú có thêm chữ <b>· trả bớt hàng</b>.</li>
+<li>Không tìm ra dòng Mua gốc (đơn rất cũ, hoặc dòng đó đã bị sửa tay) → app ghi thêm một dòng <b>💰 Trả</b> với ghi chú <b>Hoàn trả hàng</b> để số nợ vẫn đúng.</li>
+</ul>
+<div class="snai-ok">✅ Dù theo kiểu nào thì <b>số nợ cuối cùng của khách vẫn đúng</b>. Khách có link công nợ thì trang của khách cũng tự cập nhật (khi máy có mạng).</div>
+<b>⚠️ CÁC CÂU BÁO CÓ THỂ GẶP:</b>
+<ul>
+<li><b>"⚠️ Khách … đã bị xoá khỏi Sổ Nợ — không còn sổ để trừ nợ…"</b>
+<br>→ Khách của đơn này đã bị xóa. Nếu trước đó khách <b>đã trả tiền</b> cho đơn, bạn <b>tự hoàn tiền mặt</b> cho khách. Lấy tiền trong két ca để hoàn thì vào <b>💰 Quỹ / Chốt ca → ➖ Chi vặt</b> ghi thêm khoản đó — <b>app không tự trừ</b>.</li>
+<li><b>"⚠️ … món không còn trong Kho (đã xoá) nên KHÔNG cộng lại tồn kho được"</b>
+<br>→ Mặt hàng đó đã bị xóa khỏi kho. Bấm <b>OK</b> thì <b>phiếu trả vẫn được ghi</b>, tiền và nợ vẫn tính đúng, chỉ riêng món đó <b>không cộng tồn</b>. Bấm <b>Hủy</b> thì chưa ghi gì.</li>
+<li><b>"📡 CHƯA trả hàng được … Bật mạng rồi bấm trả lại. Chưa có gì bị ghi."</b>
+<br>→ Với <b>đơn bán đã lâu</b>, hoặc khi khách / món hàng không có sẵn trong máy, app phải <b>hỏi lại máy chủ</b> trước khi ghi. Mất mạng thì chưa hỏi được. <b>Bật mạng rồi bấm trả lại.</b></li>
+<li><b>"Đơn #… đã bị XOÁ (ở máy khác) nên không trả hàng được nữa."</b>
+<br>→ Máy khác vừa xóa đơn này. Không cần làm gì thêm.</li>
+<li><b>"⚠️ PHIẾU TRẢ HÀNG CHƯA LƯU ĐƯỢC — đơn #… Máy chủ từ chối…"</b>
+<br>→ Phiếu trả <b>chưa được ghi</b>, kho <b>chưa nhận lại hàng</b>. Có thể do người đang bán <b>không có quyền Trả hàng</b>, hoặc gói đã hết hạn. Mở lại đơn và bấm trả lại; vẫn bị thì nhờ <b>Chủ</b> làm, hoặc chụp màn hình <b>mã lỗi</b> gửi hỗ trợ.</li>
+</ul>
+<div class="snai-tip">💡 Trả hàng xong nên mở lại đơn đó xem: có nhãn <b>↩ đã trả</b> và số lượng <b>còn trả được</b> giảm đi là phiếu trả đã ghi thành công.</div>`},
+
+/* ───────────── v5 · 📦 KHO & NHẬP HÀNG ───────────── */
+{c:'kho',t:'Hàng mới về lần đầu, kho chưa có — ➕ Thêm SP mới ngay lúc đang nhập',k:'hang moi ve lan dau kho chua co mat hang nay them sp moi luc dang nhap khong thay san pham luc nhap quet ma moi them sp roi quet lai tao san pham ngay luc nhap ton kho dau bi gap doi',
+a:`<b class="snai-h">➕ Hàng mới về lần đầu — thêm ngay lúc nhập</b>
+<b>👉 Dùng khi nào:</b> đang làm phiếu nhập ở tab <b>Nhập</b>, gõ tên hoặc quét mã mà <b>kho chưa có mặt hàng đó</b> (hàng mới lấy lần đầu). <b>Không cần thoát ra tab Kho</b> — thêm sản phẩm ngay tại chỗ.
+<b>🪜 CÁCH 1 — Gõ tên tìm không thấy:</b>
+<ol>
+<li>Ở tab <b>Nhập</b>, gõ tên hàng vào ô <b>Tìm sản phẩm để nhập…</b></li>
+<li>Không có kết quả → hiện chữ <i>"Không thấy."</i> kèm nút xanh <b>➕ Thêm SP mới</b> → bấm vào.</li>
+<li>Bảng <b>Thêm sản phẩm</b> mở ra → điền <b>Tên sản phẩm</b>, <b>Giá vốn</b>, <b>Giá bán</b>, <b>Đơn vị gốc</b>… như thêm sản phẩm bình thường (xem mục <b>Thêm sản phẩm mới vào kho</b>).</li>
+<li>Bấm <b>Lưu</b>.</li>
+<li>Quay lại ô tìm của tab Nhập, <b>gõ lại tên</b> → sản phẩm vừa tạo hiện ra → <b>chạm vào</b> để đưa vào phiếu nhập.</li>
+</ol>
+<b>🪜 CÁCH 2 — Quét mã vạch lạ:</b>
+<ol>
+<li>Ở tab <b>Nhập</b>, bấm <b>📷 Quét</b> rồi quét mã trên thùng hàng.</li>
+<li>Mã chưa có trong kho → app báo <i>"Mã mới — thêm SP rồi quét lại"</i>, tắt camera và mở bảng <b>Thêm sản phẩm</b>, <b>mã vạch vừa quét đã điền sẵn</b>.</li>
+<li>Điền <b>Tên sản phẩm</b>, <b>Giá vốn</b>, <b>Giá bán</b> → bấm <b>Lưu</b>.</li>
+<li>Bấm <b>📷 Quét</b> lần nữa, quét lại đúng mã đó → lần này hàng <b>vào phiếu nhập</b>.</li>
+</ol>
+<div class="snai-warn">⚠️ <b>Quan trọng — ô "Tồn kho đầu" lúc tạo sản phẩm:</b> đang định nhập hàng bằng phiếu thì ở bảng Thêm sản phẩm hãy để ô <b>Tồn kho đầu = 0</b> (hoặc bỏ trống). Số lượng thật sẽ được <b>phiếu nhập cộng vào</b>. Nếu vừa gõ tồn 10, vừa nhập phiếu 10 thì kho thành <b>20 — bị gấp đôi</b>.</div>
+<div class="snai-ok">✅ <b>Biết là làm đúng khi:</b> dòng hàng mới nằm trong phiếu nhập với đúng <b>số lượng</b> và <b>giá nhập</b>. Bấm <b>Lưu phiếu nhập</b> xong, sang tab <b>Kho</b> thấy mặt hàng đó có tồn đúng bằng số vừa nhập.</div>
+<div class="snai-tip">💡 Trên từng dòng của phiếu nhập: bấm <b>− / +</b> hoặc bấm vào <b>con số</b> để sửa số lượng · bấm <b>Giá nhập … ✎</b> để sửa giá nhập lần này · bấm <b>✕</b> để bỏ dòng đó khỏi phiếu.</div>
+<div class="snai-warn">⚠️ Không thấy nút <b>➕ Thêm SP mới</b> hoặc bấm bị chặn → người đang dùng <b>chưa có quyền Sửa Kho</b>. Nhờ Chủ thêm sản phẩm, hoặc bật quyền đó trong <b>⚙️ Tùy chỉnh quyền chi tiết</b>.</div>`},
+
+/* ───────────── v5 · 🏪 CỬA HÀNG & NGÀNH NGHỀ ───────────── */
+{c:'cn',t:'Bảng chọn ngành khi vào Bán hàng — đọc các nhãn trên từng ngành',k:'bang chon nganh vao ban hang chon nganh nghe nhan dang dung da mua an han mien phi dung thu mien phi da tat het han goi rieng lien he gia lap cua hang moi cho nganh nay chi chu shop moi doi duoc nganh nghe dang doc goi cua shop',
+a:`<b class="snai-h">🛒 Bảng "Vào Bán hàng — chọn ngành nghề"</b>
+<b>👉 Bảng này hiện khi nào:</b> mỗi lần bạn bấm <span class="snai-path">🛒 BÁN HÀNG</span> từ màn Sổ Nợ. Bảng liệt kê <b>5 ngành</b>; <b>chạm ngành nào là vào cửa hàng của ngành đó</b>.
+<b>📖 5 ngành trong bảng:</b>
+<ul>
+<li>🛒 <b>Bán hàng đa năng</b> — tạp hóa, vật tư, điện máy… <b>Không tốn thêm gói.</b> Không chắc thì cứ chọn ngành này.</li>
+<li>🍽️ <b>Nhà hàng · Quán ăn · Cafe</b></li>
+<li>👕 <b>Thời trang · Mỹ phẩm</b></li>
+<li>🛏️ <b>Karaoke · Spa · Nhà nghỉ</b></li>
+<li>⚖️ <b>Vật liệu XD · Nông sản · Bán sỉ</b></li>
+</ul>
+<b>🏷️ Dưới tên mỗi ngành có một NHÃN nhỏ. Đọc nhãn là biết ngay tình trạng gói:</b>
+<ul>
+<li><b>✓ ĐANG DÙNG</b> — đây là ngành của cửa hàng bạn đang mở. Có thể kèm <i>"còn … ngày"</i> hoặc <i>"không thời hạn"</i>.</li>
+<li><b>✅ ĐÃ MUA · còn … ngày</b> — đã mua gói ngành này, còn hạn. Chạm là vào dùng.</li>
+<li><b>🎁 DÙNG THỬ MIỄN PHÍ … NGÀY</b> — chưa dùng thử lần nào. <b>Chạm vào là app tự mở dùng thử</b>, báo <i>"🎁 Đã mở dùng thử … ngày"</i>.</li>
+<li><b>🎁 DÙNG THỬ — còn … ngày</b> — đang trong thời gian dùng thử.</li>
+<li><b>⏳ ÂN HẠN MIỄN PHÍ tới … — mua để dùng tiếp</b> — chủ phần mềm cho dùng tạm miễn phí tới ngày ghi trong nhãn. <b>Qua ngày đó phải mua gói</b> mới dùng tiếp được.</li>
+<li><b>⛔ HẾT HẠN … — bấm để gia hạn</b> — gói đã hết hạn. Chạm vào là mở màn <b>mua gói</b>.</li>
+<li><b>🔒 GÓI RIÊNG — …đ/tháng</b> (hoặc <i>liên hệ giá</i>) — chưa mua, đã hết lượt dùng thử. Chạm vào là mở màn mua gói.</li>
+<li><b>🔒 ĐÃ TẮT — liên hệ chủ phần mềm</b> — gói bị tắt. Gọi hotline <b>0977 823 979</b>.</li>
+<li><b>👑 ADMIN — mở sẵn</b> — chỉ tài khoản quản trị mới thấy.</li>
+</ul>
+<b>🪜 Chạm vào ngành CHƯA có cửa hàng nào</b> (lần đầu dùng ngành đó), app hỏi:
+<br><i>"Ngành … chưa có cửa hàng nào. Lập cửa hàng mới cho ngành này?"</i>
+<ul>
+<li><b>Kho hàng và đơn hàng RIÊNG</b> — dùng như một app riêng.</li>
+<li><b>Hàng hóa của cửa hàng cũ VẪN CÒN NGUYÊN</b> bên đó, không mất.</li>
+<li><b>Sổ nợ vẫn dùng CHUNG</b> cho mọi cửa hàng.</li>
+</ul>
+Bấm <b>OK</b> → app lập cửa hàng rồi <b>tự tải lại trang</b> và mở đúng ngành đó. Bấm <b>Hủy</b> → không lập gì, bảng vẫn mở để bạn chọn ngành khác.
+<div class="snai-warn">⚠️ <b>Vào ngành mới thấy kho trống trơn</b> là <b>ĐÚNG</b>, <b>không phải mất hàng</b>. Mỗi ngành một kho riêng. Muốn về kho cũ: quay lại <b>📒 SỔ NỢ</b> → bấm <b>🛒 BÁN HÀNG</b> → chọn lại ngành cũ.</div>
+<b>📖 Các câu báo trong bảng:</b>
+<ul>
+<li><i>"⏳ Đang đọc gói của shop — chờ 1 giây rồi chọn lại…"</i> → app đang tải thông tin gói. Đợi 1–2 giây rồi chạm lại.</li>
+<li><i>"🔒 Chỉ CHỦ shop mới đổi được ngành nghề"</i> → máy nhân viên không chuyển ngành được; app mở tiếp cửa hàng đang dùng.</li>
+<li><i>"📴 Không có mạng — chưa đổi được ngành nghề. Bật mạng rồi chọn lại."</i> → chuyển sang ngành khác cần có mạng. (Chạm đúng ngành đang dùng thì mất mạng vẫn vào được.)</li>
+<li><i>"⚠️ Mạng chậm — chưa mở được. Thử lại."</i> → chạm lại lần nữa.</li>
+</ul>
+<div class="snai-tip">💡 Ở màn <b>mua gói ngành</b> mà chưa muốn mua: bấm <b>↩️ Để sau — quay lại</b> để đóng màn mua. Sau đó bấm <b>🛒 BÁN HÀNG</b> lần nữa và chọn ngành khác (VD <b>Bán hàng đa năng</b>).</div>
+<div class="snai-tip">🏪 Mỗi ngành được <b>1 cửa hàng chính miễn phí</b>. Mở thêm cửa hàng <b>cùng ngành</b> thì vào Bán hàng bấm nút <b>🏪</b> góc trên bên phải — xem mục <b>Thêm và chuyển chi nhánh</b>.</div>`},
+
+{c:'cn',t:'Mở cửa hàng mới, app hỏi ♻️ Mã cửa hàng còn DỮ LIỆU CŨ — chọn OK hay Huỷ?',k:'ma cua hang con du lieu cu cua hang da xoa o ban truoc don sach du lieu cu cua hang moi hien lai hang hoa don cu luutru dulieucu da don ban ghi cu chua don xong du lieu cu mo cua hang moi thay hang cu',
+a:`<b class="snai-h">♻️ "Mã cửa hàng … còn DỮ LIỆU CŨ"</b>
+<b>👉 Bạn gặp bảng này khi nào:</b> vào <b>🏪 → ➕ Mở cửa hàng mới</b>, đặt tên, bấm <b>Lưu</b> thì app hỏi:
+<br><i>"♻️ Mã cửa hàng … còn DỮ LIỆU CŨ của một cửa hàng đã xoá ở bản trước (hàng hoá, đơn…)."</i>
+<b>📖 Vì sao có chuyện này:</b> trước đây bạn từng <b>xóa một cửa hàng</b> bằng bản app cũ. Bản cũ chỉ xóa <b>cái tên</b>, còn hàng hóa và đơn bên trong <b>vẫn nằm lại</b>. Nay cửa hàng mới được cấp <b>trùng đúng mã</b> của cửa hàng cũ đó, nên app hỏi bạn muốn làm gì với phần dữ liệu còn sót.
+<b>🪜 Chọn 1 trong 2:</b>
+<ul>
+<li><b>Bấm OK = DỌN SẠCH dữ liệu cũ</b> → cửa hàng mới bắt đầu <b>trống hoàn toàn</b>. Trước khi dọn, app <b>tự tải về máy một tệp lưu trữ</b> (tên bắt đầu bằng <code>LuuTru-DuLieuCu-</code>) để lỡ cần thì còn xem lại.
+<br><i>👉 Chọn khi: đây là cửa hàng mới thật sự, không liên quan cửa hàng cũ.</i></li>
+<li><b>Bấm Huỷ = GIỮ LẠI</b> → cửa hàng mới sẽ <b>hiện lại hàng hóa và đơn cũ</b> của cửa hàng đã xóa.
+<br><i>👉 Chọn khi: bạn đang muốn mở lại chính cửa hàng cũ đó.</i></li>
+</ul>
+<div class="snai-ok">✅ <b>Chọn OK thì biết là làm đúng khi:</b> hiện <i>"⏳ Đang dọn dữ liệu cũ…"</i> rồi <i>"✅ Đã dọn … bản ghi cũ"</i>, sau đó <i>"✅ Đã lưu cửa hàng"</i>.</div>
+<div class="snai-warn">⚠️ Báo <i>"⛔ Chưa tải được file lưu trữ — giữ nguyên dữ liệu cũ."</i> → app <b>chưa dọn gì</b> (nguyên tắc: không lưu được bản dự phòng thì không xóa). Cửa hàng mới vẫn được tạo và sẽ thấy dữ liệu cũ.</div>
+<div class="snai-warn">⚠️ Báo <i>"⚠️ Chưa dọn xong dữ liệu cũ: …"</i> → thường do mạng yếu giữa chừng. Cửa hàng mới <b>vẫn được tạo</b>. Nếu mở cửa hàng mới ra còn thấy hàng hóa, đơn cũ mà bạn không muốn giữ thì gọi hỗ trợ để được dọn giúp.</div>
+<div class="snai-tip">💡 <b>Giữ tệp <code>LuuTru-DuLieuCu-…</code></b> vừa tải (gửi vào Zalo "Cloud của tôi") vài tuần cho chắc. Thấy không cần nữa thì xóa.</div>
+<div class="snai-tip">💡 Bảng này <b>chỉ hiện trên máy chủ shop</b> và khi <b>có mạng</b>. Bây giờ xóa cửa hàng bằng bản mới thì app đã dọn sạch ngay lúc xóa, nên về sau sẽ ít gặp bảng này.</div>`},
+
+/* ───────────── v5 · 🌐 BÁN ONLINE ───────────── */
+{c:'onl',t:'Link cố định báo ⚠️ — từng câu cảnh báo và cách xử lý',k:'link co dinh bao loi canh bao link co dinh khong con tren may chu da bi thu hoi tao lai ma nay bo ma nay ma khong con gan voi shop nay ma da dung truoc day da co link co dinh tao tu may khac chua cap nhat duoc link co dinh sang link moi ma chua dung chua tao duoc link co dinh chua go duoc link co dinh ma dang dung cho shop khac',
+a:`<b class="snai-h">🔗 Link cố định — các câu báo &amp; cách xử lý</b>
+<b>👉 Mục này dùng khi:</b> khung <b>🔗 Link cố định</b> (cuối tab <b>Bán online</b> / <b>Đơn QR</b>) hiện dòng có dấu <b>⚠️</b>, hoặc bấm nút mà app báo một câu lạ. Cách tạo, gỡ bình thường xem mục <b>Link cố định — gắn vào app, trang web</b>.
+<b>🅰️ KHI BẤM "Tạo link cố định":</b>
+<ul>
+<li><i>"Chưa có link cửa hàng — bấm "Tạo link cửa hàng" ở khung trên trước nhé"</i> → phải tạo <b>link cửa hàng thường</b> trước (khung <b>Cửa hàng online</b> phía trên), rồi mới tạo link cố định.</li>
+<li><i>"📶 Cần có mạng để tạo link cố định"</i> → bật wifi / 4G rồi bấm lại.</li>
+<li><i>"📱 Chỉ máy chủ shop mới tạo được link cố định"</i> → làm trên máy đăng nhập bằng email của chủ.</li>
+<li><i>"⏳ Đang tải — chờ vài giây rồi bấm lại"</i> → app chưa tải xong, đợi chút.</li>
+<li><b>"Mã chưa đúng."</b> → mã phải dài <b>3–30 ký tự</b>, chỉ gồm <b>chữ thường KHÔNG dấu, số, dấu gạch ngang (-)</b>, và <b>bắt đầu + kết thúc bằng chữ hoặc số</b>. VD đúng: <code>minhtri</code> · <code>taphoa-coba</code> · <code>quanoc88</code>. VD sai: <code>Tạp Hóa</code> (có dấu, có khoảng trắng), <code>-coba</code> (bắt đầu bằng gạch).</li>
+<li><b>"Cửa hàng này ĐÃ CÓ link cố định, mã … (tạo từ máy khác)"</b> → một máy chủ shop khác đã tạo rồi. <b>Cứ dùng mã đó.</b> Muốn đổi mã khác thì bấm <b>Gỡ link cố định</b> trước, rồi tạo lại.</li>
+<li><b>"Mã … bạn đang dùng cho một cửa hàng khác của mình"</b> → mỗi cửa hàng một mã riêng. Chọn mã khác, hoặc sang cửa hàng kia bấm <b>Gỡ link cố định</b> trước.</li>
+<li><b>"Mã … đang gắn với một cửa hàng khác của bạn mà máy không mở được (cửa hàng đã xoá, hoặc đang bị khoá). Chuyển mã này sang cửa hàng đang mở?"</b> → bấm <b>OK</b> nếu muốn lấy lại mã đó cho cửa hàng đang mở.</li>
+<li><b>"Chưa tạo được link cố định. Có thể mã … vừa có cửa hàng khác lấy, hoặc Gói Bán online đã hết hạn."</b> → thử <b>mã khác</b>; vẫn không được thì kiểm tra hạn <b>Gói Bán online</b>.</li>
+<li><i>"⚠️ Chưa tạo được link cố định — mạng yếu, bấm lại sau ít giây"</i> → chờ mạng ổn rồi bấm lại.</li>
+</ul>
+<b>🅱️ DÒNG CHỮ / Ô ⚠️ HIỆN TRONG KHUNG:</b>
+<ul>
+<li><b>"Mã cửa hàng đã dùng trước đây: … (đang ngưng, vẫn giữ cho bạn)"</b>
+<br>→ Bạn từng <b>gỡ</b> link cố định. Mã cũ <b>vẫn để dành cho bạn</b>. Bấm <b>Tạo link cố định</b> → ô nhập đã <b>gợi ý sẵn đúng mã cũ</b> → bấm OK là <b>mọi nơi đã gắn link cũ chạy lại</b>.</li>
+<li><b>"⚠️ Link cố định mã … không còn trên máy chủ (đã bị thu hồi). Khách bấm link này sẽ không vào được cửa hàng."</b>
+<br>→ Có 2 nút: bấm <b>Tạo lại mã này</b> để dùng tiếp đúng mã cũ (nơi nào đã gắn link sẽ chạy lại) · hoặc bấm <b>Bỏ mã này</b> rồi tạo link cố định với mã khác.</li>
+<li><b>"⚠️ Mã … hiện không còn gắn với cửa hàng này, nên link cố định cũ không dẫn khách về đây nữa."</b>
+<br>→ Bấm <b>Bỏ mã này</b> (app báo <i>"✅ Đã bỏ mã link cố định cũ"</i>) → rồi bấm <b>Tạo link cố định</b> với <b>mã khác</b>. Nhớ <b>gắn lại link mới</b> ở những nơi đã gắn link cũ.</li>
+<li><b>"⏳ Đang cập nhật link cố định sang link mới…"</b> → bạn vừa bấm <b>Đổi link</b> ở khung trên. Đợi vài giây, dòng này tự mất là xong.</li>
+<li><b>"⚠️ Mạng yếu — app sẽ tự cập nhật link cố định sang link mới khi có mạng."</b> → không cần làm gì, giữ app mở ở chỗ có mạng.</li>
+<li><b>"⚠️ Chưa cập nhật được link cố định sang link mới — Gói Bán online còn hạn không? App sẽ tự thử lại."</b> → kiểm tra hạn <b>Gói Bán online</b>; gia hạn xong app tự cập nhật.</li>
+</ul>
+<b>🅲 KHI BẤM "Gỡ link cố định":</b>
+<ul>
+<li><i>"🗑 Đã gỡ link cố định — mã … vẫn giữ cho bạn"</i> → gỡ thành công.</li>
+<li><b>"Chưa gỡ được link cố định. Có thể Gói Bán online vừa hết hạn."</b> → gia hạn gói xong bấm gỡ lại.</li>
+<li><i>"⚠️ Chưa gỡ được link cố định — kiểm tra mạng rồi bấm lại"</i> · <i>"📶 Cần có mạng để gỡ link cố định"</i> → bật mạng rồi bấm lại.</li>
+</ul>
+<div class="snai-tip">💡 <b>Sao chép link cố định</b> mà máy không cho chép tự động thì app hiện một ô chứa sẵn đường link — <b>bấm giữ vào link → Sao chép</b>.</div>
+<div class="snai-ok">✅ Khung Link cố định có trục trặc gì thì <b>bán hàng, link cửa hàng thường và đơn online vẫn chạy bình thường</b> — chỉ riêng đường link cố định bị ảnh hưởng.</div>`},
+
+/* ───────────── v5 · 🆘 SỰ CỐ ───────────── */
+{c:'loi',t:'Mất mạng, mở một khách thì app báo CHƯA tải được giao dịch của khách đó',k:'chua tai duoc lich su giao dich cua khach nay may dang ngoai tuyen trong may chua co ban luu cua khach nay so no se bi tinh sai mat mang khong ghi no duoc khach nay mat mang khong sua duoc giao dich',
+a:`<b class="snai-h">⚠️ "CHƯA tải được lịch sử giao dịch của khách này"</b>
+<b>👉 Bạn gặp bảng này khi:</b> đang <b>mất mạng</b>, mở một khách ra, ghi <b>🛒 Mua</b> / <b>💰 Trả</b> (hoặc sửa một giao dịch) rồi bấm <b>Lưu</b> — hoặc bấm <b>🗑 Xóa</b> một giao dịch — thì app <b>không lưu</b> mà hiện:
+<br><i>"⚠️ CHƯA tải được lịch sử giao dịch của khách này. Máy đang ngoại tuyến và trong máy chưa có bản lưu của khách này. Nếu ghi lúc này thì SỐ NỢ SẼ BỊ TÍNH SAI. Hãy bật mạng, mở lại khách này một lần rồi thao tác."</i>
+<b>📖 Nghĩa là gì:</b> khách này <b>máy bạn chưa từng mở lần nào lúc có mạng</b> (hoặc mở đã quá lâu), nên trong máy <b>chưa có sẵn</b> các lần mua – trả của họ. Không có lịch sử thì app không dám ghi, vì ghi vào sẽ <b>cộng trừ sai số nợ</b>. Đây là app <b>đang bảo vệ sổ của bạn</b>, không phải lỗi.
+<b>🪜 Cách xử lý:</b>
+<ol>
+<li>Bấm <b>OK</b> để đóng bảng báo.</li>
+<li><b>Bật wifi hoặc 4G.</b></li>
+<li>Bấm <b>Đóng</b> bảng chi tiết khách, rồi <b>bấm lại vào tên khách đó</b> — chờ danh sách giao dịch hiện ra đầy đủ.</li>
+<li>Bây giờ ghi lại <b>🛒 Mua</b> / <b>💰 Trả</b> như bình thường (lần ghi lúc nãy <b>chưa được lưu</b>, phải ghi lại).</li>
+</ol>
+<div class="snai-ok">✅ <b>Những khách bạn đã mở xem lúc có mạng</b> thì mất mạng <b>vẫn ghi nợ bình thường</b> — máy đã có sẵn bản lưu của họ.</div>
+<div class="snai-tip">💡 <b>Khách tới mua mà chỗ bán đang mất mạng, lại đúng khách bị báo câu này?</b> Ghi tạm ra <b>giấy</b> (tên, số tiền, giờ). Có mạng thì mở khách đó ra ghi vào app, chọn đúng <b>Ngày</b> của hôm bán.</div>
+<div class="snai-tip">💡 <b>Mẹo cho shop hay rớt mạng:</b> đầu buổi lúc còn wifi, <b>mở lướt qua những khách quen hay mua chịu</b> (bấm vào tên, chờ hiện giao dịch, rồi đóng). Vậy là cả ngày mất mạng vẫn ghi nợ được cho những người đó.</div>`},
+
+{c:'loi',t:'App báo 📴 Đang dùng BẢN LƯU TRONG MÁY · chưa bật được bộ nhớ ngoại tuyến',k:'dang dung ban luu trong may du lieu se tu cap nhat khi co mang may nay chua bat duoc bo nho ngoai tuyen tat che do an danh mat ket noi danh sach khach dang noi lai khong doc duoc danh sach khach ban cu mat mang du lieu dang luu an toan o may da dong bo an toan len may chu',
+a:`<b class="snai-h">📴 Các dòng báo khi mạng chập chờn</b>
+<b>👉 Mục này giải nghĩa</b> những dòng chữ app tự hiện lên khi mạng yếu hoặc mất mạng — để bạn biết <b>dòng nào bình thường</b>, <b>dòng nào cần xử lý</b>.
+<b>🟢 CÁC DÒNG BÌNH THƯỜNG — không cần làm gì:</b>
+<ul>
+<li><b>"📴 Mất mạng — dữ liệu ĐANG LƯU AN TOÀN ở máy, tự đồng bộ khi có mạng lại"</b> (huy hiệu màu cam ở góc dưới bên trái)
+<br>→ Đang mất mạng. Cứ dùng tiếp. Những gì bạn ghi <b>nằm an toàn trong máy</b>, có mạng là tự lên máy chủ. <b>Đừng gỡ app, đừng xóa dữ liệu trình duyệt</b> lúc này.</li>
+<li><b>"🔄 Đang đồng bộ dữ liệu lên máy chủ…"</b> (huy hiệu màu xanh dương)
+<br>→ Có mạng lại rồi, app đang đẩy dữ liệu lên. Chờ chút, <b>đừng tắt app</b>.</li>
+<li><b>"✅ Đã đồng bộ an toàn lên máy chủ"</b> (huy hiệu màu xanh lá, tự tắt sau vài giây)
+<br>→ <b>Mọi thứ đã lên máy chủ.</b> Lúc này tắt app, đổi máy đều yên tâm.</li>
+<li><b>"📴 Đang dùng BẢN LƯU TRONG MÁY — dữ liệu sẽ tự cập nhật khi có mạng."</b>
+<br>→ Bạn <b>mở app lúc không có mạng</b>. App lấy <b>bản lưu sẵn trong máy</b> ra để bạn vẫn thấy danh sách khách, kho hàng và làm việc được. Có mạng là app tự cập nhật bản mới nhất.</li>
+</ul>
+<b>🟠 CÁC DÒNG CẦN ĐỂ Ý:</b>
+<ul>
+<li><b>"⚠️ Mất kết nối danh sách khách (…) — đang nối lại..."</b>
+<br>→ Đường nối tới máy chủ bị đứt. App <b>tự nối lại sau vài giây</b>, bạn chờ là được. Thấy hiện đi hiện lại nhiều lần thì kiểm tra wifi / 4G.</li>
+<li><b>"⚠️ KHÔNG ĐỌC ĐƯỢC DANH SÁCH KHÁCH … Danh sách đang hiện có thể là BẢN CŨ. Hãy đăng xuất rồi đăng nhập lại."</b>
+<br>→ App đã thử nối lại nhiều lần mà không được. Làm theo thứ tự:
+<ol>
+<li><b>Bật mạng</b>, chờ huy hiệu góc dưới báo <b>đã đồng bộ</b> (để chắc không còn gì chưa gửi).</li>
+<li>Bấm <b>⚙️ Cài đặt → Đăng xuất</b>, rồi <b>đăng nhập lại</b>.</li>
+<li>Vẫn bị → chụp màn hình bảng báo (có <b>mã lỗi</b>) rồi gọi hỗ trợ. Cũng nên xem lại tài khoản <b>còn hạn</b> hay không.</li>
+</ol></li>
+<li><b>"⚠️ Máy này chưa bật được bộ nhớ ngoại tuyến — hãy tắt chế độ ẩn danh / cài app vào Màn hình chính."</b>
+<br>→ <b>Quan trọng.</b> Trên máy này app <b>không lưu tạm được dữ liệu khi mất mạng</b>. Nguyên nhân thường là đang mở bằng <b>tab ẩn danh</b>, hoặc trình duyệt chặn lưu trữ. Cách sửa:
+<ol>
+<li>Đóng tab ẩn danh, mở app bằng <b>tab thường</b> của Chrome / Safari.</li>
+<li><b>Cài app vào màn hình chính</b> (xem mục <b>Cài app vào màn hình chính điện thoại</b>) rồi mở từ biểu tượng đó.</li>
+<li>Mở lại app — <b>không còn hiện dòng này</b> là đã ổn.</li>
+</ol>
+Chừng nào còn dòng này thì <b>chỉ nên dùng khi có mạng</b>.</li>
+</ul>
+<div class="snai-warn">⚠️ Đang mất mạng hoặc còn dữ liệu chưa gửi mà bạn <b>đóng app / tắt tab</b>, trình duyệt sẽ hỏi <i>"Rời khỏi trang?"</i>. Hãy bấm <b>Ở lại</b>, bật mạng, chờ huy hiệu báo đã đồng bộ rồi mới đóng.</div>
+<div class="snai-tip">💡 Xem thêm 2 mục: <b>Mất mạng có bán hàng được không?</b> và <b>Huy hiệu "đang đồng bộ" là gì?</b></div>`},
 ];
 
 /* ═════════════ 3) BỘ MÁY HIỂU TIẾNG VIỆT ═════════════ */
@@ -18499,6 +19175,57 @@ welcome=function(){
     }
   }catch(x){}
 };
+
+/* ═════════════ 5e) NÂNG CẤP v5 — ✏️ SỬA TÊN KHÁCH · 👁 ẢNH BẰNG CHỨNG · CÁC MỤC MỚI 2026-10-09 ═════════════
+   Cách làm y như v2, v3, v4: chỉ BỔ SUNG vào các bảng đã khai báo ở trên, phần còn lại giữ nguyên.
+   • 25 mục hướng dẫn mới nằm cuối KB (đoạn "v5 — BỔ SUNG 2026-10-09").
+   • 👆 Chỉ tận tay thêm 1 bài: sửa tên khách.
+   • Gắn các mục mới vào bài chỉ tận tay sẵn có + vào gợi ý "đang ở màn nào".                          */
+
+/* ---- từ đồng nghĩa bổ sung ---- */
+try{
+  SYN.ck      ='chuyen khoan';
+  SYN.offline ='mat mang';
+}catch(e){}
+
+/* ---- 👆 Chỉ tận tay: thêm bài Sửa tên khách ---- */
+try{
+  TOURS['sua-ten']={n:'Sửa tên, số điện thoại của khách',e:'Sửa tên, số điện thoại, địa chỉ của khách (✏️ Sửa tên)',g:'sono',st:[S_SONO,S_CARD,
+    {s:'#modal-detail [onclick="openEditCust()"]',t:'Bấm nút <b>✏️ Sửa tên</b> ở hàng nút phía trên.',
+     skip:function(){ return openM('#modal-edit-cust.active'); },miss:M_KHOA},
+    {s:'#ec-name',w:'see',t:'Chạm vào ô này, sửa lại <b>tên khách</b> cho đúng.',
+     sm:'Hai ô bên dưới là <b>Số điện thoại</b> và <b>Địa chỉ / Ghi chú</b> — cần thì sửa luôn.'},
+    {s:'#modal-edit-cust .btn-save',t:'Bấm <b>Lưu</b>.'}],
+    done:'Tên mới hiện ngay trong danh sách. Số nợ và mọi giao dịch của khách giữ nguyên.'};
+  var _t5={
+    'Sửa tên, số điện thoại, địa chỉ của khách (✏️ Sửa tên)':'sua-ten',
+    'Lấy tên và số điện thoại khách từ danh bạ máy (📇 Chọn nhanh từ danh bạ)':'them-khach',
+    'Gõ số tiền thế nào cho đúng? (150000 hay 150.000 đều được)':'ghi-no',
+    'Trang công nợ của khách bị rút gọn — chỉ hiện các lần mua trả gần nhất':'chia-se',
+    'Đang mất mạng mà vẫn chốt — app hỏi lại, chốt xong phải Tính lại ca':'quy-ca',
+    'Dòng ⏰ giờ bán đi trước giờ máy chủ · 🐢 đơn đồng bộ trễ — nghĩa là gì?':'quy-ca',
+    'Khách chuyển khoản trả nợ trong ca — bấm → CK để két không báo thiếu oan':'quy-ca',
+    'Dòng 🪪 Máy này đang đăng nhập… ở màn Quỹ ca — đọc thế nào?':'quy-ca',
+    'Máy nhân viên mất mạng — bán quá 50 đơn hoặc 180 phút thì app ngưng cho bán':'quy-ca',
+    'Nút bấm nhanh Tháng này · Tháng trước · Năm nay trong Báo cáo':'bao-cao',
+    'Đơn GHI NỢ trả hàng — nợ giảm thế nào, và các câu báo khi trả hàng':'tra-hang',
+    'Hàng mới về lần đầu, kho chưa có — ➕ Thêm SP mới ngay lúc đang nhập':'nhap-hang'
+  };
+  for(var _k5 in _t5){ if(_t5.hasOwnProperty(_k5)&&!TOURBY[_k5]&&byTitle(_k5)&&TOURS[_t5[_k5]]) TOURBY[_k5]=_t5[_k5]; }
+}catch(e){}
+
+/* ---- Hướng dẫn đúng chỗ đang đứng: thêm việc mới vào từng màn ---- */
+try{
+  if(CTX.sono.tr.indexOf('sua-ten')<0) CTX.sono.tr.push('sua-ten');
+  CTX.sono.q.push('Sửa tên, số điện thoại, địa chỉ của khách (✏️ Sửa tên)',
+                  'Ảnh bằng chứng trên link nợ — nút 👁 Cho khách xem',
+                  'Dòng Còn nợ / Mình nợ / ✅ Hết nợ ở từng lần mua trả nghĩa là gì?');
+  CTX.sell.q.push('Khách chuyển khoản trả nợ trong ca — bấm → CK để két không báo thiếu oan',
+                  'Máy nhân viên mất mạng — bán quá 50 đơn hoặc 180 phút thì app ngưng cho bán');
+  CTX.nhap.q.push('Hàng mới về lần đầu, kho chưa có — ➕ Thêm SP mới ngay lúc đang nhập');
+  CTX.report.q.push('Nút bấm nhanh Tháng này · Tháng trước · Năm nay trong Báo cáo');
+  CTX.qrd.q.push('Link cố định — gắn vào app, trang web','Link cố định báo ⚠️ — từng câu cảnh báo và cách xử lý');
+}catch(e){}
 
 /* ═════════════ 6) KHỞI ĐỘNG ═════════════ */
 function boot(){ try{ build(); }catch(e){} }
