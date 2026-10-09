@@ -149,6 +149,14 @@ function hoiNhanh(ma){
         throw new Error('404-la');
       });
     }
+    if(r.status === 403){
+      /* [HẾT HẠN 2026-10-09] máy chủ CHỐI đọc con trỏ = Gói Bán online của cửa hàng đã hết hạn (Rules VÁ LỖ Z5).
+         403 lạ (không phải lời chối của máy chủ dữ liệu) thì sang đường dự phòng hỏi lại cho chắc. */
+      return r.json().then(function(j){
+        if(j && j.error && j.error.status === 'PERMISSION_DENIED') return { co: true, ngung: true };
+        throw new Error('403-la');
+      });
+    }
     if(r.status !== 200) throw new Error('http-' + r.status);
     return r.json().then(function(j){
       var f = j && j.fields;
@@ -175,6 +183,10 @@ function hoiDuPhong(ma){
     }
     var d = s.data() || {};
     return { co: true, kieu: String(d.kieu == null ? '' : d.kieu), den: String(d.den == null ? '' : d.den) };
+  }, function(e){
+    /* [HẾT HẠN 2026-10-09] máy chủ chối đọc con trỏ = Gói Bán online của cửa hàng đã hết hạn */
+    if(e && e.code === 'permission-denied') return { co: true, ngung: true };
+    throw e;
   });
   return coHan(p, CHO_DU);
 }
@@ -202,6 +214,11 @@ function xuLy(k){
     bao('🔎', 'Link này chưa dùng được',
         'Cửa hàng chưa mở link này. Bạn xem lại link, hoặc hỏi cửa hàng link mới giúp nhé.', false,
         'Chủ cửa hàng: mở app → 🛒 Bán hàng → tab Bán online → khung 🔗 Link cố định để tạo hoặc xem lại mã.');
+    return;
+  }
+  if(k.ngung){
+    /* [HẾT HẠN 2026-10-09] Gói Bán online của cửa hàng đã hết hạn ⇒ link tạm ngưng; gia hạn xong là chạy lại, có nút Thử lại */
+    bao('⏸️', 'Cửa hàng đang tạm ngưng bán online', 'Link đặt hàng này đang tạm ngưng. Bạn liên hệ trực tiếp cửa hàng giúp nhé.', true);
     return;
   }
   if(k.kieu !== 'codinh'){
