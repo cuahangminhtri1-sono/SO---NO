@@ -907,11 +907,20 @@ async function chay(){
   }catch(e){}
 
   /* Đọc cửa hàng — chỉ 1 lượt đọc */
-  let d = null, coMang = true;
+  let d = null, coMang = true, ngung = false;
   try{
     const s = await getDoc(doc(db, 'shares_qr', TK));
     d = s.exists() ? s.data() : null;
-  }catch(e){ d = null; coMang = false; }
+  }catch(e){ d = null; coMang = false; ngung = !!(e && e.code === 'permission-denied'); }
+
+  /* [HẾT HẠN 2026-10-09] Máy chủ CHỐI đọc link = Gói Bán online của cửa hàng đã hết hạn (Rules VÁ LỖ Z5).
+     Đây KHÔNG phải lỗi mạng ⇒ không hiện hàng đã lưu trong máy, xoá luôn bản lưu, báo rõ cho khách.
+     Cửa hàng gia hạn xong, khách bấm "Thử lại" là vào được ngay. */
+  if(ngung){
+    LS.del(KMENU);
+    bao('⏸️', 'Cửa hàng đang tạm ngưng bán online', 'Link đặt hàng này đang tạm ngưng. Bạn liên hệ trực tiếp cửa hàng giúp nhé.', true);
+    return;
+  }
 
   if(d && d.kieu !== 'online'){
     bao('🔎', 'Link cửa hàng chưa đúng', 'Đây không phải link đặt hàng online. Bạn hỏi cửa hàng link mới nhé.');
