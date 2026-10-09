@@ -296,19 +296,33 @@ async function chay(){
   }catch(e){}
 
   /* Đọc thực đơn — chỉ 1 lượt đọc */
-  let d=null;
+  let d=null, coMang=true, ngung=false;
   try{
     const s = await getDoc(doc(db,'shares_qr',TK));
     if(s.exists()) d = s.data();
-  }catch(e){ d=null; }
+  }catch(e){ d=null; coMang=false; ngung = !!(e && e.code === 'permission-denied'); }
+
+  /* [HẾT HẠN 2026-10-09] Máy chủ CHỐI đọc mã = Gói Bán online của quán đã hết hạn (Rules VÁ LỖ Z5).
+     Đây KHÔNG phải lỗi mạng ⇒ không hiện thực đơn đã lưu trong máy, xoá luôn bản lưu. */
+  if(ngung){
+    try{ localStorage.removeItem(KMENU); }catch(e){}
+    bao('🕘','Quán tạm ngưng nhận đơn qua mã QR','Bạn gọi nhân viên gọi món giúp nhé.', true);
+    return;
+  }
 
   if(!d){
-    /* Rớt mạng: dùng thực đơn đã lưu lần trước cho khách xem tạm */
+    /* Rớt mạng: dùng thực đơn đã lưu lần trước cho khách xem tạm.
+       [2026-10-09] CHỈ khi rớt mạng thật. Máy chủ trả lời "mã không còn" (quán đã đổi mã) thì KHÔNG
+       hiện lại thực đơn cũ đã lưu; rớt mạng mà máy chưa từng lưu thì báo đúng là mạng yếu. */
     let cache=null;
-    try{ cache=JSON.parse(localStorage.getItem(KMENU)||'null'); }catch(e){}
+    if(!coMang){ try{ cache=JSON.parse(localStorage.getItem(KMENU)||'null'); }catch(e){} }
     if(cache && Array.isArray(cache.menu) && cache.menu.length){
       d = cache; $('#offline').style.display='block';
+    }else if(!coMang){
+      bao('📶','Chưa mở được thực đơn','Mạng đang chập chờn. Bạn bấm thử lại giúp nhé.', true);
+      return;
     }else{
+      try{ localStorage.removeItem(KMENU); }catch(e){}
       bao('🍽️','Quán chưa mở đặt món qua mã này','Bạn gọi nhân viên gọi món giúp nhé.', true);
       return;
     }
@@ -329,7 +343,11 @@ async function chay(){
   SHOP = d;
   MENU = (Array.isArray(d.menu)?d.menu:[]).filter(m=>m && m.i && m.n);
   /* Món đã bỏ khỏi thực đơn thì cũng bỏ khỏi giỏ cũ */
-  GIO = GIO.filter(l=>MENU.some(m=>m.i===l.i)); luuGio();
+  GIO = GIO.filter(l=>MENU.some(m=>m.i===l.i));
+  /* [2026-10-09] Món còn bán thì lấy lại TÊN · GIÁ · ĐƠN VỊ mới nhất của quán — giỏ để từ lần trước
+     không còn tính theo giá cũ (trước đây quán đổi giá mà giỏ cũ vẫn hiện, vẫn cộng giá cũ). */
+  GIO.forEach(l=>{ const m=MENU.find(x=>x.i===l.i); if(m){ l.n=m.n; l.p=Number(m.p)||0; l.u=m.u||''; } });
+  luuGio();
 
   $('#bao').style.display='none';
   $('#top').style.display='block';
