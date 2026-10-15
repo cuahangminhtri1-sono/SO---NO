@@ -745,7 +745,7 @@ import { getFirestore, initializeFirestore, persistentLocalCache, persistentMult
 import { getStorage, ref as _sref, uploadBytes, getDownloadURL, deleteObject, listAll }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
 
-const APP_BUILD = "2026-10-15-SN8"; // ⬆️ ĐỔI MỖI LẦN DEPLOY (đặt TRÙNG tên cache trong sw.js) — hiện ở ⚙️ Cài đặt để biết máy đã chạy bản mới chưa
+const APP_BUILD = "2026-10-15-SN9"; // ⬆️ ĐỔI MỖI LẦN DEPLOY (đặt TRÙNG tên cache trong sw.js) — hiện ở ⚙️ Cài đặt để biết máy đã chạy bản mới chưa
 const firebaseConfig = {
   apiKey: "AIzaSyA_kjQ-CdASRkf50Glz3kQajlkD5qGWC4k",
   authDomain: "so-no-cc57a.firebaseapp.com",
@@ -4003,6 +4003,7 @@ let skShopBank=null,skShopName='';
 let skScanOn=false,skScanPaused=false,skScanMode='single',skScanHandler=null,skScanStream=null,skDetector=null,skZX=null,_skTorch=false;
 let skSession=null,_skLastCode='',_skLastT=0,_skUnitCb=null,_skPickCb=null;
 const SK_FMTS=['ean_13','ean_8','upc_a','upc_e','code_128','code_39','itf','codabar','qr_code','data_matrix'];
+const SK_HSD_LOC='::hsd::',SK_HSD_BAO=30;   /* [HSD] mã lọc "⏰ Sắp hết hạn" ở tab Kho (tên nhóm hàng thật không bao giờ có dạng này) · số ngày báo trước mặc định */
 
 const skq=s=>document.querySelector(s);
 const skqa=s=>Array.prototype.slice.call(document.querySelectorAll(s));
@@ -4076,6 +4077,7 @@ function skOpenProd(id,barcode){
   skq('#sk-pf-cat').value=p.category||'';skq('#sk-pf-baseunit').value=p.baseUnit||'';
   skq('#sk-pf-cost').value=p.cost||'';skq('#sk-pf-price').value=p.price||'';
   skq('#sk-pf-stock').value=(p.stock==null?'':p.stock);skq('#sk-pf-min').value=(p.minStock==null?'':p.minStock);
+  try{const _h=skq('#sk-pf-hsd'),_b=skq('#sk-pf-hsdbao');if(_h)_h.value=skHsdIso(p);if(_b){const _n=Math.round(Number(p.hsdBao));_b.value=(_n>0?_n:'');}}catch(e){}   /* [HSD] ngày hết hạn + báo trước (SP cũ chưa có thì để trống) */
   skq('#sk-pf-img').value=p.image||'';
   const sup=skq('#sk-pf-sup');sup.innerHTML='<option value="">— Không —</option>'+skSuppliers.map(s=>'<option value="'+s.id+'"'+(p.supplierId===s.id?' selected':'')+'>'+escHtml(s.name)+'</option>').join('');
   skq('#sk-pf-units').innerHTML=skProdUnitsRows(p.units);
@@ -4087,6 +4089,8 @@ function skCollectUnits(){const rows=skqa('#sk-pf-units .sk-urow');const out=[];
 async function skSaveProd(){
   const data={name:skq('#sk-pf-name').value.trim(),barcode:skq('#sk-pf-barcode').value.trim(),sku:skq('#sk-pf-sku').value.trim(),category:skq('#sk-pf-cat').value.trim(),baseUnit:(skq('#sk-pf-baseunit').value.trim()||'cái'),cost:skNumOf('#sk-pf-cost'),price:skNumOf('#sk-pf-price'),minStock:skNumOf('#sk-pf-min'),image:skq('#sk-pf-img').value.trim(),supplierId:skq('#sk-pf-sup').value||'',units:skCollectUnits()};
   if(!data.name){toast('⚠️ Nhập tên sản phẩm');return;}
+  /* [HSD] ngày hết hạn (ô trống = không theo dõi hạn) + báo trước mấy ngày (trống / 0 = 30 ngày) */
+  {const _h=skq('#sk-pf-hsd'),_b=skq('#sk-pf-hsdbao');if(_h){if(_h.validity&&_h.validity.badInput){toast('⚠️ Ngày hết hạn chưa đủ ngày / tháng / năm — chọn lại, hoặc bấm ✕ để bỏ trống');return;}const _v=String(_h.value||'').trim();if(_v&&!skHsdTT({hsd:_v})){toast('⚠️ Ngày hết hạn không đúng — chọn lại ngày');return;}data.hsd=_v;data.hsdBao=_b?Math.max(0,Math.min(3650,Math.round(skNumOf('#sk-pf-hsdbao')))):0;}}
   try{
     /* KHÔNG await: offline promise Firestore không bao giờ resolve => modal sẽ treo */
     if(skEditId){updateDoc(bdoc('products',skEditId),data).catch(function(e){toast('Lỗi lưu: '+(e.message||''));});}
@@ -4113,6 +4117,55 @@ function skRenderGrid(){
   }).join('');
 }
 
+/* ============ [HSD] NGÀY HẾT HẠN SẢN PHẨM ============
+   Cất ngay trong doc sản phẩm: hsd = 'YYYY-MM-DD' ('' = không theo dõi hạn) · hsdBao = báo trước mấy ngày (0 / trống = 30).
+   Hết hạn = tới ĐÚNG ngày in trên bao bì hoặc đã qua · Sắp hết hạn = còn ≤ hsdBao ngày. Tính theo lịch trên máy (giờ VN).
+   Chỉ dùng số đã có sẵn trong máy (skProducts) — không tốn thêm lượt đọc máy chủ nào. Dữ liệu lạ thì bỏ qua, không văng lỗi. */
+function skHsdTT(p){
+  try{
+    if(!p)return null;let v=p.hsd,y,m,d;if(v==null||v==='')return null;
+    if(typeof v==='string'){
+      v=v.trim();let r=v.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+      if(r){y=+r[1];m=+r[2];d=+r[3];}
+      else{r=v.match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{4})$/);if(!r)return null;y=+r[3];m=+r[2];d=+r[1];}
+    }else{
+      const t=(typeof v.toDate==='function')?v.toDate():((typeof v==='number'||v instanceof Date)?new Date(v):((typeof v.seconds==='number')?new Date(v.seconds*1000):null));
+      if(!t||isNaN(t.getTime()))return null;y=t.getFullYear();m=t.getMonth()+1;d=t.getDate();
+    }
+    const dt=new Date(y,m-1,d);
+    if(y<1900||y>9999||isNaN(dt.getTime())||dt.getFullYear()!==y||dt.getMonth()!==m-1||dt.getDate()!==d)return null;
+    const n=new Date(),con=Math.round((dt.getTime()-new Date(n.getFullYear(),n.getMonth(),n.getDate()).getTime())/86400000);
+    let bao=Math.round(Number(p.hsdBao));if(!(bao>0))bao=SK_HSD_BAO;
+    return {d:dt,con:con,bao:bao,muc:(con<=0?'het':(con<=bao?'sap':'xa'))};
+  }catch(e){return null;}
+}
+function skHsdNg(d){return String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+d.getFullYear();}
+function skHsdIso(p){const t=skHsdTT(p);if(!t)return '';const d=t.d;return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function skHsdCan(p){const t=skHsdTT(p);return !!t&&t.muc!=='xa';}
+function skHsdCon(p){const t=skHsdTT(p);return t?t.con:1e9;}
+function skHsdChu(t,dai){
+  if(!t)return '';const ng=skHsdNg(t.d);
+  if(dai){
+    if(t.con<0)return '⛔ ĐÃ HẾT HẠN '+(-t.con)+' ngày — HSD '+ng;
+    if(t.con===0)return '⛔ HẾT HẠN HÔM NAY — HSD '+ng;
+    if(t.muc==='sap')return '⏰ Sắp hết hạn: còn '+t.con+' ngày — HSD '+ng;
+    return '📅 Hạn sử dụng: '+ng+' — còn '+t.con+' ngày';
+  }
+  if(t.con<0)return '⛔ Đã hết hạn '+(-t.con)+' ngày ('+ng+')';
+  if(t.con===0)return '⛔ Hết hạn hôm nay ('+ng+')';
+  if(t.muc==='sap')return '⏰ Còn '+t.con+' ngày là hết hạn ('+ng+')';
+  return '📅 HSD '+ng;
+}
+function skHsdDong(p){const t=skHsdTT(p);return t?'<div class="sk-hsd '+t.muc+'">'+skHsdChu(t,0)+'</div>':'';}
+function skHsdDt(p){const t=skHsdTT(p);return t?'<div class="sk-hsd '+t.muc+'">'+skHsdChu(t,1)+'</div>':'';}
+function skHsdDem(){const c={sap:0,het:0};try{(skProducts||[]).forEach(p=>{const t=skHsdTT(p);if(t){if(t.muc==='het')c.het++;else if(t.muc==='sap')c.sap++;}});}catch(e){}return c;}
+function skHsdBar(c){
+  const loc=(skKhoCat===SK_HSD_LOC),n=c.sap+c.het;if(!n&&!loc)return '';
+  const ph=[];if(c.sap)ph.push('<b>'+c.sap+'</b> sắp hết hạn');if(c.het)ph.push('<b>'+c.het+'</b> hết hạn');
+  return '<button type="button" class="sk-hsdbar'+(c.het?' het':(n?'':' ok'))+'" data-act="cat-pick" data-cat="'+(loc?'':SK_HSD_LOC)+'"><span>'+(n?'⏰ '+ph.join(' · '):'✅ Không còn hàng sắp hết hạn')+'</span><i>'+(loc?'Xem tất cả ›':'Xem ngay ›')+'</i></button>';
+}
+function skHsdChip(c){const loc=(skKhoCat===SK_HSD_LOC),n=c.sap+c.het;if(!n&&!loc)return '';return '<button class="sk-catchip hsd'+(loc?' on':'')+'" data-act="cat-pick" data-cat="'+SK_HSD_LOC+'">⏰ Sắp hết hạn'+(n?' · '+n:'')+'</button>';}
+
 /* ============ KHO + THẺ KHO ============ */
 function skRenderKho(){
   const stat=skq('#sk-kho-stats');if(!stat)return;
@@ -4120,20 +4173,24 @@ function skRenderKho(){
   const low=skProducts.filter(p=>(p.stock||0)>0&&(p.stock||0)<=(p.minStock||0)).length;
   const out=skProducts.filter(p=>(p.stock||0)<=0).length;
   stat.innerHTML='<div class="sk-stat"><b>'+skProducts.length+'</b><span>mặt hàng</span></div><div class="sk-stat"><b>'+fmt(totalVal)+'</b><span>vốn tồn</span></div><div class="sk-stat'+(low?' warn':'')+'"><b>'+low+'</b><span>sắp hết</span></div><div class="sk-stat'+(out?' danger':'')+'"><b>'+out+'</b><span>hết hàng</span></div>';
+  const _hc=skHsdDem();try{stat.insertAdjacentHTML('beforeend',skHsdBar(_hc));}catch(e){}   /* [HSD] dải ⏰ báo hàng sắp hết hạn / hết hạn (chỉ hiện khi có) — bấm để lọc */
   const cats=skCats();skq('#sk-cats').innerHTML='<button class="sk-catchip'+(skKhoCat===''?' on':'')+'" data-act="cat-pick" data-cat="">Tất cả</button>'+cats.map(c=>'<button class="sk-catchip'+(skKhoCat===c?' on':'')+'" data-act="cat-pick" data-cat="'+escHtml(c)+'">'+escHtml(c)+'</button>').join('');
+  try{const _hp=skHsdChip(_hc),_tc=skq('#sk-cats').firstElementChild;if(_hp&&_tc)_tc.insertAdjacentHTML('afterend',_hp);}catch(e){}   /* [HSD] nút lọc "⏰ Sắp hết hạn" ngay cạnh "Tất cả" */
   const qx=skKD(skq('#sk-ksearch').value||'');
-  let list=skProducts.filter(p=>(!skKhoCat||p.category===skKhoCat)&&(!qx||skKD(p.name).includes(qx)||String(p.barcode||'').includes(qx)||skKD(p.sku).includes(qx)));
+  let list=skProducts.filter(p=>(!skKhoCat||(skKhoCat===SK_HSD_LOC?skHsdCan(p):p.category===skKhoCat))&&(!qx||skKD(p.name).includes(qx)||String(p.barcode||'').includes(qx)||skKD(p.sku).includes(qx)));
   list.sort((a,b)=>(a.name||'').localeCompare(b.name||'','vi'));
+  if(skKhoCat===SK_HSD_LOC)list.sort((a,b)=>skHsdCon(a)-skHsdCon(b));   /* [HSD] món gấp nhất (đã hết hạn / còn ít ngày nhất) đứng đầu */
   const box=skq('#sk-kholist');
+  if(!list.length&&skKhoCat===SK_HSD_LOC){box.innerHTML='<div class="sk-empty">✅ Không có mặt hàng nào sắp hết hạn'+(qx?' khớp chữ đang tìm':'')+'.<br>Bấm <b>Tất cả</b> để xem lại toàn bộ kho.</div>';return;}   /* [HSD] */
   if(!list.length){box.innerHTML='<div class="sk-empty">Chưa có sản phẩm. Bấm <b>➕ Thêm SP</b> hoặc vào <b>Nhập hàng</b>.</div>';return;}
   box.innerHTML=list.map(p=>{const o=(p.stock||0)<=0,lo=!o&&(p.stock||0)<=(p.minStock||0);
-    return '<div class="sk-row" data-act="detail" data-id="'+p.id+'"><div class="sk-row-main"><div class="sk-row-name">'+escHtml(p.name)+'</div><div class="sk-row-sub">'+(p.barcode?'▏'+escHtml(p.barcode)+' ':'')+(p.category?'· '+escHtml(p.category)+' ':'')+'· Vốn '+fmt(p.cost||0)+' · Bán '+fmt(p.price||0)+'</div></div><div class="sk-row-right"><div class="sk-row-stock'+(lo?' warn':'')+(o?' danger':'')+'">'+skN(p.stock||0)+' '+escHtml(p.baseUnit||'')+'</div></div></div>';
+    return '<div class="sk-row" data-act="detail" data-id="'+p.id+'"><div class="sk-row-main"><div class="sk-row-name">'+escHtml(p.name)+'</div><div class="sk-row-sub">'+(p.barcode?'▏'+escHtml(p.barcode)+' ':'')+(p.category?'· '+escHtml(p.category)+' ':'')+'· Vốn '+fmt(p.cost||0)+' · Bán '+fmt(p.price||0)+'</div>'+skHsdDong(p)+'</div><div class="sk-row-right"><div class="sk-row-stock'+(lo?' warn':'')+(o?' danger':'')+'">'+skN(p.stock||0)+' '+escHtml(p.baseUnit||'')+'</div></div></div>';
   }).join('');
 }
 async function skOpenDetail(id){
   skDetailId=id;const p=skProducts.find(x=>x.id===id);if(!p)return;
   const units=skUnitOpts(p).map(u=>u.base?(u.name+' (gốc) — '+fmt(u.price)):(u.name+' = '+u.ratio+' '+(p.baseUnit||'')+' — '+fmt(u.price))).join('<br>');
-  skq('#sk-detail-body').innerHTML='<div class="sk-dt-name">'+escHtml(p.name)+'</div><div class="sk-dt-stock">Tồn: <b>'+skN(p.stock||0)+' '+escHtml(p.baseUnit||'')+'</b>'+((p.stock||0)<=(p.minStock||0)?' <span class="sk-mut">(≤ tối thiểu '+skN(p.minStock||0)+')</span>':'')+'</div><div class="sk-dt-info">'+(p.barcode?'Mã vạch: '+escHtml(p.barcode)+'<br>':'')+(p.sku?'SKU: '+escHtml(p.sku)+'<br>':'')+'Vốn '+fmt(p.cost||0)+' · Bán '+fmt(p.price||0)+'<br>Đơn vị: '+units+'</div><div class="sk-dt-acts"><button class="sk-btn green" data-act="quick-in" data-id="'+p.id+'">📥 Nhập</button><button class="sk-btn red" data-act="quick-out" data-id="'+p.id+'">📤 Xuất hủy</button><button class="sk-btn ghost" data-act="prod-edit" data-id="'+p.id+'">✎ Sửa</button><button class="sk-btn outline" data-act="labels" data-id="'+p.id+'">🏷️ In tem</button></div><div class="sk-bt" style="margin:14px 0 8px">Thẻ kho (gần đây)</div><div id="sk-card-ledger" class="sk-hist-body"><div class="sk-mut">Đang tải…</div></div>';
+  skq('#sk-detail-body').innerHTML='<div class="sk-dt-name">'+escHtml(p.name)+'</div><div class="sk-dt-stock">Tồn: <b>'+skN(p.stock||0)+' '+escHtml(p.baseUnit||'')+'</b>'+((p.stock||0)<=(p.minStock||0)?' <span class="sk-mut">(≤ tối thiểu '+skN(p.minStock||0)+')</span>':'')+skHsdDt(p)+'</div><div class="sk-dt-info">'+(p.barcode?'Mã vạch: '+escHtml(p.barcode)+'<br>':'')+(p.sku?'SKU: '+escHtml(p.sku)+'<br>':'')+'Vốn '+fmt(p.cost||0)+' · Bán '+fmt(p.price||0)+'<br>Đơn vị: '+units+'</div><div class="sk-dt-acts"><button class="sk-btn green" data-act="quick-in" data-id="'+p.id+'">📥 Nhập</button><button class="sk-btn red" data-act="quick-out" data-id="'+p.id+'">📤 Xuất hủy</button><button class="sk-btn ghost" data-act="prod-edit" data-id="'+p.id+'">✎ Sửa</button><button class="sk-btn outline" data-act="labels" data-id="'+p.id+'">🏷️ In tem</button></div><div class="sk-bt" style="margin:14px 0 8px">Thẻ kho (gần đây)</div><div id="sk-card-ledger" class="sk-hist-body"><div class="sk-mut">Đang tải…</div></div>';
   skModalOpen('#sk-detail');
   try{const s=await getDocs(query(bcol('stock_moves'),orderBy('at','desc'),limit(200)));const rows=s.docs.map(d=>d.data()).filter(m=>m.productId===id).slice(0,40);skq('#sk-card-ledger').innerHTML=rows.length?rows.map(m=>{const t=(m.at&&m.at.toDate)?m.at.toDate():new Date();const pos=(m.delta||0)>=0;return '<div class="sk-hrow"><div><div class="sk-hsub">'+skReason(m.reason)+' · '+skDT(t)+(m.note?(' · '+escHtml(m.note)):'')+'</div></div><div class="sk-hdelta '+(pos?'pos':'neg')+'">'+(pos?'+':'')+skN(m.delta||0)+'</div></div>';}).join(''):'<div class="sk-mut">Chưa có giao dịch.</div>';}catch(e){skq('#sk-card-ledger').innerHTML='<div class="sk-mut">Không tải được thẻ kho.</div>';}
 }
@@ -5462,7 +5519,7 @@ function skDetailLive(){
     /* 3 khối đầu bảng (tên · Tồn · mã–giá–đơn vị): ghép chữ Y NGUYÊN như trong skOpenDetail — sửa bên đó thì sửa cả ở đây */
     const units=skUnitOpts(p).map(u=>u.base?(u.name+' (gốc) — '+fmt(u.price)):(u.name+' = '+u.ratio+' '+(p.baseUnit||'')+' — '+fmt(u.price))).join('<br>');
     const moi=[['.sk-dt-name',escHtml(p.name)],
-      ['.sk-dt-stock','Tồn: <b>'+skN(p.stock||0)+' '+escHtml(p.baseUnit||'')+'</b>'+((p.stock||0)<=(p.minStock||0)?' <span class="sk-mut">(≤ tối thiểu '+skN(p.minStock||0)+')</span>':'')],
+      ['.sk-dt-stock','Tồn: <b>'+skN(p.stock||0)+' '+escHtml(p.baseUnit||'')+'</b>'+((p.stock||0)<=(p.minStock||0)?' <span class="sk-mut">(≤ tối thiểu '+skN(p.minStock||0)+')</span>':'')+skHsdDt(p)],   /* [HSD] dòng hạn dùng — y như skOpenDetail */
       ['.sk-dt-info',(p.barcode?'Mã vạch: '+escHtml(p.barcode)+'<br>':'')+(p.sku?'SKU: '+escHtml(p.sku)+'<br>':'')+'Vốn '+fmt(p.cost||0)+' · Bán '+fmt(p.price||0)+'<br>Đơn vị: '+units]];
     const tam=document.createElement('div');
     moi.forEach(m=>{const el=b.querySelector(m[0]);if(!el)return;tam.innerHTML=m[1];if(el.innerHTML!==tam.innerHTML)el.innerHTML=m[1];});   /* chỉ ghi khi THẬT SỰ đổi */
@@ -11072,6 +11129,22 @@ M.on('boot',function(){
 #pos-screen .sk-row-right{display:flex;align-items:center;gap:8px}
 #pos-screen .sk-row-stock{font-weight:800;font-size:14px;text-align:right;min-width:54px}
 #pos-screen .sk-row-stock.warn{color:#b9791a}#pos-screen .sk-row-stock.danger{color:#c0392b}
+/* [HSD] ngày hết hạn sản phẩm */
+#pos-screen .sk-hsd{font-size:11.5px;font-weight:700;color:#6b7872;margin-top:3px;line-height:1.35}
+#pos-screen .sk-hsd.sap{color:#b9791a}#pos-screen .sk-hsd.het{color:#c0392b}
+#pos-screen .sk-dt-stock .sk-hsd{font-size:13.5px;margin-top:5px}
+#pos-screen .sk-hsdbar{grid-column:1/-1;width:100%;display:flex;align-items:center;gap:8px;text-align:left;background:#fff7e8;border:1px solid #f1c27d;color:#8a5a00;border-radius:11px;padding:10px 12px;font-size:13px;font-weight:700;line-height:1.35}
+#pos-screen .sk-hsdbar.het{background:#fdecea;border-color:#f1b0a8;color:#a8281b}
+#pos-screen .sk-hsdbar.ok{background:#eef7f2;border-color:#cfe0d9;color:#0a5f4a}
+#pos-screen .sk-hsdbar span{flex:1;min-width:0}
+#pos-screen .sk-hsdbar i{flex:none;font-style:normal;font-size:12px;opacity:.85;white-space:nowrap}
+#pos-screen .sk-catchip.hsd{border-color:#f1c27d;background:#fff7e8;color:#8a5a00}
+#pos-screen .sk-catchip.hsd.on{background:#d98a12;border-color:#d98a12;color:#fff}
+#pos-screen .sk-hsd-x{flex:none;background:#f1f4f2;color:#5f6c66;border:1px solid #e3e8e5;border-radius:10px;padding:0 12px;font-size:15px;font-weight:700}
+#pos-screen input.sk-inp[type=date]{font:-webkit-small-control;font-size:15px;font-weight:500}
+#pos-screen input.sk-inp[type=date]::-webkit-datetime-edit,#pos-screen input.sk-inp[type=date]::-webkit-datetime-edit-fields-wrapper{padding:0}
+#pos-screen input.sk-inp[type=date]::-webkit-calendar-picker-indicator{width:1em;height:1em;padding:0;margin-top:0;margin-bottom:0}
+#pos-screen input.sk-inp[type=date]::-webkit-date-and-time-value{min-height:1.2em;text-align:left}
 #pos-screen .sk-tag{font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:999px}
 #pos-screen .t-cash{background:#e8f4ef;color:#0a5f4a}#pos-screen .t-qr{background:#e7f0fe;color:#1f6feb}#pos-screen .t-debt{background:#fbf2e2;color:#b9791a}
 /* nhập hàng */
@@ -11588,6 +11661,7 @@ M.on('boot',function(){
     <div class="sk-fld-row"><label class="sk-fld">Đơn vị gốc<input id="sk-pf-baseunit" class="sk-inp" placeholder="lon, cái…"></label><label class="sk-fld">Nhà cung cấp<select id="sk-pf-sup" class="sk-inp"></select></label></div>
     <div class="sk-fld-row"><label class="sk-fld">Giá vốn (₫)<input id="sk-pf-cost" class="sk-inp" inputmode="numeric"></label><label class="sk-fld">Giá bán (₫)<input id="sk-pf-price" class="sk-inp" inputmode="numeric"></label></div>
     <div class="sk-fld-row"><label class="sk-fld">Tồn kho đầu<input id="sk-pf-stock" class="sk-inp" inputmode="numeric"></label><label class="sk-fld">Tồn tối thiểu<input id="sk-pf-min" class="sk-inp" inputmode="numeric" placeholder="cảnh báo"></label></div>
+    <div class="sk-fld-row"><label class="sk-fld" style="flex:1.7;min-width:0">Ngày hết hạn (HSD)<div class="sk-bc" style="flex:1"><input id="sk-pf-hsd" class="sk-inp" type="date" style="min-width:0;flex:1"><button type="button" class="sk-hsd-x" title="Xoá ngày hết hạn" aria-label="Xoá ngày hết hạn" onclick="var i=document.getElementById('sk-pf-hsd');if(i)i.value='';">✕</button></div></label><label class="sk-fld" style="min-width:0">Báo trước (ngày)<input id="sk-pf-hsdbao" class="sk-inp" inputmode="numeric" placeholder="30" style="flex:1"></label></div>
     <div class="sk-fld"><div class="sk-u-head">Đơn vị quy đổi (tuỳ chọn)<button class="sk-u-add" data-act="unit-row-add">+ Thêm</button></div><div class="sk-uhint">Gốc là "lon" → thêm "lốc" = 6, "thùng" = 24, kèm giá bán riêng</div><div id="sk-pf-units"></div></div>
     <label class="sk-fld">Ảnh (link, tuỳ chọn)<input id="sk-pf-img" class="sk-inp" placeholder="https://…"></label>
     <datalist id="sk-catlist"></datalist>
@@ -14271,6 +14345,7 @@ a:`<b class="snai-h">➕ Thêm sản phẩm</b>
 <li><b>Giá bán</b> — <b>BẮT BUỘC</b>. Giá bạn bán cho khách.</li>
 <li><b>Tồn kho đầu</b> — <b>BẮT BUỘC</b>. Hiện tại bạn đang có bao nhiêu cái trong kho.</li>
 <li><b>Tồn tối thiểu</b> — còn dưới bao nhiêu thì app báo sắp hết. Ví dụ điền <code>5</code>.</li>
+<li><b>Ngày hết hạn (HSD)</b> — ngày hết hạn in trên bao bì. Hàng không có hạn thì để trống. Ô <b>Báo trước</b> bên cạnh: muốn được nhắc trước mấy ngày (để trống = 30 ngày). Xem thêm mục <i>"Ngày hết hạn (HSD) — báo hàng sắp hết hạn"</i>.</li>
 </ul></li>
 <li>Bấm <b>Lưu</b>.</li>
 </ol>
@@ -14341,6 +14416,27 @@ a:`<b class="snai-h">⚠️ Cảnh báo sắp hết hàng</b>
 </ul>
 <div class="snai-tip">💡 <b>Điền bao nhiêu là hợp lý?</b> Lấy số bán trung bình một ngày nhân với số ngày chờ hàng về. Ví dụ mỗi ngày bán 3 cái, gọi hàng 2 ngày mới tới → điền khoảng <b>6–8</b>.</div>
 <div class="snai-ok">✅ Ngay <b>đầu tab Kho</b> có ô thống kê hiện <b>tổng số mặt hàng</b> và <b>số món sắp hết</b>. Mỗi sáng liếc một cái là biết hôm nay cần gọi hàng gì.</div>`},
+
+{c:'kho',t:'Ngày hết hạn (HSD) — báo hàng sắp hết hạn',k:'ngay het han hsd han su dung han dung date can date hang sap het han hang het han qua han canh bao het han bao truoc hang hu thuc pham sua banh keo thuoc',
+a:`<b class="snai-h">⏰ Ngày hết hạn (HSD) của hàng hoá</b>
+<b>👉 Cái này để làm gì:</b> ghi <b>ngày hết hạn in trên bao bì</b> vào từng sản phẩm. App <b>tự canh giùm</b>: món nào <b>sắp hết hạn</b> hoặc <b>đã hết hạn</b> là báo ngay ở tab Kho, để bạn kịp <b>bán giảm giá</b> hoặc <b>đổi trả nhà cung cấp</b>, khỏi lỗ vì hàng hư.
+<b>🪜 Cách ghi ngày hết hạn — làm từng bước:</b>
+<ol>
+<li>Vào <span class="snai-path">🛒 BÁN HÀNG</span> → tab <b>Kho</b> → chạm vào sản phẩm → bấm <b>✎ Sửa</b>. (Hàng mới thì bấm <b>➕ Thêm SP</b>.)</li>
+<li>Tìm ô <b>Ngày hết hạn (HSD)</b> → chạm vào → chọn đúng ngày in trên bao bì.</li>
+<li>Ô <b>Báo trước (ngày)</b>: muốn được nhắc trước mấy ngày thì điền số đó. <b>Để trống = báo trước 30 ngày.</b> Hàng hạn ngắn như bánh mì, sữa chua thì điền ít lại, ví dụ <code>3</code>.</li>
+<li>Bấm <b>Lưu</b>.</li>
+</ol>
+<b>👀 Xem hàng sắp hết hạn ở đâu:</b>
+<ul>
+<li>Ngay <b>đầu tab Kho</b>, dưới 4 ô thống kê, hiện dải <b>⏰ … sắp hết hạn · … hết hạn</b> (chỉ hiện khi có món cần để ý). <b>Bấm vào dải đó</b> là danh sách chỉ còn những món sắp hết hạn và đã hết hạn — món gấp nhất đứng đầu.</li>
+<li>Hoặc bấm nút <b>⏰ Sắp hết hạn</b> ở hàng nút nhóm hàng (ngay cạnh <b>Tất cả</b>). Bấm <b>Tất cả</b> là xem lại toàn bộ kho.</li>
+<li>Dưới tên mỗi sản phẩm có dòng hạn dùng: <b style="color:#b45309">màu VÀNG</b> = sắp hết hạn (còn mấy ngày) · <b style="color:#c0392b">màu ĐỎ</b> = hết hạn · màu xám = hạn còn xa.</li>
+<li>Chạm vào sản phẩm → bảng chi tiết cũng ghi rõ ngày hết hạn và còn bao nhiêu ngày.</li>
+</ul>
+<div class="snai-tip">💡 <b>Một món có nhiều lô, mỗi lô một hạn?</b> Ghi <b>ngày của lô hết hạn SỚM NHẤT</b> (lô cũ đang bày bán). Bán hết lô đó thì vào <b>✎ Sửa</b> đổi sang ngày của lô mới.</div>
+<div class="snai-tip">💡 <b>Hàng không có hạn</b> (chén, dép, đồ điện…) thì <b>để trống</b> ô ngày. Muốn bỏ ngày đã ghi: vào <b>✎ Sửa</b> → bấm nút <b>✕</b> cạnh ô ngày → <b>Lưu</b>.</div>
+<div class="snai-warn">⚠️ Hàng <b>đã hết hạn</b> thì đừng bán cho khách. Đem bỏ thì vào tab Kho → <b>📤 Xuất hủy</b> để trừ tồn cho đúng sổ.</div>`},
 
 {c:'kho',t:'Nhập hàng từ nhà cung cấp',k:'nhap hang phieu nhap mua hang vao nha cung cap ncc nhap kho so luong',
 a:`<b class="snai-h">📥 Nhập hàng</b>
@@ -21775,7 +21871,7 @@ if (window.__RMT_READY__) return; window.__RMT_READY__ = true;
 try{
 
 /* ĐỔI CHUỖI NÀY CHO TRÙNG APP_BUILD MỖI LẦN DEPLOY (chỉ để hiện ở bảng quản trị) */
-var BUILD = '2026-10-15-SN8';
+var BUILD = '2026-10-15-SN9';
 var NHIP   = 6*3600*1000;          /* báo về tối đa 6 giờ 1 lần — khỏi tốn lượt ghi */
 var KEY_HB = 'rmt_hb_v2';          /* [QT7] nhịp báo về tính RIÊNG từng tài khoản (bản v1 tính chung cả máy) */
 var KEY_XEM= 'rmt_xem_v1';
