@@ -745,7 +745,7 @@ import { getFirestore, initializeFirestore, persistentLocalCache, persistentMult
 import { getStorage, ref as _sref, uploadBytes, getDownloadURL, deleteObject, listAll }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
 
-const APP_BUILD = "2026-10-15-SN11"; // ⬆️ ĐỔI MỖI LẦN DEPLOY (đặt TRÙNG tên cache trong sw.js) — hiện ở ⚙️ Cài đặt để biết máy đã chạy bản mới chưa
+const APP_BUILD = "2026-10-16-SN12"; // ⬆️ ĐỔI MỖI LẦN DEPLOY (đặt TRÙNG tên cache trong sw.js) — hiện ở ⚙️ Cài đặt để biết máy đã chạy bản mới chưa
 const firebaseConfig = {
   apiKey: "AIzaSyA_kjQ-CdASRkf50Glz3kQajlkD5qGWC4k",
   authDomain: "so-no-cc57a.firebaseapp.com",
@@ -13310,6 +13310,9 @@ import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, getDocs, serv
            "Nợ cũ chuyển sang" · trần bán offline theo ca · chốt ca lúc mất mạng · ⏰ đồng hồ lệch · → CK · dòng 🪪 · nút Tháng này/Tháng trước/Năm nay ·
            xóa / trả đơn ghi nợ · thêm SP lúc nhập · bảng chọn ngành · ♻️ mã cửa hàng cũ · link cố định báo ⚠️ · các câu báo khi mất mạng.
            👆 Chỉ tận tay thêm bài Sửa tên khách.
+     • v6 (2026-10-16): 🆘 KẸT Ở ĐÂU CHỈ Ở ĐÓ — đọc bảng đang mở + trạng thái từng ô, khoanh đúng chỗ phải làm tiếp,
+           làm xong tự chỉ bước sau tới khi xong việc · nút 🆘 nhỏ lúc đang mở bảng · tự hỏi "cần giúp không?" khi đứng lâu,
+           app báo lỗi, bấm mãi nút mờ · hiện lại câu báo của app bị màn Bán hàng che · bộ đọc chung cho bảng chưa có bài riêng.
      • Dán NGUYÊN KHỐI ngay TRƯỚC  </body>.
      ═══════════════════════════════════════════════════════════════════════ -->
 <script>
@@ -19794,6 +19797,1478 @@ try{
   CTX.qrd.q.push('Link cố định — gắn vào app, trang web','Link cố định báo ⚠️ — từng câu cảnh báo và cách xử lý');
 }catch(e){}
 
+/* ═════════════ 5f) NÂNG CẤP v6 — 🆘 KẸT Ở ĐÂU CHỈ Ở ĐÓ (cầm tay chỉ việc ngay tại màn đang kẹt) ═════════════
+   Cách làm y như v2…v5: chỉ BỔ SUNG + GHI ĐÈ vài hàm của trợ lý, KHÔNG đụng một dòng code nào của app.
+   • Đọc ĐÚNG màn / bảng đang nằm trên cùng + trạng thái từng ô (đã gõ chưa, gõ đúng chưa, nút nào đang mờ…)
+     → khoanh vàng ĐÚNG chỗ phải làm TIẾP. Làm xong bước nào tự chỉ bước sau, tới khi xong việc thì báo "Xong rồi".
+     Bảng nào chưa có bài riêng thì bộ đọc chung tự tìm: ô bắt buộc còn trống → nút chính → nút Hủy / Đóng.
+   • Nút 🆘 nhỏ hiện lúc đang mở bảng (lúc nút 🤖 bị ẩn / bị che) — tự tìm chỗ trống, không đè lên nút nào của app.
+   • Tự nhận ra lúc bị kẹt: đứng lâu ở một bảng chưa xong · app vừa báo lỗi · bấm mãi vào nút đang mờ
+     → hỏi nhỏ "Cần mình chỉ tiếp không?" (tắt được: 🔔 Tự nhắc khi kẹt trong bảng Trợ lý).
+   • Câu báo của app (ô #toast) đang bị màn Bán hàng che mất → trợ lý hiện lại y như thế để người bán đọc được,
+     và giải thích câu báo đó nghĩa là gì, phải làm gì.
+   • Chỉ QUAN SÁT: đọc màn hình, nghe cú chạm ở chế độ capture, KHÔNG preventDefault, KHÔNG gọi hàm nào của app.
+     Mọi thứ bọc try/catch: có lỗi gì thì trợ lý im lặng, app chạy y như cũ.                                       */
+
+/* ---- từ đồng nghĩa bổ sung ---- */
+try{
+  SYN.ket   ='ket bi khong biet lam tiep chi toi';
+  SYN.bi    ='ket khong biet lam tiep';
+  SYN.sos   ='ket chi toi lam tiep';
+}catch(e){}
+
+CSS+=''
++'#snai-kt-ring{position:fixed;z-index:2147483400;pointer-events:none;border:4px solid #f5b400;border-radius:14px;display:none;'
++'box-sizing:border-box;box-shadow:0 0 0 9999px rgba(6,20,15,.42);transition:left .15s,top .15s,width .15s,height .15s;}'
++'#snai-kt-ring.on{display:block;animation:snaiTr 1.1s ease-in-out infinite;}'
++'#snai-kt-hand{position:fixed;z-index:2147483401;pointer-events:none;font-size:36px;line-height:1;display:none;'
++'filter:drop-shadow(0 2px 3px rgba(0,0,0,.45));animation:snaiHand .9s ease-in-out infinite;}'
++'#snai-kt-bub{position:fixed;left:10px;right:10px;z-index:2147483450;max-width:500px;margin:0 auto;display:none;box-sizing:border-box;'
++'background:#fff;color:#10231c;border:3px solid #0d7a5f;border-radius:16px;padding:11px 13px 10px;max-height:52vh;overflow-y:auto;'
++'box-shadow:0 12px 36px rgba(0,0,0,.4);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-overflow-scrolling:touch;}'
++'#snai-kt-bub.on{display:block;}'
++'#snai-kt-bub .kt-h{font-size:12px;font-weight:900;color:#c2410c;letter-spacing:.3px;margin-bottom:5px;line-height:1.35;}'
++'#snai-kt-bub .kt-ok{background:#e8f5ee;color:#0a5f4a;border-radius:9px;padding:5px 9px;font-size:13.5px;font-weight:800;margin-bottom:6px;}'
++'#snai-kt-bub .kt-err{background:#fdecea;border-left:4px solid #c0392b;border-radius:0 9px 9px 0;padding:7px 10px;margin-bottom:7px;font-size:14px;line-height:1.5;color:#7f1d1d;}'
++'#snai-kt-bub .kt-err i{font-style:normal;font-weight:800;}'
++'#snai-kt-bub .kt-err span{display:block;color:#4f2b27;margin-top:3px;}'
++'#snai-kt-bub .kt-t{font-size:17px;line-height:1.5;font-weight:700;}'
++'#snai-kt-bub .kt-t b{color:#0a5f4a;}'
++'#snai-kt-bub .kt-s{font-size:14px;line-height:1.55;color:#4f625b;margin-top:6px;}'
++'#snai-kt-bub .kt-ch{margin-top:9px;display:flex;flex-direction:column;gap:6px;}'
++'#snai-kt-bub .kt-ch button{display:block;width:100%;text-align:left;min-height:42px;border:1.5px solid #bcd9cb;background:#f4f9f6;color:#14503a;'
++'border-radius:11px;padding:9px 11px;font-size:15px;font-weight:700;font-family:inherit;cursor:pointer;line-height:1.35;}'
++'#snai-kt-bub .kt-ch button:active{background:#dceee5;}'
++'#snai-kt-bub .kt-b{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px;}'
++'#snai-kt-bub .kt-b button{flex:1 1 auto;min-height:44px;border:none;border-radius:11px;padding:10px 12px;font-size:15px;'
++'font-weight:800;font-family:inherit;cursor:pointer;background:#eef1f0;color:#34443f;}'
++'#snai-kt-bub .kt-b button.g{background:#0d7a5f;color:#fff;}'
++'#snai-kt-bub .kt-b button.o{background:#fff1e6;color:#9a3412;}'
++'#snai-kt-bub.snai-f1 .kt-t{font-size:19.5px;}#snai-kt-bub.snai-f1 .kt-s,#snai-kt-bub.snai-f1 .kt-err{font-size:16px;}'
++'#snai-kt-bub.snai-f1 .kt-b button,#snai-kt-bub.snai-f1 .kt-ch button{font-size:16.5px;}'
++'#snai-kt-bub.snai-f2 .kt-t{font-size:22.5px;}#snai-kt-bub.snai-f2 .kt-s,#snai-kt-bub.snai-f2 .kt-err{font-size:18px;}'
++'#snai-kt-bub.snai-f2 .kt-b button,#snai-kt-bub.snai-f2 .kt-ch button{font-size:18px;}'
+/* nút 🆘 nhỏ */
++'#snai-kt-sos{position:fixed;left:0;top:0;z-index:2147483300;display:none;align-items:center;gap:5px;box-sizing:border-box;'
++'padding:7px 12px 7px 9px;border-radius:999px;border:2px solid #fff;background:#d9480f;color:#fff;cursor:pointer;'
++'font:800 13px/1.1 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;white-space:nowrap;box-shadow:0 4px 14px rgba(0,0,0,.35);'
++'-webkit-tap-highlight-color:transparent;touch-action:manipulation;user-select:none;-webkit-user-select:none;}'
++'#snai-kt-sos.on{display:flex;}'
++'#snai-kt-sos .i{font-size:16px;line-height:1;}'
++'#snai-kt-sos.pulse{animation:snaiKtP 1s ease-in-out 4;}'
++'@keyframes snaiKtP{0%,100%{transform:scale(1)}50%{transform:scale(1.13)}}'
+/* lời hỏi "cần giúp không?" */
++'#snai-kt-nudge{position:fixed;left:0;top:0;z-index:2147483310;display:none;box-sizing:border-box;width:292px;max-width:calc(100vw - 16px);'
++'background:#fff;color:#10231c;border:3px solid #d9480f;border-radius:14px;padding:10px 12px;box-shadow:0 10px 30px rgba(0,0,0,.35);'
++'font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;}'
++'#snai-kt-nudge.on{display:block;}'
++'#snai-kt-nudge .n-t{font-size:15px;font-weight:800;line-height:1.4;}'
++'#snai-kt-nudge .n-s{font-size:13.5px;color:#4f625b;line-height:1.5;margin-top:4px;}'
++'#snai-kt-nudge .n-b{display:flex;gap:7px;margin-top:9px;}'
++'#snai-kt-nudge .n-b button{flex:1 1 auto;min-height:42px;border:none;border-radius:10px;padding:8px 10px;font-size:14.5px;font-weight:800;font-family:inherit;cursor:pointer;background:#eef1f0;color:#34443f;}'
++'#snai-kt-nudge .n-b button.o{background:#d9480f;color:#fff;}'
+/* câu báo của app bị che → hiện lại */
++'#snai-kt-toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:2147483290;pointer-events:none;display:none;'
++'background:#1a1a2e;color:#fff;padding:11px 18px;border-radius:10px;font-size:14px;line-height:1.45;box-shadow:0 4px 16px rgba(0,0,0,.3);'
++'max-width:90%;text-align:center;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;box-sizing:border-box;}'
++'#snai-kt-toast.on{display:block;}'
+/* nút 🆘 trong bảng Trợ lý */
++'.snai-big.kt{background:#d9480f;}'
++'#snai-tools button.kt{background:#d9480f;border-color:#d9480f;color:#fff;}'
++'@media (prefers-reduced-motion:reduce){#snai-kt-ring.on,#snai-kt-hand,#snai-kt-sos.pulse{animation:none}}';
+
+/* ═════ TIỆN ÍCH ═════ */
+var KT_SELF='#snai-kt-ring,#snai-kt-hand,#snai-kt-bub,#snai-kt-sos,#snai-kt-nudge,#snai-kt-toast,#snai-tr-ring,#snai-tr-hand,#snai-tr-bub,#snai-fab,#snai-mask';
+function ktMine(x){ try{ return !!(x&&x.closest&&x.closest(KT_SELF)); }catch(e){ return false; } }
+function ktq(s,r){ try{ return (r||document).querySelector(s); }catch(e){ return null; } }
+function ktqa(s,r){ try{ return Array.prototype.slice.call((r||document).querySelectorAll(s)); }catch(e){ return []; } }
+/* phần tử đầu tiên ĐANG HIỆN khớp bộ chọn */
+function ktv(s,r){ var a=ktqa(s,r); for(var i=0;i<a.length&&i<150;i++){ if(visEl(a[i])) return a[i]; } return null; }
+function ktvs(s,r){ var a=ktqa(s,r),o=[]; for(var i=0;i<a.length&&i<300;i++){ if(visEl(a[i])) o.push(a[i]); } return o; }
+function kttx(x){ try{ return String((x&&(x.innerText||x.textContent))||'').replace(/\s+/g,' ').trim(); }catch(e){ return ''; } }
+function ktcut(s,n){ s=String(s||''); return s.length>n?(s.slice(0,n-1)+'…'):s; }
+function ktW(){ return window.innerWidth||document.documentElement.clientWidth||360; }
+function ktH(){ return window.innerHeight||document.documentElement.clientHeight||640; }
+function ktEmpty(x){
+  try{
+    if(!x)return true;
+    var t=String(x.type||'').toLowerCase();
+    if(t==='checkbox'||t==='radio')return !x.checked;
+    if(t==='file')return !(x.files&&x.files.length);
+    return String(x.value==null?'':x.value).trim()==='';
+  }catch(e){ return true; }
+}
+function ktVal(x){ try{ return String((x&&x.value)||'').trim(); }catch(e){ return ''; } }
+/* đọc số tiền y như app (snDocTien): 150000 · 150.000 · 150,000 → số; sai → NaN */
+function ktTien(raw){
+  var s=String(raw==null?'':raw).replace(/\s/g,'').replace(/(vnđ|vnd|đ|₫|d)$/i,'');
+  if(!s)return NaN;
+  if(/^\d+$/.test(s))return Number(s);
+  if(/^\d{1,3}([.,]\d{3})+$/.test(s))return Number(s.replace(/[.,]/g,''));
+  if(/^\d+[.,]\d+$/.test(s))return Number(s.replace(',','.'));
+  return NaN;
+}
+function ktSo(raw){ var n=Number(String(raw||'').replace(/[^\d]/g,'')); return isNaN(n)?0:n; }
+function ktFmt(n){ try{ return Number(n||0).toLocaleString('vi-VN')+'đ'; }catch(e){ return String(n)+'đ'; } }
+/* nhãn của một ô nhập (bỏ chữ của các lựa chọn bên trong) */
+function ktLab(x){
+  var t='';
+  try{
+    var l=x.closest?x.closest('label'):null;
+    if(l){ var c=l.cloneNode(true); ktqa('input,select,textarea,button,option,datalist,.sk-bc',c).forEach(function(n){ try{ n.parentNode.removeChild(n); }catch(e){} }); t=String(c.textContent||''); }
+    if(!t.trim()&&x.id){ var lf=ktq('label[for="'+x.id+'"]'); if(lf)t=kttx(lf); }
+    if(!t.trim()){ var p=x.previousElementSibling; if(p&&p.tagName==='LABEL')t=kttx(p); }
+    if(!t.trim())t=x.getAttribute('aria-label')||x.getAttribute('placeholder')||'';
+  }catch(e){}
+  t=String(t).replace(/\s+/g,' ').replace(/[\s*✕📷:]+$/,'').trim();
+  return ktcut(t,60);
+}
+var KT_REQ={'new-name':1,'tx-amount':1,'ec-name':1,'set-bank':1,'set-account':1,'set-accname':1,'sk-pf-name':1,'sk-sf-name':1,
+  'sk-stf-name':1,'sk-stf-pin':1,'email-input':1,'pass-input':1,'ca-counted':1,'ca-amt':1,'sk-tr-qty':1,'sk-tr-target':1,
+  'sk-gate-pwd':1,'imp-file':1,'full-file':1,'sn-unlock-pwd':1,'sk-lb-qty':1};
+/* các ô đang hiện trong một bảng */
+function ktFields(r){
+  var o=[];
+  ktqa('input,select,textarea',r).forEach(function(x){
+    try{
+      var t=String(x.type||'').toLowerCase();
+      if(t==='hidden'||t==='button'||t==='submit'||t==='reset'||t==='image')return;
+      if(x.disabled||x.readOnly)return;
+      if(t!=='file'&&!visEl(x))return;
+      if(t==='file'&&!visEl(x)&&!visEl(x.parentElement))return;
+      if(ktMine(x))return;
+      var lab=ktLab(x);
+      var req=!!(x.required||KT_REQ[x.id]||/\*\s*$/.test(String((x.closest&&x.closest('label')&&kttx(x.closest('label')))||'')));
+      if(!req){ var pl=x.previousElementSibling; if(pl&&pl.tagName==='LABEL'&&/\*/.test(kttx(pl)))req=true; }
+      o.push({el:x,lab:lab,req:req,empty:ktEmpty(x),type:t});
+    }catch(e){}
+  });
+  return o;
+}
+var KT_HUY=/^(✖\s*|✕\s*)?(hủy|huỷ|đóng|để sau|thoát|‹\s*quay lại|quay lại)(\s|$)/i;
+function ktIsCancel(x){
+  try{
+    if(!x)return false;
+    var a=x.getAttribute&&x.getAttribute('data-act')||'';
+    if(/^(modal-close|cart-close|num-close|scrim|scan-stop|ca-x|pf-back|ca-back|ca-roi)$/.test(a))return true;
+    var c=String(x.className||'');
+    if(/btn-cancel|sn-cancel|xtop-btn|sk-sheet-x|nga-x|sk-scan-x|snr-x|m-close/.test(c)&&!/green|gold|blue/.test(c))return true;
+    var t=kttx(x);
+    if(t==='✕'||t==='×'||t==='✖'||t==='‹')return true;
+    return KT_HUY.test(t);
+  }catch(e){ return false; }
+}
+/* nút HỦY / ĐÓNG của bảng (ưu tiên nút có chữ) */
+function ktCancel(r){
+  var bs=ktvs('button,[data-act],a',r).filter(function(x){ return !ktMine(x)&&ktIsCancel(x); });
+  if(!bs.length)return null;
+  for(var i=bs.length-1;i>=0;i--){ var t=kttx(bs[i]); if(t&&t.length>1&&t!=='‹')return bs[i]; }
+  return bs[0];
+}
+/* nút CHÍNH của bảng (Lưu / Xác nhận / Hoàn tất / OK …) */
+var KT_CHINH=/^(✔\s*|✅\s*|▶️?\s*|💾\s*|📥\s*|♻️\s*|🔒\s*)?(lưu|xác nhận|hoàn tất|ok|ghi nợ|mở ca|chốt|gửi|đồng ý|tiếp tục|bắt đầu|chuyển|giữ đơn|đổi mật khẩu|mở khóa|mở khoá|tạo|đăng nhập|in |khách đã ck|dùng thử|gia hạn)/i;
+function ktPrimary(r){
+  var best=null,bs=-1;
+  ktqa('button,[data-act],a.lk-pay,input[type="submit"]',r).forEach(function(x){
+    try{
+      if(ktMine(x)||ktIsCancel(x))return;
+      if(!visEl(x))return;
+      var c=String(x.className||''),t=kttx(x),sc=0;
+      if(/btn-save|lk-pay|sn-go|sn-unlock-b ok|\bok\b/.test(c))sc+=5;
+      if(/\bgreen\b|\bgold\b|\bblue\b|btn-primary|m-alt/.test(c))sc+=4;
+      if(KT_CHINH.test(t))sc+=3;
+      if(/\bwide\b/.test(c))sc+=1;
+      var a=x.getAttribute('data-act')||'';
+      if(/(-ok|-save|-do|-do-[a-z]+)$/.test(a))sc+=2;
+      if(!sc)return;
+      var rr=x.getBoundingClientRect(); if(rr.width<34&&t.length<2)return;
+      if(sc>=bs){ bs=sc; best=x; }
+    }catch(e){}
+  });
+  return best;
+}
+/* danh sách để chạm chọn (dòng / thẻ) */
+var KT_ITEMS='.sk-ord-row,[data-act="od-open"],[data-act="cust-pick"],[data-act="unit-pick"],[data-act="branch-switch"],[data-act="gate-pick"],[data-act="held-open"],[data-act="np-add"],[data-act="detail"],.sk-chip,.tx-item,.customer-card,.sk-pick,.nga-i,.sk-gate-staff,.sk-row';
+function ktItems(r){
+  var a=ktvs(KT_ITEMS,r).filter(function(x){ return !ktMine(x); });
+  return a.length?a[0]:null;
+}
+function ktIsAct(el){
+  try{ return !!(el&&el.closest&&el.closest('button,a[href],input,select,textarea,label,summary,[onclick],[data-act],[role="button"],[contenteditable="true"],.customer-card,.sk-tile,.tx-item,.sk-row,.sk-chip,.nga-i,.sk-pay')); }catch(e){ return false; }
+}
+/* phần tử đang nằm TRÊN CÙNG tại 1 điểm (bỏ qua đồ của trợ lý) */
+function ktAt(x,y){
+  try{
+    if(document.elementsFromPoint){
+      var a=document.elementsFromPoint(x,y)||[];
+      for(var i=0;i<a.length;i++){ if(!ktMine(a[i])) return a[i]; }
+      return null;
+    }
+  }catch(e){}
+  try{ var h=document.elementFromPoint(x,y); return (h&&!ktMine(h))?h:null; }catch(e){ return null; }
+}
+
+/* ═════ NHẬN RA MÀN / BẢNG ĐANG NẰM TRÊN CÙNG ═════ */
+var KT_LS=[
+ ['qrd-bao','#qrd-bao'],['ngm-up','#ngm-up'],['nga','#nga-mask.on'],['tnk','#tnk-k.on'],
+ ['dmk','.dmk-mask.on'],['gt','.gt-mask.on'],['asp-xem','.asp-xem'],['unlock','.sn-unlock-ov.on'],
+ ['snr','.snr-ov.on'],['cn-up','#cn-upsell'],['pos-up','#pos-upsell'],['att','#att-overlay.active'],
+ ['print','#sn-print-modal.on'],['gate','#sk-gate.on'],['scan','#sk-scanwrap.on'],
+ ['menu','#snbh-topbar .snbh-menu.on'],['locked','#locked-view'],['auth','#auth-screen']
+];
+/* thứ không phải "bảng" dù nằm đè (thanh báo, huy hiệu…) */
+var KT_BO='#pwaNetBadge,#nhac-wrap,#inapp-banner,#hotlineFab,#toast,.toast,#sk-scrim,#snbh-topbar,#sn-print-sheet,#sk-print,#pos-screen,#app,#public-view,#locked-view,#auth-screen,script,style,link,noscript';
+function ktZ(el){
+  var k=[],n=el,i=0;
+  try{
+    while(n&&n.nodeType===1&&n!==document.body&&n!==document.documentElement&&i<60){
+      var cs=getComputedStyle(n);
+      if(cs.position!=='static'&&cs.zIndex!=='auto') k.unshift(parseInt(cs.zIndex,10)||0);
+      else if(cs.position==='fixed') k.unshift(0);
+      n=n.parentElement; i++;
+    }
+  }catch(e){}
+  return k;
+}
+function ktZcmp(a,b){
+  var ka=a.z,kb=b.z,n=Math.max(ka.length,kb.length),i;
+  for(i=0;i<n;i++){ var x=(i<ka.length?ka[i]:0),y=(i<kb.length?kb[i]:0); if(x!==y) return x-y; }
+  if(ka.length!==kb.length) return ka.length-kb.length;
+  try{
+    var p=a.el.compareDocumentPosition(b.el);
+    if(p&16) return -1;   /* b nằm trong a ⇒ b ở trên */
+    if(p&8)  return 1;    /* a nằm trong b */
+    if(p&4)  return -1;   /* b đứng sau a trong trang ⇒ b ở trên */
+    if(p&2)  return 1;
+  }catch(e){}
+  return 0;
+}
+/* bộ chọn chỉ gồm class (.a.b) → dùng danh sách "sống" của trình duyệt: không phải quét lại cả trang mỗi lần (máy yếu đỡ nóng, đỡ giật) */
+var KT_HC={};
+function ktLive(s,root){
+  try{
+    if(/^(\.[\w-]+)+$/.test(s)){
+      var r=root||document,key=s+'@'+(root?(root.id||'r'):'d'),c=KT_HC[key];
+      if(!c||c.r!==r) c=KT_HC[key]={r:r,l:r.getElementsByClassName(s.slice(1).split('.').join(' '))};
+      return Array.prototype.slice.call(c.l);
+    }
+  }catch(e){}
+  return ktqa(s,root);
+}
+function ktLayers(){
+  var o=[],seen=[];
+  function add(k,el,base){ if(!el||seen.indexOf(el)>=0)return; seen.push(el); o.push({k:k,el:el,base:!!base,z:base&&!/^pos:/.test(k)?[-1]:ktZ(el)}); }
+  try{
+    var pv=document.getElementById('public-view');
+    if(pv&&getComputedStyle(pv).display!=='none'&&visEl(pv)) return [{k:'pub',el:pv,base:true,z:[-1]}];
+  }catch(e){}
+  var i,j,x,a;
+  for(i=0;i<KT_LS.length;i++){
+    a=ktLive(KT_LS[i][1]);
+    for(j=0;j<a.length;j++){ x=a[j]; if(visEl(x)&&!ktMine(x)) add(KT_LS[i][0],x,(KT_LS[i][0]==='locked'||KT_LS[i][0]==='auth')); }
+  }
+  ktLive('.modal-overlay.active').forEach(function(m){ if(visEl(m)) add('sn:'+(m.id||'?'),m,false); });
+  try{
+    var psm=document.getElementById('pos-screen');
+    if(psm) ktLive('.sk-modal.on',psm).concat(ktLive('.sk-sheet.on',psm)).forEach(function(m){ if(visEl(m)) add('sk:'+(m.id||'?'),m,false); });
+  }catch(e){}
+  try{
+    var ps=document.getElementById('pos-screen');
+    if(ps&&ps.classList.contains('on')&&visEl(ps)){
+      var tb=ktq('#pos-screen .sk-tab.sk-on'),v=tb?(tb.getAttribute('data-v')||'sell'):'sell';
+      add('pos:'+v,ps,true);
+    }
+  }catch(e){}
+  try{ var ap=document.getElementById('app'); if(ap&&visEl(ap)) add('sono',ap,true); }catch(e){}
+  /* bảng LẠ (chưa có trong danh sách): phần tử cố định, che hơn nửa màn hình */
+  try{
+    var W=ktW(),H=ktH(),pool=Array.prototype.slice.call(document.body.children);
+    var ps2=document.getElementById('pos-screen'); if(ps2&&ps2.classList.contains('on')) pool=pool.concat(Array.prototype.slice.call(ps2.children));
+    for(i=0;i<pool.length;i++){
+      x=pool[i];
+      if(seen.indexOf(x)>=0||ktMine(x))continue;
+      try{ if(x.matches(KT_BO))continue; }catch(e){}
+      if(/(^|\s)sk-view(\s|$)|sk-tabs|sk-top|sk-body|sk-cartbar/.test(String(x.className||'')))continue;
+      var cs=getComputedStyle(x); if(cs.position!=='fixed'||cs.pointerEvents==='none')continue;
+      if(!visEl(x))continue;
+      var r=x.getBoundingClientRect();
+      var iw=Math.max(0,Math.min(r.right,W)-Math.max(r.left,0)),ih=Math.max(0,Math.min(r.bottom,H)-Math.max(r.top,0));
+      if(iw*ih<W*H*0.5)continue;
+      if(parseFloat(cs.opacity)<0.2)continue;
+      add('x:'+(x.id||String(x.className||'').split(' ')[0]||x.tagName),x,false);
+    }
+  }catch(e){}
+  return o;
+}
+function ktTop(list){
+  var t=null;
+  for(var i=0;i<list.length;i++){ if(!t||ktZcmp(list[i],t)>0) t=list[i]; }
+  return t;
+}
+function ktLayer(ds){
+  var ls=ktLayers(); if(!ls.length)return null;
+  var t=ktTop(ls); if(!t)return null;
+  t.g=KTG[t.k]||(/^pos:/.test(t.k)?KTG['pos:*']:null)||null;
+  if(ds){ for(var i=0;i<ls.length;i++) ds[ls[i].k]=1; }
+  return t;
+}
+
+/* ═════ CÁC BÀI "CHỈ TIẾP" CHO TỪNG MÀN / BẢNG ═════
+   Mỗi bài: n = tên màn (hiện trên khung nhắc) · rest = màn "nghỉ" (danh sách / menu — xong việc là về đây)
+            kb = bài hướng dẫn chữ liên quan · done = câu báo khi làm xong bảng này
+            st(L) = đọc trạng thái màn hình → trả về BƯỚC CẦN LÀM TIẾP:
+              {el: chỗ khoanh, t: câu nhắc chính, sm: câu phụ, w: 'type' gõ | 'click' bấm | 'see' xem rồi bấm Xong, tiếp |
+               'pick' chọn việc | 'info' chỉ đọc | 'wait' chờ, ch: các lựa chọn, any: bấm trúng chỗ nào cũng tính, ack/ackT: nút bỏ qua} */
+function KS(el,t,sm,w,o){
+  var s={el:el||null,t:t||'',sm:sm||'',w:w||'click'};
+  if(o){ for(var k in o){ if(o.hasOwnProperty(k)) s[k]=o[k]; } }
+  return s;
+}
+function ktAck(L,key){ return !!(KT&&KT.ack&&KT.ack[(L&&L.k||'')+'|'+key]); }
+function ktTours(keys){
+  var o=[];
+  for(var i=0;i<keys.length;i++){ var T=TOURS[keys[i]]; if(T) o.push({t:'👆 '+T.n,k:keys[i]}); }
+  return o;
+}
+function ktCh(t,el,say,any,ket){ return el?{t:t,el:el,say:say||'',any:any||'',ket:ket||''}:null; }
+function ktPush(a,c){ if(c) a.push(c); return a; }
+function ktB(t){ return '<b>'+esc(t)+'</b>'; }
+var KTG={};
+
+/* ───────── 📒 SỔ NỢ ───────── */
+KTG['sono']={n:'Màn 📒 SỔ NỢ',rest:true,kb:'App này gồm những gì?',st:function(L){
+  var sI=ktq('#search-input'),sv=ktVal(sI);
+  var c0=ktv('#customer-list .customer-card'),cards=c0?[c0]:[];   /* chỉ cần biết có khách nào hiện không + khách đầu (không quét hết danh sách — máy yếu đỡ chậm) */
+  var dang=ktv('#customer-list .loading');
+  if(dang&&!cards.length) return KS(null,'⏳ Đang tải danh sách khách…','Chờ vài giây. Mất mạng lâu thì app dùng bản lưu trong máy.','wait');
+  var tabA=ktq('#app .tab-btns .tab-btn.active');
+  if(sv&&!cards.length) return KS(sI,'Không thấy khách nào có chữ «'+esc(ktcut(sv,24))+'».','Ô tìm đang lọc danh sách. <b>Xoá hết chữ trong ô tìm</b> là thấy lại cả sổ. Khách mới chưa có thì bấm <b>+ Thêm</b> bên cạnh.','type');
+  if(tabA&&tabA.id&&tabA.id!=='tab-all'&&!cards.length) return KS(ktq('#tab-all'),'Đang lọc «'+esc(kttx(tabA))+'» nên danh sách trống.','Bấm nút <b>Tất cả</b> để thấy hết khách.','click');
+  if(!cards.length&&!sv) return KS(ktv('#app .btn-add'),'Sổ chưa có khách nào — thêm khách đầu tiên trước.','Bấm <b>+ Thêm</b> → gõ tên, số điện thoại → <b>Lưu</b>.','click');
+  var ch=ktPush([],ktCh('📖 Mở sổ của một khách (xem nợ · ghi nợ · ghi trả)',cards[0],'Chạm vào <b>tên khách</b> cần mở — khoanh vàng là khách đầu danh sách, chạm khách khác cũng được. Không thấy khách đó thì gõ tên vào ô 🔍 tìm ở trên.','#customer-list .customer-card'));
+  ch=ch.concat(ktTours(['ghi-no','thu-no','them-khach','sua-ten','chia-se','in-bang-ke','tim-khach','sao-luu','nhac-no']));
+  ktPush(ch,ktCh('🛒 Sang màn Bán hàng',ktv('#snbh-topbar .snbh-tab'),'Bấm nút <b>🛒 BÁN HÀNG</b> ở trên cùng.'));
+  return KS(null,'Bạn đang ở màn <b>📒 SỔ NỢ</b>. Bạn muốn làm việc gì?','Chạm vào việc cần làm — mình khoanh từng nút cho bạn bấm theo.','pick',{ch:ch});
+}};
+KTG['menu']={n:'Menu ⚙️ Cài đặt',rest:true,kb:'Đổi mật khẩu',st:function(L){
+  var r=L.el,ch=[];
+  ktPush(ch,ktCh('🏦 Cài số tài khoản ngân hàng (để hiện mã QR)',ktv('[data-snbh="account"]',r)));
+  ktPush(ch,ktCh('🔑 Đổi mật khẩu đăng nhập',ktv('[data-snbh="pass"]',r)));
+  ktPush(ch,ktCh('🔒 Khóa / mở khóa Sổ Nợ',ktv('[data-snbh="lock"]',r)));
+  ktPush(ch,ktCh('🎁 Giới thiệu bạn bè',ktv('[data-snbh="invite"]',r)));
+  ktPush(ch,ktCh('📲 Cài app vào màn hình điện thoại',ktv('[data-snbh="install"]',r)));
+  ktPush(ch,ktCh('🚪 Đăng xuất',ktv('[data-snbh="logout"]',r),'Bấm <b>Đăng xuất</b>. Máy hỏi lại thì bấm OK. Nhớ email + mật khẩu để đăng nhập lại.'));
+  return KS(null,'Menu <b>⚙️ Cài đặt</b> đang mở. Bạn cần làm gì?','Chạm vào việc cần làm. Không cần thì chạm ra chỗ trống bên ngoài menu để đóng.','pick',{ch:ch});
+}};
+KTG['sn:modal-add-cust']={n:'Bảng ➕ Thêm khách hàng',kb:'Thêm khách hàng mới',done:'Khách mới đã nằm trong danh sách. Chạm vào tên khách để ghi nợ, ghi trả.',st:function(L){
+  var nm=ktq('#new-name');
+  if(ktEmpty(nm)) return KS(nm,'Chạm vào ô '+ktB('Tên khách hàng')+' rồi gõ tên khách.','VD: <i>Cô Ba bán rau</i>. Muốn lấy tên + số từ danh bạ máy thì bấm nút <b>📇 Chọn nhanh từ danh bạ máy</b> ở trên.','type');
+  var ph=ktq('#new-phone');
+  if(ktEmpty(ph)&&!ktAck(L,'ph')) return KS(ph,'Gõ '+ktB('số điện thoại')+' của khách (nếu có).','Có số thì gửi link nợ qua Zalo dễ hơn. Không có số thì bấm <b>Bỏ qua ▶</b>.','type',{ack:'ph',ackT:'Bỏ qua ▶'});
+  return KS(ktv('#modal-add-cust .btn-save'),'Bấm '+ktB('Lưu')+' để thêm khách.','Ô <b>Địa chỉ / Ghi chú</b> không bắt buộc.','click');
+}};
+KTG['sn:modal-detail']={n:function(){ return 'Sổ của khách '+ktcut(kttx(ktq('#detail-name')).replace(/^👤\s*/,''),28); },rest:true,kb:'Ghi khách mua hàng (ghi nợ)',st:function(L){
+  var r=L.el,nm=kttx(ktq('#detail-name')).replace(/^👤\s*/,''),no=kttx(ktq('#detail-debt'));
+  var mua=ktv('[onclick="openTx(\'mua\')"]',r),tra=ktv('[onclick="openTx(\'tra\')"]',r),ch=[];
+  ktPush(ch,ktCh('🛒 Ghi khách MUA chịu (nợ tăng lên)',mua,'Bấm nút xanh <b>🛒 Mua</b>.'));
+  ktPush(ch,ktCh('💰 Ghi khách TRẢ tiền (nợ giảm xuống)',tra,'Bấm nút <b>💰 Trả</b>.'));
+  ktPush(ch,ktCh('📤 Gửi link công nợ cho khách xem',ktv('[onclick="generateShareLink()"]',r),'Bấm <b>📤 Chia sẻ</b> → chọn <b>Zalo</b> (hoặc tin nhắn) → chọn tên khách → gửi.'));
+  ktPush(ch,ktCh('🖨️ In / gửi bảng kê công nợ',ktv('[onclick="snOpenPrint()"]',r),'Bấm <b>🖨️ In A4/A5</b>.'));
+  ktPush(ch,ktCh('✏️ Sửa tên, số điện thoại của khách',ktv('[onclick="openEditCust()"]',r),'Bấm <b>✏️ Sửa tên</b>.'));
+  ktPush(ch,ktCh('✏️ Sửa / xoá một lần mua, trả đã ghi',ktv('#tx-list .tx-item',r),'Chạm vào <b>đúng dòng</b> mua / trả cần sửa trong danh sách bên dưới.','#tx-list .tx-item'));
+  ktPush(ch,ktCh('✍️ Xem chữ ký khách đã ký',ktv('[onclick="openSignatures()"]',r),'Bấm <b>✍️ Chữ ký</b>.'));
+  ktPush(ch,ktCh('🗑 Xóa hẳn khách này',ktv('[onclick="deleteCustomer()"]',r),'Bấm nút đỏ <b>🗑</b>. App chỉ cho xoá khi công nợ đã về <b>0đ</b>.'));
+  ktPush(ch,ktCh('↩ Đóng sổ, về danh sách khách',ktCancel(r),'Bấm <b>Đóng</b> (hoặc nút ✕ ở góc trên).','','Đã đóng sổ của khách, về danh sách.'));
+  return KS(null,'Đây là sổ của '+ktB(nm||'khách')+(no?(' — '+esc(no)):'')+'. Bạn muốn làm gì?',(mua?'':'🔒 Không thấy nút Mua / Trả vì <b>Sổ Nợ đang KHÓA</b> (hoặc máy này không được sửa công nợ). Muốn ghi thì mở khoá: ⚙️ Cài đặt → 🔒 Khóa sổ.'),'pick',{ch:ch});
+}};
+KTG['sn:modal-tx']={n:function(){ return 'Bảng '+ktcut(kttx(ktq('#tx-title'))||'ghi giao dịch',30); },kb:'Ghi khách mua hàng (ghi nợ)',done:'Đã lưu. Số nợ của khách tự cộng / trừ — nhìn số ở đầu sổ của khách là thấy.',st:function(L){
+  var tb=ktq('#tx-type-tra'),isTra=!!(tb&&tb.classList.contains('active'));
+  var sua=visEl(ktq('#tx-del-btn')),am=ktq('#tx-amount'),v=ktVal(am),n=ktTien(v);
+  var kind=isTra?'<b>💰 Trả tiền</b> (nợ GIẢM)':'<b>🛒 Mua hàng</b> (nợ TĂNG)';
+  if(!v) return KS(am,'Gõ '+ktB('số tiền')+' khách '+(isTra?'vừa trả':'mua chịu')+' vào ô này.','Chỉ gõ số, VD <b>150000</b> (gõ 150.000 cũng được). Đang chọn: '+kind+' — chọn nhầm thì bấm nút kia ở phía trên.','type');
+  if(!(n>0)) return KS(am,'Số tiền «'+esc(ktcut(v,20))+'» chưa đúng.','Chỉ gõ chữ số, VD <b>150000</b>. Xoá chữ cái, dấu phẩy thừa đi rồi gõ lại.','type',{loi:1});
+  if(!isTra&&!sua&&ktEmpty(ktq('#tx-note'))&&!ktAck(L,'note')) return KS(ktq('#tx-note'),'Ghi '+ktB('món hàng')+' khách mua (không bắt buộc).','VD: <i>2 bao gạo</i>. Muốn kèm ảnh hoá đơn thì bấm <b>Chọn tệp</b> ở dưới. Không cần thì bấm <b>Bỏ qua ▶</b>.','type',{ack:'note',ackT:'Bỏ qua ▶'});
+  return KS(ktv('#modal-tx .btn-save'),'Bấm '+ktB('Lưu')+'.',(sua?'Đang <b>SỬA</b> một lần ghi cũ. ':'')+'Sẽ ghi: '+kind+' <b>'+ktFmt(Math.round(n))+'</b>. Đúng rồi thì bấm Lưu.','click');
+}};
+KTG['sn:modal-edit-cust']={n:'Bảng ✏️ Sửa tên khách',kb:'Sửa tên, số điện thoại, địa chỉ của khách (✏️ Sửa tên)',done:'Tên mới đã hiện trong danh sách. Số nợ và giao dịch giữ nguyên.',st:function(L){
+  var nm=ktq('#ec-name');
+  if(ktEmpty(nm)) return KS(nm,'Ô '+ktB('Tên khách hàng')+' đang trống — gõ tên khách vào.','','type');
+  if(!ktAck(L,'xem')) return KS(nm,'Sửa lại '+ktB('tên')+' cho đúng (cần thì sửa luôn số điện thoại, địa chỉ ở 2 ô dưới).','Sửa xong bấm <b>Xong, tiếp ▶</b>.','see',{ack:'xem'});
+  return KS(ktv('#modal-edit-cust .btn-save'),'Bấm '+ktB('Lưu')+'.','Chỉ đổi tên + thông tin liên hệ — công nợ và giao dịch giữ nguyên.','click');
+}};
+KTG['sn:modal-tools']={n:'Bảng 🧰 Công cụ & Sao lưu',rest:true,kb:'Sao lưu dữ liệu (nên làm thường xuyên)',st:function(L){
+  var r=L.el,ch=[];
+  ktPush(ch,ktCh('💾 Sao lưu dữ liệu (nên làm thường xuyên)',ktv('#backup-btn',r),'Bấm <b>💾 Sao lưu toàn bộ</b>. Máy tải về 1 tệp — gửi tệp đó vào Zalo "Cloud của tôi" để cất.'));
+  ktPush(ch,ktCh('📥 Xuất file Excel',ktv('#export-btn',r)));
+  ktPush(ch,ktCh('📤 Nhập / phục hồi từ file sao lưu',ktv('#import-btn',r)));
+  ktPush(ch,ktCh('🛟 Sao lưu CỨU HỘ (Sổ Nợ + Bán hàng)',ktv('#full-backup-btn',r)));
+  ktPush(ch,ktCh('♻️ Phục hồi CỨU HỘ',ktv('#full-restore-btn',r)));
+  ktPush(ch,ktCh('🔔 Bật nhắc nợ tự động',ktv('.btn-remind',r)));
+  ktPush(ch,ktCh('💳 Gia hạn tài khoản',ktv('.btn-renew',r)));
+  ktPush(ch,ktCh('📊 Báo cáo chi tiết Sổ Nợ',ktv('#snr-open-modal',r)));
+  ktPush(ch,ktCh('🧹 Dọn kho ảnh',ktv('#clean-stg-btn',r)));
+  ktPush(ch,ktCh('↩ Đóng bảng này',ktCancel(r),'Bấm <b>✖ Đóng</b>.','','Đã đóng bảng.'));
+  return KS(null,'Bảng '+ktB('🧰 Công cụ & Sao lưu')+' đang mở. Bạn cần làm gì?','Chạm vào việc cần làm, mình khoanh đúng nút.','pick',{ch:ch});
+}};
+KTG['sn:modal-settings']={n:'Bảng 🏦 Số tài khoản ngân hàng',kb:'Cài số tài khoản ngân hàng để tạo QR',done:'Từ giờ link nợ, hoá đơn và nút VietQR khi bán hàng đều hiện mã QR chuyển vào tài khoản này.',st:function(L){
+  var b=ktq('#set-bank'),a=ktq('#set-account'),n=ktq('#set-accname');
+  if(ktEmpty(b)) return KS(b,'Chạm vào ô '+ktB('Ngân hàng')+' rồi chọn ngân hàng của bạn.','Danh sách xổ xuống — kéo lên xuống để tìm đúng tên ngân hàng.','type');
+  if(ktEmpty(a)) return KS(a,'Gõ '+ktB('số tài khoản')+' ngân hàng.','Chỉ gõ số, không gõ dấu cách.','type');
+  if(ktEmpty(n)) return KS(n,'Gõ '+ktB('tên chủ tài khoản')+' — viết HOA, không dấu.','VD: <b>NGUYEN VAN A</b> (đúng như trên thẻ ngân hàng).','type');
+  return KS(ktv('#modal-settings .btn-save'),'Bấm '+ktB('Lưu')+'.','Kiểm lại số tài khoản cho chắc trước khi lưu — sai số là khách chuyển nhầm.','click');
+}};
+KTG['sn:modal-renew-nudge']={n:'Nhắc gia hạn',kb:'Gia hạn tài khoản — giá bao nhiêu?',st:function(L){
+  return KS(ktv('.btn-save',L.el),'Tài khoản sắp hết hạn. Muốn gia hạn ngay thì bấm '+ktB('💳 Gia hạn ngay')+'.','Chưa muốn thì bấm <b>Để sau</b> ở dưới cùng — app vẫn dùng bình thường tới ngày hết hạn.','click');
+}};
+KTG['sn:modal-renew']={n:'Bảng 💳 Gia hạn tài khoản',kb:'Gia hạn tài khoản — giá bao nhiêu?',st:function(L){
+  var r=L.el,tab=ktv('.rn-tab.on',r);
+  if(!ktAck(L,'goi')) return KS(ktv('.rn-tabs',r),'Chọn gói muốn gia hạn: '+ktB('📒 Sổ Nợ')+' hay '+ktB('🛒 Bán hàng (POS)')+'.','Đang chọn: <b>'+esc(kttx(tab)||'—')+'</b>. Đúng rồi thì bấm <b>Xong, tiếp ▶</b>.','see',{ack:'goi'});
+  var m=ktv('.rn-m.on,.rn-year-btn.on',r);
+  if(!ktAck(L,'thang')) return KS(ktv('.rn-months',r)||ktv('#rn-year-btn',r),'Chọn '+ktB('số tháng')+': 1 · 3 · 6 tháng, hoặc nút '+ktB('Gói năm')+' ngay dưới (được tặng thêm tháng — lợi nhất).','Đang chọn: <b>'+esc(kttx(m)||'—')+'</b>. Chọn xong bấm <b>Xong, tiếp ▶</b>.','see',{ack:'thang'});
+  var qr=ktv('#rn-body .rn-qrbox img',r),ck=ktv('#rn-body [onclick^="snDaCK"]',r);
+  if(!qr&&!ck) return KS(ktv('#rn-body',r)||null,'Chưa hiện mã QR chuyển khoản.','Đọc dòng chữ trong khung (máy nhân viên phải gia hạn trên máy chủ shop · chưa có giá gói…). Cần gấp thì gọi hotline ở cuối bảng.','info');
+  if(!ktAck(L,'qr')) return KS(qr||ktv('#rn-body',r),'Mở '+ktB('app ngân hàng')+' → chọn quét mã QR → quét mã này → chuyển khoản.','Số tiền và nội dung chuyển khoản đã điền sẵn — <b>giữ nguyên nội dung</b> để chủ phần mềm mở đúng tài khoản. Chuyển xong bấm <b>Xong, tiếp ▶</b>.','see',{ack:'qr'});
+  return KS(ck,'Chuyển xong thì bấm '+ktB('✅ Tôi đã chuyển khoản')+'.','Chủ phần mềm nhận báo ngay và mở hạn. Cần gấp thì gọi số hotline ở cuối bảng.','click');
+}};
+KTG['sn:modal-rem']={n:'Bảng 🔔 Nhắc nợ tự động',kb:'Bật nhắc nợ tự động',done:'Từ giờ mỗi lần mở app, danh sách khách cần nhắc hiện ở đầu màn Sổ Nợ.',st:function(L){
+  var cb=ktq('#rem-enable');
+  if(cb&&!cb.checked&&!ktAck(L,'tat')) return KS(ktq('#modal-rem .rem-enable-row'),'Tick vào ô '+ktB('Bật nhắc nợ tự động')+'.','Muốn TẮT nhắc nợ thì để trống ô này rồi bấm <b>Bỏ qua ▶</b> → Lưu.','click',{ack:'tat',ackT:'Bỏ qua ▶'});
+  if(!ktAck(L,'ngay')) return KS(ktv('#modal-rem .rd-opts'),'Chọn '+ktB('nhắc lại sau mấy ngày')+': Hằng ngày · 7 · 15 · 30 ngày.','Muốn số ngày khác thì gõ vào ô ngay bên dưới. Chọn xong bấm <b>Xong, tiếp ▶</b>.','see',{ack:'ngay'});
+  return KS(ktv('#modal-rem .btn-save'),'Bấm '+ktB('Lưu')+'.','','click');
+}};
+function ktImport(L,f,run,sum,ten){
+  var fi=ktq(f);
+  if(ktEmpty(fi)) return KS(fi,'Bấm nút '+ktB('Chọn tệp')+' rồi chọn '+ten+'.','Tệp thường nằm ở mục <b>Tải xuống (Download)</b> hoặc trong Zalo "Cloud của tôi" (tải về máy trước).','type');
+  var rb=ktq(run),sm=kttx(ktq(sum));
+  if(rb&&rb.disabled) return KS(ktq(sum)||fi,'Nút '+ktB(kttx(rb))+' còn mờ — tệp vừa chọn chưa dùng được.',(sm?('App báo: <i>'+esc(ktcut(sm,140))+'</i>. '):'')+'Chọn lại đúng tệp sao lưu (.json).','info');
+  if(!ktAck(L,'mode')) return KS(ktv('.imp-mode',L.el),'Chọn cách nhập: '+ktB('🔀 Gộp')+' (an toàn, khuyên dùng) hay '+ktB('♻️ Ghi đè')+' (xoá hết rồi thay).','Không chắc thì chọn <b>Gộp</b>. Chọn xong bấm <b>Xong, tiếp ▶</b>.','see',{ack:'mode'});
+  return KS(rb,'Bấm '+ktB(kttx(rb)||'Bắt đầu')+'.','Chờ tới khi app báo xong — đừng tắt app giữa chừng.','click');
+}
+KTG['sn:modal-import']={n:'Bảng 📤 Nhập / Phục hồi dữ liệu',kb:'Phục hồi dữ liệu từ file sao lưu',st:function(L){ return ktImport(L,'#imp-file','#imp-run','#imp-summary','tệp sao lưu (.json hoặc .xlsx)'); }};
+KTG['sn:modal-full']={n:'Bảng 🛟 Cứu hộ TOÀN BỘ',kb:'Sao lưu CỨU HỘ toàn bộ (Sổ Nợ + Bán hàng)',st:function(L){ return ktImport(L,'#full-file','#full-run','#full-summary','tệp sao lưu CỨU HỘ (.json)'); }};
+KTG['sn:modal-signs']={n:'Bảng ✍️ Chữ ký xác nhận',rest:true,kb:'Xin chữ ký xác nhận của khách',st:function(L){
+  return KS(ktCancel(L.el),'Đây là các '+ktB('chữ ký')+' khách đã ký trên link. Chạm vào chữ ký để xem lớn.','Xem xong bấm <b>Đóng</b>.','click');
+}};
+KTG['att']={n:'Đang xem tệp đính kèm',rest:true,kb:'Xem lại ảnh giấy tờ đã đính kèm',st:function(L){
+  return KS(ktv('.att-head button',L.el),'Đang xem '+ktB('ảnh / tệp đính kèm')+'. Xem xong bấm '+ktB('✕')+' ở góc trên để đóng.','','click');
+}};
+KTG['print']={n:'Bảng 🖨️ In bảng kê công nợ',kb:'In bảng kê công nợ khổ A4 / A5',st:function(L){
+  var r=L.el;
+  if(!ktAck(L,'ky')) return KS(ktv('.sn-range',r),'Chọn '+ktB('khoảng thời gian')+' muốn in: Tất cả · Tháng này · Tháng trước · Năm nay, hoặc chọn Từ ngày – Đến ngày.','Bảng kê xem trước ở bên dưới tự đổi theo. Chọn xong bấm <b>Xong, tiếp ▶</b>.','see',{ack:'ky'});
+  var ch=[];
+  ktPush(ch,ktCh('🖨 In bằng máy tính (khổ A4 / A5, lưu PDF)',ktv('.sn-go',r),'Bấm <b>🖨 In máy tính</b>. Hộp in hiện ra → chọn đúng khổ giấy → In (hoặc "Lưu thành PDF").'));
+  ktPush(ch,ktCh('📤 Gửi ảnh bảng kê qua Zalo',ktv('.sn-share-btn',r)));
+  ktPush(ch,ktCh('📶 In máy in nhiệt Bluetooth',ktv('[onclick="snPrintStatementBT()"]',r),'Bấm <b>🔗 Kết nối máy in</b> trước (lần đầu), rồi bấm <b>📶 In Bluetooth</b>. Chỉ chạy trên Android + Chrome.'));
+  ktPush(ch,ktCh('↩ Đóng, không in',ktv('.sn-cancel',r),'','','Đã đóng bảng in.'));
+  return KS(null,'Bạn muốn in hay gửi bảng kê thế nào?','','pick',{ch:ch});
+}};
+KTG['unlock']={n:'Bảng 🔓 Mở khoá Sổ Nợ',kb:'Khóa sổ — chống sửa công nợ',done:'Sổ Nợ đã mở khoá — sửa được công nợ như thường.',st:function(L){
+  var p=ktq('#sn-unlock-pwd'),m=kttx(ktq('#sn-unlock-msg'));
+  if(ktEmpty(p)) return KS(p,'Gõ '+ktB('mật khẩu đăng nhập')+' của bạn (mật khẩu dùng để vào app).',m?('App báo: <i>'+esc(m)+'</i>'):'','type');
+  return KS(ktv('#sn-unlock-ok'),'Bấm '+ktB('Mở khóa')+'.',m?('App báo: <i>'+esc(m)+'</i> — gõ lại đúng mật khẩu.'):'','click');
+}};
+KTG['snr']={n:'Báo cáo chi tiết Sổ Nợ',rest:true,kb:'Báo cáo Sổ Nợ: Nợ ròng, Dòng tiền trong kỳ, Tuổi nợ phải thu',st:function(L){
+  return KS(ktv('#snr-period',L.el),'Chọn '+ktB('khoảng thời gian')+' muốn xem: Hôm nay · 7 ngày · 30 ngày · Tháng này · Tất cả · Tùy chọn.','Kéo xuống để xem từng phần. Xem xong bấm <b>‹ Quay lại</b> ở góc trên bên trái.','info');
+}};
+
+/* ───────── ĐĂNG NHẬP · KHOÁ ───────── */
+KTG['auth']={n:'Màn đăng nhập',rest:false,kb:'Đăng nhập vào app',done:'Đã vào được app.',st:function(L){
+  var em=ktq('#email-input'),pw=ktq('#pass-input'),er=kttx(ktq('#auth-error'));
+  var bao=er?('App báo: <i>«'+esc(er)+'»</i> '):'',loi=!!(er&&!/^✅/.test(er));
+  if(/Đã gửi thư đặt lại/.test(er)) return KS(em,'✅ Đã gửi thư đặt lại mật khẩu.','Mở email (xem cả mục <b>Spam / Thư rác</b>) → bấm link trong thư → đặt mật khẩu mới → quay lại đây đăng nhập bằng mật khẩu mới.','info');
+  if(ktEmpty(em)) return KS(em,'Gõ '+ktB('email')+' của bạn vào ô này.',bao+'Email là địa chỉ thư, VD <i>tenban@gmail.com</i>.','type',{loi:loi});
+  if(ktEmpty(pw)) return KS(pw,'Gõ '+ktB('mật khẩu')+' vào ô này.',bao+'Quên mật khẩu thì bấm chữ <b>Quên mật khẩu?</b> ngay dưới — app gửi thư đặt lại vào email.','type',{loi:loi});
+  var ch=[];
+  ktPush(ch,ktCh('🔑 Tôi ĐÃ CÓ tài khoản — đăng nhập',ktv('#auth-screen .btn-primary'),'Bấm nút xanh <b>Đăng nhập</b>.'));
+  ktPush(ch,ktCh('🆕 Tôi dùng LẦN ĐẦU — đăng ký mới (dùng thử miễn phí)',ktv('#auth-screen [onclick="doRegister()"]'),'Bấm nút trắng <b>Đăng ký tài khoản mới</b>. Mật khẩu cần ít nhất 6 ký tự.'));
+  ktPush(ch,ktCh('❓ Quên mật khẩu',ktv('#auth-screen [onclick="doForgot()"]'),'Bấm chữ <b>Quên mật khẩu?</b> — app gửi thư đặt lại mật khẩu vào email đang gõ.'));
+  var t=/Sai email hoặc mật khẩu/.test(er)?'Sai email hoặc mật khẩu — xem lại từng chữ (chữ hoa/thường, dấu chấm), rồi chọn:':(/đã có tài khoản/.test(er)?'Email này ĐÃ có tài khoản — bấm Đăng nhập:':'Đã gõ đủ email + mật khẩu. Giờ chọn:');
+  return KS(null,t,bao?bao:'','pick',{ch:ch,loi:loi});
+}};
+KTG['locked']={n:'Màn tài khoản chưa dùng được',rest:false,kb:'Tài khoản hết hạn / bị khóa',st:function(L){
+  var tt=kttx(ktq('#locked-title')),mg=kttx(ktq('#locked-msg')),p=ktv('#locked-actions .lk-pay');
+  var hot=ktv('#locked-actions a[href^="tel:"]');
+  if(p) return KS(p,ktB(tt||'Tài khoản chưa dùng được')+' — bấm nút '+ktB(kttx(p))+'.',esc(ktcut(mg,180))+(hot?' Cần người giúp thì bấm nút gọi hotline màu xanh lá ngay dưới.':''),'click');
+  return KS(hot,ktB(tt||'Tài khoản chưa dùng được')+'.',esc(ktcut(mg,200))+' Bấm nút xanh lá để <b>gọi hotline</b> nhờ mở giúp.','click');
+}};
+
+/* ───────── 🛒 BÁN HÀNG — CÁC TAB ───────── */
+function ktKhongThay(inp,ten){
+  return KS(inp,'Không thấy '+ten+' nào khớp «'+esc(ktcut(ktVal(inp),24))+'».','Xoá bớt chữ trong ô tìm (bấm vào ô rồi xoá). Món chưa có thì vào tab <b>Kho</b> → <b>➕ Thêm SP</b>.','type');
+}
+KTG['pos:sell']={n:'🛒 Bán hàng — tab Bán',rest:true,kb:'Bán hàng cơ bản — từ A đến Z',st:function(L){
+  var cb=ktq('#sk-cartbar'),on=cb&&visEl(cb)&&!cb.classList.contains('hide');
+  if(on) return KS(cb,'Giỏ đang có '+ktB(kttx(ktq('#sk-cartbar-count'))+' món')+' — tổng '+ktB(kttx(ktq('#sk-cartbar-total')))+'. Bấm thanh xanh '+ktB('Xem giỏ · thanh toán')+' để thu tiền.','Khách mua thêm thì chạm tiếp vào món trong danh sách trước rồi mới bấm thanh xanh.','click');
+  var s=ktq('#sk-search'),t0=ktv('#sk-grid .sk-tile'),tiles=t0?[t0]:[];
+  if(!tiles.length&&ktVal(s)) return ktKhongThay(s,'món');
+  if(!tiles.length) return KS(ktv('#pos-screen .sk-tab[data-v="kho"]'),'Chưa có sản phẩm nào để bán.','Bấm tab <b>Kho</b> ở dưới cùng → <b>➕ Thêm SP</b> để thêm hàng trước.','click');
+  var ch=ktPush([],ktCh('🛒 Bán ngay — chạm vào món khách mua',ktv('#sk-grid .sk-tile:not([disabled])'),'Chạm vào <b>món khách mua</b> — khoanh vàng là món đầu, chạm món khác cũng được. <b>Chạm 2 lần = 2 cái.</b> Không thấy món thì gõ tên vào ô 🔍 tìm ở trên.','#sk-grid .sk-tile'));
+  ch=ch.concat(ktTours(['ban-hang','giu-don','tra-hang','quy-ca']));
+  ktPush(ch,ktCh('📷 Quét mã vạch để bán',ktv('#sk-v-sell [data-act="scan-sell"]'),'Bấm <b>📷 Quét</b> rồi đưa mã vạch vào khung. Lần đầu máy hỏi quyền camera thì bấm <b>Cho phép</b>.'));
+  ktPush(ch,ktCh('👤 Đổi người đang bán',ktv('#sk-staffbtn'),'Bấm <b>👤 Đổi người</b> rồi chọn tên + bấm mã PIN.'));
+  ktPush(ch,ktCh('📒 Về màn Sổ Nợ',ktv('#snbh-posnav [data-act="close-pos"]'),'Bấm nút <b>📒 SỔ NỢ</b> ở trên cùng.'));
+  return KS(null,'Bạn đang ở '+ktB('🛒 Bán hàng — tab Bán')+'. Bạn muốn làm gì?','Chạm vào việc cần làm — mình khoanh từng nút cho bạn bấm theo.','pick',{ch:ch});
+}};
+KTG['pos:kho']={n:'🛒 Bán hàng — tab Kho',rest:true,kb:'Thêm sản phẩm mới vào kho',st:function(L){
+  var s=ktq('#sk-ksearch'),r0=ktv('#sk-kholist .sk-row'),rows=r0?[r0]:[];
+  if(!rows.length&&ktVal(s)) return ktKhongThay(s,'sản phẩm');
+  if(!rows.length&&!ktv('#sk-cats .sk-catchip.on:not([data-cat=""])')) return KS(ktv('#sk-v-kho [data-act="prod-new"]'),'Kho chưa có sản phẩm nào.','Bấm <b>➕ Thêm SP</b> để thêm món đầu tiên.','click');
+  var ch=ktTours(['them-sp','hsd','xem-hsd']);
+  ktPush(ch,ktCh('✎ Sửa / xoá một sản phẩm',ktv('#sk-kholist .sk-row'),'Chạm vào <b>sản phẩm</b> cần sửa → bấm <b>✎ Sửa</b>.','#sk-kholist .sk-row'));
+  ktPush(ch,ktCh('📥 Nhập thêm tồn cho một món',ktv('#sk-kholist .sk-row'),'Chạm vào <b>sản phẩm</b> → bấm <b>📥 Nhập</b> → gõ số lượng.','#sk-kholist .sk-row'));
+  ktPush(ch,ktCh('📋 Kiểm kho bằng quét mã',ktv('#sk-v-kho [data-act="sess-start"][data-mode="count"]')));
+  ktPush(ch,ktCh('📤 Xuất hủy hàng hỏng',ktv('#sk-v-kho [data-act="sess-start"][data-mode="out"]')));
+  ktPush(ch,ktCh('🔀 Chuyển kho sang cửa hàng khác',ktv('#sk-v-kho [data-act="transfer-open"]')));
+  ktPush(ch,ktCh('🕘 Xem lịch sử nhập / xuất',ktv('#sk-v-kho [data-act="history"]')));
+  return KS(null,'Bạn đang ở '+ktB('tab Kho')+'. Bạn muốn làm gì?','Chạm vào việc cần làm — mình khoanh đúng nút.','pick',{ch:ch});
+}};
+KTG['pos:nhap']={n:'🛒 Bán hàng — tab Nhập hàng',rest:false,kb:'Nhập hàng từ nhà cung cấp',done:'Đã lưu phiếu nhập. Tồn kho tự cộng lên, giá vốn cập nhật theo giá nhập.',st:function(L){
+  var items=ktvs('#sk-np-items .sk-np-line'),picks=ktvs('#sk-np-pick [data-act]'),se=ktq('#sk-np-search');
+  if(KT&&KT.init){
+    if(items.length) KT.init['nhap|co']=1;
+    else if(KT.init['nhap|co']&&KT.click&&KT.click.act==='np-save'&&Date.now()-KT.click.t<8000){ KT.init['nhap|co']=0; return {w:'fin'}; }
+  }
+  if(!items.length){
+    if(picks.length) return KS(picks[0],'Chạm vào '+ktB('món cần nhập')+' để đưa vào phiếu.','Không đúng món thì gõ thêm chữ cho chính xác. Hàng mới chưa có trong kho: bấm dòng <b>➕ Thêm SP mới</b> (nếu có).','click',{any:'#sk-np-pick [data-act]'});
+    if(ktVal(se)) return KS(se,'Không thấy món nào khớp «'+esc(ktcut(ktVal(se),24))+'».','Gõ ít chữ hơn (VD chỉ gõ "bia"). Hàng mới về lần đầu thì thêm vào Kho trước.','type');
+    return KS(se,'Gõ '+ktB('tên món cần nhập')+' vào ô này.','Gõ vài chữ là danh sách món hiện ra để chạm chọn. Có mã vạch thì bấm <b>📷 Quét</b>. Muốn ghi nhà cung cấp thì chọn ở ô phía trên trước.','type');
+  }
+  if(!ktAck(L,'ds')) return KS(ktq('#sk-np-items'),'Kiểm lại từng dòng: '+ktB('số lượng')+' (bấm − / + hoặc chạm vào con số) và '+ktB('giá nhập')+' (chạm chữ "Giá nhập … ✎").','Còn món khác thì gõ tên vào ô tìm phía trên để thêm. Xong bấm <b>Xong, tiếp ▶</b>.','see',{ack:'ds'});
+  return KS(ktv('#sk-v-nhap [data-act="np-save"]'),'Bấm '+ktB('✔ Lưu phiếu nhập')+'.','Ô <b>Trả NCC ngay</b>: gõ số tiền đã trả nhà cung cấp. Để trống = ghi nợ nhà cung cấp toàn bộ.','click');
+}};
+KTG['pos:report']={n:'🛒 Bán hàng — tab Báo cáo',rest:true,kb:'Xem báo cáo doanh thu — lãi lỗ',st:function(L){
+  var ch=ktTours(['bao-cao','nhan-vien']);
+  ktPush(ch,ktCh('📅 Chọn khoảng ngày tùy ý',ktv('#sk-period [data-p="custom"]'),'Bấm <b>Tùy chọn</b> → chọn <b>Từ ngày</b> và <b>Đến ngày</b>.'));
+  ktPush(ch,ktCh('🔌 Kiểm tra kết nối & quyền (khi app báo lỗi)',ktv('#sk-v-report [data-act="diag-run"]')));
+  return KS(ktv('#sk-period'),'Chọn '+ktB('kỳ muốn xem')+' ở hàng nút này: Hôm nay · 7 ngày · 30 ngày · Tùy chọn.','Kéo xuống để xem Thành tiền, Vốn, Lãi, số đơn… Muốn làm việc khác thì chọn bên dưới:','pick',{ch:ch});
+}};
+KTG['pos:qrd']={n:'🛒 Bán hàng — tab Bán online',rest:true,kb:'Bán online là gì? Dùng làm gì?',st:function(L){
+  var r=ktq('#pos-screen .sk-view.sk-on')||L.el;
+  var thu=ktv('[data-act="qrd-thu"]',r),mua=ktv('[data-act="qrd-mua"]',r),tao=ktv('[data-act="qrd-otao"]',r),onl=ktv('.qrd-onl',r);
+  if(thu) return KS(thu,'Gói Bán online chưa mở. Bấm '+ktB(kttx(thu))+' để dùng thử miễn phí.','Dùng thử xong thì mua gói để dùng tiếp — có nút mua ngay bên dưới.','click');
+  if(tao) return KS(tao,'Gói đã mở. Bấm '+ktB(kttx(tao)||'Tạo link cửa hàng')+' để có link bán online.','Có link rồi thì gửi cho khách qua Zalo, Facebook — khách đặt hàng ngay trên link.','click');
+  if(mua&&!onl) return KS(mua,'Đã hết lượt dùng thử. Bấm '+ktB(kttx(mua))+' để mua gói, hoặc gọi số hotline ngay bên cạnh.','','click');
+  var ch=ktTours(['onl-gui','onl-cfg','onl-chon','chuong','tn-hop','tn-bat']);
+  if(!ch.length) return KS(null,'Đang tải khung Bán online…','Chờ vài giây. Máy mất mạng thì bật mạng rồi mở lại tab này.','wait');
+  return KS(null,'Bạn đang ở '+ktB('tab Bán online')+'. Bạn muốn làm gì?','Đơn khách đặt hiện ngay trong tab này, máy reo chuông báo. Chạm vào việc cần làm:','pick',{ch:ch});
+}};
+KTG['pos:aib']={n:'🛒 Bán hàng — tab Cố vấn',rest:true,kb:'Cố vấn kinh doanh là gì? Nằm ở đâu?',st:function(L){
+  var inp=ktv('#aib-in');
+  return KS(inp,'Đây là '+ktB('🧠 Cố vấn kinh doanh')+'. Gõ câu hỏi vào ô này rồi bấm gửi.','VD: <i>hôm nay lãi bao nhiêu</i> · <i>hàng nào sắp hết</i> · <i>nên đòi nợ ai trước</i>. Hoặc bấm các nút có sẵn trong tab.','info');
+}};
+KTG['pos:*']={n:function(L){ var t=ktq('#pos-screen .sk-tab.sk-on'); return '🛒 Bán hàng — tab '+(kttx(t)||''); },rest:true,kb:'Bán hàng cơ bản — từ A đến Z',st:function(L){
+  var t=ktq('#pos-screen .sk-tab.sk-on'),v=t?t.getAttribute('data-v'):'';
+  var kb={fnb:'Module F&B — sơ đồ bàn quán ăn, cà phê',rm:'Module Karaoke / Nhà nghỉ — phòng tính giờ'}[v]||'';
+  var tx={fnb:'Chạm vào <b>một bàn</b> để mở / gọi món cho bàn đó. Bàn đang có khách hiện màu khác. Tính tiền xong bàn tự trống.',
+          rm:'Chạm vào <b>một phòng</b> để mở phòng (bắt đầu tính giờ) hoặc thêm đồ gọi, tính tiền.'}[v]||'Chạm vào chỗ cần làm trên màn này.';
+  return KS(null,'Bạn đang ở '+ktB('tab '+(kttx(t)||''))+'.',tx,'pick',{ch:kb?[{t:'📖 Đọc hướng dẫn tab này',q:kb}]:[]});
+}};
+
+/* ───────── 🛒 BÁN HÀNG — CÁC BẢNG ───────── */
+KTG['sk:sk-cart-sheet']={n:'Giỏ hàng',kb:'Bán hàng cơ bản — từ A đến Z',st:function(L){
+  var r=L.el,lines=ktvs('.sk-cl',r);
+  if(!lines.length) return KS(ktv('[data-act="cart-close"]',r),'Giỏ đang trống. Bấm '+ktB('×')+' để đóng giỏ rồi chạm vào món khách mua.','','click');
+  return KS(ktv('.sk-pays',r),'Kiểm lại món + tổng tiền '+ktB(kttx(ktq('#sk-grand')))+', rồi chọn cách khách trả: '+ktB('Tiền mặt')+' · '+ktB('VietQR')+' · '+ktB('Ghi nợ')+'.',
+    'Sửa số lượng: bấm − / +. Bớt món: bấm ✕. Giảm giá: chạm dòng <b>Giảm giá</b>. Khách chưa trả, cần bán khách khác: bấm <b>🗂️ Giữ đơn</b>.','click',{any:'#sk-cart-sheet .sk-pay'});
+}};
+KTG['sk:sk-pay-cash']={n:'Bảng 💵 Thu tiền mặt',kb:'Thanh toán tiền mặt & tính tiền thối',done:'Đơn đã lưu, kho tự trừ.',st:function(L){
+  var g=ktq('#sk-cash-given'),v=ktVal(g),tot=kttx(ktq('#sk-cash-total')),chg=kttx(ktq('#sk-cash-change')),ok=ktv('[data-act="cash-ok"]',L.el);
+  if(!v) return KS(g,'Gõ '+ktB('số tiền khách đưa')+' vào ô này — app tự tính tiền thối.','Tổng đơn: <b>'+esc(tot)+'</b>. Khách đưa vừa đủ thì khỏi gõ, bấm luôn <b>Hoàn tất</b>.','type');
+  if(/thiếu/i.test(chg)) return KS(g,'Khách đưa '+ktB('chưa đủ')+' — '+esc(chg)+'.','Kiểm lại số tiền vừa gõ. Khách đưa thêm thì gõ lại cho đúng rồi bấm <b>Hoàn tất</b>.','type',{loi:1});
+  return KS(ok,'Bấm '+ktB('Hoàn tất')+'.',(chg&&chg!=='—')?('Nhớ <b>'+esc(chg.toLowerCase())+'</b> cho khách.'):'','click');
+}};
+KTG['sk:sk-pay-qr']={n:'Bảng 🏦 Chuyển khoản VietQR',kb:'Thanh toán chuyển khoản VietQR',done:'Đơn đã lưu, kho tự trừ.',st:function(L){
+  var img=ktq('#sk-qr-img'),co=img&&visEl(img),ok=ktv('[data-act="qr-ok"]',L.el);
+  if(!co) return KS(ktv('#sk-qr-msg'),'Chưa có '+ktB('số tài khoản ngân hàng')+' nên chưa hiện mã QR.','Bấm <b>Hủy</b> → chọn Tiền mặt / Ghi nợ cho đơn này. Sau đó cài số tài khoản: về <b>📒 SỔ NỢ</b> → <b>⚙️ Cài đặt</b> → <b>🏦 Số tài khoản</b>.','info',{ch:ktTours(['so-tk'])});
+  if(!ktAck(L,'quet')) return KS(img,'Đưa khách '+ktB('quét mã QR')+' này bằng app ngân hàng của khách.','Số tiền <b>'+esc(kttx(ktq('#sk-qr-total')))+'</b> đã điền sẵn. Khách quét + chuyển xong thì bấm <b>Xong, tiếp ▶</b>.','see',{ack:'quet'});
+  return KS(ok,'Khi thấy '+ktB('tiền đã vào tài khoản')+' (xem app ngân hàng / tin nhắn báo), bấm '+ktB('Khách đã CK')+'.','Chưa thấy tiền thì đợi thêm chút, đừng bấm vội.','click');
+}};
+KTG['sk:sk-cust']={n:'Bảng 📒 Ghi nợ cho khách',kb:'Ghi nợ cho khách khi bán hàng',done:'Đã ghi nợ — bên Sổ Nợ số nợ của khách tự cộng lên.',st:function(L){
+  var r=L.el,s=ktq('#sk-cust-search'),nm=ktq('#sk-cust-name'),chips=ktvs('[data-act="cust-pick"]',r);
+  if(!ktEmpty(nm)) return KS(ktv('[data-act="cust-ok"]',r),'Bấm '+ktB('Ghi nợ')+' — app tạo khách mới tên «'+esc(ktcut(ktVal(nm),24))+'» và ghi nợ cho người đó.','Khách đã có trong sổ thì đừng gõ tên mới (sẽ thành 2 người) — chạm vào tên có sẵn ở trên.','click');
+  if(chips.length) return KS(chips[0],'Chạm vào '+ktB('tên khách')+' (đã có trong Sổ Nợ) để ghi nợ cho người đó.','Nhiều khách quá thì gõ vài chữ tên vào ô 🔍 tìm phía trên. Khách mới chưa có thì gõ tên vào ô <b>Hoặc nhập tên khách mới</b>.','click',{any:'#sk-cust [data-act="cust-pick"]'});
+  if(ktVal(s)) return KS(nm,'Không thấy khách «'+esc(ktcut(ktVal(s),24))+'» trong sổ. Khách mới thì gõ tên vào ô này.','Hoặc xoá chữ ở ô tìm phía trên để thấy lại cả danh sách.','type');
+  return KS(nm,'Sổ chưa có khách nào. Gõ '+ktB('tên khách')+' vào ô này rồi bấm Ghi nợ.','','type');
+}};
+KTG['sk:sk-num']={n:function(){ return 'Bảng nhập số — '+ktcut(kttx(ktq('#sk-num-title')),34); },kb:'Hỏi số lượng khi thêm hàng',st:function(L){
+  var i=ktq('#sk-num-input'),t=kttx(ktq('#sk-num-title')),k=L.k+'|v';
+  if(KT&&KT.init&&KT.init[k]===undefined) KT.init[k]=ktVal(i);
+  var doi=KT&&KT.init&&KT.init[k]!==ktVal(i);
+  if(!doi&&!ktAck(L,'giu')) return KS(i,'App đang hỏi: '+ktB(t||'một con số')+'. Gõ con số vào ô này.','Số đang có sẵn là <b>'+esc(ktVal(i)||'0')+'</b> — giữ nguyên thì bấm <b>Giữ số này ▶</b>.','type',{ack:'giu',ackT:'Giữ số này ▶'});
+  return KS(ktv('[data-act="num-ok"]',L.el),'Bấm '+ktB('OK')+'.','','click');
+}};
+KTG['sk:sk-unit']={n:'Bảng chọn đơn vị',kb:'Chọn đơn vị khi bán (lon / lốc / thùng)',st:function(L){
+  return KS(ktv('[data-act="unit-pick"]',L.el),'Chạm chọn '+ktB('đơn vị')+' khách mua (VD: lon, lốc, thùng).','Mỗi dòng ghi sẵn giá của đơn vị đó.','click',{any:'#sk-unit [data-act="unit-pick"]'});
+}};
+KTG['sk:sk-holdwho']={n:'Bảng 🗂️ Giữ đơn',kb:'Giữ đơn (treo đơn) và mở lại',done:'Đơn đã cất vào 🗂️ Đơn giữ — giỏ trống để bán khách khác.',st:function(L){
+  var r=L.el,nm=ktq('#sk-hw-name'),chips=ktvs('#sk-hw-list [data-hwname]',r);
+  if(!ktEmpty(nm)) return KS(ktv('#sk-hw-ok'),'Bấm '+ktB('Giữ đơn')+'.','Lát nữa mở lại: tab Bán → <b>🗂️ Đơn giữ</b> → chạm vào đơn này.','click');
+  return KS(chips.length?chips[0]:nm,'Chạm '+ktB('tên khách')+' giữ đơn, hoặc gõ tên vào ô '+ktB('Hoặc gõ tên người giữ đơn')+' rồi bấm Giữ đơn.','Không cần ghi tên thì bấm <b>Không ghi tên</b>.',chips.length?'click':'type',{any:'#sk-hw-list [data-hwname]'});
+}};
+KTG['sk:sk-held']={n:'Bảng 🗂️ Đơn đang giữ',rest:true,kb:'Giữ đơn (treo đơn) và mở lại',st:function(L){
+  var it=ktv('#sk-held-list [data-act]',L.el);
+  if(it) return KS(it,'Chạm vào '+ktB('đơn cần bán tiếp')+' — giỏ hàng mở ra đủ món, thu tiền như thường.','','click',{any:'#sk-held-list [data-act]'});
+  return KS(ktCancel(L.el),'Chưa có đơn nào đang giữ. Bấm '+ktB('Đóng')+'.','','click');
+}};
+KTG['sk:sk-orders']={n:'Bảng 📋 Đơn hàng & trả hàng',rest:true,kb:'Trả hàng / hoàn tiền cho khách',st:function(L){
+  var r=L.el,row=ktv('[data-act="od-open"]',r),s=ktq('#sk-ord-search');
+  if(row) return KS(row,'Chạm vào '+ktB('đơn')+' cần xem / trả hàng.','Gõ tên khách hoặc mã đơn vào ô 🔍 để tìm nhanh. Đơn bán đã lâu: chọn ngày ở ô 📅 rồi bấm <b>Xem đơn ngày này</b>.','click',{any:'#sk-orders [data-act="od-open"]'});
+  if(ktVal(s)) return KS(s,'Không thấy đơn khớp «'+esc(ktcut(ktVal(s),24))+'».','Xoá bớt chữ trong ô tìm, hoặc chọn ngày bán ở ô 📅 rồi bấm <b>Xem đơn ngày này</b>.','type');
+  return KS(ktv('#sk-ord-day'),'Chưa thấy đơn nào. Đơn bán đã lâu thì chọn '+ktB('ngày bán')+' ở ô 📅 này rồi bấm '+ktB('Xem đơn ngày này')+'.','','type');
+}};
+KTG['sk:sk-od']={n:'Bảng 📋 Chi tiết đơn hàng',rest:true,kb:'Xem chi tiết một đơn đã bán và lãi của đơn đó',st:function(L){
+  var r=L.el,ch=[];
+  ktPush(ch,ktCh('🔄 Khách trả lại hàng / hoàn tiền',ktv('[data-act="od-return"]',r)));
+  ktPush(ch,ktCh('🔗 Gửi link hoá đơn cho khách ký nhận',ktv('[data-act="hd-share"]',r)));
+  ktPush(ch,ktCh('🖨 In hoá đơn',ktv('[data-act="rc-print"]',r)));
+  ktPush(ch,ktCh('📋 Sao chép hoá đơn để dán Zalo',ktv('[data-act="rc-copy"]',r)));
+  ktPush(ch,ktCh('✍️ Xem chữ ký nhận hàng',ktv('[data-act="od-signs"]',r)));
+  ktPush(ch,ktCh('🗑 Xoá đơn này',ktv('[data-act="od-del"]',r),'Bấm <b>🗑 Xóa đơn hàng</b>. Đơn GHI NỢ bị xoá thì nợ của khách tự giảm theo.'));
+  ktPush(ch,ktCh('↩ Đóng',ktCancel(r),'','','Đã đóng.'));
+  return KS(null,'Đây là '+ktB('chi tiết đơn')+'. Bạn muốn làm gì với đơn này?','','pick',{ch:ch});
+}};
+KTG['sk:sk-ret']={n:'Bảng 🔄 Trả hàng',kb:'Trả hàng / hoàn tiền cho khách',done:'Đã trả hàng — kho cộng lại, tiền hoàn ghi vào đơn.',st:function(L){
+  var r=L.el,qs=ktvs('.sk-qnum',r),co=false;
+  for(var i=0;i<qs.length;i++){ if(ktSo(kttx(qs[i]))>0) co=true; }
+  if(!co) return KS(ktv('[data-act="ret-qty"][data-d="1"]',r)||ktv('.sk-qbox',r),'Bấm '+ktB('+')+' ở món khách trả để chọn '+ktB('số lượng trả')+'.','Chạm vào con số ở giữa để gõ thẳng số lượng. Món không trả thì để 0.','click',{any:'#sk-ret .sk-qbox button'});
+  return KS(ktv('[data-act="ret-do"]',r),'Bấm '+ktB('Xác nhận trả')+'.','Kiểm lại dòng <b>Hoàn trả</b> ở dưới: đó là số tiền trả lại khách.','click');
+}};
+KTG['sk:sk-rc']={n:'Hoá đơn vừa bán',rest:true,kb:'Gửi link hóa đơn & xin chữ ký nhận hàng',st:function(L){
+  var r=L.el,ch=[];
+  ktPush(ch,ktCh('🔗 Gửi link hoá đơn cho khách (khách ký nhận)',ktv('[data-act="hd-share"]',r)));
+  ktPush(ch,ktCh('🖨 In hoá đơn',ktv('[data-act="rc-print"]',r)));
+  ktPush(ch,ktCh('📋 Sao chép hoá đơn để dán Zalo',ktv('[data-act="rc-copy"]',r)));
+  ktPush(ch,ktCh('✅ Xong — đóng để bán đơn mới',ktCancel(r),'Bấm <b>Đóng</b>.','','Sẵn sàng bán đơn mới — chạm vào món khách mua.'));
+  return KS(null,'✅ '+ktB('Đơn đã bán xong')+' — đây là hoá đơn.','Muốn in / gửi khách thì chọn bên dưới, không thì bấm Đóng để bán đơn mới.','pick',{ch:ch});
+}};
+KTG['sk:sk-prod']={n:function(){ return 'Bảng '+ktcut(kttx(ktq('#sk-pf-title'))||'sản phẩm',30); },kb:'Thêm sản phẩm mới vào kho',done:'Sản phẩm đã lưu vào kho và hiện ở tab Bán để bán ngay.',st:function(L){
+  var nm=ktq('#sk-pf-name'),sua=visEl(ktq('#sk-pf-del'));
+  if(ktEmpty(nm)) return KS(nm,'Gõ '+ktB('tên sản phẩm')+' vào ô này.','VD: <i>Bia Tiger lon</i>.','type');
+  var hsd=ktq('#sk-pf-hsd');
+  try{ if(hsd&&hsd.validity&&hsd.validity.badInput) return KS(hsd,'Ô '+ktB('Ngày hết hạn')+' gõ chưa đủ ngày / tháng / năm.','Chạm vào ô chọn lại cho đủ, hoặc bấm <b>✕</b> bên cạnh để bỏ trống.','type'); }catch(e){}
+  if(!sua){
+    var gb=ktq('#sk-pf-price'),gv=ktq('#sk-pf-cost'),tk=ktq('#sk-pf-stock');
+    if(ktEmpty(gb)&&!ktAck(L,'gb')) return KS(gb,'Gõ '+ktB('giá bán')+' cho khách.','Chỉ gõ số, VD <b>18000</b>. Chưa có giá thì bấm <b>Bỏ qua ▶</b>.','type',{ack:'gb',ackT:'Bỏ qua ▶'});
+    if(ktEmpty(gv)&&!ktAck(L,'gv')) return KS(gv,'Gõ '+ktB('giá vốn')+' — giá bạn mua vào.','Có giá vốn thì app mới tính <b>lãi</b> đúng. Chưa biết thì bấm <b>Bỏ qua ▶</b>.','type',{ack:'gv',ackT:'Bỏ qua ▶'});
+    if(ktEmpty(tk)&&!ktAck(L,'tk')) return KS(tk,'Gõ '+ktB('số lượng đang có')+' trong tiệm.','Không đếm được thì bấm <b>Bỏ qua ▶</b> — để 0, bán vẫn được (tồn có thể âm).','type',{ack:'tk',ackT:'Bỏ qua ▶'});
+  }
+  return KS(ktv('[data-act="prod-save"]',L.el),'Bấm '+ktB('Lưu')+'.',sua?'Đang <b>SỬA</b> sản phẩm có sẵn — sửa ô nào thì sửa, xong bấm Lưu.':'Các ô khác (mã vạch, nhóm hàng, đơn vị, ngày hết hạn…) không bắt buộc — cần thì điền trước khi bấm Lưu.','click');
+}};
+KTG['sk:sk-detail']={n:'Bảng chi tiết sản phẩm',rest:true,kb:'Sửa hoặc xóa sản phẩm',st:function(L){
+  var r=L.el,ch=[];
+  ktPush(ch,ktCh('✎ Sửa tên, giá, tồn, ngày hết hạn',ktv('[data-act="prod-edit"]',r)));
+  ktPush(ch,ktCh('📥 Nhập thêm tồn (hàng về)',ktv('[data-act="quick-in"]',r)));
+  ktPush(ch,ktCh('📤 Xuất hủy (hàng hỏng, mất)',ktv('[data-act="quick-out"]',r)));
+  ktPush(ch,ktCh('🏷️ In tem mã vạch',ktv('[data-act="labels"]',r)));
+  ktPush(ch,ktCh('📷 Thêm ảnh cho sản phẩm',ktv('[data-act="asp-nhanh"]',r)));
+  ktPush(ch,ktCh('↩ Đóng',ktCancel(r),'','','Đã đóng.'));
+  return KS(null,'Đây là '+ktB('chi tiết sản phẩm')+' (tồn kho, lịch sử). Bạn muốn làm gì?','','pick',{ch:ch});
+}};
+KTG['sk:sk-sup']={n:'Bảng 🚚 Nhà cung cấp',rest:true,kb:'Quản lý nhà cung cấp & trả tiền NCC',st:function(L){
+  var r=L.el,ch=[];
+  ktPush(ch,ktCh('➕ Thêm nhà cung cấp mới',ktv('[data-act="sup-new"]',r)));
+  ktPush(ch,ktCh('✎ Sửa / trả nợ một nhà cung cấp',ktv('#sk-sup-list [data-act]',r),'Chạm vào <b>tên nhà cung cấp</b> trong danh sách.','#sk-sup-list [data-act]'));
+  ktPush(ch,ktCh('↩ Đóng',ktCancel(r),'','','Đã đóng.'));
+  return KS(null,'Bảng '+ktB('Nhà cung cấp')+'. Bạn muốn làm gì?','','pick',{ch:ch});
+}};
+KTG['sk:sk-sup-form']={n:'Bảng thêm / sửa nhà cung cấp',kb:'Quản lý nhà cung cấp & trả tiền NCC',done:'Đã lưu nhà cung cấp.',st:function(L){
+  var n=ktq('#sk-sf-name');
+  if(ktEmpty(n)) return KS(n,'Gõ '+ktB('tên nhà cung cấp')+'.','VD: <i>Đại lý bia Hùng Phát</i>.','type');
+  return KS(ktv('[data-act="sup-save"]',L.el),'Bấm '+ktB('Lưu')+'.','Số điện thoại, địa chỉ không bắt buộc.','click');
+}};
+KTG['sk:sk-staff']={n:'Bảng 👤 Nhân viên & phân quyền',rest:true,kb:'Thêm nhân viên và đặt mã PIN',st:function(L){
+  var r=L.el,ch=[];
+  ktPush(ch,ktCh('➕ Thêm nhân viên + mã PIN',ktv('[data-act="staff-new"]',r)));
+  ktPush(ch,ktCh('✎ Sửa / đổi PIN một nhân viên',ktv('#sk-staff [data-act="staff-edit"]',r),'Chạm vào <b>nhân viên</b> cần sửa.','#sk-staff [data-act="staff-edit"]'));
+  ktPush(ch,ktCh('🔒 Bật / tắt hỏi mã PIN khi vào bán',ktv('[data-act="pin-toggle"]',r),'Bấm nút này để bật / tắt. Bán một mình thì tắt cho đỡ phiền.'));
+  ktPush(ch,ktCh('⚙️ Chỉnh quyền chi tiết (Quản lý / Thu ngân)',ktv('[data-act="perm-open"]',r)));
+  ktPush(ch,ktCh('📱 Tạo tài khoản đăng nhập riêng cho máy nhân viên',ktv('[data-act="nvacc-open"]',r)));
+  ktPush(ch,ktCh('↩ Đóng',ktCancel(r),'','','Đã đóng.'));
+  return KS(null,'Bảng '+ktB('Nhân viên')+'. Bạn muốn làm gì?','','pick',{ch:ch});
+}};
+KTG['sk:sk-staff-form']={n:'Bảng thêm / sửa nhân viên',kb:'Thêm nhân viên và đặt mã PIN',done:'Đã lưu nhân viên. Lần sau mở Bán hàng, nhân viên chạm tên mình và bấm mã PIN là vào bán.',st:function(L){
+  var n=ktq('#sk-stf-name'),p=ktq('#sk-stf-pin'),pv=ktVal(p);
+  if(ktEmpty(n)) return KS(n,'Gõ '+ktB('tên nhân viên')+'.','','type');
+  if(!pv||!/^\d{4,6}$/.test(pv)) return KS(p,'Đặt '+ktB('mã PIN 4 – 6 số')+' cho người này.',pv?'Mã PIN chỉ gồm <b>chữ số</b>, dài 4 tới 6 số.':'Nhân viên bấm mã này mỗi lần vào bán. Đừng đặt 1234 hay 0000.','type',{loi:!!pv});
+  if(!ktAck(L,'vt')) return KS(ktq('#sk-stf-role'),'Chọn '+ktB('vai trò')+': Thu ngân (chỉ bán) · Quản lý (bán + kho + báo cáo) · Chủ.','Bên dưới chọn luôn <b>cửa hàng</b> người này được bán. Xong bấm <b>Xong, tiếp ▶</b>.','see',{ack:'vt'});
+  return KS(ktv('[data-act="staff-save"]',L.el),'Bấm '+ktB('Lưu')+'.','','click');
+}};
+KTG['sk:sk-ca']={n:'Bảng 💰 Quỹ ca',kb:'Mở ca — quỹ đầu ca',done:'Xong việc ở Quỹ ca.',st:function(L){
+  var r=L.el;
+  var fl=ktv('#ca-float',r),am=ktv('#ca-amt',r),cn=ktv('#ca-counted',r);
+  if(cn){
+    if(ktEmpty(cn)) return KS(cn,'Đếm '+ktB('hết tiền mặt trong két')+' (kể cả tiền lẻ) rồi gõ số đếm được vào ô này.','App tự so với số <b>phải có</b> và báo <b>khớp / thừa / thiếu</b>.','type');
+    var d=kttx(ktq('#ca-diffbox'));
+    return KS(ktv('[data-act="ca-do-close"]',r),'Bấm '+ktB('✔ XÁC NHẬN CHỐT CA')+'.',d?('Két đang: <b>'+esc(ktcut(d,70))+'</b>. Thừa / thiếu thì ghi lý do vào ô Ghi chú chốt ca trước khi bấm.'):'','click');
+  }
+  if(am){
+    if(ktEmpty(am)) return KS(am,'Gõ '+ktB('số tiền')+' vào ô này (hoặc bấm các nút +10k, +50k… bên dưới).','Ô Lý do: ghi ngắn tiền đó dùng vào việc gì.','type');
+    return KS(ktv('[data-act="ca-do-cash"]',r),'Bấm '+ktB('✔ Lưu vào sổ quỹ')+'.','','click');
+  }
+  if(fl){
+    if(KT&&KT.click&&KT.click.act==='ca-do-close'&&Date.now()-KT.click.t<9000){ KT.click=null; return {w:'fin',t:'Đã chốt ca. Kết quả thừa / thiếu của từng ca xem ở nút 🕘 Lịch sử chốt ca.'}; }
+    var who=ktv('#ca-who',r);
+    if(who&&ktEmpty(who)) return KS(who,'Chọn '+ktB('người trực ca')+'.','','type');
+    var kq=L.k+'|quy0'; if(KT&&KT.init&&KT.init[kq]===undefined) KT.init[kq]=ktVal(fl);
+    var doiQ=!!(KT&&KT.init&&KT.init[kq]!==ktVal(fl));
+    if(!doiQ&&!ktAck(L,'quy')) return KS(fl,'Gõ '+ktB('quỹ đầu ca')+' — số tiền thối chủ giao cho người bán đầu buổi.',(ktVal(fl)?('Đang ghi sẵn <b>'+esc(ktVal(fl))+'đ</b> (bằng ca trước) — đúng thì bấm <b>Giữ số này ▶</b>. '):'Không giao tiền thối thì bấm <b>Giữ số này ▶</b> (để 0). ')+'Có thể bấm nhanh các nút +10k, +50k… ngay dưới.','type',{ack:'quy',ackT:'Giữ số này ▶'});
+    return KS(ktv('[data-act="ca-do-open"]',r),'Bấm '+ktB('▶️ Mở ca')+'.','Cuối buổi vào lại đây bấm <b>🔒 CHỐT CA</b> — app tự tính tiền mặt phải nộp.','click');
+  }
+  var close=ktv('[data-act="ca-close"]',r);
+  if(close){
+    var ch=[];
+    ktPush(ch,ktCh('🔒 Chốt ca (cuối buổi, đếm tiền két)',close));
+    ktPush(ch,ktCh('➖ Ghi chi vặt (lấy tiền két ra chi)',ktv('[data-act="ca-cash"][data-t="expense"]',r)));
+    ktPush(ch,ktCh('📤 Nộp tiền về chủ giữa ca',ktv('[data-act="ca-cash"][data-t="payout"]',r)));
+    ktPush(ch,ktCh('➕ Bỏ thêm tiền lẻ vào quỹ',ktv('[data-act="ca-cash"][data-t="payin"]',r)));
+    ktPush(ch,ktCh('📦 Đối chiếu kho (soát hàng bán khống)',ktv('[data-act="ca-kho"]',r)));
+    ktPush(ch,ktCh('↩ Đóng, quay lại bán hàng',ktv('[data-act="ca-x"]',r)||ktCancel(r),'','','Đã đóng Quỹ ca — quay lại bán hàng.'));
+    return KS(null,'Ca đang mở. Bạn muốn làm gì?','Số <b>TIỀN MẶT PHẢI CÓ</b> trong bảng là số tiền két phải có lúc này.','pick',{ch:ch});
+  }
+  var det=ktv('[data-act="ca-detail"]',r);
+  if(det) return KS(det,'Đang có ca mở. Bấm '+ktB('▶️ Mở ca này ra')+' để xem tiền / chốt ca.','','click',{any:'#sk-ca [data-act="ca-detail"]'});
+  var back=ktv('[data-act="ca-back"],[data-act="ca-roi"]',r);
+  if(back) return KS(back,'Đang xem phần phụ của Quỹ ca. Xem xong bấm '+ktB(kttx(back)||'‹ Quay lại')+'.','','click');
+  if(/Đang tải/.test(kttx(r))) return KS(null,'⏳ Đang tải lại đơn hàng của ca…','Chờ vài giây.','wait');
+  return null;
+}};
+KTG['sk:sk-branch']={n:'Bảng 🏪 Cửa hàng của tôi',rest:true,kb:'Thêm và chuyển chi nhánh',st:function(L){
+  var r=L.el,ch=[];
+  ktPush(ch,ktCh('⇄ Chuyển sang cửa hàng khác',ktv('[data-act="branch-switch"]',r),'Chạm vào <b>tên cửa hàng</b> muốn chuyển sang.','#sk-branch [data-act="branch-switch"]'));
+  ktPush(ch,ktCh('➕ Mở cửa hàng mới',ktv('[data-act="branch-new"]',r)));
+  ktPush(ch,ktCh('⇄ Chọn ngành nghề khác',ktv('[data-act="nga-open"]',r)));
+  ktPush(ch,ktCh('✎ Đổi tên / xoá một cửa hàng',ktv('[data-act="branch-edit"]',r),'Bấm nút <b>✎</b> bên phải tên cửa hàng.','#sk-branch [data-act="branch-edit"]'));
+  ktPush(ch,ktCh('↩ Đóng',ktCancel(r),'','','Đã đóng.'));
+  return KS(null,'Bảng '+ktB('🏪 Cửa hàng')+'. Bạn muốn làm gì?','Dấu ✓ là cửa hàng đang mở.','pick',{ch:ch});
+}};
+KTG['sk:sk-transfer']={n:'Bảng 🔀 Chuyển kho',kb:'Chuyển kho sang chi nhánh khác',done:'Đã chuyển kho.',st:function(L){
+  var r=L.el,tg=ktq('#sk-tr-target'),s=ktq('#sk-tr-search'),q=ktq('#sk-tr-qty');
+  if(ktEmpty(tg)) return KS(tg,'Chọn '+ktB('cửa hàng nhận hàng')+'.','','type');
+  var picked=ktv('#sk-transfer .sk-pick.on,#sk-transfer [data-act="tr-pick"].on',r);
+  if(!picked&&!ktAck(L,'sp')) return KS(s,'Gõ tên '+ktB('sản phẩm cần chuyển')+' rồi chạm chọn món hiện ra.','Chọn xong bấm <b>Xong, tiếp ▶</b>.','type',{ack:'sp',ackT:'Xong, tiếp ▶'});
+  if(ktEmpty(q)) return KS(q,'Gõ '+ktB('số lượng chuyển')+'.','','type');
+  return KS(ktv('[data-act="transfer-do"]',r),'Bấm '+ktB('Chuyển')+'.','Chuyển kho cần có mạng.','click');
+}};
+KTG['sk:sk-hist']={n:'Bảng 🕘 Lịch sử nhập / xuất kho',rest:true,kb:'Xem thẻ kho / lịch sử nhập xuất',st:function(L){
+  return KS(ktCancel(L.el),'Đây là '+ktB('lịch sử nhập / xuất kho')+'. Xem xong bấm '+ktB('Đóng')+'.','','click');
+}};
+KTG['gate']={n:'Màn chọn người bán (mã PIN)',kb:'Thêm nhân viên và đặt mã PIN',done:'Đã vào bán bằng tên của bạn.',st:function(L){
+  var r=L.el,ds=ktv('#sk-gate-list',r),pin=ktv('#sk-gate-pin',r),fg=ktv('#sk-gate-forgot',r);
+  if(fg){
+    var pw=ktq('#sk-gate-pwd'),m=kttx(ktq('#sk-gate-fmsg'));
+    if(ktEmpty(pw)) return KS(pw,'Gõ '+ktB('mật khẩu đăng nhập')+' của CHỦ (mật khẩu vào app).',m?('App báo: <i>'+esc(m)+'</i>'):'Vào với quyền Chủ rồi đặt lại PIN cho nhân viên trong 👤 Nhân viên.','type');
+    return KS(ktv('[data-act="pf-ok"]',r),'Bấm '+ktB('Mở khóa & vào quyền Chủ')+'.',m?('App báo: <i>'+esc(m)+'</i>'):'','click');
+  }
+  if(pin) return KS(ktv('.sk-pinpad',r),'Bấm '+ktB('mã PIN')+' của '+ktB(kttx(ktq('#sk-gate-who'))||'bạn')+' trên bàn phím số.','Bấm đủ số là tự vào. Bấm sai thì bấm ⌫ để xoá. Chọn nhầm người thì bấm ‹.','click',{any:'#sk-gate .sk-pinpad button'});
+  var st=ktv('[data-act="gate-pick"]',r);
+  if(st) return KS(st,'Chạm vào '+ktB('tên của bạn')+' — người đang đứng bán.','Quên PIN thì bấm <b>🔑 Quên PIN?</b> ở dưới (chủ mở khoá bằng mật khẩu đăng nhập).','click',{any:'#sk-gate [data-act="gate-pick"]'});
+  return KS(ktv('[data-act="pin-forgot"]',r),'Chưa có nhân viên nào. Chủ bấm '+ktB('🔑 Quên PIN? — Chủ mở khóa')+' để vào.','','click');
+}};
+KTG['scan']={n:'Màn quét mã vạch',kb:'Quét mã vạch để bán',st:function(L){
+  var r=L.el;
+  return KS(ktv('[data-act="scan-manual"]',r),'Đưa '+ktB('mã vạch')+' vào giữa khung sáng, giữ yên 1–2 giây là máy tự đọc.','Không quét được (tối, mờ, camera bị chặn): bấm <b>⌨️ Nhập mã</b> để gõ số dưới mã vạch. Xong bấm <b>✕</b> góc trên để thoát.','info');
+}};
+KTG['nga']={n:'Bảng chọn ngành nghề',kb:'Bảng chọn ngành khi vào Bán hàng — đọc các nhãn trên từng ngành',done:'Đã vào màn Bán hàng. Chạm vào món khách mua để bắt đầu bán.',st:function(L){
+  var on=ktv('#nga-sheet .nga-i.on'),base=ktv('#nga-sheet .nga-i[data-k=""]');
+  return KS(on||base,'Chạm chọn '+ktB('ngành nghề')+' của cửa hàng. Không chắc thì chọn '+ktB(on?'ô ĐANG DÙNG':'Bán hàng đa năng')+'.','Mỗi ngành là một gói riêng. Bán tạp hoá, vật tư… cứ chọn <b>Bán hàng đa năng</b>.','click',{any:'#nga-sheet .nga-i'});
+}};
+KTG['tnk']={n:'Hộp 💬 Tin nhắn khách',kb:'Trả lời tin nhắn của khách (gõ chữ hoặc bấm câu mẫu)',st:function(L){
+  var ta=ktv('#tnk-k .tnk-cuoc.on .tnk-ta'),row=ktv('#tnk-k .tnk-row');
+  if(ta) return KS(ta,'Gõ '+ktB('câu trả lời')+' vào ô này rồi bấm nút '+ktB('➤')+'.','Hoặc bấm một <b>câu mẫu</b> có sẵn ngay phía trên. Muốn chốt đơn thì bấm nút 📋.','type');
+  if(row) return KS(row,'Chạm vào '+ktB('tên khách')+' muốn trả lời.','','click',{any:'#tnk-k .tnk-row'});
+  return null;
+}};
+KTG['asp-xem']={n:'Đang xem ảnh lớn',rest:true,kb:'Phía khách: chạm vào ảnh hàng, ảnh món để xem lớn',st:function(L){
+  var x=ktCancel(L.el)||ktv('button',L.el);
+  return KS(x,'Đang xem '+ktB('ảnh lớn')+'. Chụm 2 ngón để phóng to. Xem xong bấm '+ktB('✕')+' để đóng.','','click');
+}};
+var KT_TEN={'sk-labels':'Bảng 🏷️ In tem mã vạch','sk-diag':'Bảng 🔌 Kiểm tra kết nối & quyền','sk-perm':'Bảng ⚙️ Quyền chi tiết','sk-nvacc':'Bảng 📱 Tài khoản máy nhân viên',
+  'sk-branch-form':'Bảng thêm / sửa cửa hàng','sk-od-sign':'Bảng ✍️ Chữ ký nhận hàng','fnb-mgr':'Bảng quản lý bàn','fnb-bom':'Bảng định lượng nguyên liệu','fs-pick':'Bảng chọn size / màu',
+  'fs-mx':'Bảng biến thể size – màu','rm-sheet':'Bảng phòng','rm-mgr':'Bảng quản lý phòng','kg-tier':'Bảng giá theo bậc số lượng','ms-box':'Bảng thông báo',
+  'qrd-ocfg-m':'Bảng cài đặt cửa hàng online','qrd-ochon-m':'Bảng chọn hàng hiện online','ngm-up':'Bảng mua gói ngành','cn-up':'Bảng mua gói cửa hàng / chi nhánh',
+  'pos-up':'Bảng mở gói Bán hàng','qrd-bao':'Báo có đơn mới','dmk':'Bảng 🔑 Đổi mật khẩu','gt':'Bảng 🎁 Giới thiệu bạn bè','modal-billing':'Bảng tài khoản nhận tiền'};
+var KT_KB={'sk-labels':'In tem mã vạch cho sản phẩm','sk-diag':'Kiểm tra kết nối & quyền (khi báo lỗi)','sk-perm':'Phân quyền chi tiết từng thao tác','sk-nvacc':'Tài khoản đăng nhập riêng cho máy nhân viên',
+  'sk-branch-form':'Thêm và chuyển chi nhánh','fnb-mgr':'Module F&B — sơ đồ bàn quán ăn, cà phê','fnb-bom':'Định lượng nguyên vật liệu (bán 1 ly trừ nhiều thứ)','fs-pick':'Module Thời trang — size & màu',
+  'fs-mx':'Module Thời trang — size & màu','rm-sheet':'Module Karaoke / Nhà nghỉ — phòng tính giờ','rm-mgr':'Module Karaoke / Nhà nghỉ — phòng tính giờ','kg-tier':'Module Cân ký & giá theo bậc số lượng',
+  'qrd-ocfg-m':'Cài đặt cửa hàng online: giờ nhận đơn, giao hàng, chuyển khoản','qrd-ochon-m':'Chọn hàng hiện online và bấm "Tạm hết"','ngm-up':'Mua gói ngành nghề — giá và cách thanh toán',
+  'cn-up':'Mua gói ngành nghề — giá và cách thanh toán','pos-up':'Gia hạn tài khoản — giá bao nhiêu?','qrd-bao':'Nhận đơn online — từ lúc chuông reo tới lúc giao hàng','dmk':'Đổi mật khẩu','gt':'Giới thiệu bạn bè nhận tháng miễn phí'};
+
+/* ═════ BỘ ĐỌC CHUNG — bảng nào chưa có bài riêng thì tự đọc: ô bắt buộc còn trống → nút chính → nút Hủy / Đóng ═════ */
+function ktTen(L){
+  if(!L) return '';
+  var n='';
+  try{ if(L.g&&L.g.n) n=(typeof L.g.n==='function')?L.g.n(L):L.g.n; }catch(e){ n=''; }
+  if(n) return n;
+  var id=String(L.k||'').replace(/^(sn|sk|x):/,'');
+  if(KT_TEN[id]) return KT_TEN[id];
+  if(KT_TEN[L.k]) return KT_TEN[L.k];
+  var t=kttx(ktv('h1,h2,h3,.sk-sheet-head b,.nga-hd b,.sn-unlock-h,.m-head,.cn-head',L.el));
+  return t?((/^(bảng|màn)\s/i.test(t)?'':'Bảng ')+ktcut(t,34)):'Bảng đang mở';
+}
+function ktKbOf(L){
+  if(!L) return '';
+  if(L.g&&L.g.kb) return L.g.kb;
+  var id=String(L.k||'').replace(/^(sn|sk|x):/,'');
+  return KT_KB[id]||KT_KB[L.k]||'';
+}
+function ktGo(f){
+  var t=f.type,lab=f.lab||'này',ph='';
+  try{ ph=f.el.getAttribute('placeholder')||''; }catch(e){}
+  if(f.el.tagName==='SELECT') return {t:'Chạm vào ô '+ktB(lab)+' rồi chọn một dòng trong danh sách.',sm:''};
+  if(t==='date') return {t:'Chạm vào ô '+ktB(lab)+' rồi chọn ngày.',sm:''};
+  if(t==='file') return {t:'Bấm '+ktB('Chọn tệp')+' ở ô '+ktB(lab)+' rồi chọn tệp trong máy.',sm:''};
+  if(t==='checkbox') return {t:'Tick vào ô '+ktB(lab)+'.',sm:''};
+  if(t==='radio') return {t:'Chọn một trong các lựa chọn '+ktB(lab)+'.',sm:''};
+  if(t==='password') return {t:'Gõ '+ktB(lab)+' vào ô này.',sm:''};
+  var so=/numeric|decimal|tel/.test(String(f.el.getAttribute('inputmode')||''))||t==='tel'||t==='number';
+  return {t:'Chạm vào ô '+ktB(lab)+' rồi gõ vào.',sm:(so?'Chỉ gõ số. ':'')+(ph&&!/^[🔍]/.test(ph)?('VD: '+esc(ktcut(ph,40))+'.'):'')};
+}
+var KT_TUYCHON=/tuỳ chọn|tùy chọn|không bắt buộc|ghi chú|nếu có|ảnh|link|mã vạch|sku|tìm|🔍/i;
+function ktGen(L){
+  var r=L.el; if(!r) return KS(null,'Màn này chỉ để xem.','','info');
+  var fs=ktFields(r),pri=ktPrimary(r),can=ktCancel(r),i,coDau=false;
+  for(i=0;i<fs.length;i++){ if(fs[i].req) coDau=true; }
+  /* bảng không đánh dấu * : coi các ô chữ / số / mật khẩu (trừ ô tuỳ chọn, ô tìm) là cần điền */
+  if(!coDau){ for(i=0;i<fs.length;i++){ var tp=fs[i].type; if((tp==='text'||tp==='password'||tp==='tel'||tp==='number'||tp==='email'||tp==='')&&!KT_TUYCHON.test(fs[i].lab+' '+(fs[i].el.getAttribute('placeholder')||''))) fs[i].req=true; } }
+  for(i=0;i<fs.length;i++){ if(fs[i].req&&fs[i].empty){ var g=ktGo(fs[i]); return KS(fs[i].el,g.t,g.sm,'type'); } }
+  if(pri&&!pri.disabled) return KS(pri,'Bấm nút '+ktB(ktcut(kttx(pri)||'xác nhận',40))+'.',fs.length?'Các ô còn lại không bắt buộc — cần thì điền trước khi bấm.':'','click');
+  if(pri&&pri.disabled){
+    var em=null; for(i=0;i<fs.length;i++){ if(fs[i].empty){ em=fs[i]; break; } }
+    if(em){ var g2=ktGo(em); return KS(em.el,g2.t,'Nút '+ktB(ktcut(kttx(pri),30))+' đang mờ — làm xong ô này nút mới sáng lên.','type'); }
+    return KS(pri,'Nút '+ktB(ktcut(kttx(pri),30))+' đang mờ, chưa bấm được.','Phải làm xong phần phía trên trước thì nút mới sáng lên. Đọc kỹ dòng chữ trong bảng.','info');
+  }
+  var it=ktItems(r);
+  if(it) return KS(it,'Chạm chọn '+ktB('một mục')+' trong danh sách này.',can?('Không muốn chọn thì bấm '+ktB(ktcut(kttx(can)||'Đóng',20))+'.'):'','click',{any:KT_ITEMS});
+  if(can) return KS(can,'Bảng này chỉ để '+ktB('xem')+'. Xem xong bấm '+ktB(ktcut(kttx(can)||'Đóng',20))+' để quay lại.','','click');
+  return KS(null,'Màn này chỉ để xem.','Muốn quay lại thì tìm nút ‹ Quay lại / Đóng / ✕ của màn này.','info');
+}
+
+/* ═════ CÂU BÁO CỦA APP (ô #toast) — nhớ lại · giải thích · hiện lại khi bị che ═════ */
+var KTT={t:'',at:0,err:false},KT_NAP=Date.now();
+var KT_TD=[
+ [/Nhập tên khách/i,'Chưa có tên khách để ghi nợ. Chạm tên khách có sẵn, hoặc gõ tên khách mới vào ô rồi bấm Ghi nợ.'],
+ [/Không đủ tồn|Hết tồn|Chỉ còn/i,'Kho không đủ hàng cho số lượng này. Bớt số lượng trong giỏ, hoặc vào Kho → chạm món → 📥 Nhập để cộng thêm tồn.'],
+ [/Giỏ (đang )?trống/i,'Chưa có món nào trong giỏ — chạm vào món khách mua trước.'],
+ [/Nhập tên sản phẩm/i,'Ô Tên sản phẩm còn trống — gõ tên vào rồi bấm Lưu.'],
+ [/Ngày hết hạn/i,'Ô Ngày hết hạn gõ chưa đủ / chưa đúng — chọn lại ngày, hoặc bấm ✕ cạnh ô để bỏ trống.'],
+ [/Nhập tên NCC/i,'Gõ tên nhà cung cấp rồi bấm Lưu.'],
+ [/Nhập tên nhân viên/i,'Gõ tên nhân viên rồi bấm Lưu.'],
+ [/PIN tối thiểu/i,'Mã PIN phải có ít nhất 4 chữ số.'],
+ [/Sai mã PIN/i,'Mã PIN chưa đúng. Bấm lại cho đúng; quên PIN thì chủ bấm 🔑 Quên PIN? để mở khoá.'],
+ [/Phiếu nhập trống/i,'Phiếu nhập chưa có món nào — gõ tên món vào ô tìm rồi chạm chọn món.'],
+ [/Chọn số lượng trả/i,'Bấm + ở món khách trả để chọn số lượng trước, rồi mới Xác nhận trả.'],
+ [/Chọn ngày bán/i,'Chọn ngày ở ô 📅 trước rồi mới bấm Xem đơn ngày này.'],
+ [/Nhập tên cửa hàng/i,'Gõ tên cửa hàng rồi bấm Lưu.'],
+ [/Chọn sản phẩm|Chọn chi nhánh đích|Nhập số lượng|Tồn không đủ/i,'Điền đủ: cửa hàng nhận, sản phẩm, số lượng (không quá số tồn) rồi bấm Chuyển.'],
+ [/Chưa có SP mã|Mã mới/i,'Mã vạch này chưa gắn với món nào. Thêm sản phẩm mới (điền mã vạch vào ô Mã vạch) rồi quét lại.'],
+ [/camera/i,'Máy chưa cho app dùng camera. Bấm Cho phép khi máy hỏi; lỡ chặn thì vào Cài đặt điện thoại → Ứng dụng → Chrome → Quyền → Camera.'],
+ [/Bluetooth/i,'In Bluetooth chỉ chạy trên điện thoại Android + Chrome; máy in phải bật và đã kết nối.'],
+ [/Chỉ Chủ mới|quyền Chủ|không có quyền|Bạn chỉ được|không dùng được vai/i,'Người đang bán chưa được phép làm việc này. Nhờ chủ shop làm, hoặc bấm 👤 Đổi người để vào bằng tài khoản Chủ.'],
+ [/hết hạn/i,'Gói đã hết hạn — gia hạn để dùng tiếp (📒 SỔ NỢ → 🧰 Công cụ & Sao lưu → 💳 Gia hạn), hoặc gọi hotline.'],
+ [/bộ nhớ ngoại tuyến|ẩn danh/i,'Trình duyệt đang ở chế độ ẩn danh hoặc chưa cho app lưu dữ liệu trong máy — lúc mất mạng sẽ không bán / ghi được. Cài app vào màn hình chính (⚙️ Cài đặt → 📲 Cài App), hoặc mở bằng Chrome thường (không ẩn danh).'],
+ [/BẢN LƯU TRONG MÁY|bản lưu trong máy/,'Máy đang mất mạng nên app dùng dữ liệu đã lưu trong máy — vẫn xem, vẫn ghi được; có mạng lại là app tự gửi lên máy chủ.'],
+ [/mất mạng|ngoại tuyến|📡|📴|📶|kiểm tra mạng|Cần có mạng|cần mạng/i,'Máy đang mất mạng hoặc mạng yếu. Bật Wi-Fi / 4G rồi bấm lại. Ghi nợ, bán hàng lúc mất mạng vẫn được — có mạng app tự gửi lên.'],
+ [/Lỗi|lỗi|CHƯA lưu|chưa lưu được|Không lưu được|permission|Bị từ chối/i,'App chưa lưu được lên máy chủ. Kiểm tra mạng rồi bấm lại. Vẫn bị thì vào Bán hàng → Báo cáo → 🔌 Kiểm tra kết nối & quyền, hoặc gọi hotline.'],
+ [/Không tìm thấy/i,'Không tìm thấy mục đó (có thể vừa bị xoá ở máy khác). Đóng bảng, mở lại danh sách rồi thử lại.']
+];
+function ktToastGiai(t){ for(var i=0;i<KT_TD.length;i++){ if(KT_TD[i][0].test(t)) return KT_TD[i][1]; } return ''; }
+function ktLaLoi(t){
+  t=String(t||'');
+  if(/^\s*(✅|🎁|💡|🔄|🔗 Đã|📋 Đã|🗑 Đã|Đã |Xin chào|🛒 Đơn được giữ|➕|▶️|💾 Đã|🔓|⏳)/.test(t)) return false;
+  return /⚠️|❌|⛔|🔒|📡|📴|Lỗi|lỗi|Chưa|chưa|Không|không|Sai|Hết|hết|Nhập |Chọn |trống|Chỉ còn|Chỉ |phải|cần/.test(t);
+}
+function ktToastBox(){
+  if(!KTT.t||!KT) return '';
+  var now=Date.now(),age=now-KTT.at;
+  var gan=age<15000||(KTT.at>=KT.t0-60000&&now-KT.t0<15000);
+  if(!gan) return '';
+  if(age>4000&&KTT.lay&&KT.lay&&KTT.lay!==KT.lay) return '';   /* câu báo của màn khác (đã qua) — không nhắc lại */
+  if(!KTT.err&&(age>6000||KTT.at<KT.t0)) return '';
+  var ex=KTT.err?ktToastGiai(KTT.t):'';
+  return '<div class="'+(KTT.err?'kt-err':'kt-ok')+'">🔔 <i>App vừa báo:</i> «'+esc(ktcut(KTT.t,150))+'»'+(ex?('<span>👉 '+esc(ex)+'</span>'):'')+'</div>';
+}
+function ktToastWire(){
+  try{
+    var el=document.getElementById('toast'); if(!el||el.__ktw) return; el.__ktw=1;
+    if(!window.MutationObserver) return;
+    new MutationObserver(function(rs){
+      var moi=false;
+      for(var i=0;i<rs.length;i++){ if(rs[i].type==='childList'||rs[i].type==='characterData') moi=true; }   /* app vừa gọi toast() (thay chữ) */
+      ktToastSeen(el,moi);
+    }).observe(el,{attributes:true,attributeFilter:['class'],childList:true,characterData:true,subtree:true});
+  }catch(e){}
+}
+function ktToastSeen(el,moi){
+  try{
+    var on=el.classList.contains('show'),t=kttx(el);
+    if(on&&t&&(moi||t!==KTT.t)){
+      KTT.t=t; KTT.at=Date.now(); KTT.err=ktLaLoi(t); try{ var lz=ktLayer(); KTT.lay=lz?lz.k:''; }catch(x){ KTT.lay=''; }
+      if(KT){ KT.html=''; }
+      else if(KTT.err&&KTT.at-KTW.act<10000&&KTW.act>KT_NAP+1500){   /* lỗi vừa hiện ngay sau khi người dùng bấm / gõ (không phải báo ngầm lúc mở app) */
+        var at=KTT.at;
+        setTimeout(function(){ if(KTT.at===at){ var gx=ktToastGiai(KTT.t); ktNudge('bao','App vừa báo: <b>«'+esc(ktcut(KTT.t,110))+'»</b>'+(gx?('<br>👉 '+esc(gx)):'')); } },900);
+      }
+    }
+    ktMirror();
+  }catch(e){}
+}
+/* ô #toast có đang bị một màn / bảng khác (z-index cao hơn) đè lên không */
+function ktToastBiChe(el){
+  try{
+    var r=el.getBoundingClientRect(),me={z:ktZ(el),el:el},ls=ktLayers();
+    for(var i=0;i<ls.length;i++){
+      var L=ls[i]; if(L.k==='sono'||L.k==='pub') continue;
+      if(ktZcmp({z:L.z,el:L.el},me)<=0) continue;
+      var q=L.el.getBoundingClientRect();
+      if(q.right>r.left&&q.left<r.right&&q.bottom>r.top&&q.top<r.bottom) return true;
+    }
+  }catch(e){}
+  return false;
+}
+var ktTo=null;
+function ktMirror(){
+  try{
+    var el=document.getElementById('toast');
+    var on=!!(el&&el.classList.contains('show')&&kttx(el));
+    if(!on||KT||!ktToastBiChe(el)){ if(ktTo) ktTo.classList.remove('on'); return; }
+    if(!ktTo){ ktTo=E('div'); ktTo.id='snai-kt-toast'; ktTo.setAttribute('role','status'); ktTo.setAttribute('aria-live','polite'); document.body.appendChild(ktTo); }
+    ktTo.textContent=kttx(el);
+    var V=ktVis(); ktTo.style.left=Math.round(V.l+V.w/2)+'px'; ktTo.style.maxWidth=Math.round(V.w*0.9)+'px';
+    var H=ktH(),sf=ktSafe(),L=ktLayer();
+    if(L&&!L.base){ ktTo.style.top=Math.round(sf.t+60)+'px'; ktTo.style.bottom='auto'; }
+    else{
+      var tp=H;
+      ktvs('#pos-screen .sk-tabs,#sk-cartbar:not(.hide)').forEach(function(b){ var rr=b.getBoundingClientRect(); if(rr.top<tp&&rr.top>H*0.5) tp=rr.top; });
+      ktTo.style.top='auto'; ktTo.style.bottom=Math.round(Math.max(24+sf.b,H-tp+12))+'px';
+    }
+    ktTo.classList.add('on');
+  }catch(e){}
+}
+
+/* ═════ BỘ MÁY CHỈ TIẾP ═════ */
+var KT=null,KTI=null,KT_TK=0,ktRg=null,ktHd=null,ktBb=null;
+function ktEls(){
+  if(!ktRg){ ktRg=E('div'); ktRg.id='snai-kt-ring'; document.body.appendChild(ktRg); }
+  if(!ktHd){ ktHd=E('div'); ktHd.id='snai-kt-hand'; ktHd.textContent='👆'; document.body.appendChild(ktHd); }
+  if(!ktBb){
+    ktBb=E('div'); ktBb.id='snai-kt-bub'; ktBb.setAttribute('role','dialog'); ktBb.setAttribute('aria-live','polite');
+    document.body.appendChild(ktBb);
+    ktBb.addEventListener('click',function(e){
+      try{ e.stopPropagation(); }catch(x){}   /* chạm vào khung nhắc KHÔNG được làm app tưởng là "chạm ra ngoài" (VD đóng menu ⚙️ đang mở) */
+      var n=e.target;
+      while(n&&n!==ktBb){ var a=n.getAttribute&&n.getAttribute('data-kt'); if(a){ ktBtn(a,n); return; } n=n.parentNode; }
+    });
+  }
+}
+function ktStart(src){
+  try{ ktNudgeOff(); }catch(e){}
+  try{ if(opened) close(); }catch(e){}
+  try{ if(TR) trEnd(true); }catch(e){}
+  ktStop(true);
+  var tk=Date.now(); KT_TK=tk;
+  setTimeout(function(){
+    if(KT_TK!==tk) return;
+    try{
+      ktEls();
+      KT={src:src||'',t0:Date.now(),lay:'',layEl:null,g:null,rest:false,worked:false,ack:{},init:{},fin:false,finAt:0,
+          pick:null,pickHit:0,out:false,sid:'',sw:'',sidLay:'',okAt:0,sc:'',said:'',html:'',click:null,st:null,L:null,ch:null};
+      KTI=setInterval(ktTick,300);
+      ktTick();
+      try{ syncFab(); }catch(e){}
+      ktSosSync();
+    }catch(e){ ktStop(true); }
+  },220);
+}
+function ktStop(im){
+  try{ if(KTI){ clearInterval(KTI); KTI=null; } }catch(e){}
+  KT_TK=0; KT=null;
+  try{ if(ktRg) ktRg.className=''; if(ktHd) ktHd.style.display='none'; if(ktBb){ ktBb.className=''; ktBb.innerHTML=''; } }catch(e){}
+  if(!im){ try{ sayStop(); }catch(e){} }
+  try{ syncFab(); }catch(e){}
+}
+function ktTick(){
+  if(!KT) return;
+  try{
+    if(TR){ ktStop(true); return; }
+    if(opened) return;
+    var ds={},L=ktLayer(ds);
+    if(!L||L.k==='pub'){ ktStop(true); return; }
+    var now=Date.now();
+    /* bảng nào ĐÃ ĐÓNG thì quên các bước "Xong, tiếp" / số ban đầu của bảng đó (mở lại là chỉ lại từ đầu) */
+    if(KT.mo){ for(var mk in KT.mo){ if(KT.mo.hasOwnProperty(mk)&&!ds[mk]){ var pre=mk+'|',x;
+      for(x in KT.ack){ if(KT.ack.hasOwnProperty(x)&&x.indexOf(pre)===0) delete KT.ack[x]; }
+      for(x in KT.init){ if(KT.init.hasOwnProperty(x)&&x.indexOf(pre)===0) delete KT.init[x]; } } } }
+    KT.mo=ds;
+    KT.layEl=L.el;
+    if(L.k!==KT.lay){
+      var prevLay=KT.lay,prevG=KT.g,ck=KT.click,pk=KT.pick;
+      if(pk&&pk.ket&&KT.pickHit&&now-KT.pickHit<5000&&pk.lay===prevLay){
+        /* vừa chọn "Đóng …" và đã đóng xong ⇒ kết thúc gọn, không bày thêm menu của màn phía dưới */
+        KT.lay=L.k; KT.g=L.g; KT.rest=!!(L.base||(L.g&&L.g.rest)); KT.pick=null; KT.pickHit=0;
+        KT.fin=true; KT.finAt=now; KT.worked=false; KT.html='';
+        ktShow(L,KS(null,'✅ '+esc(pk.ket),'','done')); return;
+      }
+      KT.lay=L.k; KT.g=L.g; KT.rest=!!(L.base||(L.g&&L.g.rest)); if(L.k==='auth'||L.k==='locked') KT.rest=false;
+      KT.pick=null; KT.pickHit=0; KT.out=false; KT.sc='';
+      if(prevLay&&KT.worked&&KT.rest&&!KT.fin){
+        var how=(ck&&ck.lay===prevLay&&now-ck.t<5000)?ck.role:'';
+        ktDone(L,how,prevG); return;
+      }
+      if(KT.fin&&!KT.rest) KT.fin=false;
+    }
+    if(KT.fin){ if(now-KT.finAt>30000){ ktStop(); return; } ktPlace(null); return; }
+    if(!KT.rest) KT.worked=true;
+    if(KT.pick&&KT.pickHit&&now-KT.pickHit>900&&KT.pick.lay===L.k){ KT.pick=null; KT.pickHit=0; KT.okAt=now; KT.html=''; }
+    /* đang gõ dở vào đúng ô đang khoanh → chờ gõ xong (ngừng tay 2,5 giây) rồi mới chỉ bước sau */
+    if(KT.sw==='type'&&KT.sEl&&KT.sEl===document.activeElement&&now-KTW.inAt<2500&&KT.st&&KT.L&&KT.L.k===L.k&&!KT.out&&!KT.pick){ ktShow(L,KT.st); return; }
+    var st=null;
+    if(KT.out){
+      var cx=ktCancel(L.el);
+      if(cx) st=KS(cx,'Bấm '+ktB(ktcut(kttx(cx)||'Hủy',20))+' để đóng bảng này.','Những gì đang gõ dở trong bảng này sẽ <b>không</b> được lưu.','click',{back:1});
+      else KT.out=false;
+    }
+    if(!st&&KT.pick&&KT.pick.lay===L.k){
+      if(visEl(KT.pick.el)) st=KS(KT.pick.el,KT.pick.say||('Bấm vào chỗ đang khoanh vàng: '+ktB(KT.pick.t)+'.'),'','click',{any:KT.pick.any||'',back:1});
+      else KT.pick=null;
+    }
+    if(!st){ try{ st=(L.g&&L.g.st)?L.g.st(L):null; }catch(e){ st=null; } }
+    if(!st) st=ktGen(L);
+    if(st.w==='fin'){ ktDone(L,'',st.t?{done:st.t}:L.g); return; }   /* bài riêng báo: việc ở màn này vừa xong */
+    ktShow(L,st);
+  }catch(e){}
+}
+function ktDone(L,how,prevG){
+  KT.fin=true; KT.finAt=Date.now(); KT.worked=false; KT.html='';
+  var t,sm;
+  if(how==='can'){ t='Đã đóng bảng đó — chưa lưu gì.'; sm='Muốn làm lại thì cứ mở lại bảng đó. Cần mình chỉ việc khác thì bấm <b>🆘 Chỉ tiếp việc khác</b>.'; }
+  else{ t='🎉 Xong rồi!'; sm=(prevG&&prevG.done)?prevG.done:'Bạn đã làm xong bước đó.'; }
+  ktShow(L,KS(null,t,sm,'done'));
+}
+function ktSig(el){ try{ return el.id||el.getAttribute('data-act')||el.getAttribute('onclick')||String(el.className||'').slice(0,30)||el.tagName; }catch(e){ return ''; } }
+function ktHtml(L,st,mode){
+  var now=Date.now(),h='<div class="kt-h">🆘 CHỈ TIẾP · '+esc(ktcut(ktTen(L),48))+'</div>';
+  if(mode!=='done'&&KT.okAt&&now-KT.okAt<1800) h+='<div class="kt-ok">✅ Được rồi! Bước tiếp theo:</div>';
+  if(mode!=='done') h+=ktToastBox();
+  h+='<div class="kt-t">'+st.t+'</div>';
+  if(st.sm) h+='<div class="kt-s">'+st.sm+'</div>';
+  KT.ch=null;
+  if(st.ch&&st.ch.length){
+    var c='';
+    for(var i=0;i<st.ch.length;i++){ if(st.ch[i]) c+='<button type="button" data-kt="ch" data-i="'+i+'">'+esc(st.ch[i].t)+'</button>'; }
+    if(c){ h+='<div class="kt-ch">'+c+'</div>'; KT.ch=st.ch; }
+  }
+  var b='',kb=ktKbOf(L),coKb=!!(kb&&byTitle(kb));
+  if(mode==='done') b='<button type="button" data-kt="more" class="o">🆘 Chỉ tiếp việc khác</button><button type="button" data-kt="x" class="g">👍 Xong</button>';
+  else if(mode==='info'){ b='<button type="button" data-kt="x" class="g">👍 Hiểu rồi</button>'+(coKb?'<button type="button" data-kt="kb">📖 Hướng dẫn chữ</button>':''); }
+  else{
+    b='<button type="button" data-kt="x">✕ Thoát</button>';
+    if(st.back) b+='<button type="button" data-kt="back">↩ Chọn lại</button>';
+    else if(!KT.rest&&mode!=='wait'&&L.k!=='auth'&&L.k!=='locked'&&!L.base&&ktCancel(L.el)) b+='<button type="button" data-kt="out" class="o">🚪 Không làm nữa</button>';
+    if(coKb&&mode!=='wait') b+='<button type="button" data-kt="kb">📖 Hướng dẫn chữ</button>';
+    if(st.ack) b+='<button type="button" data-kt="ack" class="g">'+esc(st.ackT||'Xong, tiếp ▶')+'</button>';
+    else if(mode==='see') b+='<button type="button" data-kt="x" class="g">👍 Hiểu rồi</button>';
+  }
+  return h+'<div class="kt-b">'+b+'</div>';
+}
+function ktShow(L,st){
+  if(!KT) return;
+  ktEls();
+  var el=(st.el&&visEl(st.el))?st.el:null,mode=st.w||'click',now=Date.now();
+  if(st.el&&!el&&mode!=='done'&&mode!=='pick'&&mode!=='wait'){
+    /* chỗ cần chỉ chưa hiện (bảng đang trượt lên…) — chờ một chút rồi mới báo */
+    if(!KT.miss) KT.miss=now;
+    if(now-KT.miss<1500){ mode='wait'; st=KS(null,'⏳ Chờ màn hình hiện ra…','','wait'); }
+  }else KT.miss=0;
+  var sid=mode+'|'+(el?ktSig(el):'')+'|'+String(st.t).slice(0,70);
+  if(KT.sid&&sid!==KT.sid&&KT.sidLay===L.k&&mode!=='done'&&mode!=='wait'&&!st.loi){
+    /* chỉ khen "Được rồi!" khi người dùng THẬT SỰ vừa làm xong bước trước (gõ vào ô / bấm đúng nút) */
+    var pv=KT.sEl,lam=false;
+    if(KT.sw==='type'&&pv&&!ktEmpty(pv)) lam=true;
+    else if(KT.sw==='click'&&KT.click&&KT.click.t>=KT.sAt) lam=true;
+    if(lam) KT.okAt=now;
+  }
+  if(st.loi) KT.okAt=0;
+  if(KT.appClick){ if(sid!==KT.appClick.sid) KT.appClick=null; else if(mode==='pick'&&now-KT.appClick.t>1500){ ktStop(); return; } }   /* tắt luôn tiếng đọc */
+  if(sid!==KT.sid){ KT.sid=sid; KT.sw=mode; KT.sidLay=L.k; KT.sEl=el; KT.sAt=now; }
+  KT.st=st; KT.L=L;
+  /* đưa chỗ cần làm vào giữa màn hình */
+  var vv=window.visualViewport,vt=vv?vv.offsetTop:0,vh=vv?vv.height:ktH(),W=ktW();
+  if(el){
+    var r0=el.getBoundingClientRect();
+    if((r0.top<vt-2||r0.bottom>vt+vh+2)&&KT.sc!==sid&&r0.height<vh*0.85){
+      KT.sc=sid;
+      try{ el.scrollIntoView({block:'center',inline:'nearest',behavior:'smooth'}); }catch(e){ try{ el.scrollIntoView(); }catch(x){} }
+    }
+  }
+  /* khoanh vàng + ngón tay */
+  if(el&&mode!=='done'){
+    var r=el.getBoundingClientRect(),pad=6;
+    var t1=Math.max(r.top,vt+2),b1=Math.min(r.bottom,vt+vh-2);
+    if(b1<t1+8){ t1=r.top; b1=r.bottom; }
+    ktRg.style.left=Math.round(Math.max(2,r.left-pad))+'px'; ktRg.style.top=Math.round(t1-pad)+'px';
+    ktRg.style.width=Math.round(Math.min(W-4,r.width+pad*2))+'px'; ktRg.style.height=Math.round(b1-t1+pad*2)+'px';
+    if(ktRg.className!=='on') ktRg.className='on';
+    if(mode==='click'||mode==='type'){
+      var up=(b1+48<vt+vh),hx=Math.round(r.left+Math.min(r.width,260)/2-17),hy=up?Math.round(b1+2):Math.round(t1-44);
+      hx=Math.max(4,Math.min(W-40,hx)); hy=Math.max(vt+4,Math.min(vt+vh-44,hy));
+      ktHd.textContent=up?'👆':'👇'; ktHd.style.left=hx+'px'; ktHd.style.top=hy+'px'; ktHd.style.display='block';
+    }else ktHd.style.display='none';
+  }else{ ktRg.className=''; ktHd.style.display='none'; }
+  /* khung nhắc */
+  var html=ktHtml(L,st,mode);
+  if(html!==KT.html){
+    KT.html=html; ktBb.innerHTML=html;
+    try{ ktBb.scrollTop=0; }catch(e){}
+    if(TTS&&mode!=='wait'&&KT.said!==sid){ KT.said=sid; var s=plain(st.t+'. '+(st.sm||'')); if(s){ try{ sayText(s); }catch(e){} } }
+  }
+  var fc='on'+(FS===1?' snai-f1':(FS===2?' snai-f2':''));
+  if(ktBb.className!==fc) ktBb.className=fc;
+  ktPlace(el);
+}
+function ktPlace(el){
+  if(!ktBb||!KT) return;
+  try{
+    var vv=window.visualViewport,vt=vv?vv.offsetTop:0,vh=vv?vv.height:ktH(),H=ktH();
+    var V=ktVis();
+    if(V.w<ktW()-1||V.l>0.5){ var bw=Math.max(200,Math.min(500,V.w-20)); ktBb.style.left=Math.round(V.l+(V.w-bw)/2)+'px'; ktBb.style.right='auto'; ktBb.style.width=Math.round(bw)+'px'; ktBb.style.margin='0'; }
+    else if(ktBb.style.width){ ktBb.style.left=''; ktBb.style.right=''; ktBb.style.width=''; ktBb.style.margin=''; }
+    var pk=!!(KT.st&&(KT.st.w==='pick'||(KT.st.ch&&KT.st.ch.length)));
+    var mh=pk?Math.max(150,Math.min(Math.round(H*0.74),Math.round(vh*0.8))):Math.max(150,Math.min(Math.round(H*0.52),Math.round(vh*0.62)));
+    var sf=ktSafe();   /* iPhone cài app ra màn hình chính: chừa chỗ thanh giờ / pin ở trên và vạch vuốt ở dưới */
+    mh=Math.max(150,Math.min(mh,Math.round(vh-sf.t-sf.b-16)));
+    ktBb.style.maxHeight=mh+'px';
+    var bh=Math.min(ktBb.offsetHeight||160,mh),top;
+    var r=(el&&visEl(el))?el.getBoundingClientRect():null;
+    var tTop=vt+8+sf.t,tBot=vt+vh-bh-10-sf.b;
+    if(!r) top=tBot;
+    else{
+      var upper=((r.top+r.bottom)/2)<vt+vh/2,a=upper?tBot:tTop,b=upper?tTop:tBot;
+      var ov=function(t){ return Math.max(0,Math.min(t+bh,r.bottom+46)-Math.max(t,r.top-46)); };
+      top=(ov(a)<=ov(b))?a:b;
+    }
+    top=Math.max(vt+4+sf.t,Math.min(top,vt+vh-Math.min(bh,vh)-4-sf.b));
+    ktBb.style.top=Math.round(top)+'px'; ktBb.style.bottom='auto';
+  }catch(e){}
+}
+function ktBtn(a,n){
+  if(!KT){ ktStop(); return; }
+  if(a==='x'){ ktStop(); return; }
+  if(a==='more'){ KT.fin=false; KT.worked=false; KT.html=''; KT.pick=null; KT.sid=''; KT.okAt=0; ktTick(); return; }
+  if(a==='out'){ KT.out=true; KT.html=''; KT.sid=''; KT.okAt=0; ktTick(); return; }
+  if(a==='back'){ KT.out=false; KT.pick=null; KT.html=''; KT.sid=''; KT.okAt=0; ktTick(); return; }
+  if(a==='ack'){ var s=KT.st; if(s&&s.ack&&KT.L){ KT.ack[KT.L.k+'|'+s.ack]=true; KT.okAt=Date.now(); } KT.html=''; ktTick(); return; }
+  if(a==='kb'){
+    var e=byTitle(ktKbOf(KT.L)); ktStop();
+    try{ open(); if(e) setTimeout(function(){ try{ showId(e.id,1); }catch(x){} },320); }catch(x){}
+    return;
+  }
+  if(a==='ch'){
+    var i=parseInt(n.getAttribute('data-i'),10),c=KT.ch&&KT.ch[i]; if(!c) return;
+    if(c.k){ var k=c.k; ktStop(true); try{ trStart(k); }catch(x){} return; }
+    if(c.q){ var q=c.q; ktStop(); try{ open(); setTimeout(function(){ try{ ask(q,1); }catch(x){} },320); }catch(x){} return; }
+    if(c.el){ KT.pick={lay:KT.lay,el:c.el,t:c.t,say:c.say||'',any:c.any||'',ket:c.ket||''}; KT.pickHit=0; KT.html=''; KT.sid=''; KT.okAt=0; ktTick(); return; }
+  }
+}
+/* nghe cú chạm (KHÔNG chặn, KHÔNG đổi gì): biết vừa bấm nút chính hay nút Hủy, và chạm trúng chỗ đang khoanh */
+document.addEventListener('click',function(e){
+  try{
+    if(!KT) return;
+    var tg=e.target; if(!tg||ktMine(tg)) return;
+    var b=tg.closest?tg.closest('button,[data-act],a,[onclick],input[type="submit"],label'):null,role='oth';
+    if(b){
+      if(ktIsCancel(b)) role='can';
+      else{ var p=KT.layEl?ktPrimary(KT.layEl):null; if(p&&(p===b||p.contains(b)||b.contains(p))) role='pri'; }
+    }
+    KT.click={role:role,t:Date.now(),lay:KT.lay,act:(b&&b.getAttribute&&(b.getAttribute('data-act')||b.id))||''};
+    if(KT.sw==='pick'&&!KT.pick&&!KT.fin){
+      /* đang ở khung "Bạn muốn làm gì?" mà người dùng chạm ra NGOÀI (không theo chỗ đang khoanh) ⇒ coi như tự làm / muốn tắt khung */
+      var theo=!!(KT.sEl&&(KT.sEl===tg||KT.sEl.contains(tg)));
+      if(!theo&&KT.st&&KT.st.any&&tg.closest){ try{ theo=!!tg.closest(KT.st.any); }catch(x){} }
+      KT.appClick=theo?null:{t:Date.now(),sid:KT.sid};
+    }
+    if(KT.pick){
+      var ok=(KT.pick.el===tg||KT.pick.el.contains(tg));
+      if(!ok&&KT.pick.any&&tg.closest){ try{ ok=!!tg.closest(KT.pick.any); }catch(x){} }
+      if(ok) KT.pickHit=Date.now();
+    }
+    setTimeout(function(){ try{ ktTick(); }catch(x){} },380);
+  }catch(x){}
+},true);
+
+/* ═════ NÚT 🆘 NHỎ (hiện lúc đang mở bảng — lúc nút 🤖 bị ẩn hoặc bị che) ═════ */
+var KT_MEM=null;
+function ktBat(){ try{ var v=localStorage.getItem('snai_kt'); if(v==='0') return false; if(v==='1') return true; }catch(e){} return KT_MEM===null?true:KT_MEM; }
+function ktDatBat(on){ KT_MEM=!!on; try{ localStorage.setItem('snai_kt',on?'1':'0'); }catch(e){} }
+var KT_SAFE=null;
+function ktSafe(){
+  if(KT_SAFE) return KT_SAFE;
+  var t=0,b=0;
+  try{
+    var p=document.createElement('div');
+    p.style.cssText='position:fixed;left:0;top:0;width:0;height:0;visibility:hidden;pointer-events:none;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)';
+    document.body.appendChild(p); var cs=getComputedStyle(p); t=parseFloat(cs.paddingTop)||0; b=parseFloat(cs.paddingBottom)||0; p.parentNode.removeChild(p);
+  }catch(e){}
+  KT_SAFE={t:t,b:b}; return KT_SAFE;
+}
+/* vùng màn hình ĐANG NHÌN THẤY — máy để "cỡ hiển thị lớn" (app rộng hơn màn hình) hoặc đang phóng to thì khác cả trang */
+function ktVis(){
+  var W=ktW(),H=ktH(),vv=window.visualViewport;
+  if(!vv) return {l:0,t:0,w:W,h:H};
+  return {l:vv.offsetLeft||0,t:vv.offsetTop||0,w:Math.min(W,vv.width||W),h:Math.min(H,vv.height||H)};
+}
+function ktFabOk(){
+  try{
+    if(!fab||fab.classList.contains('snai-off')) return false;
+    var r=fab.getBoundingClientRect(); if(r.width<10||r.height<10) return false;
+    var h=document.elementFromPoint(r.left+r.width/2,r.top+r.height/2);
+    return !!(h&&(h===fab||fab.contains(h)));
+  }catch(e){ return false; }
+}
+function ktFree(x,y,w,h){
+  var P=[[x+5,y+5],[x+w-5,y+5],[x+5,y+h-5],[x+w-5,y+h-5],[x+w/2,y+h/2]];
+  for(var i=0;i<P.length;i++){ var el=ktAt(P[i][0],P[i][1]); if(el&&ktIsAct(el)) return false; }
+  return true;
+}
+var ktSos=null,ktSosLay='',ktSosAt=0,KT_LL=null;
+function ktSosPlace(){
+  var V=ktVis(),W=V.w,H=V.h,X=V.l,Y=V.t,sf=ktSafe();
+  ktSos.style.left='-9999px'; ktSos.style.top='0px';
+  var w=ktSos.offsetWidth||124,h=ktSos.offsetHeight||36,y0=Math.round(Y+sf.t+8);
+  var C=[[Math.round(X+(W-w)/2),y0],[Math.round(X+8),y0],[Math.round(X+W-w-8),y0],[Math.round(X),Math.round(Y+H*0.42)],[Math.round(X+8),Math.round(Y+H-h-sf.b-12)],[Math.round(X+W-w-8),Math.round(Y+H-h-sf.b-12)]];
+  var pk=C[0];
+  for(var i=0;i<C.length;i++){ if(ktFree(C[i][0],C[i][1],w,h)){ pk=C[i]; break; } }
+  ktSos.style.left=pk[0]+'px'; ktSos.style.top=pk[1]+'px';
+}
+function ktSosSync(){
+  try{
+    if(!document.body) return;
+    ktToastWire(); ktMirror();
+    var show=false,L=null;
+    if(ktBat()&&!KT&&!TR&&!opened){
+      L=ktLayer(); KT_LL={L:L,at:Date.now()};
+      if(L&&L.k!=='pub'&&((!L.base&&!ktFabOk())||L.k==='auth'||L.k==='locked')) show=true;
+    }
+    if(!show){ if(ktSos) ktSos.classList.remove('on','pulse'); if(KTN.an===ktSos) ktNudgeOff(); return; }
+    if(!ktSos){
+      ktSos=E('button','','<span class="i">🆘</span><span>Kẹt? Chỉ tôi</span>'); ktSos.id='snai-kt-sos'; ktSos.type='button';
+      ktSos.setAttribute('aria-label','Đang kẹt? Bấm để trợ lý chỉ làm tiếp');
+      document.body.appendChild(ktSos);
+      ktSos.addEventListener('click',function(e){ try{ e.stopPropagation(); }catch(x){} ktStart('sos'); });
+    }
+    var was=ktSos.classList.contains('on'),now=Date.now();
+    ktSos.classList.add('on');
+    if(!was||L.k!==ktSosLay||now-ktSosAt>2500){ ktSosLay=L.k; ktSosAt=now; ktSosPlace(); }
+  }catch(e){}
+}
+
+/* ═════ TỰ NHẬN RA LÚC KẸT → hỏi nhỏ "Cần mình chỉ tiếp không?" ═════ */
+var ktNg=null,KTN={last:{},bo:0,an:null,tm:0,at:0};
+function ktNudge(kind,why){
+  try{
+    if(!ktBat()||KT||TR||opened) return;
+    if(KTN.bo>=3) return;
+    var L=ktLayer(); if(!L||L.k==='pub') return;
+    var now=Date.now(),key=L.k+'|'+kind;
+    if(KTN.last[key]&&now-KTN.last[key]<150000) return;
+    ktSosSync();
+    var an=null;
+    if(ktSos&&ktSos.classList.contains('on')) an=ktSos; else if(ktFabOk()) an=fab;
+    if(!an) return;
+    KTN.last[key]=now;
+    if(!ktNg){
+      ktNg=E('div'); ktNg.id='snai-kt-nudge'; ktNg.setAttribute('role','alert'); document.body.appendChild(ktNg);
+      ktNg.addEventListener('click',function(e){
+        try{ e.stopPropagation(); }catch(x){}
+        var n=e.target;
+        while(n&&n!==ktNg){ var a=n.getAttribute&&n.getAttribute('data-ktn'); if(a){ if(a==='go'){ ktNudgeOff(); ktStart('nhac'); } else { KTN.bo++; ktNudgeOff(); } return; } n=n.parentNode; }
+      });
+    }
+    ktNg.innerHTML='<div class="n-t">🤔 Bạn cần mình chỉ tiếp không?</div><div class="n-s">'+why+'</div>'
+      +'<div class="n-b"><button type="button" class="o" data-ktn="go">🆘 Chỉ tôi làm tiếp</button><button type="button" data-ktn="no">Không cần</button></div>';
+    ktNg.classList.add('on');
+    var r=an.getBoundingClientRect(),V=ktVis(),W=V.w,H=V.h,w=ktNg.offsetWidth||290,h=ktNg.offsetHeight||120;
+    var x=Math.max(V.l+8,Math.min(V.l+W-w-8,r.left+r.width/2-w/2)),y=(r.top>V.t+H/2)?(r.top-h-10):(r.bottom+10);
+    y=Math.max(V.t+8,Math.min(V.t+H-h-8,y));
+    ktNg.style.left=Math.round(x)+'px'; ktNg.style.top=Math.round(y)+'px';
+    KTN.an=an; KTN.at=Date.now();
+    if(an===ktSos){ ktSos.classList.remove('pulse'); void ktSos.offsetWidth; ktSos.classList.add('pulse'); }
+    clearTimeout(KTN.tm); KTN.tm=setTimeout(ktNudgeOff,14000);
+  }catch(e){}
+}
+function ktNudgeOff(){ try{ if(ktNg) ktNg.classList.remove('on'); clearTimeout(KTN.tm); KTN.an=null; }catch(e){} }
+var KTW={act:Date.now(),lay:'',layAt:Date.now(),tap:[],inAt:0,lauA:0};
+function ktActive(){ KTW.act=Date.now(); }
+function ktRage(e){
+  try{
+    if(KT||TR||opened||!ktBat()) return;
+    var x=e.clientX,y=e.clientY; if(x==null&&e.touches&&e.touches[0]){ x=e.touches[0].clientX; y=e.touches[0].clientY; }
+    if(x==null) return;
+    var el=ktAt(x,y); if(!el||ktMine(el)) return;
+    var b=el.closest?el.closest('button,input,select,textarea,[data-act],[onclick],a'):null,k=b||el;
+    var dis=!!(b&&(b.disabled||b.getAttribute('aria-disabled')==='true'));
+    var now=Date.now();
+    if(KTW.tap.length&&KTW.tap[KTW.tap.length-1].el===k&&now-KTW.tap[KTW.tap.length-1].t<120) return;   /* 1 cú chạm sinh 2 sự kiện */
+    KTW.tap.push({t:now,x:x,y:y,el:k});
+    if(KTW.tap.length>6) KTW.tap.shift();
+    var same=KTW.tap.filter(function(p){ return now-p.t<3500&&p.el===k&&Math.abs(p.x-x)<44&&Math.abs(p.y-y)<44; });
+    if(dis&&same.length>=2) ktNudge('mo','Nút '+ktB(ktcut(kttx(b)||'này',30))+' đang <b>mờ</b> nên bấm chưa ăn — phải làm xong bước trước nó. Mình chỉ cho.');
+    else if(!b&&!ktIsAct(el)&&same.length>=4) ktNudge('cham','Bạn chạm nhiều lần mà chưa có gì xảy ra — chỗ đó không phải nút bấm. Để mình chỉ đúng chỗ cần bấm.');
+  }catch(x){}
+}
+try{
+  document.addEventListener('keydown',ktActive,true);
+  document.addEventListener('input',function(){ ktActive(); KTW.inAt=Date.now(); },true);
+  document.addEventListener('wheel',ktActive,{capture:true,passive:true});
+  document.addEventListener('touchmove',ktActive,{capture:true,passive:true});
+  document.addEventListener('pointerdown',function(e){
+    ktActive();
+    try{ if(ktNg&&ktNg.classList.contains('on')&&!ktNg.contains(e.target)&&!(ktSos&&ktSos.contains(e.target))&&Date.now()-KTN.at>1800) ktNudgeOff(); }catch(x){}
+    ktRage(e);
+  },{capture:true,passive:true});
+  document.addEventListener('touchstart',function(e){ ktActive(); },{capture:true,passive:true});
+  /* vừa quay lại app (từ app ngân hàng, Zalo…) ⇒ tính lại từ đầu, không hỏi "đứng lâu" ngay lúc vừa mở lại */
+  document.addEventListener('visibilitychange',function(){ if(!document.hidden) ktActive(); });
+}catch(e){}
+/* bảng mà để lâu là BÌNH THƯỜNG (khách đang quét QR trả tiền, đang đếm tiền két, đang quét mã, đang chuyển khoản gia hạn) ⇒ không hỏi "đứng lâu" */
+['sk:sk-pay-qr','sn:modal-renew','sk:sk-ca','scan'].forEach(function(k){ if(KTG[k]) KTG[k].cho=1; });
+function ktWatch(){
+  try{
+    if(document.hidden||!ktBat()||KT||TR||opened) return;
+    var L=(KT_LL&&Date.now()-KT_LL.at<1500)?KT_LL.L:ktLayer(); if(!L||L.k==='pub'){ KTW.lay=''; return; }   /* dùng lại kết quả vừa dò của nút 🆘 (đỡ tốn máy) */
+    var now=Date.now();
+    if(L.k!==KTW.lay){ KTW.lay=L.k; KTW.layAt=now; }
+    var rest=!!(L.g&&L.g.rest);
+    if(L.k==='auth'||L.k==='locked') rest=false; else if(L.base) rest=true;
+    if(rest||(L.g&&L.g.cho)) return;
+    if(now-KTW.act>=35000&&now-KTW.layAt>=35000&&KTW.lauA!==KTW.act){ KTW.lauA=KTW.act;   /* mỗi lần đứng yên chỉ hỏi 1 lần (để máy nằm yên cả buổi cũng không hỏi đi hỏi lại) */
+      ktNudge('lau',ktB(ktcut(ktTen(L),40))+' đang mở khá lâu mà chưa xong. Mình chỉ từng bước tiếp theo cho bạn.'); }
+  }catch(e){}
+}
+try{ window.addEventListener('resize',function(){ ktSosAt=0; KT_SAFE=null; },{passive:true}); }catch(e){}
+/* vừa chạm mở một bảng ⇒ hiện nút 🆘 sớm (không phải đợi tới nhịp 0,7 giây kế tiếp) */
+try{ document.addEventListener('click',function(){ if(KT) return; setTimeout(function(){ try{ if(!document.hidden&&!KT) ktSosSync(); }catch(x){} },420); },true); }catch(e){}
+setInterval(function(){ if(!document.hidden) ktSosSync(); },700);
+setInterval(ktWatch,1000);
+
+/* ═════ GHI ĐÈ: lời chào có nút 🆘 ở đầu · thanh công cụ có 🆘 + 🔔 tự nhắc ═════ */
+var _v5welcome=welcome;
+welcome=function(){
+  _v5welcome();
+  try{
+    var b=body&&body.querySelector('.snai-row.ai .snai-b');
+    if(b){ var x=E('button','snai-big kt','🆘 Tôi đang kẹt — chỉ tôi làm tiếp ngay trên màn hình'); x.type='button'; x.setAttribute('data-snaikt','go'); b.insertBefore(x,b.querySelector('.snai-big')||null); }
+  }catch(e){}
+};
+function ktNhacBtn(){
+  try{ var b=document.getElementById('snai-ktnhac'); if(!b) return; var on=ktBat(); b.innerHTML=on?'🔔 Tự nhắc khi kẹt: BẬT':'🔕 Tự nhắc khi kẹt: TẮT'; if(on) b.classList.add('on'); else b.classList.remove('on'); }catch(e){}
+}
+function ktToggle(){
+  var on=!ktBat(); ktDatBat(on); ktNhacBtn();
+  if(!on){ ktNudgeOff(); if(ktSos) ktSos.classList.remove('on'); }
+  push('ai',on
+    ?'<b class="snai-h">🔔 Đã bật trợ giúp khi kẹt</b>Lúc đang mở một bảng, góc màn hình có nút cam nhỏ <b>🆘 Kẹt? Chỉ tôi</b>. Bạn đứng lâu ở một bảng, app báo lỗi, hay bấm mãi một nút mờ — mình sẽ hỏi nhỏ <b>"Cần mình chỉ tiếp không?"</b>.'
+    :'<b class="snai-h">🔕 Đã tắt trợ giúp khi kẹt</b>Nút cam 🆘 nhỏ và lời hỏi "Cần mình chỉ tiếp không?" sẽ không hiện nữa.<div class="snai-tip">💡 Lúc cần vẫn gọi được: mở Trợ lý → bấm <b>🆘 Kẹt? Chỉ tiếp</b> ở thanh trên. Muốn bật lại thì bấm lại nút <b>🔕 Tự nhắc khi kẹt</b>.</div>');
+}
+function v6Wire(){
+  var p=document.getElementById('snai-panel'); if(!p) return;
+  if(!p.__snaiV6){
+    p.__snaiV6=1;
+    p.addEventListener('click',function(e){
+      var n=e.target;
+      while(n&&n!==p){
+        var v=n.getAttribute&&n.getAttribute('data-snaikt');
+        if(v!=null){ if(v==='go') ktStart('panel'); else if(v==='nhac') ktToggle(); return; }
+        n=n.parentNode;
+      }
+    });
+  }
+  var t=document.getElementById('snai-tools');
+  if(t&&!document.getElementById('snai-ktbtn')){ var b=E('button','kt','🆘 Kẹt? Chỉ tiếp'); b.type='button'; b.id='snai-ktbtn'; b.setAttribute('data-snaikt','go'); t.insertBefore(b,t.firstChild); }
+  if(t&&!document.getElementById('snai-ktnhac')){ var c=E('button','',''); c.type='button'; c.id='snai-ktnhac'; c.setAttribute('data-snaikt','nhac'); t.appendChild(c); ktNhacBtn(); }
+}
+var _v5build=build;
+build=function(){ _v5build(); try{ v6Wire(); }catch(e){} };
+
+/* ═════ GHI ĐÈ: gõ "kẹt rồi", "không biết làm gì tiếp"… → chỉ tiếp ngay trên màn hình ═════ */
+var KT_KETRE=/\b(dang ket|bi ket|ket roi|ket o day|ket cho nay|ket qua di|khong biet lam (sao|gi|tiep)( tiep| nua)?|khong biet bam (gi|dau|nut nao)( tiep)?|lam (gi|sao) tiep|bam gi tiep|bam (dau|nut nao) tiep|roi (sao|lam gi|bam gi) nua|chi toi lam tiep|chi tiep|cuu toi|sos|giup toi voi|tro giup tai cho)\b/;
+var _v5ask=ask;
+ask=function(q,asUser){
+  try{
+    var nq=nrm(q);
+    if(KT_KETRE.test(nq)){
+      var con=nq.replace(new RegExp(KT_KETRE.source,'g'),' ').split(' ').filter(function(w){ return w.length>=2&&!STOP[w]&&!/^(ket|o|day|nay|roi|toi|minh|bang|man|hinh|cho|nut|bam|tiep|nua|voi|giup|chi|lam|dang|bi|qua|gi|sao)$/.test(w); });
+      if(con.length<=1){
+        if(asUser!==0) push('me',esc(q));
+        typing(function(){
+          push('ai','<b class="snai-h">🆘 Để mình chỉ ngay trên màn hình</b>Mình đóng bảng này lại, nhìn đúng chỗ bạn đang đứng rồi <b>khoanh vàng</b> chỗ cần làm tiếp.');
+          setTimeout(function(){ ktStart('chat'); },900);
+        });
+        return;
+      }
+    }
+  }catch(e){}
+  return _v5ask(q,asUser);
+};
+
+/* ═════ GHI ĐÈ: nối với 👆 Chỉ tận tay ═════ */
+var _v5trStart=trStart;
+trStart=function(k){ try{ ktStop(true); ktNudgeOff(); }catch(e){} return _v5trStart(k); };
+var _v5trHtml=trHtml;
+trHtml=function(t,sm,mode){
+  var h=_v5trHtml(t,sm,mode);
+  try{ if(mode==='miss'||(mode==='wait'&&/che chỗ cần bấm/.test(String(t)))) h=h.replace('<div class="tr-b">','<div class="tr-b"><button type="button" data-tr="kt" style="background:#d9480f;color:#fff">🆘 Chỉ tôi làm tiếp từ chỗ này</button>'); }catch(e){}
+  return h;
+};
+var _v5trBtn=trBtn;
+trBtn=function(a){ if(a==='kt'){ try{ trEnd(true); }catch(e){} ktStart('tour'); return; } return _v5trBtn(a); };
+/* nút 🤖 ẩn trong lúc đang chỉ tiếp · mở bảng Trợ lý thì thôi chỉ tiếp */
+var _v5sync=syncFab;
+syncFab=function(){ _v5sync(); try{ if(fab&&KT) fab.classList.add('snai-off'); }catch(e){} };
+var _v5open=open;
+open=function(){ try{ if(KT) ktStop(true); ktNudgeOff(); }catch(e){} return _v5open.apply(this,arguments); };
+window.SNAI_KET=function(){ try{ ktStart('api'); }catch(e){} };
+
+/* ═════ BÀI HƯỚNG DẪN CHỮ CHO TÍNH NĂNG MỚI + cập nhật vài bài cũ ═════ */
+try{
+  var e6={c:'bd',t:'🆘 Đang kẹt, không biết làm tiếp — trợ lý chỉ ngay tại chỗ',
+  k:'ket bi ket dang ket khong biet lam tiep lam gi tiep bam gi tiep roi sao nua chi toi lam tiep chi tiep cuu sos khong biet bam dau tro giup tai cho cam tay chi viec',
+  a:'<b class="snai-h">🆘 Kẹt ở đâu — mình chỉ ngay ở đó</b>'
+   +'<b>👉 Dùng khi nào:</b> đang làm dở một việc (đang mở bảng ghi nợ, giỏ hàng, bảng thu tiền, thêm sản phẩm, quỹ ca, nhập hàng, đăng nhập…) mà <b>không biết bấm gì tiếp</b>, hoặc bấm mà app không chịu.'
+   +'<b>📍 Gọi trợ giúp ở đâu:</b><ol>'
+   +'<li>Đang mở một bảng: nhìn lên phía trên (hoặc cạnh trái) màn hình có nút cam nhỏ <span class="snai-path">🆘 Kẹt? Chỉ tôi</span> — bấm vào.</li>'
+   +'<li>Không mở bảng nào: bấm nút tròn <b>🤖 TRỢ LÝ</b> → bấm nút cam <b>🆘 Tôi đang kẹt</b> ở trên cùng.</li>'
+   +'<li>Hoặc gõ vào ô hỏi của Trợ lý: <i>"kẹt rồi"</i>, <i>"không biết làm gì tiếp"</i>.</li></ol>'
+   +'<b>🪜 Trợ lý làm gì:</b><ul>'
+   +'<li>Nhìn đúng <b>bảng đang mở</b> và đọc từng ô: ô nào <b>còn trống</b>, số tiền <b>gõ sai</b>, nút nào đang <b>mờ</b>.</li>'
+   +'<li><b>Khoanh vàng</b> đúng ô / nút phải làm tiếp, có <b>ngón tay 👆</b> chỉ vào, kèm một câu nhắc ngắn.</li>'
+   +'<li>Làm xong bước đó là mình <b>tự chỉ bước sau</b> (hiện chữ "✅ Được rồi!"), tới khi xong việc thì báo <b>🎉 Xong rồi!</b></li>'
+   +'<li>App vừa báo gì (VD <i>"Nhập tên khách"</i>, <i>"Không đủ tồn"</i>) thì mình <b>đọc lại câu báo</b> và nói phải làm sao.</li>'
+   +'<li>Đang ở màn chính (không mở bảng nào) thì mình hỏi <b>"Bạn muốn làm gì?"</b> — chạm vào việc cần làm là mình chỉ từng bước.</li></ul>'
+   +'<b>🔘 Các nút trên khung nhắc:</b> <b>✕ Thoát</b> — tắt hướng dẫn (ở khung <i>"Bạn muốn làm gì?"</i> chạm ra ngoài khung cũng tắt) · <b>🚪 Không làm nữa</b> — mình chỉ nút Hủy để thoát bảng (không lưu gì) · <b>📖 Hướng dẫn chữ</b> — đọc bài đầy đủ · <b>Bỏ qua ▶</b> — bỏ qua ô không bắt buộc.'
+   +'<div class="snai-ok">🤔 <b>Tự nhắc khi kẹt:</b> bạn đứng lâu ở một bảng mà chưa xong, app vừa báo lỗi, hay bấm mãi một nút đang mờ — mình hỏi nhỏ <b>"Cần mình chỉ tiếp không?"</b>. Bấm <b>Không cần</b> là thôi. Muốn tắt hẳn: mở Trợ lý → bấm nút <b>🔔 Tự nhắc khi kẹt</b> ở thanh trên cùng.</div>'
+   +'<div class="snai-tip">💡 Ở màn <b>Bán hàng</b>, câu báo của app trước đây bị màn hình che mất nên bấm tưởng không ăn — nay mình <b>hiện lại câu báo</b> ngay trên màn hình cho bạn đọc.</div>'
+   +'<button type="button" class="snai-big kt" data-snaikt="go">🆘 Thử ngay: chỉ tôi làm tiếp trên màn hình</button>'};
+  KB.push(e6); e6.id=KB.length-1; e6._t=nrm(e6.t); e6._k=nrm(e6.k+' '+e6.t+' '+(CAT[e6.c]?CAT[e6.c].n:'')); e6._a=nrm(strip(e6.a));
+  var ktSua=function(t,f){ var x=byTitle(t); if(!x) return; var a=f(x.a); if(a&&a!==x.a){ x.a=a; x._a=nrm(strip(a)); } };
+  ktSua('Có gì mới trong app? (tính năng vừa thêm)',function(a){
+    a=a.replace('<ul>\n<li>','<ul>\n<li><b>🆘 Kẹt ở đâu — trợ lý chỉ ngay ở đó</b> — đang mở bảng nào mà không biết làm tiếp: bấm nút cam <b>🆘 Kẹt? Chỉ tôi</b>, trợ lý đọc bảng đó, <b>khoanh vàng</b> đúng ô / nút phải làm tiếp và chỉ từng bước tới khi xong. Câu báo của app bị màn Bán hàng che cũng được hiện lại.</li>\n<li>');
+    var i=a.indexOf('<button type="button" class="snai-sg"');
+    if(i>0) a=a.slice(0,i)+'<button type="button" class="snai-sg" data-snaiq="'+e6.t+'">🆘 Kẹt ở đâu — trợ lý chỉ ngay ở đó</button>\n'+a.slice(i);
+    return a;
+  });
+  ktSua('Bấm nút mà không thấy gì xảy ra',function(a){
+    var i=a.lastIndexOf('<div class="snai-warn">');
+    var tip='<div class="snai-ok">🆘 <b>Đang ở giữa một bảng mà bấm không ăn?</b> Bấm nút cam <b>🆘 Kẹt? Chỉ tôi</b> — trợ lý chỉ ra ô còn thiếu, nút nào đang mờ, và <b>đọc lại câu báo của app</b> (ở màn Bán hàng câu báo trước đây bị che mất).</div>';
+    return i>0?(a.slice(0,i)+tip+a.slice(i)):(a+tip);
+  });
+  ktSua('Chỉ tận tay — trợ lý khoanh đúng nút cần bấm',function(a){
+    return a+'<div class="snai-tip">🆘 <b>Khác với Chỉ tận tay thế nào?</b> 👆 Chỉ tận tay = chọn một việc, mình dẫn <b>từ đầu</b>. 🆘 Kẹt? Chỉ tôi = đang làm <b>dở dang</b> ở bảng nào, mình chỉ tiếp <b>ngay từ chỗ đó</b>.</div>';
+  });
+  ktSua('Cách dùng chính Trợ lý này (chữ to · đọc to · học từ đầu)',function(a){
+    return a+'<div class="snai-ok">🆘 <b>Mới — Kẹt? Chỉ tôi:</b> đang mở bảng nào mà không biết làm tiếp thì bấm nút cam <b>🆘</b> nhỏ trên màn hình — mình khoanh đúng chỗ cần làm tiếp, từng bước tới khi xong.</div>';
+  });
+}catch(e){}
+
 /* ═════════════ 6) KHỞI ĐỘNG ═════════════ */
 function boot(){ try{ build(); }catch(e){} }
 if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',boot);
@@ -21913,7 +23388,7 @@ if (window.__RMT_READY__) return; window.__RMT_READY__ = true;
 try{
 
 /* ĐỔI CHUỖI NÀY CHO TRÙNG APP_BUILD MỖI LẦN DEPLOY (chỉ để hiện ở bảng quản trị) */
-var BUILD = '2026-10-15-SN11';
+var BUILD = '2026-10-16-SN12';
 var NHIP   = 6*3600*1000;          /* báo về tối đa 6 giờ 1 lần — khỏi tốn lượt ghi */
 var KEY_HB = 'rmt_hb_v2';          /* [QT7] nhịp báo về tính RIÊNG từng tài khoản (bản v1 tính chung cả máy) */
 var KEY_XEM= 'rmt_xem_v1';
