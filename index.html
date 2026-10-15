@@ -745,7 +745,7 @@ import { getFirestore, initializeFirestore, persistentLocalCache, persistentMult
 import { getStorage, ref as _sref, uploadBytes, getDownloadURL, deleteObject, listAll }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
 
-const APP_BUILD = "2026-10-15-SN9"; // ⬆️ ĐỔI MỖI LẦN DEPLOY (đặt TRÙNG tên cache trong sw.js) — hiện ở ⚙️ Cài đặt để biết máy đã chạy bản mới chưa
+const APP_BUILD = "2026-10-15-SN10"; // ⬆️ ĐỔI MỖI LẦN DEPLOY (đặt TRÙNG tên cache trong sw.js) — hiện ở ⚙️ Cài đặt để biết máy đã chạy bản mới chưa
 const firebaseConfig = {
   apiKey: "AIzaSyA_kjQ-CdASRkf50Glz3kQajlkD5qGWC4k",
   authDomain: "so-no-cc57a.firebaseapp.com",
@@ -4165,6 +4165,7 @@ function skHsdBar(c){
   return '<button type="button" class="sk-hsdbar'+(c.het?' het':(n?'':' ok'))+'" data-act="cat-pick" data-cat="'+(loc?'':SK_HSD_LOC)+'"><span>'+(n?'⏰ '+ph.join(' · '):'✅ Không còn hàng sắp hết hạn')+'</span><i>'+(loc?'Xem tất cả ›':'Xem ngay ›')+'</i></button>';
 }
 function skHsdChip(c){const loc=(skKhoCat===SK_HSD_LOC),n=c.sap+c.het;if(!n&&!loc)return '';return '<button class="sk-catchip hsd'+(loc?' on':'')+'" data-act="cat-pick" data-cat="'+SK_HSD_LOC+'">⏰ Sắp hết hạn'+(n?' · '+n:'')+'</button>';}
+try{window.SKHSD={tt:skHsdTT,chu:skHsdChu,moLoc:function(){skKhoCat=SK_HSD_LOC;skGo('kho');}};}catch(e){}   /* [HSD] cho module khác (🧠 Cố vấn) dùng CHUNG cách tính hạn + mở tab Kho đang lọc "⏰ Sắp hết hạn" */
 
 /* ============ KHO + THẺ KHO ============ */
 function skRenderKho(){
@@ -14362,7 +14363,7 @@ a:`<b class="snai-h">✎ Sửa / 🗑 Xóa sản phẩm</b>
 <li><b>Gõ tên hàng</b> vào ô tìm để lọc cho nhanh.</li>
 <li><b>Chạm vào sản phẩm</b> → mở ra bảng chi tiết.</li>
 <li>Bấm nút <b>✎ Sửa</b>.</li>
-<li>Sửa những ô cần sửa (giá bán, giá vốn, tên, tồn tối thiểu...).</li>
+<li>Sửa những ô cần sửa (giá bán, giá vốn, tên, tồn tối thiểu, ngày hết hạn...).</li>
 <li>Bấm <b>Lưu</b>.</li>
 </ol>
 <b>🪜 Cách XÓA:</b>
@@ -14415,9 +14416,10 @@ a:`<b class="snai-h">⚠️ Cảnh báo sắp hết hàng</b>
 <li>Tồn <b>bằng 0</b> → số hiện <b style="color:#c0392b">màu ĐỎ</b> = hết sạch, và <b>không bán được nữa</b>.</li>
 </ul>
 <div class="snai-tip">💡 <b>Điền bao nhiêu là hợp lý?</b> Lấy số bán trung bình một ngày nhân với số ngày chờ hàng về. Ví dụ mỗi ngày bán 3 cái, gọi hàng 2 ngày mới tới → điền khoảng <b>6–8</b>.</div>
-<div class="snai-ok">✅ Ngay <b>đầu tab Kho</b> có ô thống kê hiện <b>tổng số mặt hàng</b> và <b>số món sắp hết</b>. Mỗi sáng liếc một cái là biết hôm nay cần gọi hàng gì.</div>`},
+<div class="snai-ok">✅ Ngay <b>đầu tab Kho</b> có ô thống kê hiện <b>tổng số mặt hàng</b> và <b>số món sắp hết</b>. Mỗi sáng liếc một cái là biết hôm nay cần gọi hàng gì.</div>
+<div class="snai-tip">⏰ <b>Đừng nhầm với "sắp hết HẠN":</b> sắp hết <b>hàng</b> = còn ít hàng, cần nhập thêm · sắp hết <b>hạn</b> = hàng sắp quá ngày sử dụng in trên bao bì. Xem mục <i>"Ngày hết hạn (HSD) — báo hàng sắp hết hạn"</i>.</div>`},
 
-{c:'kho',t:'Ngày hết hạn (HSD) — báo hàng sắp hết hạn',k:'ngay het han hsd han su dung han dung date can date hang sap het han hang het han qua han canh bao het han bao truoc hang hu thuc pham sua banh keo thuoc',
+{c:'kho',t:'Ngày hết hạn (HSD) — báo hàng sắp hết hạn',k:'ngay het han hsd han su dung han dung date can date het date hang sap het han hang het han hang qua han qua han san pham het han canh bao het han bao truoc hang hu thuc pham sua banh keo thuoc',
 a:`<b class="snai-h">⏰ Ngày hết hạn (HSD) của hàng hoá</b>
 <b>👉 Cái này để làm gì:</b> ghi <b>ngày hết hạn in trên bao bì</b> vào từng sản phẩm. App <b>tự canh giùm</b>: món nào <b>sắp hết hạn</b> hoặc <b>đã hết hạn</b> là báo ngay ở tab Kho, để bạn kịp <b>bán giảm giá</b> hoặc <b>đổi trả nhà cung cấp</b>, khỏi lỗ vì hàng hư.
 <b>🪜 Cách ghi ngày hết hạn — làm từng bước:</b>
@@ -14433,7 +14435,9 @@ a:`<b class="snai-h">⏰ Ngày hết hạn (HSD) của hàng hoá</b>
 <li>Hoặc bấm nút <b>⏰ Sắp hết hạn</b> ở hàng nút nhóm hàng (ngay cạnh <b>Tất cả</b>). Bấm <b>Tất cả</b> là xem lại toàn bộ kho.</li>
 <li>Dưới tên mỗi sản phẩm có dòng hạn dùng: <b style="color:#b45309">màu VÀNG</b> = sắp hết hạn (còn mấy ngày) · <b style="color:#c0392b">màu ĐỎ</b> = hết hạn · màu xám = hạn còn xa.</li>
 <li>Chạm vào sản phẩm → bảng chi tiết cũng ghi rõ ngày hết hạn và còn bao nhiêu ngày.</li>
+<li>Ở tab <b>🧠 Cố vấn</b>, gõ <i>"hàng nào sắp hết hạn"</i> cũng ra danh sách, kèm nút <b>⏰ Xem trong Kho</b>.</li>
 </ul>
+<div class="snai-ok">✅ Có ở <b>cả 5 ngành</b>: bán hàng đa năng (tạp hóa) · quán ăn, cafe (nguyên liệu) · thời trang, mỹ phẩm · karaoke, spa, nhà nghỉ (bia nước, dầu massage) · nông sản, bán sỉ. Mỗi cửa hàng / chi nhánh <b>đếm riêng</b> hàng của mình.</div>
 <div class="snai-tip">💡 <b>Một món có nhiều lô, mỗi lô một hạn?</b> Ghi <b>ngày của lô hết hạn SỚM NHẤT</b> (lô cũ đang bày bán). Bán hết lô đó thì vào <b>✎ Sửa</b> đổi sang ngày của lô mới.</div>
 <div class="snai-tip">💡 <b>Hàng không có hạn</b> (chén, dép, đồ điện…) thì <b>để trống</b> ô ngày. Muốn bỏ ngày đã ghi: vào <b>✎ Sửa</b> → bấm nút <b>✕</b> cạnh ô ngày → <b>Lưu</b>.</div>
 <div class="snai-warn">⚠️ Hàng <b>đã hết hạn</b> thì đừng bán cho khách. Đem bỏ thì vào tab Kho → <b>📤 Xuất hủy</b> để trừ tồn cho đúng sổ.</div>`},
@@ -15121,7 +15125,8 @@ Nhập tồn kho thực tế cho từng thứ.</li>
 <li>Bấm <b>Lưu công thức</b>.</li>
 </ol>
 <div class="snai-ok">✅ <b>Từ giờ:</b> bán 1 ly cà phê sữa → app <b>tự động trừ</b> 20g cà phê, 30ml sữa, 10 viên đá, 1 cái ly. Bạn nhìn tồn kho là biết còn nguyên liệu pha được bao nhiêu ly nữa, khi nào cần đi mua thêm.</div>
-<div class="snai-tip">💡 Cài định lượng cũng giúp <b>tính giá vốn chính xác</b> cho từng ly, biết được món nào lời nhiều món nào lời ít.</div>`},
+<div class="snai-tip">💡 Cài định lượng cũng giúp <b>tính giá vốn chính xác</b> cho từng ly, biết được món nào lời nhiều món nào lời ít.</div>
+<div class="snai-tip">🥛 <b>Nguyên liệu có hạn sử dụng</b> (sữa, kem, thịt, trái cây…): khi tạo nguyên liệu thì ghi luôn ô <b>Ngày hết hạn (HSD)</b> — app tự báo trước ở tab Kho để kịp dùng hoặc bỏ. Xem mục <i>"Ngày hết hạn (HSD) — báo hàng sắp hết hạn"</i>.</div>`},
 
 {c:'cn',t:'Module Thời trang — size & màu',k:'thoi trang quan ao size mau bien the ma tran ton s m l xl do den',
 a:`<b class="snai-h">👕 Module Thời trang — Biến thể</b>
@@ -15141,7 +15146,8 @@ a:`<b class="snai-h">👕 Module Thời trang — Biến thể</b>
 <li>Bấm <b>Lưu biến thể</b>.</li>
 </ol>
 <div class="snai-ok">✅ <b>Khi bán:</b> chạm vào áo → app <b>hỏi chọn size và màu</b> → bạn chọn → trừ đúng ô đó. <b>Ô nào hết hàng tự mờ đi</b>, không bấm được — nên không bao giờ bán nhầm cái không có.</div>
-<div class="snai-tip">💡 Áp dụng được cả cho: <i>giày (size 38, 39, 40)</i> · <i>son môi (các mã màu)</i> · <i>túi xách (các màu)</i>.</div>`},
+<div class="snai-tip">💡 Áp dụng được cả cho: <i>giày (size 38, 39, 40)</i> · <i>son môi (các mã màu)</i> · <i>túi xách (các màu)</i>.</div>
+<div class="snai-tip">💄 <b>Mỹ phẩm có hạn sử dụng</b> (kem, son, sữa rửa mặt…): ghi ô <b>Ngày hết hạn (HSD)</b> trong bảng sửa sản phẩm — app tự báo món sắp hết hạn ở tab Kho. Xem mục <i>"Ngày hết hạn (HSD) — báo hàng sắp hết hạn"</i>.</div>`},
 
 {c:'cn',t:'Module Karaoke / Nhà nghỉ — phòng tính giờ',k:'karaoke spa nha nghi phong tinh gio mo phong dong phong tien gio',
 a:`<b class="snai-h">🛏️ Module Phòng tính giờ</b>
@@ -15176,7 +15182,8 @@ a:`<b class="snai-h">🛏️ Module Phòng tính giờ</b>
 <li>Thu tiền, chọn hình thức thanh toán.</li>
 </ol>
 <div class="snai-tip">💡 <b>Cách app tính tiền giờ:</b> làm tròn <b>LÊN</b> theo từng khối <b>15 phút</b>, và <b>không bao giờ thấp hơn số phút tối thiểu</b> bạn đã đặt. Ví dụ khách ở 1 giờ 20 phút → tính thành 1 giờ 30 phút.</div>
-<div class="snai-tip">💡 <b>Lỡ bấm mở nhầm phòng?</b> Chạm vào phòng đó rồi bấm <b>✕ Huỷ mở phòng</b> — phòng trở lại trống và <b>không tính tiền</b> gì cả.</div>`},
+<div class="snai-tip">💡 <b>Lỡ bấm mở nhầm phòng?</b> Chạm vào phòng đó rồi bấm <b>✕ Huỷ mở phòng</b> — phòng trở lại trống và <b>không tính tiền</b> gì cả.</div>
+<div class="snai-tip">🍺 <b>Bia, nước ngọt, đồ ăn vặt, dầu massage…</b> có hạn sử dụng thì ghi ô <b>Ngày hết hạn (HSD)</b> ở tab Kho — app tự báo trước khi hết hạn. Xem mục <i>"Ngày hết hạn (HSD) — báo hàng sắp hết hạn"</i>.</div>`},
 
 {c:'cn',t:'Module Cân ký & giá theo bậc số lượng',k:'can ky nong san vat lieu xay dung ban si gia bac mua nhieu re hon so le',
 a:`<b class="snai-h">⚖️ Module Cân ký &amp; Giá bậc</b>
@@ -15201,7 +15208,8 @@ a:`<b class="snai-h">⚖️ Module Cân ký &amp; Giá bậc</b>
 </ul></li>
 <li>Bấm <b>Lưu bậc giá</b>.</li>
 </ol>
-<div class="snai-ok">✅ <b>Trong giỏ hàng, mỗi lần bạn đổi số lượng là app TỰ ÁP LẠI đúng bậc giá.</b> Khách mua 8kg thì tính giá lẻ, tăng lên 10kg là giá tự nhảy xuống 8.000đ/kg ngay. Không phải tính nhẩm, không sợ bán nhầm giá.</div>`},
+<div class="snai-ok">✅ <b>Trong giỏ hàng, mỗi lần bạn đổi số lượng là app TỰ ÁP LẠI đúng bậc giá.</b> Khách mua 8kg thì tính giá lẻ, tăng lên 10kg là giá tự nhảy xuống 8.000đ/kg ngay. Không phải tính nhẩm, không sợ bán nhầm giá.</div>
+<div class="snai-tip">🌾 <b>Nông sản, thực phẩm bán ký, xi măng…</b> có hạn sử dụng thì ghi ô <b>Ngày hết hạn (HSD)</b> trong bảng sửa sản phẩm — app tự báo trước ở tab Kho. Xem mục <i>"Ngày hết hạn (HSD) — báo hàng sắp hết hạn"</i>.</div>`},
 
 
 /* ───────────── 💾 SAO LƯU & PHỤC HỒI ───────────── */
@@ -15967,7 +15975,7 @@ a:`<b class="snai-h">⌨️ Hỏi và ra lệnh</b>
 <li><b>Hỏi kho:</b> "tồn coca còn bao nhiêu" · "giá mì hảo hảo"</li>
 <li><b>Hỏi tiền:</b> "hôm nay lời bao nhiêu" · "doanh thu tuần"</li>
 <li><b>Hỏi nợ:</b> "ai nợ nhiều nhất" · "cần đòi nợ ai"</li>
-<li><b>Hỏi hàng:</b> "hàng nào sắp hết" · "hàng nào bán chạy" · "vốn chết"</li>
+<li><b>Hỏi hàng:</b> "hàng nào sắp hết" · "hàng nào sắp hết hạn" · "hàng nào bán chạy" · "vốn chết"</li>
 <li><b>Hỏi khách:</b> "khách sắp mất" · "mua kèm" · "bất thường"</li>
 </ul>
 <div class="snai-ok">✅ <b>AN TOÀN TUYỆT ĐỐI:</b> máy <b>KHÔNG bao giờ tự bán</b>. Lệnh bán chỉ <b>thêm hàng vào giỏ</b> rồi hiện nút để <b>bạn tự bấm chốt</b>. Bạn luôn là người quyết định cuối cùng.</div>`},
@@ -17480,6 +17488,7 @@ a:`<b class="snai-h">📱 Máy nhân viên không gia hạn được</b>
 a:`<b class="snai-h">🆕 Tính năng mới thêm gần đây</b>
 <b>👉 Chạm vào nút bên dưới mỗi mục để đọc hướng dẫn chi tiết:</b>
 <ul>
+<li><b>⏰ Ngày hết hạn sản phẩm (HSD)</b> — ghi hạn sử dụng cho từng món, ở <b>cả 5 ngành</b>; tab Kho tự báo món <b>sắp hết hạn / đã hết hạn</b>, bấm một cái là lọc ra.</li>
 <li><b>✏️ Sửa tên khách</b> — đổi tên, số điện thoại, địa chỉ của khách ngay trong bảng chi tiết; số nợ và giao dịch giữ nguyên.</li>
 <li><b>👁 Ảnh bằng chứng</b> — chọn 1 ảnh hóa đơn / giấy nợ để khách thấy luôn trên link công nợ.</li>
 <li><b>🧮 Số nợ sau từng giao dịch</b> — mỗi dòng giao dịch ghi sẵn <b>Còn nợ</b> / <b>Mình nợ</b> / <b>✅ Hết nợ</b>.</li>
@@ -17497,6 +17506,7 @@ a:`<b class="snai-h">🆕 Tính năng mới thêm gần đây</b>
 <li><b>📋 Nhật ký thao tác</b> — xem ai đã xóa đơn, sửa công nợ, hủy ca.</li>
 <li><b>👀 Phía khách</b> — nhóm mục mới tả đúng những gì khách thấy khi đặt hàng qua link, gọi món tại bàn, xem ảnh lớn.</li>
 </ul>
+<button type="button" class="snai-sg" data-snaiq="Ngày hết hạn (HSD) — báo hàng sắp hết hạn">⏰ Ngày hết hạn sản phẩm</button>
 <button type="button" class="snai-sg" data-snaiq="Sửa tên, số điện thoại, địa chỉ của khách (✏️ Sửa tên)">✏️ Sửa tên khách</button>
 <button type="button" class="snai-sg" data-snaiq="Ảnh bằng chứng trên link nợ — nút 👁 Cho khách xem">👁 Ảnh bằng chứng cho khách xem</button>
 <button type="button" class="snai-sg" data-snaiq="Dòng Còn nợ / Mình nợ / ✅ Hết nợ ở từng lần mua trả nghĩa là gì?">🧮 Số nợ sau từng giao dịch</button>
@@ -17534,7 +17544,7 @@ a:`<b class="snai-h">⌨️ Gõ lệnh bán hàng</b>
 <li><b>🛒 Mở giỏ</b> / <b>🛒 Mở giỏ · thanh toán</b> — mở giỏ hàng để kiểm tra rồi thu tiền như thường.</li>
 </ul>
 <div class="snai-ok">✅ <b>Máy không tự bán khi bạn chưa xác nhận.</b> Gõ lệnh chỉ mới bỏ hàng vào giỏ; phải bấm nút chốt thì đơn mới được ghi.</div>
-<div class="snai-tip">💡 Gõ câu app chưa hiểu, app báo <i>"Mình chưa hiểu…"</i> kèm câu mẫu để thử: <i>"tồn coca còn bao nhiêu"</i> · <i>"giá mì hảo hảo"</i> · <i>"hôm nay lời bao nhiêu"</i> · <i>"ai nợ nhiều nhất"</i> · <i>"hàng nào sắp hết"</i> · <i>"hàng nào bán chạy"</i>.</div>`},
+<div class="snai-tip">💡 Gõ câu app chưa hiểu, app báo <i>"Mình chưa hiểu…"</i> kèm câu mẫu để thử: <i>"tồn coca còn bao nhiêu"</i> · <i>"giá mì hảo hảo"</i> · <i>"hôm nay lời bao nhiêu"</i> · <i>"ai nợ nhiều nhất"</i> · <i>"hàng nào sắp hết"</i> · <i>"hàng nào sắp hết hạn"</i> · <i>"hàng nào bán chạy"</i>.</div>`},
 
 /* ───────────── 👀 PHÍA KHÁCH — KHÁCH THẤY GÌ, LÀM GÌ (viết từ chính trang khách: link bán online + thực đơn QR) ───────────── */
 {c:'kh',t:'Phía khách: đặt hàng qua link cửa hàng online — từng bước',k:'phia khach dat hang qua link the nao khach thay gi tren link cua hang online gio hang ten nguoi nhan so dien thoai giao tan noi den lay tien mat chuyen khoan chi khach dat hang huong dan khach',
@@ -19219,8 +19229,25 @@ var TOURS={
    {s:'#sk-pf-cost',w:'see',t:'Gõ <b>giá vốn</b> — giá bạn mua vào (để app tính lãi đúng).'},
    {s:'#sk-pf-price',w:'see',t:'Gõ <b>giá bán</b> cho khách.'},
    {s:'#sk-pf-stock',w:'see',t:'Gõ <b>số lượng đang có</b> trong tiệm.'},
+   {s:'#sk-pf-hsd',w:'see',t:'Hàng có <b>hạn sử dụng</b>? Chạm ô <b>Ngày hết hạn (HSD)</b> → chọn ngày in trên bao bì.',sm:'Hàng không có hạn thì bỏ qua, bấm Xong, tiếp.'},   /* [HSD] */
    {s:'#sk-prod [data-act="prod-save"]',t:'Bấm <b>Lưu</b>.'}],
    done:'Sản phẩm đã vào kho và hiện ở tab Bán để bán ngay.'},
+ 'hsd':{n:'Ghi ngày hết hạn cho sản phẩm',e:'Ngày hết hạn (HSD) — báo hàng sắp hết hạn',g:'pos',st:[S_POS,S_TAB('kho','Kho'),   /* [HSD] */
+   {s:'#sk-kholist .sk-row',any:'#sk-kholist .sk-row',t:'Chạm vào <b>sản phẩm</b> cần ghi ngày hết hạn.',
+    sm:'Nhiều hàng quá? Gõ tên vào ô tìm ở trên cho nhanh.',
+    skip:function(){ return openM('#sk-detail.on')||openM('#sk-prod.on'); },
+    miss:'Chưa thấy sản phẩm nào trong danh sách. Đang lọc "⏰ Sắp hết hạn" thì bấm nút <b>Tất cả</b>; kho còn trống thì thêm sản phẩm trước (chọn "👆 Thêm sản phẩm vào kho").'},
+   {s:'#sk-detail [data-act="prod-edit"]',t:'Bấm <b>✎ Sửa</b>.',skip:function(){ return openM('#sk-prod.on'); },
+    miss:'Chưa thấy nút ✎ Sửa — có thể người đang bán chưa được quyền sửa hàng (thường chỉ Chủ / Quản lý).'},
+   {s:'#sk-pf-hsd',w:'see',t:'Chạm vào ô <b>Ngày hết hạn (HSD)</b> → chọn đúng <b>ngày in trên bao bì</b>.',sm:'Muốn bỏ ngày đã ghi thì bấm nút ✕ ngay bên cạnh.'},
+   {s:'#sk-pf-hsdbao',w:'see',t:'Muốn được nhắc trước mấy ngày thì gõ số vào ô <b>Báo trước</b>.',sm:'Để trống = báo trước 30 ngày. Hàng hạn ngắn (bánh mì, sữa chua) thì gõ ít lại, VD 3.'},
+   {s:'#sk-prod [data-act="prod-save"]',t:'Bấm <b>Lưu</b>.'}],
+   done:'Món sắp hết hạn sẽ hiện ở dải ⏰ ngay đầu tab Kho — bấm vào dải là lọc ra những món đó, món gấp nhất đứng đầu.'},
+ 'xem-hsd':{n:'Xem hàng sắp hết hạn',e:'Ngày hết hạn (HSD) — báo hàng sắp hết hạn',g:'pos',st:[S_POS,S_TAB('kho','Kho'),   /* [HSD] */
+   {s:'#sk-kho-stats .sk-hsdbar',t:'Bấm vào dải <b>⏰ … sắp hết hạn</b> này.',
+    skip:function(){ return openM('#sk-cats .sk-catchip.hsd.on'); },
+    miss:'Chưa có món nào sắp hết hạn — hoặc chưa ghi ngày hết hạn cho món nào. Muốn ghi thì chọn "👆 Ghi ngày hết hạn cho sản phẩm".'}],
+   done:'Danh sách chỉ còn những món sắp hết hạn và đã hết hạn — món gấp nhất đứng đầu. Bấm "Tất cả" để xem lại toàn bộ kho.'},
  'nhap-hang':{n:'Nhập hàng về kho',e:'Nhập hàng từ nhà cung cấp',g:'pos',st:[S_POS,S_TAB('nhap','Nhập'),
    {s:'#sk-np-sup',w:'see',t:'Chọn <b>nhà cung cấp</b> (không có thì bỏ qua).'},
    {s:'#sk-np-search',w:'see',t:'Gõ tên hàng cần nhập, rồi <b>chạm vào món</b> hiện ra để thêm vào phiếu. Chỉnh số lượng, giá nhập ở từng dòng.'},
@@ -19514,8 +19541,8 @@ var CTX={
    q:['Thêm khách hàng mới','Ghi khách mua hàng (ghi nợ)','Ghi khách trả tiền (thu nợ)','Chia sẻ link công nợ cho khách xem','In bảng kê công nợ khổ A4 / A5','Sao lưu dữ liệu (nên làm thường xuyên)']},
  sell:{n:'🛒 BÁN HÀNG — tab Bán',tr:['ban-hang','giu-don','tra-hang','quy-ca'],
    q:['Bán hàng cơ bản — từ A đến Z','Giữ đơn (treo đơn) và mở lại','Trả hàng / hoàn tiền cho khách','Ghi nợ cho khách khi bán hàng','Mở ca — quỹ đầu ca','Bán quá số tồn — tồn kho bị âm có sao không?']},
- kho:{n:'🛒 BÁN HÀNG — tab Kho',tr:['them-sp'],
-   q:['Thêm sản phẩm mới vào kho','Sửa hoặc xóa sản phẩm','Ảnh minh họa cho sản phẩm','Kiểm kho bằng quét mã','In tem mã vạch cho sản phẩm','Cài đơn vị quy đổi (lon / lốc / thùng)']},
+ kho:{n:'🛒 BÁN HÀNG — tab Kho',tr:['them-sp','hsd','xem-hsd'],
+   q:['Thêm sản phẩm mới vào kho','Sửa hoặc xóa sản phẩm','Ngày hết hạn (HSD) — báo hàng sắp hết hạn','Ảnh minh họa cho sản phẩm','Kiểm kho bằng quét mã','In tem mã vạch cho sản phẩm','Cài đơn vị quy đổi (lon / lốc / thùng)']},
  nhap:{n:'🛒 BÁN HÀNG — tab Nhập',tr:['nhap-hang'],
    q:['Nhập hàng từ nhà cung cấp','Quản lý nhà cung cấp & trả tiền NCC','Giá vốn — vì sao bắt buộc phải điền đúng']},
  report:{n:'🛒 BÁN HÀNG — tab Báo cáo',tr:['bao-cao','nhan-vien'],
@@ -20504,6 +20531,7 @@ function parseCmd(raw){
   var k=kd(raw); if(!k) return {i:'none'};
   var a=k.split(' ');
 
+  if(/(\bhet han\b|\bqua han\b|han su dung|\bhan dung\b|\bhsd\b|can date|het date)/.test(k)&&!/(tai khoan|\bgoi\b|gia han|dung thu|\bno\b)/.test(k)) return {i:'hsd'};   /* [HSD] hàng sắp / đã hết HẠN SỬ DỤNG — phải đứng TRƯỚC dòng "sắp hết" (hàng) */
   if(/(bat thuong|canh bao|nghi ngo|co gi la|kiem tra shop)/.test(k)) return {i:'anom'};
   if(/(sap het|het hang|can nhap|nhap hang|hang nao sap|dat hang)/.test(k)) return {i:'restock'};
   if(/(ban chay|dat hang nhat|chay nhat|top hang|hang nao ban chay)/.test(k)) return {i:'best'};
@@ -21090,6 +21118,19 @@ function doRestock(){
     o.push('<b>'+esc(fc.low[i].p.name)+'</b> — còn '+(fc.low[i].stock<=0?'0 (HẾT)':(Math.round(fc.low[i].cover*10)/10+' ngày'))+' · nên nhập '+nfmt(fc.low[i].need));
   say('<div class="aib-q">Cần nhập ('+fc.low.length+' mặt hàng)</div>'+o.join('<br>'),['<button data-act="aib-sec" data-s="stock">Xem đầy đủ</button>']);
 }
+/* [HSD] "hàng nào sắp hết hạn" — dùng CHUNG cách tính của tab Kho (window.SKHSD) */
+function doHsd(){
+  var H=window.SKHSD;
+  if(!H||typeof H.tt!=='function'){ say('Mình chưa đọc được ngày hết hạn của hàng — tắt hẳn app rồi mở lại nhé.'); return; }
+  var P=liveProducts(),rows=[],sap=0,het=0,i,t;
+  for(i=0;i<P.length;i++){ if(!P[i]) continue; t=H.tt(P[i]); if(!t||t.muc==='xa') continue; if(t.muc==='het') het++; else sap++; rows.push({p:P[i],t:t}); }
+  if(!rows.length){ say('✅ Không có món nào sắp hết hạn hay đã hết hạn.<br>Món nào có hạn sử dụng thì vào tab <b>Kho</b> → chạm món → <b>✎ Sửa</b> → ghi ô <b>Ngày hết hạn (HSD)</b>.'); return; }
+  rows.sort(function(a,b){ return (a.t.con-b.t.con)||String(a.p.name||'').localeCompare(String(b.p.name||''),'vi'); });
+  var o=[]; for(i=0;i<Math.min(8,rows.length);i++) o.push('<b>'+esc(rows[i].p.name)+'</b> — '+esc(H.chu(rows[i].t,0)));
+  say('<div class="aib-q">⏰ Hạn sử dụng: '+sap+' món sắp hết hạn · '+het+' món đã hết hạn</div>'+o.join('<br>')+(rows.length>8?('<br>… và '+(rows.length-8)+' món nữa'):''),
+      ['<button data-act="aib-hsd">⏰ Xem trong Kho</button>']);
+}
+M.act('aib-hsd',function(){ try{ if(window.SKHSD&&window.SKHSD.moLoc) window.SKHSD.moLoc(); }catch(e){} });
 function doDebtList(){
   getCustomers(false).then(function(list){
     var rows=debtQuick(list||[]);
@@ -21101,7 +21142,7 @@ function doDebtList(){
         ['<button data-act="aib-debt">🎯 Chấm điểm rủi ro</button>']);
   });
 }
-var EXAM='<b>Thử gõ:</b><br>• “bán 2 thùng bia sài gòn cho anh Tuấn ghi nợ”<br>• “tồn coca còn bao nhiêu”<br>• “giá mì hảo hảo”<br>• “hôm nay lời bao nhiêu”<br>• “ai nợ nhiều nhất”<br>• “hàng nào sắp hết”<br>• “hàng nào bán chạy”';
+var EXAM='<b>Thử gõ:</b><br>• “bán 2 thùng bia sài gòn cho anh Tuấn ghi nợ”<br>• “tồn coca còn bao nhiêu”<br>• “giá mì hảo hảo”<br>• “hôm nay lời bao nhiêu”<br>• “ai nợ nhiều nhất”<br>• “hàng nào sắp hết”<br>• “hàng nào sắp hết hạn”<br>• “hàng nào bán chạy”';
 
 function handle(txt){
   txt=String(txt||'').trim(); if(!txt) return;
@@ -21115,6 +21156,7 @@ function handle(txt){
     case 'rev':      doRev(r.per); break;
     case 'best':     doBest(); break;
     case 'slow':     doSlow(); break;
+    case 'hsd':      doHsd(); break;   /* [HSD] */
     case 'restock':  doRestock(); break;
     case 'debt':     doDebtList(); break;
     case 'collect':  say('Đang mở bảng ưu tiên đòi nợ…'); runDebt(true); break;
@@ -21871,7 +21913,7 @@ if (window.__RMT_READY__) return; window.__RMT_READY__ = true;
 try{
 
 /* ĐỔI CHUỖI NÀY CHO TRÙNG APP_BUILD MỖI LẦN DEPLOY (chỉ để hiện ở bảng quản trị) */
-var BUILD = '2026-10-15-SN9';
+var BUILD = '2026-10-15-SN10';
 var NHIP   = 6*3600*1000;          /* báo về tối đa 6 giờ 1 lần — khỏi tốn lượt ghi */
 var KEY_HB = 'rmt_hb_v2';          /* [QT7] nhịp báo về tính RIÊNG từng tài khoản (bản v1 tính chung cả máy) */
 var KEY_XEM= 'rmt_xem_v1';
