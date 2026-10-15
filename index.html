@@ -745,7 +745,7 @@ import { getFirestore, initializeFirestore, persistentLocalCache, persistentMult
 import { getStorage, ref as _sref, uploadBytes, getDownloadURL, deleteObject, listAll }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
 
-const APP_BUILD = "2026-10-09-SN6"; // ⬆️ ĐỔI MỖI LẦN DEPLOY (đặt TRÙNG tên cache trong sw.js) — hiện ở ⚙️ Cài đặt để biết máy đã chạy bản mới chưa
+const APP_BUILD = "2026-10-15-SN7"; // ⬆️ ĐỔI MỖI LẦN DEPLOY (đặt TRÙNG tên cache trong sw.js) — hiện ở ⚙️ Cài đặt để biết máy đã chạy bản mới chưa
 const firebaseConfig = {
   apiKey: "AIzaSyA_kjQ-CdASRkf50Glz3kQajlkD5qGWC4k",
   authDomain: "so-no-cc57a.firebaseapp.com",
@@ -1786,9 +1786,9 @@ async function snGacHoi(uid){
     if(!uid)return '';
     _snGacLuc=Date.now();
     const s=await getDoc(doc(db,'users',uid,'meta','app'));
-    if(s&&s.metadata&&s.metadata.fromCache===false){ _snGacOk=Date.now(); snGacGhi(uid,true); return 'ok'; }
+    if(s&&s.metadata&&s.metadata.fromCache===false){ _snGacOk=Date.now(); snGacGhi(uid,true); _snGacChan=null; snSaiGioXoa(uid); return 'ok'; }   /* [SN7] máy chủ xác nhận còn hạn ⇒ xoá dấu "giờ máy sai" */
     return '';
-  }catch(e){ return (e&&e.code==='permission-denied')?'chan':''; }
+  }catch(e){ if(e&&e.code==='permission-denied'){ snGacBiChoi(uid); return 'chan'; } return ''; }   /* [SN7] bị chối ⇒ đang ở trong app thì xét lại giấy phép */
 }
 async function snGacCho(uid,ms){   /* chờ máy chủ tối đa ms mili-giây, 2,5 giây hỏi 1 lần */
   const t0=Date.now();
@@ -1814,9 +1814,13 @@ async function snGac(uid,r,snap){
         let ly='';
         if(t&&now<t-SN_GAC_LUI) ly='lui';
         else if(s&&now-s>SN_GAC_NGAY*86400000) ly='lau';
+        else if(snSaiGioCo(uid)&&!LA_NV) ly='saigio';   /* [SN7] lần gần nhất máy chủ nói KHÔNG còn hạn mà giờ máy nói còn */
         if(ly&&navigator.onLine!==false&&(await snGacCho(uid,9000))) ly='';   /* máy báo có mạng ⇒ chờ máy chủ; xác nhận còn hạn ⇒ cho vào */
         if(ly) kq={ok:false,reason:'canmang',ly:ly};
-      }else if(md&&md.fromCache===false) snGacHoi(uid);   /* máy chủ vừa trả lời ⇒ xin xác nhận để ghi mốc (không chờ) */
+      }else if(md&&md.fromCache===false){
+        if(snSaiGioCo(uid)&&!LA_NV){ if((await snGacHoi(uid))==='chan') kq={ok:false,reason:'canmang',ly:'saigio'}; }   /* [SN7] lần trước máy chủ chối mà giờ máy nói còn hạn ⇒ hỏi máy chủ TRƯỚC khi cho vào */
+        else snGacHoi(uid);   /* máy chủ vừa trả lời ⇒ xin xác nhận để ghi mốc (không chờ) */
+      }
     }
     snGacGhi(uid,false);
     return kq;
@@ -1856,6 +1860,127 @@ try{
   setInterval(_snGacNhip,5*60000);
   document.addEventListener('visibilitychange',function(){ if(!document.hidden) _snGacNhip(); });
 }catch(e){}
+/* ═══ [SN7] ĐANG MỞ APP MÀ HẾT HẠN · BỊ KHOÁ · GIỜ MÁY CHẬM ⇒ KHOÁ TẠI CHỖ, ĐÚNG LÝ DO (bản 2026-10-15) ═══
+   Trước đây giấy phép chỉ xét LÚC MỞ APP: để app mở qua giờ hết hạn (hoặc bị khoá giữa chừng) thì khách vẫn ở trong app, ghi gì
+   máy chủ cũng chối rồi tự xoá ngầm (khách tưởng đã lưu); giờ máy để chậm hơn giờ thật thì app tưởng còn hạn, mở khung xem sổ.
+   Nay: • tới ĐÚNG giờ hết hạn (theo giờ máy) app tự xét lại giấy phép; quay lại app sau khi tắt màn hình cũng xét;
+        • máy chủ chối 1 lượt đọc (nhịp 3 giờ của SN6 · lượt hỏi lúc mở app · danh sách khách bị chối) ⇒ đọc lại giấy phép:
+          hết hạn / bị khoá / chưa đặt hạn ⇒ màn khoá y như lúc mở app (có nút Gia hạn);
+          giấy phép nói còn mà máy chủ vẫn chối (hỏi lại lần 2 cho chắc) ⇒ "Ngày giờ trên máy đang sai" — CHỈ máy chủ shop;
+          máy nhân viên không bao giờ bị khoá kiểu này (nhân viên bị gỡ khỏi shop cũng làm máy chủ chối);
+        • đã báo "giờ máy sai" thì máy nhớ (localStorage 'sn_saigio_v1'): lần mở sau hỏi máy chủ TRƯỚC khi cho vào (mất mạng thì
+          khoá luôn, có mạng lại tự hỏi); máy chủ xác nhận còn hạn là tự xoá dấu.
+        • nghe giấy phép trên máy chủ: Quản Trị khoá / rút hạn ⇒ app đang mở khoá ngay; Quản Trị gia hạn / mở khoá ⇒ màn khoá
+          tự vào lại app.
+   Khoá TẠI CHỖ, không tải lại trang (mất mạng vẫn khoá được). Không do giấy phép ⇒ 20 phút mới xét lại 1 lần (không tốn lượt đọc).
+   Có lỗi bất kỳ ⇒ bỏ qua, app chạy y như cũ. */
+var _snHenTim=null, _snHenU=0, _snXetDang=false, _snXetChanLuc=0, _snGacChan=null;
+function snSaiGioCo(uid){ try{ return !!uid&&localStorage.getItem('sn_saigio_v1')===String(uid); }catch(e){ return false; } }
+function snSaiGioXoa(uid){ try{ if(snSaiGioCo(uid)) localStorage.removeItem('sn_saigio_v1'); }catch(e){} }
+function snHenHetHan(acc){
+  try{
+    if(_snHenTim){ clearTimeout(_snHenTim); _snHenTim=null; }
+    _snHenU=0;
+    if(!acc||acc.ok!==true||acc.admin||!acc.until||typeof acc.until.getTime!=='function') return;
+    const u=acc.until.getTime(); if(!isFinite(u)) return;
+    _snHenU=u;
+    const con=u-Date.now()+3000;
+    if(con<2147000000) _snHenTim=setTimeout(function(){ _snHenTim=null; snXetLai('hethan'); },Math.max(1500,con));
+    else _snHenTim=setTimeout(function(){ _snHenTim=null; snHenHetHan(window._accInfo); },86400000);   /* hạn còn xa hơn 24 ngày ⇒ mỗi ngày hẹn lại */
+  }catch(e){}
+}
+document.addEventListener('visibilitychange',function(){ try{ if(!document.hidden&&_snHenU&&Date.now()>_snHenU) snXetLai('hethan'); }catch(e){} });
+/* Máy chủ chối 1 lượt đọc (gọi từ snGacHoi) ⇒ nhớ lại; đang ở trong app thì xét lại ngay */
+function snGacBiChoi(uid){
+  try{
+    _snGacChan={u:uid,luc:Date.now()};
+    const a=window._accInfo, ap=document.getElementById('app');
+    if(uid&&uid===UID&&a&&a.ok===true&&!a.admin&&ap&&ap.style.display!=='none') setTimeout(function(){ snXetLai('chan'); },0);
+  }catch(e){}
+}
+/* Vừa vào app (onAuthStateChanged): hẹn giờ hết hạn; lượt hỏi máy chủ lúc mở app mà đã bị chối thì xét luôn */
+function snSauKhiVao(acc){
+  try{
+    snHenHetHan(acc);
+    if(acc&&acc.ok===true&&!acc.admin) snNgheLic(UID);
+    const q=_snGacChan;
+    if(acc&&acc.ok===true&&!acc.admin&&q&&q.u===UID&&Math.abs(Date.now()-q.luc)<120000) setTimeout(function(){ snXetLai('chan'); },0);
+  }catch(e){}
+}
+async function snXetLai(why){
+  if(_snXetDang){ if(why==='hethan') setTimeout(function(){ snXetLai('hethan'); },5000); return; }
+  const a=window._accInfo, uidLuc=UID;
+  if(!uidLuc||!a||a.ok!==true||a.admin) return;
+  const ap=document.getElementById('app'); if(!ap||ap.style.display==='none') return;           /* chỉ xét khi ĐANG ở trong app */
+  if(why==='chan'&&Math.abs(Date.now()-_snXetChanLuc)<20*60000) return;                         /* vừa xét vì bị chối mà không do giấy phép ⇒ 20 phút sau mới xét lại */
+  _snXetDang=true; let khoa=false;
+  try{
+    let acc=await checkAccount(uidLuc);
+    if(UID!==uidLuc||window._accInfo!==a) return;                                                /* đã đăng xuất / đổi tài khoản trong lúc chờ */
+    if(acc&&acc.ok===true&&!acc.admin&&why==='chan'&&!LA_NV&&navigator.onLine!==false){
+      if((await snGacHoi(uidLuc))==='chan') acc={ok:false,reason:'canmang',ly:'saigio'};        /* hỏi lại lần 2 cho chắc */
+      if(UID!==uidLuc||window._accInfo!==a) return;
+    }
+    if(acc&&acc.ok===false&&acc.reason==='error'&&why==='hethan'&&a.until&&typeof a.until.getTime==='function'&&Date.now()>a.until.getTime())
+      acc={ok:false,reason:'expired',until:a.until,trial:!!a.trial};                             /* không đọc được giấy phép (mất mạng, máy không còn bản lưu) mà đã quá giờ hết hạn */
+    if(acc&&acc.ok===false&&['expired','locked','nohan','canmang'].indexOf(acc.reason)>=0){ khoa=true; snKhoaDangMo(acc); return; }
+    if(acc&&acc.ok===true){ window._accInfo=acc; try{ showExpiryBanner(acc); }catch(_){} snHenHetHan(acc); }
+  }catch(e){}
+  finally{ if(why==='chan'&&!khoa) _snXetChanLuc=Date.now(); _snXetDang=false; }
+}
+/* NGHE giấy phép trên máy chủ (1 lượt đọc lúc bắt đầu + 1 lượt mỗi lần Quản Trị đổi giấy phép):
+   • đang trong app mà Quản Trị KHOÁ / rút hạn về trước hôm nay ⇒ khoá ngay; gia hạn / đổi hạn ⇒ cập nhật hạn + giờ hẹn;
+   • đang ở màn khoá (hết hạn · bị khoá · chưa đặt hạn) mà Quản Trị gia hạn / mở khoá ⇒ TỰ vào lại app (tải lại trang, 1 lần/phút).
+   Chỉ tin bản máy chủ vừa gửi (fromCache===false). Lỗi nghe ⇒ thôi nghe, app chạy y như cũ. */
+var _snLicNghe=null, _snLicUid=null, _snLicKhoa='';
+function snTuVaoVuaRoi(){ try{ const t=Number(sessionStorage.getItem('sn_lic_tuvao_v1'))||0, n=Date.now(); if(t&&Math.abs(n-t)<60000) return true; sessionStorage.setItem('sn_lic_tuvao_v1',String(n)); return false; }catch(e){ return true; } }
+function snNgheLic(uid){
+  try{
+    if(!uid||isAdmin()) return;
+    if(_snLicNghe&&_snLicUid===uid) return;
+    if(_snLicNghe){ try{ _snLicNghe(); }catch(_){} _snLicNghe=null; }
+    _snLicUid=uid;
+    _snLicNghe=onSnapshot(licRef(uid,MA_APP),function(s){
+      try{
+        if(!s||!s.metadata||s.metadata.fromCache!==false||UID!==uid) return;
+        const r=s.exists()?_hanInfo(s.data()):null; if(!r) return;
+        const a=window._accInfo, ap=document.getElementById('app'), lv=document.getElementById('locked-view');
+        if(a&&a.ok===true&&!a.admin&&ap&&ap.style.display!=='none'){                                /* đang ở trong app */
+          if(r.ok===false&&['expired','locked','nohan'].indexOf(r.reason)>=0){ snKhoaDangMo(r); return; }
+          if(r.ok===true){ const u0=(a.until&&a.until.getTime)?a.until.getTime():0, u1=(r.until&&r.until.getTime)?r.until.getTime():0;
+            if(u0!==u1||!!a.trial!==!!r.trial){ window._accInfo=r; try{ showExpiryBanner(r); }catch(_){} snHenHetHan(r); } }
+          return;
+        }
+        if(r.ok===true&&lv&&lv.style.display!=='none'&&['expired','locked','nohan'].indexOf(_snLicKhoa)>=0&&!snTuVaoVuaRoi()) location.reload();   /* đang ở màn khoá ⇒ đã được mở lại */
+      }catch(e){}
+    },function(e){ try{ if(_snLicNghe) _snLicNghe(); }catch(_){} _snLicNghe=null; _snLicUid=null; });
+  }catch(e){}
+}
+/* Gọi từ renderLocked: nhớ lý do khoá; hết hạn · bị khoá · chưa đặt hạn ⇒ nghe giấy phép để tự vào lại khi được mở */
+function snKhoaNghe(acc){
+  try{ _snLicKhoa=(acc&&acc.reason)||''; if(['expired','locked','nohan'].indexOf(_snLicKhoa)>=0) snNgheLic(UID); }catch(e){}
+}
+/* Khoá ngay tại chỗ — cùng màn khoá như lúc mở app (renderLocked); đóng màn Bán hàng + hộp thoại đang mở */
+function snKhoaDangMo(acc){
+  try{
+    snHenHetHan(null);
+    if(acc.reason==='canmang'&&acc.ly==='saigio'){ try{ localStorage.setItem('sn_saigio_v1',String(UID||'')); }catch(_){} }
+    try{ const ps=document.getElementById('pos-screen'); if(ps&&ps.classList.contains('on')) skClose(); }catch(_){}
+    try{ document.querySelectorAll('.modal-overlay.active').forEach(function(m){ try{ window.closeModal(m.id); }catch(_){ m.classList.remove('active'); } }); }catch(_){}
+    try{ const pu=document.getElementById('pos-upsell'); if(pu) pu.style.display='none'; }catch(_){}
+    try{ if(typeof unsub==='function') unsub(); }catch(_){}
+    unsub=function(){};                                                                           /* danh sách khách thôi nghe (khỏi báo "mất kết nối" đè lên màn khoá) */
+    window._accInfo=null;                                                                         /* nhịp hỏi máy chủ + kho cứu hộ thôi coi là "đang còn hạn" */
+    try{ localStorage.removeItem('sono_gp_v1_'+String(UID||'')); }catch(_){}                      /* kho cứu hộ ngoại tuyến không tự mở lại app */
+    const lock=document.getElementById('locked-view');
+    document.getElementById('auth-screen').style.display='none';
+    document.getElementById('app').style.display='none';
+    renderLocked(acc,auth.currentUser);
+    if(lock)lock.style.display='flex';
+    {const _hf=document.getElementById('hotlineFab');if(_hf)_hf.style.display='none';}
+    try{ document.body.style.overflow=''; window.scrollTo(0,0); }catch(_){}
+  }catch(e){}
+}
 async function checkAccount(uid){
   try{
     if(isAdmin())return{ok:true,admin:true};
@@ -1953,7 +2078,7 @@ if(!viewToken){
       document.getElementById('app').style.display='block';
       const ab=document.getElementById('admin-btn');if(ab)ab.style.display=acc.admin?'':'none';
       {const _hf=document.getElementById('hotlineFab');if(_hf)_hf.style.display=acc.admin?'none':'flex';}
-      window._accInfo=acc;
+      window._accInfo=acc; snSauKhiVao(acc);   /* [SN7] hẹn giờ hết hạn + xét lượt máy chủ chối lúc mở app */
       showExpiryBanner(acc);
       maybeRenewNudge(acc);
       await loadReminderSettings();
@@ -2188,6 +2313,7 @@ window.startTrialNow=async()=>{
 
 // ── Màn hình khoá (hết hạn / chờ / khoá / lỗi) ──
 function renderLocked(acc,user){
+  try{ snKhoaNghe(acc); }catch(_){}   /* [SN7] hết hạn · bị khoá · chưa đặt hạn ⇒ nghe giấy phép, được mở lại là tự vào app */
   try{ window.__snKhoaChac=!!(acc&&(acc.reason==='expired'||acc.reason==='locked'||acc.reason==='nohan'||acc.reason==='canmang')); snGacTuMo(acc); }catch(_){}   /* [SN6] kết luận đã RÕ ⇒ kho cứu hộ ngoại tuyến không tự mở app (xem snGacChan); màn "cần nối mạng" thì tự hỏi lại máy chủ */
   const icon=document.getElementById('locked-icon');
   const title=document.getElementById('locked-title');
@@ -2207,6 +2333,7 @@ function renderLocked(acc,user){
     tt='Tài khoản đã bị khoá';mg='Tài khoản'+(mail?(' ('+mail+')'):'')+' hiện bị khoá. Vui lòng liên hệ chủ phần mềm.';
   }else if(acc.reason==='canmang'){   /* [SN6] gác ngoại tuyến */
     if(acc.ly==='lui'){ic='🕒';tt='Ngày giờ trên máy đang sai';mg='Ngày giờ của máy đang chậm hơn lần dùng trước nên chưa xác nhận được giấy phép. Hãy chỉnh lại ngày giờ cho đúng (bật "Tự động đặt ngày giờ"), nối mạng rồi bấm Thử lại. Dữ liệu của bạn vẫn còn nguyên.';}
+    else if(acc.ly==='saigio'){ic='🕒';tt='Ngày giờ trên máy đang sai';mg='Máy chủ báo giấy phép KHÔNG còn hiệu lực, nhưng ngày giờ trên máy đang chậm nên app tưởng còn hạn. Hãy bật "Tự động đặt ngày giờ" trong cài đặt điện thoại rồi bấm Thử lại. Ngày giờ đã đúng mà vẫn báo thì gọi hotline '+snHotTxt()+'. Dữ liệu của bạn vẫn còn nguyên.';}   /* [SN7] */
     else{ic='📶';tt='Cần nối mạng để xác nhận giấy phép';mg='Máy đã dùng ngoại tuyến quá '+SN_GAC_NGAY+' ngày. Hãy bật Wi-Fi hoặc 4G rồi bấm Thử lại — chỉ cần nối mạng một lần. Dữ liệu của bạn vẫn còn nguyên.';}
   }else if(acc.reason==='pending'&&window.__snThuLyDo==='xacminh'){   /* [SN6] xác minh email trước khi dùng thử */
     ic='✉️';tt='Xác minh email để bắt đầu dùng thử';mg='Thư xác minh đã được gửi tới '+(mail||'email của bạn')+'. Hãy mở hộp thư (xem cả mục Spam / Thư rác), bấm vào đường link trong thư, rồi quay lại đây bấm "Tôi đã xác minh".';
@@ -2691,6 +2818,7 @@ function loadCustomers(){
        nguyên danh sách cũ mãi mãi, không báo một chữ nào. Chủ shop tưởng dữ liệu còn,
        thực tế đang nhìn bản lưu tạm đã lạc hậu. Nay báo rõ và tự nối lại. */
     unsub=null; _custErrN++;
+    try{ if(err&&err.code==='permission-denied') snXetLai('chan'); }catch(_){}   /* [SN7] máy chủ chối ⇒ xét lại giấy phép (hết hạn / bị khoá thì hiện màn khoá) */
     toast('⚠️ Mất kết nối danh sách khách ('+((err&&err.code)||'lỗi')+') — đang nối lại...');
     if(_custErrN<=5){ setTimeout(function(){ try{ if(!unsub) loadCustomers(); }catch(e){} },5000); }
     else { alert('⚠️ KHÔNG ĐỌC ĐƯỢC DANH SÁCH KHÁCH\n\nMã lỗi: '+((err&&err.code)||'')+'\n'+((err&&err.message)||err)+'\n\nDanh sách đang hiện có thể là BẢN CŨ. Hãy đăng xuất rồi đăng nhập lại.'); }
@@ -6327,6 +6455,46 @@ async function skDiag(){
     return{ok:false,nohan:true};   /* [VÁ F5] không ngày + không vinhVien: Rules chặn — trước đây app tưởng vĩnh viễn */
   }
 
+  /* [SN7] ĐANG Ở MÀN BÁN HÀNG mà tới giờ hết hạn gói Bán hàng ⇒ đóng màn Bán hàng, hiện màn gia hạn (y như lúc bấm mở).
+     Trước đây màn Bán hàng cứ mở, bán đơn nào máy chủ cũng chối (báo "Firestore Rules chưa mở…"). Hạn gói (CHỈ lấy lúc máy chủ
+     vừa trả lời) được nhớ ở localStorage 'sono_posu_v1_<uid>' để lúc MẤT MẠNG kho cứu hộ không mở thẳng màn Bán hàng khi gói đã hết. */
+  var _posHen=null, _posHenU=0;
+  function snNhoPos(L,info){
+    try{
+      if(L&&!(L.metadata&&L.metadata.fromCache===false)) return;
+      if(!UID||!info) return;
+      var v=info.forever?'vv':((info.until&&typeof info.until.getTime==='function'&&isFinite(info.until.getTime()))?String(info.until.getTime()):'x');
+      localStorage.setItem('sono_posu_v1_'+UID,v);
+    }catch(e){}
+  }
+  function snHenPos(info){
+    try{
+      if(_posHen){ clearTimeout(_posHen); _posHen=null; }
+      _posHenU=0;
+      if(!info||!info.ok||info.forever||!info.until||typeof info.until.getTime!=='function') return;
+      var u=info.until.getTime(); if(!isFinite(u)) return;
+      _posHenU=u;
+      var con=u-Date.now()+3000;
+      if(con<2147000000) _posHen=setTimeout(function(){ _posHen=null; snXetPos(); },Math.max(1500,con));
+    }catch(e){}
+  }
+  window.snHenPos=snHenPos;
+  async function snXetPos(){
+    try{
+      var ps=document.getElementById('pos-screen'); if(!(ps&&ps.classList.contains('on'))) return;   /* đã rời màn Bán hàng ⇒ lần mở sau cổng tự xét */
+      if(typeof isAdmin==='function'&&isAdmin()) return;
+      var u0=_posHenU, info=null;
+      try{ var L=await getDoc(licRef(UID,MA_POS)); info=L.exists()?_posInfoLic(L.data()):{ok:false}; snNhoPos(L,info); }catch(e){ info=null; }
+      if(!info){ if(u0&&Date.now()>u0) info={ok:false,expired:true,until:new Date(u0)}; else return; }
+      if(info.ok){ _posCache=info; snHenPos(info); return; }                                       /* đã gia hạn ⇒ hẹn lại */
+      _posCache=info;
+      ps=document.getElementById('pos-screen'); if(!(ps&&ps.classList.contains('on'))) return;
+      try{ skClose(); }catch(e){}
+      skShowPosUpsell(info);
+    }catch(e){}
+  }
+  document.addEventListener('visibilitychange',function(){ try{ if(!document.hidden&&_posHenU&&Date.now()>_posHenU) snXetPos(); }catch(e){} });
+
   /* ---------- KHÁCH: cổng kiểm tra quyền trước khi mở POS ---------- */
   var _openReal=window.openPOS, _posCache=null;
   window.openPOS=async function(){
@@ -6336,7 +6504,7 @@ async function skDiag(){
     /* ① Giấy phép POS RIÊNG */
     try{
       var L=await getDoc(licRef(UID,MA_POS));
-      if(L.exists()){ daTungCoPos=true; info=_posInfoLic(L.data()); _posCache=info; }
+      if(L.exists()){ daTungCoPos=true; info=_posInfoLic(L.data()); _posCache=info; snNhoPos(L,info); }   /* [SN7] nhớ hạn gói (chỉ khi máy chủ vừa trả lời) */
     }catch(e){}
 
     /* ② DẤU VẾT POS KIỂU CŨ ở doc gốc — CHỈ dùng để KHÔNG phát lại lượt dùng thử.
@@ -6351,7 +6519,7 @@ async function skDiag(){
       }catch(e){ info=_posCache; }
     }
 
-    if(info&&info.ok){_openReal();return;}
+    if(info&&info.ok){_openReal();snHenPos(info);return;}   /* [SN7] hẹn giờ hết hạn gói Bán hàng */
     /* Tự mở dùng thử Bán hàng miễn phí 15 ngày — CHỈ 1 LẦN (Rules chặn tạo lại) */
     if(!daTungCoPos && navigator.onLine!==false){   /* offline: KHÔNG mở dùng thử (lệnh ghi sẽ treo vĩnh viễn) */
       try{
@@ -6359,8 +6527,9 @@ async function skDiag(){
         var until=new Date(Date.now()+POS_TRIAL_DAYS*86400000);
         await setDoc(licRef(UID,MA_POS),{trial:true,trialUsed:true,active:true,paidUntil:until,startedAt:serverTimestamp()});
         _posCache={ok:true,until:until};
+        snNhoPos(null,_posCache);   /* [SN7] */
         toast('🎁 Đã mở dùng thử Bán hàng miễn phí '+POS_TRIAL_DAYS+' ngày!');
-        _openReal();return;
+        _openReal();snHenPos(_posCache);return;
       }catch(e){}
     }
     try{if(!BILLING){var bs=await getDoc(doc(db,'billing','info'));if(bs.exists()){BILLING=bs.data();try{apCauHinhTuXa();}catch(_){}}}}catch(e){}
@@ -9297,6 +9466,21 @@ function chan(){
   window[n]=function(){ if(chan()) return; return f.apply(this,arguments); };
 });
 
+/* [SN7] Mất mạng: chỉ MỞ THẲNG màn Bán hàng khi gói Bán hàng (theo lần máy chủ trả lời gần nhất) còn hạn theo giờ máy và giờ máy
+   không bị chỉnh lùi. Không qua được ⇒ đi cổng thường (đọc giấy phép trong bản lưu của máy). Máy chưa có mốc ⇒ y như cũ. */
+function snPosNgoaiTuyenOk(){
+  try{
+    if(typeof window.snGacChan==='function' && window.snGacChan()) return false;
+    var v=localStorage.getItem('sono_posu_v1_'+(uidNow()||''));
+    if(v==null||v==='') return true;
+    if(v==='vv') return true;
+    if(v==='x') return false;
+    var u=Number(v); if(!isFinite(u)||u<=0) return true;
+    if(u<=Date.now()) return false;
+    try{ if(typeof window.snHenPos==='function') setTimeout(function(){ try{ window.snHenPos({ok:true,until:new Date(u)}); }catch(e){} },50); }catch(e){}
+    return true;
+  }catch(e){ return true; }
+}
 /* ---------- Mất mạng vẫn mở được BÁN HÀNG (bỏ qua bước đọc giấy phép trên mạng) ---------- */
 (function(){
   var _pos=window.openPOS;
@@ -9304,7 +9488,7 @@ function chan(){
   window.openPOS=function(){
     try{
       var okAt=uidNow()? Number(localStorage.getItem(posKey())||0) : 0;
-      if(navigator.onLine===false && okAt && (Date.now()-okAt) < GRACE_DAYS*86400000){
+      if(navigator.onLine===false && okAt && (Date.now()-okAt) < GRACE_DAYS*86400000 && snPosNgoaiTuyenOk()){   /* [SN7] */
         skq('#pos-screen').classList.add('on');
         document.body.style.overflow='hidden';
         try{ skInit4(); }catch(e){ try{ skInit(); skGo('sell'); }catch(e2){} }
@@ -13253,7 +13437,7 @@ a:`<b class="snai-h">📱 Tổng quan phần mềm</b>
 <div class="snai-ok">✅ Dữ liệu của bạn <b>không nằm trong điện thoại</b> mà nằm trên máy chủ. Nghĩa là: điện thoại hỏng, mất máy, đổi máy mới — chỉ cần đăng nhập lại đúng email là <b>dữ liệu về hết</b>. Mất mạng vẫn bán được, có mạng lại app tự gửi lên.</div>
 <div class="snai-tip">💡 Mới dùng lần đầu thì làm theo thứ tự này cho dễ: <b>1)</b> Thêm vài khách hàng → <b>2)</b> Tập ghi nợ, ghi trả → <b>3)</b> Thêm sản phẩm vào kho → <b>4)</b> Tập bán một đơn. Làm sai cũng không sao, xóa đi làm lại được.</div>`},
 
-{c:'bd',t:'Đăng ký tài khoản mới — dùng thử 14 ngày',k:'dang ky tao tai khoan moi dung thu mien phi 14 ngay 15 ngay bat dau lan dau',
+{c:'bd',t:'Đăng ký tài khoản mới — dùng thử miễn phí',k:'dang ky tao tai khoan moi dung thu mien phi 14 ngay 15 ngay bat dau lan dau',
 a:`<b class="snai-h">🆕 Đăng ký tài khoản</b>
 <b>👉 Cái này để làm gì:</b> tạo một "chìa khóa" riêng cho shop của bạn. Mọi số liệu sau này đều nằm trong chìa khóa đó.
 <b>📍 Làm ở đâu:</b> ngay <b>màn hình đầu tiên</b> khi mở app (màn hình có ô Email và ô Mật khẩu).
@@ -13266,7 +13450,7 @@ a:`<b class="snai-h">🆕 Đăng ký tài khoản</b>
 <li>Nhìn xuống dưới, có 2 nút. Bạn phải bấm đúng nút <b>"Đăng ký tài khoản mới"</b>.</li>
 <li><b>Chờ vài giây.</b> App sẽ tự mở thẳng vào bên trong.</li>
 </ol>
-<div class="snai-ok">✅ <b>Biết là làm đúng khi:</b> app không còn hỏi email/mật khẩu nữa mà hiện thẳng ra màn hình <b>📒 SỔ NỢ</b> trống. Từ giây phút này bạn được <b>DÙNG THỬ MIỄN PHÍ 14 NGÀY</b>, đầy đủ mọi tính năng, không thiếu gì cả.</div>
+<div class="snai-ok">✅ <b>Biết là làm đúng khi:</b> app không còn hỏi email/mật khẩu nữa mà hiện thẳng ra màn hình <b>📒 SỔ NỢ</b> trống. Từ giây phút này bạn được <b>DÙNG THỬ MIỄN PHÍ</b>, đầy đủ mọi tính năng, không thiếu gì cả.</div>
 <div class="snai-warn">⚠️ <b>ĐỪNG bấm nhầm nút "Đăng nhập"</b> ở lần đầu. Nút Đăng nhập dành cho người ĐÃ có tài khoản rồi. Bấm nhầm nó sẽ báo lỗi không tìm thấy tài khoản.</div>
 <div class="snai-tip">📝 <b>Việc quan trọng nhất phải làm ngay bây giờ:</b> lấy giấy bút ghi lại <b>email</b> và <b>mật khẩu</b> vừa tạo, cất vào chỗ chỉ mình bạn biết. Hoặc nhắn cho chính mình qua Zalo. Đây là <b>chìa khóa duy nhất</b> mở dữ liệu của bạn — mất là không ai lấy lại giùm được.</div>`},
 
@@ -13352,7 +13536,7 @@ a:`<b class="snai-h">📲 Cài App vào máy</b>
 
 {c:'bd',t:'Gia hạn tài khoản — giá bao nhiêu?',k:'gia han tra tien mua goi thanh toan phi bao nhieu tien 1 thang nam gia ca toi da chuyen khoan bao da chuyen tien nut xanh',go:'openRenew',
 a:`<b class="snai-h">💳 Gia hạn tài khoản</b>
-<b>👉 Cái này để làm gì:</b> mua thêm thời gian sử dụng khi hết 14 ngày dùng thử, hoặc khi gói cũ sắp hết hạn.
+<b>👉 Cái này để làm gì:</b> mua thêm thời gian sử dụng khi hết thời gian dùng thử, hoặc khi gói cũ sắp hết hạn.
 <b>🪜 Làm từng bước:</b>
 <ol>
 <li>Nhìn lên thanh xanh trên cùng → bấm <span class="snai-path">🧰 Công cụ &amp; Sao lưu</span>.</li>
@@ -13405,7 +13589,7 @@ a:`<b class="snai-h">🎁 Giới thiệu bạn bè</b>
 <li>Dặn bạn bè: <b>phải bấm vào chính link đó</b> để đăng ký tài khoản mới. Đăng ký kiểu khác thì hệ thống không biết là bạn giới thiệu.</li>
 <li>Bạn bè đăng ký xong và <b>mua trọn gói 12 tháng</b> thì bạn được cộng thưởng.</li>
 </ol>
-<div class="snai-tip">💡 Nên nhắn kèm một câu giới thiệu ngắn cho người ta hiểu, ví dụ: <i>"App ghi sổ nợ với bán hàng mình đang xài, tiện lắm, bấm link này đăng ký dùng thử 14 ngày miễn phí nè."</i></div>`},
+<div class="snai-tip">💡 Nên nhắn kèm một câu giới thiệu ngắn cho người ta hiểu, ví dụ: <i>"App ghi sổ nợ với bán hàng mình đang xài, tiện lắm, bấm link này đăng ký dùng thử miễn phí nè."</i></div>`},
 
 {c:'bd',t:'Cài số tài khoản ngân hàng để tạo QR',k:'cai dat so tai khoan ngan hang qr vietqr thanh toan chuyen khoan nhan tien',go:'openSettings',
 a:`<b class="snai-h">🏦 Cài số tài khoản nhận tiền</b>
@@ -16172,7 +16356,7 @@ a:`<b class="snai-h">🎁 Dùng thử trước khi mua</b>
 <ol>
 <li>Vào <b>Bán hàng</b> → bấm nút <b>🏪 ▾</b> ở <b>góc trên bên phải</b>.</li>
 <li>Bấm <b>➕ Mở cửa hàng mới</b>.</li>
-<li>Chưa có gói thì hiện lời mời <b>dùng thử 14 ngày miễn phí</b> → bấm đồng ý.</li>
+<li>Chưa có gói thì hiện lời mời <b>dùng thử miễn phí</b> → bấm đồng ý.</li>
 </ol>
 <div class="snai-ok">✅ Hết hạn dùng thử, <b>dữ liệu vẫn còn nguyên</b>, không mất. App chỉ <b>tự quay về cửa hàng thường</b> và tạm ẩn chức năng riêng của gói đó. Mua gói là hiện lại y như cũ.</div>
 <div class="snai-warn">⚠️ <b>Chỉ CHỦ shop mới mở được dùng thử</b>, máy nhân viên không mở được. Và <b>phải có mạng</b>.</div>
@@ -17662,7 +17846,7 @@ Xem thêm mục <b>In bảng kê công nợ khổ A4 / A5</b>.
 a:`<b class="snai-h">🎁 Đang dùng thử thì chưa nhập được dữ liệu</b>
 <b>👉 Bạn gặp câu báo này:</b>
 <br><i>"Tài khoản đang DÙNG THỬ nên chưa nhập được dữ liệu. Đây là cách chặn việc xoay vòng tài khoản để dùng thử vô hạn."</i>
-<b>📖 Nghĩa là gì:</b> tài khoản <b>chưa mua gói nào</b> (còn đang 14 ngày dùng thử) thì <b>chưa đưa dữ liệu từ tệp bên ngoài vào</b> được. Luật này áp dụng cho <b>cả 3 đường nhập</b>:
+<b>📖 Nghĩa là gì:</b> tài khoản <b>chưa mua gói nào</b> (còn đang dùng thử) thì <b>chưa đưa dữ liệu từ tệp bên ngoài vào</b> được. Luật này áp dụng cho <b>cả 3 đường nhập</b>:
 <ul>
 <li><b>📤 Nhập / Phục hồi dữ liệu</b> bằng tệp <b>.json</b>.</li>
 <li><b>📤 Nhập / Phục hồi dữ liệu</b> bằng tệp <b>Excel (.xlsx)</b>.</li>
@@ -18562,7 +18746,7 @@ function ttsBtn(){
 
 /* ═════ KHÓA HỌC "HỌC TỪ ĐẦU" ═════ */
 var CRS=['App này gồm những gì?',
- 'Đăng ký tài khoản mới — dùng thử 14 ngày',
+ 'Đăng ký tài khoản mới — dùng thử miễn phí',
  'Cài app vào màn hình chính điện thoại',
  'Thêm khách hàng mới',
  'Ghi khách mua hàng (ghi nợ)',
@@ -21591,7 +21775,7 @@ if (window.__RMT_READY__) return; window.__RMT_READY__ = true;
 try{
 
 /* ĐỔI CHUỖI NÀY CHO TRÙNG APP_BUILD MỖI LẦN DEPLOY (chỉ để hiện ở bảng quản trị) */
-var BUILD = '2026-10-09-SN6';
+var BUILD = '2026-10-15-SN7';
 var NHIP   = 6*3600*1000;          /* báo về tối đa 6 giờ 1 lần — khỏi tốn lượt ghi */
 var KEY_HB = 'rmt_hb_v2';          /* [QT7] nhịp báo về tính RIÊNG từng tài khoản (bản v1 tính chung cả máy) */
 var KEY_XEM= 'rmt_xem_v1';
