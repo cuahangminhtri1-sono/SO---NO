@@ -745,7 +745,7 @@ import { getFirestore, initializeFirestore, persistentLocalCache, persistentMult
 import { getStorage, ref as _sref, uploadBytes, getDownloadURL, deleteObject, listAll }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
 
-const APP_BUILD = "2026-10-15-SN10"; // ⬆️ ĐỔI MỖI LẦN DEPLOY (đặt TRÙNG tên cache trong sw.js) — hiện ở ⚙️ Cài đặt để biết máy đã chạy bản mới chưa
+const APP_BUILD = "2026-10-15-SN11"; // ⬆️ ĐỔI MỖI LẦN DEPLOY (đặt TRÙNG tên cache trong sw.js) — hiện ở ⚙️ Cài đặt để biết máy đã chạy bản mới chưa
 const firebaseConfig = {
   apiKey: "AIzaSyA_kjQ-CdASRkf50Glz3kQajlkD5qGWC4k",
   authDomain: "so-no-cc57a.firebaseapp.com",
@@ -21913,7 +21913,7 @@ if (window.__RMT_READY__) return; window.__RMT_READY__ = true;
 try{
 
 /* ĐỔI CHUỖI NÀY CHO TRÙNG APP_BUILD MỖI LẦN DEPLOY (chỉ để hiện ở bảng quản trị) */
-var BUILD = '2026-10-15-SN10';
+var BUILD = '2026-10-15-SN11';
 var NHIP   = 6*3600*1000;          /* báo về tối đa 6 giờ 1 lần — khỏi tốn lượt ghi */
 var KEY_HB = 'rmt_hb_v2';          /* [QT7] nhịp báo về tính RIÊNG từng tài khoản (bản v1 tính chung cả máy) */
 var KEY_XEM= 'rmt_xem_v1';
@@ -28014,9 +28014,11 @@ nhip();
 <!-- ═══════════════ HẾT: LINK CỐ ĐỊNH ═══════════════ -->
 <!-- ═══════════════ THÔNG BÁO ĐẨY (SNTB) — báo cả khi app ĐANG MỞ lẫn đã TẮT HẲN ═══════════════
      • Cần thêm file sono-push-sw.js đặt cạnh index.html (KHÔNG thay sw.js).
-     • Máy chủ gửi thông báo = Cloud Functions codebase "thongbao" (tbDangKy · tbThu · tbDonMoi · tbTinMoi · tbNhacHangNgay).
+     • Máy chủ gửi thông báo = Cloud Functions codebase "thongbao" (tbDangKyMay · tbThu · tbThuGui · tbDonMoi · tbTinMoi · tbNhacHangNgay).
      • window.snThongBao(tiêu đề, {body, tag}) = hiện thông báo khi app đang mở — chạy được cả trên Android
        (Android không cho dùng new Notification()). Khối này lỗi thì app chạy y như cũ.
+     • [SN11] Dòng trạng thái #sntb-tt dưới nút thử: máy đã đăng ký với máy chủ chưa + lỗi cụ thể (chụp màn hình là biết hỏng ở đâu).
+       Nút thử chờ máy chủ XÁC NHẬN đã gửi lần 1 rồi mới bảo tắt app; lần 2 do máy chủ tự gửi 15 giây sau.
      ═══════════════════════════════════════════════════════════════════════════════════════ -->
 <script type="module">
 import { getApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
@@ -28032,6 +28034,7 @@ var VUNG     = 'asia-southeast1';       /* vùng Cloud Functions "thongbao" */
 var KEY      = 'sntb_v1';               /* {chu, a, token, at} máy này đã đăng ký với máy chủ */
 var KEY_HOAN = 'sntb_hoan_v1';          /* {bat: ms, ios: ms} bấm "Để sau" / "Đã hiểu" */
 var NHAC_LAI = 3 * 86400000;            /* 3 ngày báo máy chủ 1 lần "máy này còn dùng" */
+var HAM_DK   = 'tbDangKyMay';           /* [SN11] hàm đăng ký máy (tbDangKy cũ bị khoá cổng — đã thay) */
 /* ════════════════════════════ */
 
 /* ───────── TIỆN ÍCH ───────── */
@@ -28099,46 +28102,64 @@ window.snThongBao = function(title, opt){
 };
 
 /* ───────── ĐĂNG KÝ MÁY VỚI MÁY CHỦ ───────── */
-var _dang = false, _xong = '', _henLai = 0, _loi = 0;
+var _dangP = null, _xong = '', _henLai = 0, _loi = 0;
+var _tt = '', _ttLoi = '';            /* [SN11] trạng thái đăng ký: '' · 'dang' · 'ok' · 'loi' · 'khong' (trình duyệt không hỗ trợ) */
+/* [SN11] Lỗi → chữ dễ hiểu + mã gốc (để chụp màn hình gửi là biết hỏng ở đâu) */
+function moTaLoi(e){
+  var c = String((e && e.code) || ''), m = String((e && e.message) || (e == null ? '' : e)), g = '';
+  if(c === 'functions/internal' && /^internal$/i.test(m)) g = 'máy chủ chưa mở cổng cho app — chạy lại file CAI-DAT trên máy tính';
+  else if(c === 'functions/not-found') g = 'máy chủ chưa cài phần thông báo';
+  else if(c === 'functions/unavailable' || c === 'functions/deadline-exceeded') g = 'mạng yếu hoặc máy chủ chưa trả lời';
+  else if(c.indexOf('messaging/') === 0 || c.indexOf('installations/') === 0) g = 'Google chưa cấp mã nhận thông báo cho máy này';
+  var goc = (c && m && m !== c && m.indexOf(c) < 0) ? (c + ' — ' + m) : (m || c || 'không rõ');
+  return (g ? g + ' (' + goc + ')' : goc).slice(0, 240);
+}
+/* Trả về Promise<true|false>. Đang chạy dở thì trả đúng lượt đang chạy (bấm thử có thể chờ cho xong). */
 function dangKy(){
-  if(_dang) return Promise.resolve();
+  if(_dangP) return _dangP;
   var u = uidShop(), nd = nguoiDung(), app = appChinh();
-  if(!u || !nd || !app || !hoTroDay() || quyen() !== 'granted') return Promise.resolve();
+  if(!u || !nd || !app) return Promise.resolve(false);
+  if(!hoTroDay()){ _tt = 'khong'; return Promise.resolve(false); }
+  if(quyen() !== 'granted') return Promise.resolve(false);
   var k = u + '|' + nd.uid;
-  if(_xong === k) return Promise.resolve();
-  _dang = true;
-  return (async function(){
+  if(_xong === k) return Promise.resolve(_tt === 'ok');
+  _tt = 'dang';
+  _dangP = (async function(){
     try{
       var reg = await layReg();
-      if(!reg || !reg.active) throw new Error('Chưa có sono-push-sw.js (đã đưa file lên GitHub chưa?)');
+      if(!reg || !reg.active) throw new Error('Chưa tải được sono-push-sw.js (đã đưa file lên GitHub chưa?)');
       var M = await import(FB + 'firebase-messaging.js');
       var duoc = false; try{ duoc = await M.isSupported(); }catch(e){ duoc = false; }
-      if(!duoc){ _xong = k; return; }                    /* trình duyệt không hỗ trợ đẩy ⇒ thôi, không hỏi lại */
+      if(!duoc){ _xong = k; _tt = 'khong'; return false; }   /* trình duyệt không hỗ trợ đẩy ⇒ thôi, không hỏi lại */
       var token = await M.getToken(M.getMessaging(app), { serviceWorkerRegistration: reg });
-      if(!token) throw new Error('Không lấy được mã máy');
-      if(uidShop() !== u || !nguoiDung() || nguoiDung().uid !== nd.uid) return;   /* vừa đổi tài khoản giữa chừng */
+      if(!token) throw new Error('Google không trả mã máy');
+      if(uidShop() !== u || !nguoiDung() || nguoiDung().uid !== nd.uid){ _tt = ''; return false; }   /* vừa đổi tài khoản giữa chừng */
       var luu = docLS(KEY);
       if(!luu || luu.token !== token || luu.chu !== u || luu.a !== nd.uid || (Date.now() - (Number(luu.at) || 0)) > NHAC_LAI){
         var Fn = await import(FB + 'firebase-functions.js');
-        await Fn.httpsCallable(Fn.getFunctions(app, VUNG), 'tbDangKy')({
+        await Fn.httpsCallable(Fn.getFunctions(app, VUNG), HAM_DK, { timeout: 30000 })({
           chu: u, token: token, cn: chiNhanh(), ua: String(navigator.userAgent || '').slice(0, 150), bat: true
         });
         ghiLS(KEY, { chu: u, a: nd.uid, token: token, at: Date.now() });
       }
-      _xong = k; _loi = 0; _henLai = 0;
+      _xong = k; _loi = 0; _henLai = 0; _tt = 'ok'; _ttLoi = '';
+      return true;
     }catch(e){
       _loi++;
       _henLai = Date.now() + Math.min(1800000, 15000 * Math.pow(2, Math.min(_loi, 7)));   /* 30s → 1' → … tối đa 30' */
+      _tt = 'loi'; _ttLoi = moTaLoi(e);
       try{ console.warn('[sntb] chưa bật được thông báo đẩy:', (e && (e.code || e.message)) || e); }catch(_){}
-    }finally{ _dang = false; }
+      return false;
+    }finally{ _dangP = null; veNutThu(); }
   })();
+  return _dangP;
 }
 
 /* Đăng xuất ⇒ máy này thôi nhận thông báo của shop cũ */
 var _sanAuth = false, _daXoa = false;
 function xetDangXuat(){
   if(_daXoa || !docLS(KEY)) return;
-  _daXoa = true; ghiLS(KEY, null); _xong = '';
+  _daXoa = true; ghiLS(KEY, null); _xong = ''; _tt = ''; _ttLoi = ''; _thuKQ = '';
   try{
     if(!('serviceWorker' in navigator)) return;
     navigator.serviceWorker.getRegistration(SW_SCOPE).then(function(reg){
@@ -28148,25 +28169,37 @@ function xetDangXuat(){
   }catch(e){}
 }
 
-/* ───────── THỬ THÔNG BÁO (máy chủ gửi sau 15 giây) ───────── */
-function thu(){
-  var luu = docLS(KEY), app = appChinh();
-  if(quyen() !== 'granted'){ noi('Hãy bấm "Cho phép hiện thông báo" trước'); return; }
-  if(!luu || !luu.token || !app){
-    _xong = ''; _henLai = 0; dangKy();
-    noi('⏳ Máy này đang bật thông báo — chờ khoảng 10 giây rồi bấm thử lại');
-    return;
-  }
-  noi('📲 Đã gửi lệnh thử. Hãy TẮT HẲN app ngay — khoảng 15 giây nữa thông báo sẽ hiện.');
-  import(FB + 'firebase-functions.js').then(function(Fn){
-    return Fn.httpsCallable(Fn.getFunctions(app, VUNG), 'tbThu', { timeout: 70000 })({ token: luu.token, cho: 15 });
-  }).then(function(r){
-    if(!(r && r.data && r.data.ok)) noi('⚠️ Máy chủ chưa gửi được — bấm thử lại sau ít phút');
-  })['catch'](function(e){
+/* ───────── THỬ THÔNG BÁO ─────────
+   [SN11] Máy chủ gửi lần 1 NGAY rồi trả kết quả về ⇒ app biết chắc đường gửi đã thông, lúc đó mới bảo tắt app.
+   Lần 2 máy chủ tự gửi sau 15 giây (hàm tbThuGui) — không phụ thuộc app còn mở hay không. */
+var _thuDang = false, _thuKQ = '', _thuLuc = 0;
+async function thu(){
+  if(_thuDang) return;
+  var app = appChinh();
+  if(!hoTroDay() || !app){ noi('Máy / trình duyệt này không nhận được thông báo khi đã tắt app'); return; }
+  if(quyen() !== 'granted'){ noi('Hãy bấm "🔔 Cho phép hiện thông báo" trước'); return; }
+  _thuDang = true; _thuLuc = Date.now(); _thuKQ = '⏳ Đang gửi lệnh thử — CHƯA tắt app nhé…'; veNutThu();
+  try{
+    var luu = docLS(KEY);
+    if(!luu || !luu.token || _tt !== 'ok'){ _xong = ''; _henLai = 0; await dangKy(); luu = docLS(KEY); }
+    if(!luu || !luu.token || _tt !== 'ok'){
+      _thuKQ = '❌ Máy này chưa đăng ký được với máy chủ' + (_ttLoi ? ': ' + _ttLoi : '') + '.';
+      noi(_thuKQ); return;
+    }
+    var Fn = await import(FB + 'firebase-functions.js');
+    var r = await Fn.httpsCallable(Fn.getFunctions(app, VUNG), 'tbThu', { timeout: 40000 })({ token: luu.token, cho: 15, ngay: true });
+    var d = (r && r.data) || {};
+    if(d.ok) _thuKQ = '✅ Máy chủ đã gửi thông báo 1/2. Giờ hãy TẮT HẲN app — khoảng 15 giây nữa sẽ có thông báo 2/2.';
+    else if(d.trung) _thuKQ = '⏳ Vừa thử xong — chờ 20 giây rồi bấm lại.';
+    else if(d.loi === 'het-han'){ ghiLS(KEY, null); _xong = ''; _henLai = 0; _tt = ''; dangKy(); _thuKQ = '⏳ Mã nhận thông báo cũ đã hết hiệu lực — app đang đăng ký lại, 10 giây nữa bấm thử lại.'; }
+    else _thuKQ = '❌ Máy chủ chưa gửi được' + (d.loi ? ': ' + d.loi : '') + '.';
+    noi(_thuKQ);
+  }catch(e){
     var c = String((e && e.code) || '');
-    if(/failed-precondition/.test(c)){ ghiLS(KEY, null); _xong = ''; _henLai = 0; dangKy(); noi('⏳ Máy này đang đăng ký lại — 10 giây nữa bấm thử lại'); }
-    else noi('⚠️ Chưa thử được thông báo: ' + (c || (e && e.message) || e) + ' — kiểm tra đã cài phần máy chủ "thongbao" chưa');
-  });
+    if(/failed-precondition/.test(c)){ ghiLS(KEY, null); _xong = ''; _henLai = 0; _tt = ''; dangKy(); _thuKQ = '⏳ Máy này đang đăng ký lại — 10 giây nữa bấm thử lại.'; }
+    else _thuKQ = '❌ Chưa thử được: ' + moTaLoi(e);
+    noi(_thuKQ);
+  }finally{ _thuDang = false; veNutThu(); }
 }
 window.snThuThongBao = thu;
 
@@ -28219,6 +28252,26 @@ function veMoi(u){
   }
   el.style.display = '';
 }
+/* [SN11] Chữ của dòng trạng thái */
+function chuTT(){
+  if(!hoTroDay()){
+    if(laIOS() && !laMoTuMH()) return '📱 iPhone / iPad: mở Sổ Nợ bằng Safari → Chia sẻ ⬆️ → “Thêm vào MH chính”, rồi mở từ biểu tượng đó mới nhận được thông báo khi tắt app (iOS 16.4 trở lên).';
+    return 'Máy / trình duyệt này chưa nhận được thông báo khi đã tắt app.';
+  }
+  var q = quyen(), s;
+  if(q === 'denied') s = '🔕 Thông báo đang bị CHẶN. Vào Cài đặt điện thoại → Ứng dụng → Sổ Nợ (hoặc Chrome) → Thông báo → bật lại.';
+  else if(q !== 'granted') s = '🔔 Chưa cho phép thông báo — bấm nút 🔔 phía trên.';
+  else if(_tt === 'ok') s = '✅ Máy này đã đăng ký nhận thông báo với máy chủ.';
+  else if(_tt === 'dang') s = '⏳ Đang đăng ký máy này với máy chủ…';
+  else if(_tt === 'khong') s = 'Trình duyệt này không nhận được thông báo khi đã tắt app.';
+  else if(_tt === 'loi') s = '❌ Chưa đăng ký được với máy chủ: ' + _ttLoi + '. App tự thử lại sau ít phút.';
+  else s = '⏳ Đang chuẩn bị…';
+  if(_thuKQ){
+    var t = new Date(_thuLuc || Date.now());
+    s += '\nThử lúc ' + ('0' + t.getHours()).slice(-2) + ':' + ('0' + t.getMinutes()).slice(-2) + ' — ' + _thuKQ;
+  }
+  return s;
+}
 function veNutThu(){
   var b0 = document.getElementById('rem-notify-btn'); if(!b0 || !b0.parentNode) return;
   var b = document.getElementById('sntb-thu');
@@ -28231,6 +28284,18 @@ function veNutThu(){
   }
   var hien = hoTroDay() && quyen() === 'granted';
   if(b.style.display !== (hien ? '' : 'none')) b.style.display = hien ? '' : 'none';
+  var chuNut = _thuDang ? '⏳ Đang gửi lệnh thử… (chưa tắt app)' : '📲 Thử thông báo khi đã tắt app';
+  if(b.textContent !== chuNut) b.textContent = chuNut;
+  if(b.disabled !== _thuDang) b.disabled = _thuDang;
+  /* [SN11] dòng trạng thái ngay dưới nút thử */
+  var tt = document.getElementById('sntb-tt');
+  if(!tt){
+    tt = document.createElement('div'); tt.id = 'sntb-tt';
+    tt.style.cssText = 'margin-top:6px;font-size:.78em;line-height:1.45;color:#374151;white-space:pre-line;word-break:break-word;text-align:left';
+    b.parentNode.insertBefore(tt, b.nextSibling);
+  }
+  var chu = chuTT();
+  if(tt.textContent !== chu) tt.textContent = chu;
 }
 
 /* ───────── NHỊP ───────── */
@@ -28242,7 +28307,7 @@ function nhip(){
     _daXoa = false;
     var u = uidShop();
     var kh = (u || '') + '|' + nd.uid;
-    if(kh !== _khoaTruoc){ _khoaTruoc = kh; _henLai = 0; _loi = 0; }   /* đổi tài khoản ⇒ không chờ theo lỗi của tài khoản trước */
+    if(kh !== _khoaTruoc){ _khoaTruoc = kh; _henLai = 0; _loi = 0; _tt = ''; _ttLoi = ''; _thuKQ = ''; }   /* đổi tài khoản ⇒ không chờ theo lỗi của tài khoản trước */
     if(u && Date.now() >= _henLai) dangKy();
     veMoi(u);
     veNutThu();
