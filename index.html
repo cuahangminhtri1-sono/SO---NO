@@ -745,7 +745,7 @@ import { getFirestore, initializeFirestore, persistentLocalCache, persistentMult
 import { getStorage, ref as _sref, uploadBytes, getDownloadURL, deleteObject, listAll }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
 
-const APP_BUILD = "2026-10-15-SN7"; // ⬆️ ĐỔI MỖI LẦN DEPLOY (đặt TRÙNG tên cache trong sw.js) — hiện ở ⚙️ Cài đặt để biết máy đã chạy bản mới chưa
+const APP_BUILD = "2026-10-15-SN8"; // ⬆️ ĐỔI MỖI LẦN DEPLOY (đặt TRÙNG tên cache trong sw.js) — hiện ở ⚙️ Cài đặt để biết máy đã chạy bản mới chưa
 const firebaseConfig = {
   apiKey: "AIzaSyA_kjQ-CdASRkf50Glz3kQajlkD5qGWC4k",
   authDomain: "so-no-cc57a.firebaseapp.com",
@@ -2385,7 +2385,7 @@ function maybeRenewNudge(acc){
   try{
     if(('Notification'in window)&&Notification.permission==='granted'){
       const body=days<=0?'Tài khoản hết hạn hôm nay — hãy gia hạn để dùng tiếp.':('Tài khoản còn '+days+' ngày — hãy gia hạn để khỏi gián đoạn.');
-      new Notification('💳 Sổ Nợ: nhắc gia hạn',{body});
+      if(window.snThongBao)window.snThongBao('💳 Sổ Nợ: nhắc gia hạn',{body,tag:'sn-giahan'});else new Notification('💳 Sổ Nợ: nhắc gia hạn',{body});
     }
   }catch(e){}
   showRenewNudge(acc,days);
@@ -2691,7 +2691,7 @@ function computeReminders(){
   try{
     if(('Notification'in window)&&Notification.permission==='granted'&&!window._remNotified){
       window._remNotified=true;
-      new Notification('📣 Sổ Nợ: cần nhắc nợ',{body:'Có '+due.length+' khách tới hạn nhắc nợ hôm nay.'});
+      if(window.snThongBao)window.snThongBao('📣 Sổ Nợ: cần nhắc nợ',{body:'Có '+due.length+' khách tới hạn nhắc nợ hôm nay.',tag:'sn-nhacno'});else new Notification('📣 Sổ Nợ: cần nhắc nợ',{body:'Có '+due.length+' khách tới hạn nhắc nợ hôm nay.'});
     }
   }catch(e){}
   const rows=due.map(c=>'<div class="rem-row"><div style="flex:1;min-width:0"><div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+escHtml(c.name)+'</div><div style="font-size:.8em;color:#c0392b;font-weight:700">'+fmt(c.debt||0)+'</div></div>'
@@ -21775,7 +21775,7 @@ if (window.__RMT_READY__) return; window.__RMT_READY__ = true;
 try{
 
 /* ĐỔI CHUỖI NÀY CHO TRÙNG APP_BUILD MỖI LẦN DEPLOY (chỉ để hiện ở bảng quản trị) */
-var BUILD = '2026-10-15-SN7';
+var BUILD = '2026-10-15-SN8';
 var NHIP   = 6*3600*1000;          /* báo về tối đa 6 giờ 1 lần — khỏi tốn lượt ghi */
 var KEY_HB = 'rmt_hb_v2';          /* [QT7] nhịp báo về tính RIÊNG từng tài khoản (bản v1 tính chung cả máy) */
 var KEY_XEM= 'rmt_xem_v1';
@@ -27874,5 +27874,260 @@ nhip();
 })();
 </script>
 <!-- ═══════════════ HẾT: LINK CỐ ĐỊNH ═══════════════ -->
+<!-- ═══════════════ THÔNG BÁO ĐẨY (SNTB) — báo cả khi app ĐANG MỞ lẫn đã TẮT HẲN ═══════════════
+     • Cần thêm file sono-push-sw.js đặt cạnh index.html (KHÔNG thay sw.js).
+     • Máy chủ gửi thông báo = Cloud Functions codebase "thongbao" (tbDangKy · tbThu · tbDonMoi · tbTinMoi · tbNhacHangNgay).
+     • window.snThongBao(tiêu đề, {body, tag}) = hiện thông báo khi app đang mở — chạy được cả trên Android
+       (Android không cho dùng new Notification()). Khối này lỗi thì app chạy y như cũ.
+     ═══════════════════════════════════════════════════════════════════════════════════════ -->
+<script type="module">
+import { getApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getAuth } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+(function(){
+if(window.__SNTB_READY__) return; window.__SNTB_READY__ = true;
+
+/* ═════════ CẤU HÌNH ═════════ */
+var FB       = 'https://www.gstatic.com/firebasejs/10.12.0/';
+var SW_FILE  = './sono-push-sw.js';     /* SW riêng cho thông báo đẩy */
+var SW_SCOPE = './sono-push/';          /* phạm vi riêng ⇒ không đụng sw.js */
+var VUNG     = 'asia-southeast1';       /* vùng Cloud Functions "thongbao" */
+var KEY      = 'sntb_v1';               /* {chu, a, token, at} máy này đã đăng ký với máy chủ */
+var KEY_HOAN = 'sntb_hoan_v1';          /* {bat: ms, ios: ms} bấm "Để sau" / "Đã hiểu" */
+var NHAC_LAI = 3 * 86400000;            /* 3 ngày báo máy chủ 1 lần "máy này còn dùng" */
+/* ════════════════════════════ */
+
+/* ───────── TIỆN ÍCH ───────── */
+function appChinh(){
+  var app = null;
+  try{ app = getApp(); }catch(e){ app = null; }
+  if(!app){
+    var a = []; try{ a = getApps() || []; }catch(e2){ a = []; }
+    for(var i = 0; i < a.length; i++) if(a[i] && a[i].name !== 'errlog' && a[i].name !== 'pub'){ app = a[i]; break; }
+  }
+  return app;
+}
+function nguoiDung(){ try{ var a = appChinh(); return a ? getAuth(a).currentUser : null; }catch(e){ return null; } }
+function uidShop(){ try{ return (window.SKMOD && window.SKMOD.core && window.SKMOD.core.uid()) || null; }catch(e){ return null; } }
+function chiNhanh(){ try{ return (window.SKMOD && window.SKMOD.core && window.SKMOD.core.branch()) || 'main'; }catch(e){ return 'main'; } }
+function noi(m){ try{ window.SKMOD.core.toast(m); }catch(e){ try{ alert(m); }catch(_){} } }
+function docLS(k){ try{ return JSON.parse(localStorage.getItem(k) || 'null'); }catch(e){ return null; } }
+function ghiLS(k, v){ try{ if(v == null) localStorage.removeItem(k); else localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+function coTB(){ try{ return ('Notification' in window); }catch(e){ return false; } }
+function quyen(){ try{ return coTB() ? Notification.permission : 'none'; }catch(e){ return 'none'; } }
+function hoTroDay(){ try{ return ('serviceWorker' in navigator) && ('PushManager' in window) && coTB(); }catch(e){ return false; } }
+function laIOS(){ try{ return /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1); }catch(e){ return false; } }
+function laMoTuMH(){ try{ return (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true; }catch(e){ return false; } }
+function dangOApp(){
+  try{
+    var a = document.getElementById('app'), l = document.getElementById('locked-view');
+    if(!a || getComputedStyle(a).display === 'none') return false;
+    if(l && getComputedStyle(l).display !== 'none') return false;
+    return true;
+  }catch(e){ return false; }
+}
+
+/* ───────── SW RIÊNG CHO THÔNG BÁO ───────── */
+var _regP = null;
+function choActive(reg){
+  if(!reg || reg.active) return Promise.resolve(reg);
+  return new Promise(function(ok){
+    var sw = reg.installing || reg.waiting, xong = false;
+    function het(){ if(!xong){ xong = true; ok(reg); } }
+    if(!sw){ het(); return; }
+    sw.addEventListener('statechange', function(){ if(sw.state === 'activated' || sw.state === 'redundant') het(); });
+    setTimeout(het, 15000);
+  });
+}
+function layReg(){
+  if(!('serviceWorker' in navigator)) return Promise.resolve(null);
+  if(!_regP){
+    _regP = navigator.serviceWorker.register(SW_FILE, { scope: SW_SCOPE })
+      .then(choActive)
+      .catch(function(e){ _regP = null; try{ console.warn('[sntb] chưa đăng ký được sono-push-sw.js', e); }catch(_){} return null; });
+  }
+  return _regP;
+}
+
+/* Hiện thông báo lúc APP ĐANG MỞ (Android bắt buộc đi qua SW) */
+window.snThongBao = function(title, opt){
+  opt = opt || {};
+  if(quyen() !== 'granted') return Promise.resolve(false);
+  return layReg().then(function(reg){
+    if(reg && reg.active && reg.showNotification) return reg.showNotification(title, opt).then(function(){ return true; });
+    throw new Error('khong-co-sw');
+  })['catch'](function(){
+    try{ new Notification(title, opt); return true; }catch(e){ return false; }
+  });
+};
+
+/* ───────── ĐĂNG KÝ MÁY VỚI MÁY CHỦ ───────── */
+var _dang = false, _xong = '', _henLai = 0, _loi = 0;
+function dangKy(){
+  if(_dang) return Promise.resolve();
+  var u = uidShop(), nd = nguoiDung(), app = appChinh();
+  if(!u || !nd || !app || !hoTroDay() || quyen() !== 'granted') return Promise.resolve();
+  var k = u + '|' + nd.uid;
+  if(_xong === k) return Promise.resolve();
+  _dang = true;
+  return (async function(){
+    try{
+      var reg = await layReg();
+      if(!reg || !reg.active) throw new Error('Chưa có sono-push-sw.js (đã đưa file lên GitHub chưa?)');
+      var M = await import(FB + 'firebase-messaging.js');
+      var duoc = false; try{ duoc = await M.isSupported(); }catch(e){ duoc = false; }
+      if(!duoc){ _xong = k; return; }                    /* trình duyệt không hỗ trợ đẩy ⇒ thôi, không hỏi lại */
+      var token = await M.getToken(M.getMessaging(app), { serviceWorkerRegistration: reg });
+      if(!token) throw new Error('Không lấy được mã máy');
+      if(uidShop() !== u || !nguoiDung() || nguoiDung().uid !== nd.uid) return;   /* vừa đổi tài khoản giữa chừng */
+      var luu = docLS(KEY);
+      if(!luu || luu.token !== token || luu.chu !== u || luu.a !== nd.uid || (Date.now() - (Number(luu.at) || 0)) > NHAC_LAI){
+        var Fn = await import(FB + 'firebase-functions.js');
+        await Fn.httpsCallable(Fn.getFunctions(app, VUNG), 'tbDangKy')({
+          chu: u, token: token, cn: chiNhanh(), ua: String(navigator.userAgent || '').slice(0, 150), bat: true
+        });
+        ghiLS(KEY, { chu: u, a: nd.uid, token: token, at: Date.now() });
+      }
+      _xong = k; _loi = 0; _henLai = 0;
+    }catch(e){
+      _loi++;
+      _henLai = Date.now() + Math.min(1800000, 15000 * Math.pow(2, Math.min(_loi, 7)));   /* 30s → 1' → … tối đa 30' */
+      try{ console.warn('[sntb] chưa bật được thông báo đẩy:', (e && (e.code || e.message)) || e); }catch(_){}
+    }finally{ _dang = false; }
+  })();
+}
+
+/* Đăng xuất ⇒ máy này thôi nhận thông báo của shop cũ */
+var _sanAuth = false, _daXoa = false;
+function xetDangXuat(){
+  if(_daXoa || !docLS(KEY)) return;
+  _daXoa = true; ghiLS(KEY, null); _xong = '';
+  try{
+    if(!('serviceWorker' in navigator)) return;
+    navigator.serviceWorker.getRegistration(SW_SCOPE).then(function(reg){
+      if(!reg || !reg.pushManager) return;
+      return reg.pushManager.getSubscription().then(function(s){ if(s) return s.unsubscribe(); });
+    })['catch'](function(){});
+  }catch(e){}
+}
+
+/* ───────── THỬ THÔNG BÁO (máy chủ gửi sau 15 giây) ───────── */
+function thu(){
+  var luu = docLS(KEY), app = appChinh();
+  if(quyen() !== 'granted'){ noi('Hãy bấm "Cho phép hiện thông báo" trước'); return; }
+  if(!luu || !luu.token || !app){
+    _xong = ''; _henLai = 0; dangKy();
+    noi('⏳ Máy này đang bật thông báo — chờ khoảng 10 giây rồi bấm thử lại');
+    return;
+  }
+  noi('📲 Đã gửi lệnh thử. Hãy TẮT HẲN app ngay — khoảng 15 giây nữa thông báo sẽ hiện.');
+  import(FB + 'firebase-functions.js').then(function(Fn){
+    return Fn.httpsCallable(Fn.getFunctions(app, VUNG), 'tbThu', { timeout: 70000 })({ token: luu.token, cho: 15 });
+  }).then(function(r){
+    if(!(r && r.data && r.data.ok)) noi('⚠️ Máy chủ chưa gửi được — bấm thử lại sau ít phút');
+  })['catch'](function(e){
+    var c = String((e && e.code) || '');
+    if(/failed-precondition/.test(c)){ ghiLS(KEY, null); _xong = ''; _henLai = 0; dangKy(); noi('⏳ Máy này đang đăng ký lại — 10 giây nữa bấm thử lại'); }
+    else noi('⚠️ Chưa thử được thông báo: ' + (c || (e && e.message) || e) + ' — kiểm tra đã cài phần máy chủ "thongbao" chưa');
+  });
+}
+window.snThuThongBao = thu;
+
+/* ───────── GIAO DIỆN ───────── */
+function batQuyen(){
+  if(!coTB()) return;
+  var da = false;
+  var xong = function(p){
+    if(da) return; da = true;                       /* có trình duyệt gọi cả callback lẫn promise */
+    veMoi(uidShop());
+    if(p === 'granted'){ _xong = ''; _henLai = 0; dangKy(); noi('✅ Đã bật thông báo — có đơn mới, tin nhắn khách… máy sẽ báo kể cả khi đã tắt app'); }
+    else if(p === 'denied') noi('🔕 Thông báo đang bị chặn — mở lại trong cài đặt trình duyệt / cài đặt app');
+  };
+  try{ var r = Notification.requestPermission(xong); if(r && r.then) r.then(xong, function(){}); }catch(e){}
+}
+function hoan(loai, ngay){ var h = docLS(KEY_HOAN) || {}; h[loai] = Date.now() + ngay * 86400000; ghiLS(KEY_HOAN, h); veMoi(uidShop()); }
+function veMoi(u){
+  var loai = null;
+  if(u && dangOApp()){
+    if(hoTroDay()){ if(quyen() === 'default') loai = 'bat'; }
+    else if(laIOS() && !laMoTuMH()) loai = 'ios';
+  }
+  if(loai){ var h = docLS(KEY_HOAN) || {}; if(Date.now() < (Number(h[loai]) || 0)) loai = null; }
+  var el = document.getElementById('sntb-moi');
+  if(!loai){ if(el) el.style.display = 'none'; return; }
+  if(!el){
+    el = document.createElement('div'); el.id = 'sntb-moi';
+    el.style.cssText = 'position:fixed;left:10px;right:10px;top:calc(env(safe-area-inset-top,0px) + 10px);max-width:460px;margin:0 auto;z-index:9500;'
+      + 'background:#fff;border-left:5px solid #1a6b3c;border-radius:12px;box-shadow:0 6px 24px rgba(0,0,0,.22);padding:12px 14px;font-size:.88em;line-height:1.45;color:#1a1a2e';
+    el.addEventListener('click', function(ev){
+      var t = ev.target && ev.target.closest ? ev.target.closest('[data-sntb]') : null; if(!t) return;
+      var a = t.getAttribute('data-sntb');
+      if(a === 'bat') batQuyen();
+      else if(a === 'sau') hoan('bat', 3);
+      else if(a === 'hieu') hoan('ios', 7);
+    });
+    (document.body || document.documentElement).appendChild(el);
+  }
+  if(el.getAttribute('data-loai') !== loai){
+    el.setAttribute('data-loai', loai);
+    var nut = 'border:none;border-radius:8px;padding:8px 12px;font-weight:700;font-size:.95em;cursor:pointer;';
+    el.innerHTML = loai === 'bat'
+      ? '<div><b>🔔 Bật thông báo</b> để biết ngay <b>đơn mới, tin nhắn khách, nhắc nợ, nhắc gia hạn</b> — kể cả khi đang mở app khác hoặc đã tắt hẳn Sổ Nợ.</div>'
+        + '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px">'
+        + '<button type="button" data-sntb="sau" style="' + nut + 'background:#eef0f3;color:#374151">Để sau</button>'
+        + '<button type="button" data-sntb="bat" style="' + nut + 'background:#1a6b3c;color:#fff">Bật thông báo</button></div>'
+      : '<div><b>📱 iPhone / iPad:</b> muốn nhận thông báo khi đã tắt app, mở Sổ Nợ bằng <b>Safari</b> → bấm nút <b>Chia sẻ</b> ⬆️ → <b>“Thêm vào MH chính”</b>, rồi mở Sổ Nợ từ biểu tượng đó và bật thông báo (cần iOS 16.4 trở lên).</div>'
+        + '<div style="display:flex;justify-content:flex-end;margin-top:10px">'
+        + '<button type="button" data-sntb="hieu" style="' + nut + 'background:#1a6b3c;color:#fff">Đã hiểu</button></div>';
+  }
+  el.style.display = '';
+}
+function veNutThu(){
+  var b0 = document.getElementById('rem-notify-btn'); if(!b0 || !b0.parentNode) return;
+  var b = document.getElementById('sntb-thu');
+  if(!b){
+    b = document.createElement('button'); b.id = 'sntb-thu'; b.type = 'button';
+    b.textContent = '📲 Thử thông báo khi đã tắt app';
+    b.style.cssText = 'width:100%;margin-top:8px;background:#e8f5ee;color:#0f7a3d;border:1px solid #9fd6b5;border-radius:8px;padding:10px;font-size:.86em;font-weight:600;cursor:pointer';
+    b.addEventListener('click', thu);
+    b0.parentNode.insertBefore(b, b0.nextSibling);
+  }
+  var hien = hoTroDay() && quyen() === 'granted';
+  if(b.style.display !== (hien ? '' : 'none')) b.style.display = hien ? '' : 'none';
+}
+
+/* ───────── NHỊP ───────── */
+var _khoaTruoc = '';
+function nhip(){
+  try{
+    var nd = nguoiDung();
+    if(!nd){ if(_sanAuth) xetDangXuat(); veMoi(null); return; }
+    _daXoa = false;
+    var u = uidShop();
+    var kh = (u || '') + '|' + nd.uid;
+    if(kh !== _khoaTruoc){ _khoaTruoc = kh; _henLai = 0; _loi = 0; }   /* đổi tài khoản ⇒ không chờ theo lỗi của tài khoản trước */
+    if(u && Date.now() >= _henLai) dangKy();
+    veMoi(u);
+    veNutThu();
+  }catch(e){}
+}
+
+/* Chờ app chính khởi động xong (SKMOD có mặt ⇒ Firebase + Auth chính đã dựng) rồi mới chạy */
+var _lan = 0;
+(function cho(){
+  var san = false;
+  try{ san = !!(window.SKMOD && window.SKMOD.core && appChinh()); }catch(e){ san = false; }
+  if(!san){ if(++_lan < 240) setTimeout(cho, 500); return; }
+  try{
+    var au = getAuth(appChinh());
+    var p = au.authStateReady ? au.authStateReady() : Promise.resolve();
+    p.then(function(){ _sanAuth = true; }, function(){ _sanAuth = true; });
+  }catch(e){ _sanAuth = true; }
+  nhip();
+  setInterval(nhip, 3000);
+  document.addEventListener('visibilitychange', function(){ if(!document.hidden) nhip(); });
+})();
+})();
+</script>
+<!-- ═══════════════ HẾT: THÔNG BÁO ĐẨY ═══════════════ -->
 </body>
 </html>
