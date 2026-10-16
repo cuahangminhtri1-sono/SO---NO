@@ -745,7 +745,7 @@ import { getFirestore, initializeFirestore, persistentLocalCache, persistentMult
 import { getStorage, ref as _sref, uploadBytes, getDownloadURL, deleteObject, listAll }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
 
-const APP_BUILD = "2026-10-16-SN12"; // ⬆️ ĐỔI MỖI LẦN DEPLOY (đặt TRÙNG tên cache trong sw.js) — hiện ở ⚙️ Cài đặt để biết máy đã chạy bản mới chưa
+const APP_BUILD = "2026-10-16-SN13"; // ⬆️ ĐỔI MỖI LẦN DEPLOY (đặt TRÙNG tên cache trong sw.js) — hiện ở ⚙️ Cài đặt để biết máy đã chạy bản mới chưa
 const firebaseConfig = {
   apiKey: "AIzaSyA_kjQ-CdASRkf50Glz3kQajlkD5qGWC4k",
   authDomain: "so-no-cc57a.firebaseapp.com",
@@ -21269,6 +21269,96 @@ try{
   });
 }catch(e){}
 
+/* ═════════════ 5g) [SN13] SAO LƯU TỰ ĐỘNG QUA EMAIL — bài hướng dẫn + chỉ tận tay trong bảng 📧 ═════════════
+   Chỉ BỔ SUNG (lúc chạy, không sửa bài gốc trong file): 1 bài mới · thêm 1 dòng vào 5 bài cũ · 1 lựa chọn 📧 trong
+   khung "Bạn cần làm gì?" của bảng 🧰 · bài chỉ tiếp cho bảng #modal-slm. Bảng 📧 do khối SLM cuối file dựng. */
+try{
+  var e7={c:'sl',t:'📧 Tự động gửi sao lưu về email mỗi tuần',
+  k:'sao luu email gmail thu dien tu tu dong hang tuan moi tuan gui ve email nhan ban sao luu qua email backup email chu nhat lich gui them email nguoi nhan khong thay thu thu rac gui ngay may chu tu sao luu',
+  go:'slmMo',
+  a:'<b class="snai-h">📧 Sao lưu tự động qua email</b>'
+   +'<b>👉 Cái này để làm gì:</b> mỗi tuần máy chủ <b>tự gửi bản sao lưu TOÀN BỘ</b> (Sổ Nợ + Bán hàng) vào <b>email của shop</b>. Không cần mở app, không cần bấm gì, không tốn bộ nhớ điện thoại. Lỡ mất máy, hỏng máy, lỡ tay xoá nhầm vẫn lấy lại được.'
+   +'<b>📌 Mặc định:</b> tài khoản đã gia hạn được <b>BẬT sẵn</b> — gửi vào <b>tối Chủ nhật</b> (khoảng 21 giờ), tới <b>email đăng nhập</b> của shop.'
+   +'<div class="snai-warn">🔐 <b>Chỉ gửi vào email ĐÃ XÁC NHẬN</b> (để không gửi nhầm dữ liệu cho người lạ). Bảng 📧 ghi <b>"chưa xác nhận"</b> thì: bấm <b>📨 Gửi mã xác nhận</b> → mở hộp thư lấy <b>mã 6 số</b> → gõ vào ô → bấm <b>✅ Xác nhận</b>. Xong là có dấu <b>✅ đã xác nhận</b>, bản sao lưu đầu tiên tới trong khoảng 30 phút. Máy chủ cũng tự gửi thư nhắc kèm mã (mỗi tuần 1 lần, tối đa 3 lần).</div>'
+   +'<b>🪜 Xem / đổi cài đặt:</b><ol>'
+   +'<li>Bấm <span class="snai-path">🧰 Công cụ &amp; Sao lưu</span> trên thanh xanh.</li>'
+   +'<li>Bấm nút <b>📧 Tự động gửi sao lưu về email (mỗi tuần)</b>.</li>'
+   +'<li>Đọc dòng tình trạng: đang <b>bật</b> hay <b>tắt</b>, <b>lần gửi tới</b>, <b>lần gửi gần nhất</b>.</li>'
+   +'<li>Muốn đổi: tick / bỏ tick ô <b>Tự động gửi mỗi tuần</b> · chọn <b>ngày gửi</b> · gõ thêm <b>1 email nhận</b> (VD email của vợ / chồng) → bấm <b>💾 Lưu cài đặt</b>. Email mới thêm phải <b>xác nhận bằng mã 6 số</b> gửi tới email đó.</li>'
+   +'<li>Muốn nhận thử ngay: bấm <b>📨 Gửi bản sao lưu ngay bây giờ</b> (mỗi lần cách nhau 5 phút, tối đa 5 lần / ngày).</li></ol>'
+   +'<b>📎 Trong thư có 2 tệp:</b><ul>'
+   +'<li><b>SoNo-BanHang-ToanBo-….json</b> — tệp <b>PHỤC HỒI</b> (y hệt tệp của nút 🛟 Sao lưu CỨU HỘ). Dữ liệu rất lớn thì tệp được nén <b>.zip</b> (bấm vào để giải nén ra tệp .json) hoặc gửi <b>link tải</b>.</li>'
+   +'<li><b>So-No-….xlsx</b> — tệp <b>Excel</b> để xem / in danh sách khách nợ và lịch sử giao dịch, bấm vào là mở ngay trong Gmail.</li></ul>'
+   +'<b>♻️ Khi cần lấy lại dữ liệu:</b><ol>'
+   +'<li>Mở thư sao lưu (chọn thư <b>mới nhất</b> trước lúc mất dữ liệu) → tải tệp <b>.json</b> về máy.</li>'
+   +'<li>Mở app, đăng nhập <b>đúng email của shop</b>.</li>'
+   +'<li><span class="snai-path">🧰 Công cụ &amp; Sao lưu</span> → <b>♻️ Phục hồi CỨU HỘ (toàn bộ)</b> → Chọn tệp → chọn tệp vừa tải.</li>'
+   +'<li>Chọn <b>🔀 Gộp</b> (an toàn) → <b>♻️ Bắt đầu phục hồi</b> → chờ app báo xong.</li></ol>'
+   +'<div class="snai-ok">✅ Chỉ <b>chủ shop</b> đổi được cài đặt. Máy nhân viên chỉ xem được tình trạng (email bị che bớt).</div>'
+   +'<div class="snai-tip">📭 <b>Không thấy thư?</b> Xem cả mục <b>Thư rác / Quảng cáo / Cập nhật</b> trong Gmail rồi bấm <b>"Không phải thư rác"</b>. Mở bảng 📧 xem: email có dấu <b>✅ đã xác nhận</b> chưa, dòng <b>Lần gửi gần nhất</b> — có lỗi thì app ghi rõ lý do, máy chủ tự thử lại.</div>'
+   +'<div class="snai-warn">🔒 <b>Đừng chuyển tiếp thư cho người lạ:</b> trong tệp có toàn bộ số liệu kinh doanh, số điện thoại khách, mã PIN nhân viên. Tệp chỉ phục hồi được vào đúng tài khoản của shop.</div>'
+   +'<div class="snai-tip">💡 Tài khoản <b>đang dùng thử</b> chưa có tính năng này — bấm 🛟 Sao lưu CỨU HỘ để tự tải tệp về máy rồi gửi vào Zalo / email của mình.</div>'};
+  KB.push(e7); e7.id=KB.length-1; e7._t=nrm(e7.t); e7._k=nrm(e7.k+' '+e7.t+' '+(CAT[e7.c]?CAT[e7.c].n:'')); e7._a=nrm(strip(e7.a));
+  var slmSua=function(t,f){ var x=byTitle(t); if(!x) return; var a=f(x.a); if(a&&a!==x.a){ x.a=a; x._a=nrm(strip(a)); } };
+  slmSua('Có gì mới trong app? (tính năng vừa thêm)',function(a){
+    a=a.replace('<ul>\n<li>','<ul>\n<li><b>📧 Sao lưu tự động qua email</b> — mỗi tuần máy chủ tự gửi bản sao lưu TOÀN BỘ (Sổ Nợ + Bán hàng) vào email của shop, kèm tệp Excel để xem. Xem / đổi ngày gửi trong 🧰 Công cụ &amp; Sao lưu → 📧.</li>\n<li>');
+    var i=a.indexOf('<button type="button" class="snai-sg"');
+    if(i>0) a=a.slice(0,i)+'<button type="button" class="snai-sg" data-snaiq="'+e7.t+'">📧 Sao lưu tự động qua email</button>\n'+a.slice(i);
+    return a;
+  });
+  var slmTip='<div class="snai-ok">📧 <b>Máy chủ tự sao lưu giúp bạn:</b> mỗi tuần bản sao lưu TOÀN BỘ được gửi thẳng vào email của shop (không cần bấm gì). Xem / đổi ngày gửi: <span class="snai-path">🧰 Công cụ &amp; Sao lưu</span> → <b>📧 Tự động gửi sao lưu về email</b>.</div>';
+  slmSua('Sao lưu dữ liệu (nên làm thường xuyên)',function(a){ return a+slmTip; });
+  slmSua('Sao lưu CỨU HỘ toàn bộ (Sổ Nợ + Bán hàng)',function(a){ return a+slmTip; });
+  slmSua('Bao lâu nên sao lưu một lần? Lưu ở đâu cho chắc?',function(a){ return a+slmTip; });
+  slmSua('Phục hồi dữ liệu từ file sao lưu',function(a){ return a+'<div class="snai-tip">📧 Tệp sao lưu máy chủ gửi qua email mỗi tuần (tên <b>SoNo-BanHang-ToanBo-….json</b>) phục hồi bằng nút <b>♻️ Phục hồi CỨU HỘ (toàn bộ)</b>, không phải nút thường ở trên.</div>'; });
+}catch(e){}
+try{
+  /* bảng 🧰: thêm lựa chọn 📧 vào khung "Bạn cần làm gì?" (ngay sau ♻️ Phục hồi CỨU HỘ) */
+  var _slmT=KTG['sn:modal-tools'];
+  if(_slmT&&typeof _slmT.st==='function'){
+    var _slmSt=_slmT.st;
+    _slmT.st=function(L){
+      var s=_slmSt.apply(this,arguments);
+      try{
+        if(s&&s.ch&&s.ch.length){
+          var c=ktCh('📧 Tự động gửi sao lưu về email (mỗi tuần)',ktv('#slm-btn',L.el),'Bấm <b>📧 Tự động gửi sao lưu về email</b> — mở bảng cài đặt sao lưu qua email.');
+          if(c){ var k=-1; for(var i=0;i<s.ch.length;i++){ if(/Phục hồi CỨU HỘ/.test(s.ch[i].t)) k=i; } s.ch.splice(k>=0?k+1:s.ch.length,0,c); }
+        }
+      }catch(e){}
+      return s;
+    };
+  }
+  /* bảng 📧 (#modal-slm): chỉ từng bước */
+  KTG['sn:modal-slm']={n:'Bảng 📧 Sao lưu tự động qua email',kb:'📧 Tự động gửi sao lưu về email mỗi tuần',st:function(L){
+    var r=L.el,tt=ktq('#slm-tt',r),f=ktq('#slm-form',r),k=ktq('#slm-kq',r);
+    var okL=k?Number(k.getAttribute('data-luc')||0):0,okK=k?(k.getAttribute('data-ok')||''):'';
+    var conXn=false;
+    ['c','p'].forEach(function(lo){ var x=ktq('#slm-xn-'+lo,r); if(x&&visEl(x)&&!ktAck(L,'xn'+lo)) conXn=true; });
+    if(okK&&Date.now()-okL<12000&&visEl(k)&&!(okK==='luu'&&conXn)) return {w:'fin',t:okK==='gui'?'Đã gửi — mở Gmail sau ít phút để xem thư (kể cả mục Thư rác).':(okK==='xn'?'Đã xác nhận email — máy chủ sẽ gửi bản sao lưu vào email này.':'Đã lưu — máy chủ tự gửi bản sao lưu vào email theo lịch.')};
+    if(tt&&/(^|\s)dang(\s|$)/.test(tt.className)) return KS(tt,'⏳ Đang hỏi máy chủ…','Chờ vài giây.','wait');
+    if(!f||!visEl(f)) return KS(tt||null,'Đọc dòng tình trạng trong khung.','Máy nhân viên / tài khoản dùng thử không đổi được cài đặt. Có nút <b>🔄 Thử lại</b> thì bấm thử lại. Xem xong bấm <b>✖ Đóng</b>.','info');
+    var lu=ktq('#slm-luu',r);
+    if(lu&&lu.disabled) return KS((k&&visEl(k))?k:lu,'⏳ Đang làm…','Chờ máy chủ trả lời — gửi ngay có thể mất 1–2 phút.','wait');
+    /* email chưa xác nhận ⇒ chỉ xác nhận trước (máy chủ chỉ gửi bản sao lưu vào email đã xác nhận) */
+    var lo2=['c','p'];
+    for(var i=0;i<lo2.length;i++){
+      var lo=lo2[i],row=ktq('#slm-xn-'+lo,r);
+      if(!row||!visEl(row)||ktAck(L,'xn'+lo)) continue;
+      var ten=lo==='c'?'email đăng nhập':'email nhận thêm';
+      var w=ktq('#slm-ma-'+lo+'-w',r),inp=ktq('#slm-ma-'+lo,r);
+      if(!w||!visEl(w)) return KS(ktq('#slm-ma-'+lo+'-gui',r)||row,'Bấm '+ktB('📨 Gửi mã xác nhận')+' để xác nhận '+ten+'.','Máy chủ chỉ gửi bản sao lưu vào email <b>đã xác nhận</b> (tránh gửi nhầm dữ liệu cho người lạ). Mã 6 số được gửi vào chính email đó.','click',{ack:'xn'+lo,ackT:'Bỏ qua ▶'});
+      if(String((inp&&inp.value)||'').replace(/[^0-9]/g,'').length!==6) return KS(inp,'Mở hộp thư '+ten+', lấy '+ktB('mã 6 số')+' rồi gõ vào ô này.','Không thấy thư? Xem cả mục <b>Thư rác / Quảng cáo</b>. Chưa có thì sau 1 phút bấm <b>📨 Gửi lại mã</b>.','type',{ack:'xn'+lo,ackT:'Bỏ qua ▶'});
+      return KS(ktq('#slm-xn-'+lo+'-ok',r),'Bấm '+ktB('✅ Xác nhận')+'.','Đúng mã thì email được đánh dấu <b>✅ đã xác nhận</b>.','click');
+    }
+    var cb=ktq('#slm-bat',r);
+    if(cb&&!cb.checked&&!ktAck(L,'bat')) return KS(ktq('#slm-batrow',r)||cb,'Tick ô '+ktB('Tự động gửi mỗi tuần')+' để bật.','Muốn TẮT thì để trống ô này rồi bấm <b>Bỏ qua ▶</b> → Lưu.','click',{ack:'bat',ackT:'Bỏ qua ▶'});
+    if(!ktAck(L,'thu')) return KS(ktq('#slm-thu',r),'Chọn '+ktB('ngày gửi')+' trong tuần (máy chủ gửi khoảng 21 giờ tối).','Không chắc thì để <b>Chủ nhật</b>. Chọn xong bấm <b>Xong, tiếp ▶</b>.','see',{ack:'thu'});
+    var e2=ktq('#slm-email2',r);
+    if(ktEmpty(e2)&&!ktAck(L,'e2')) return KS(e2,'Muốn gửi thêm vào 1 email nữa (VD email của vợ / chồng) thì gõ vào ô này.','Không cần thì bấm <b>Bỏ qua ▶</b> — thư luôn gửi vào email đăng nhập.','type',{ack:'e2',ackT:'Bỏ qua ▶'});
+    return KS(lu,'Bấm '+ktB('💾 Lưu cài đặt')+'.','Muốn nhận thử ngay 1 thư thì bấm nút <b>📨 Gửi bản sao lưu ngay bây giờ</b> ở dưới.','click');
+  }};
+}catch(e){}
+
 /* ═════════════ 6) KHỞI ĐỘNG ═════════════ */
 function boot(){ try{ build(); }catch(e){} }
 if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',boot);
@@ -23388,7 +23478,7 @@ if (window.__RMT_READY__) return; window.__RMT_READY__ = true;
 try{
 
 /* ĐỔI CHUỖI NÀY CHO TRÙNG APP_BUILD MỖI LẦN DEPLOY (chỉ để hiện ở bảng quản trị) */
-var BUILD = '2026-10-16-SN12';
+var BUILD = '2026-10-16-SN13';
 var NHIP   = 6*3600*1000;          /* báo về tối đa 6 giờ 1 lần — khỏi tốn lượt ghi */
 var KEY_HB = 'rmt_hb_v2';          /* [QT7] nhịp báo về tính RIÊNG từng tài khoản (bản v1 tính chung cả máy) */
 var KEY_XEM= 'rmt_xem_v1';
@@ -29807,5 +29897,538 @@ var _lan = 0;
 })();
 </script>
 <!-- ═══════════════ HẾT: THÔNG BÁO ĐẨY ═══════════════ -->
+<!-- ═══════════════ SAO LƯU TỰ ĐỘNG QUA EMAIL (SLM) — máy chủ tự gửi bản sao lưu TOÀN BỘ vào email shop mỗi tuần ═══════════════
+     • Máy chủ = Cloud Functions codebase "saoluu" (saoLuuApp · saoLuuHangTuan), vùng asia-southeast1. Không đụng Firestore Rules.
+     • Khối này chỉ THÊM: nút "📧 Tự động gửi sao lưu về email (mỗi tuần)" trong bảng 🧰 Công cụ & Sao lưu (ngay dưới nút
+       ♻️ Phục hồi CỨU HỘ) + bảng cài đặt #modal-slm (bật/tắt · ngày gửi · thêm 1 email nhận · gửi ngay · xem lần gửi gần nhất).
+     • Tệp trong thư = đúng định dạng nút 🛟 Sao lưu CỨU HỘ ⇒ phục hồi bằng ♻️ Phục hồi CỨU HỘ (toàn bộ) như thường.
+     • Chỉ CHỦ SHOP (tài khoản chủ, không ở vai trò nhân viên PIN) đổi được cài đặt; máy nhân viên chỉ xem tình trạng.
+     • window.slmMo() mở bảng (trợ lý dùng). Khối này lỗi gì thì app chạy y như cũ.
+     ═══════════════════════════════════════════════════════════════════════════════════════════════════════════ -->
+<script type="module">
+import { getApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getAuth } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+(function(){
+if(window.__SLM_READY__) return; window.__SLM_READY__ = true;
+try{
+
+/* ═════════ CẤU HÌNH ═════════ */
+var FB   = 'https://www.gstatic.com/firebasejs/10.12.0/';
+var VUNG = 'asia-southeast1';
+var HAM  = 'saoLuuApp';
+var THU  = ['Chủ nhật','Thứ 2','Thứ 3','Thứ 4','Thứ 5','Thứ 6','Thứ 7'];
+/* ════════════════════════════ */
+
+/* ───────── TIỆN ÍCH ───────── */
+function appChinh(){
+  var app = null;
+  try{ app = getApp(); }catch(e){ app = null; }
+  if(!app){
+    var a = []; try{ a = getApps() || []; }catch(e2){ a = []; }
+    for(var i = 0; i < a.length; i++) if(a[i] && a[i].name !== 'errlog' && a[i].name !== 'pub'){ app = a[i]; break; }
+  }
+  return app;
+}
+function nguoiDung(){ try{ var a = appChinh(); return a ? getAuth(a).currentUser : null; }catch(e){ return null; } }
+function uidShop(){ try{ return (window.SKMOD && window.SKMOD.core && window.SKMOD.core.uid()) || null; }catch(e){ return null; } }
+function q(id){ return document.getElementById(id); }
+function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]; }); }
+function noi(m){ try{ window.SKMOD.core.toast(m); }catch(e){ try{ if(typeof window.toast === 'function') window.toast(m); }catch(_){} } }
+function p2(n){ return (n < 10 ? '0' : '') + n; }
+/* giờ Việt Nam (máy chủ hẹn giờ theo giờ VN) — đúng cả khi điện thoại đặt múi giờ khác */
+function vn(ms){ return new Date(Number(ms) + 7 * 3600000); }
+function ngay(ms){ var d = vn(ms); return p2(d.getUTCDate()) + '/' + p2(d.getUTCMonth() + 1) + '/' + d.getUTCFullYear(); }
+function gio(ms){ var d = vn(ms); return p2(d.getUTCHours()) + ':' + p2(d.getUTCMinutes()); }
+function thuCua(ms){ return THU[vn(ms).getUTCDay()]; }
+function so(n){ n = Math.round(Number(n) || 0); return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, '.'); }
+function dl(b){ b = Number(b) || 0; if(b < 1048576) return Math.max(1, Math.round(b / 1024)) + ' KB'; return String(Math.round(b / 104857.6) / 10).replace('.', ',') + ' MB'; }
+function emailOk(s){
+  if(typeof s !== 'string' || s.length > 120 || s.length < 6) return false;
+  if(!/^[A-Za-z0-9._%+\-]+@(?:[A-Za-z0-9](?:[A-Za-z0-9\-]{0,61}[A-Za-z0-9])?\.)+[A-Za-z]{2,24}$/.test(s)) return false;
+  var c = s.split('@')[0];
+  return c.charAt(0) !== '.' && c.charAt(c.length - 1) !== '.' && c.indexOf('..') < 0;
+}
+/* Máy này đang đứng ở vai CHỦ SHOP? (tài khoản chủ · không phải máy nhân viên · không ở vai trò nhân viên PIN) */
+function laChuMay(){
+  try{ if(document.body && document.body.classList.contains('la-nv')) return false; }catch(e){ return false; }
+  try{ var p = q('pos-screen'); if(p && (p.classList.contains('role-manager') || p.classList.contains('role-cashier'))) return false; }catch(e){}
+  var u = uidShop(), nd = nguoiDung();
+  return !!(u && nd && nd.uid === u);
+}
+function vaiPIN(){ try{ var p = q('pos-screen'); return !!(p && (p.classList.contains('role-manager') || p.classList.contains('role-cashier'))); }catch(e){ return false; } }
+
+/* ───────── GỌI MÁY CHỦ ───────── */
+async function goi(viec, data, ms){
+  var app = appChinh();
+  if(!app) throw { code: 'slm/chua-san', message: 'App chưa sẵn sàng' };
+  var Fn = await import(FB + 'firebase-functions.js');
+  var r = await Fn.httpsCallable(Fn.getFunctions(app, VUNG), HAM, { timeout: ms || 30000 })(Object.assign({ viec: viec }, data || {}));
+  return (r && r.data) || {};
+}
+/* Lỗi → câu dễ hiểu (kèm mã gốc để chụp màn hình gửi là biết hỏng ở đâu) */
+function moTaLoi(e, viec){
+  var c = String((e && e.code) || ''), m = String((e && e.message) || (e == null ? '' : e));
+  var tho = !m || m === c || m.toLowerCase() === c.replace(/^functions\//, '').toLowerCase();
+  if(navigator.onLine === false) return '📶 Máy đang mất mạng — cần có mạng để cài đặt / gửi sao lưu.';
+  if(c === 'functions/not-found') return '⏳ Máy chủ sao lưu chưa được cài (chủ phần mềm đang cài đặt). Trong lúc chờ, bấm 🛟 Sao lưu CỨU HỘ trong 🧰 Công cụ để tự tải tệp về máy.';
+  if(c === 'functions/internal' && m === 'internal') return '⏳ Chưa kết nối được máy chủ sao lưu — mạng yếu, hoặc máy chủ chưa cài xong / chưa mở cổng cho app. Thử lại sau ít phút; vẫn vậy thì báo chủ phần mềm (chạy lại tệp CAI-DAT). (functions/internal)';
+  if(c === 'functions/internal' && tho) return '❌ Máy chủ sao lưu gặp lỗi khi xử lý — thử lại sau ít phút. (functions/internal)';
+  if(c === 'functions/deadline-exceeded') return viec === 'gui'
+    ? '⏳ Dữ liệu nhiều nên máy chủ vẫn đang tạo / gửi thư. Vài phút nữa mở lại bảng này để xem kết quả, và mở hộp thư (kể cả mục Thư rác).'
+    : '📶 Máy chủ chưa trả lời (mạng yếu) — bấm 🔄 Thử lại.';
+  if((c === 'functions/unavailable' || c === 'functions/unknown') && tho) return '📶 Mạng yếu hoặc máy chủ chưa trả lời — bấm 🔄 Thử lại.';
+  if(c === 'functions/unauthenticated') return '🔑 Phiên đăng nhập đã cũ — hãy Đăng xuất rồi đăng nhập lại.';
+  if(c === 'slm/chua-san') return '⏳ App đang khởi động — chờ vài giây rồi thử lại.';
+  if(!tho) return m.slice(0, 300);
+  return '❌ Chưa được: ' + (c || m || 'không rõ').slice(0, 200);
+}
+
+/* ───────── GIAO DIỆN ───────── */
+var CSS = ''
++ '#modal-slm .slm-tt{background:#f3f7f5;border:1.5px solid #b7dfc9;border-radius:10px;padding:10px 12px;font-size:.86em;line-height:1.6;color:#1a1a2e;margin-bottom:6px;word-break:break-word}'
++ '#modal-slm .slm-tt.loi{background:#fdecea;border-color:#f5b7b1}'
++ '#modal-slm .slm-tt.khoa{background:#fff8e1;border-color:#f9d77e}'
++ '#modal-slm .slm-tt b{color:#0f5132}'
++ '#modal-slm .slm-tt.loi b,#modal-slm .slm-tt.khoa b{color:inherit}'
++ '#modal-slm .slm-lan{margin-top:6px;padding-top:6px;border-top:1px dashed #b7dfc9;font-size:.95em;color:#374151}'
++ '#modal-slm .slm-loi{margin-top:6px;color:#b42318}'
++ '#modal-slm .slm-row{display:flex!important;align-items:center;gap:10px;background:#fff;border:1.5px solid var(--border,#d1d5db);border-radius:8px;padding:11px 12px;margin-top:10px!important;color:var(--text,#1a1a2e)!important;font-size:.92em!important;cursor:pointer}'
++ '#modal-slm .slm-email{background:#f9fafb;border:1.5px dashed var(--border,#d1d5db);border-radius:8px;padding:10px 12px;font-size:.92em;font-weight:600;word-break:break-all;color:#1f2937}'
++ '#modal-slm .slm-goi{width:100%;margin-top:10px;background:#eef4ff;color:#1d4ed8;border:1.5px solid #bcd0ff;border-radius:8px;padding:11px;font-size:.9em;font-weight:700;cursor:pointer}'
++ '#modal-slm .slm-goi:disabled,#modal-slm .btn-save:disabled{opacity:.6;cursor:not-allowed}'
++ '#modal-slm .slm-kq{margin-top:8px;font-size:.84em;line-height:1.55;border-radius:8px;padding:9px 11px;word-break:break-word}'
++ '#modal-slm .slm-kq.ok{background:#e8f5ee;color:#0f5132;border:1px solid #b7dfc9}'
++ '#modal-slm .slm-kq.loi{background:#fdecea;color:#912018;border:1px solid #f5b7b1}'
++ '#modal-slm .slm-kq.dang{background:#f3f4f6;color:#374151;border:1px solid #e5e7eb}'
++ '#modal-slm .slm-thu{margin-top:6px;background:#fff;border:1.5px solid #d1d5db;border-radius:8px;padding:6px 12px;font-size:.84em;font-weight:600;cursor:pointer;color:#374151}'
++ '#modal-slm .slm-hd{margin-top:12px;font-size:.84em;line-height:1.6;color:#374151;background:#fafafa;border:1px solid #eee;border-radius:8px;padding:8px 12px}'
++ '#modal-slm .slm-hd summary{cursor:pointer;font-weight:700;color:#1a6b3c;padding:2px 0}'
++ '#modal-slm .slm-hd ol,#modal-slm .slm-hd ul{padding-left:20px;margin:6px 0}'
++ '#modal-slm .slm-he{margin-top:12px;font-size:.8em;line-height:1.6;background:#f5f3ff;border:1px solid #ddd6fe;border-radius:8px;padding:9px 11px;color:#3b2f63;word-break:break-word}'
++ '#modal-slm .slm-note{font-size:.76em;color:#6b7280;margin-top:4px;line-height:1.45}'
++ '#modal-slm .slm-xn{margin-top:8px;background:#fff8e1;border:1.5px solid #f9d77e;border-radius:8px;padding:9px 11px;font-size:.86em;line-height:1.5;color:#5f4b00}'
++ '#modal-slm .slm-xn .slm-thu{margin-top:7px;background:#1d4ed8;color:#fff;border-color:#1d4ed8}'
++ '#modal-slm .slm-xn .slm-thu:disabled{opacity:.6;cursor:not-allowed}'
++ '#modal-slm .slm-maw{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:8px}'
++ '#modal-slm .slm-maw input{flex:1 1 120px;width:auto!important;min-width:110px;max-width:180px;margin:0!important;font-size:1.15em!important;letter-spacing:3px;text-align:center;font-weight:700}'
++ '#modal-slm .slm-maw button{flex:0 0 auto;background:#1a6b3c;color:#fff;border:none;border-radius:8px;padding:10px 14px;font-size:.92em;font-weight:700;cursor:pointer}'
++ '#modal-slm .slm-maw button:disabled{opacity:.6;cursor:not-allowed}'
++ '#modal-slm .slm-maw .slm-note{flex:1 1 100%;margin-top:0}'
++ '#modal-slm .slm-xn .slm-kq{margin-top:7px}'
++ '#modal-slm .slm-ok{color:#0f5132;font-weight:700}'
++ '#modal-slm .slm-cxn{color:#b45309;font-weight:700}';
+
+function chenCss(){
+  if(q('slm-css')) return;
+  var s = document.createElement('style'); s.id = 'slm-css'; s.textContent = CSS;
+  (document.head || document.documentElement).appendChild(s);
+}
+
+/* Khung xác nhận 1 email: lo = 'c' (email đăng nhập) · 'p' (email nhận thêm) — máy chủ chỉ gửi vào email đã xác nhận */
+function hangXn(lo, ten){
+  return ''
+  + '<div class="slm-xn" id="slm-xn-' + lo + '" style="display:none">'
+  +   '<div id="slm-xn-' + lo + '-t">🔐 <b>' + ten + '</b> chưa xác nhận — máy chủ <b>chưa gửi</b> bản sao lưu vào email này.</div>'
+  +   '<button type="button" class="slm-thu" id="slm-ma-' + lo + '-gui" data-slm="ma:' + lo + '">📨 Gửi mã xác nhận tới email này</button>'
+  +   '<div class="slm-maw" id="slm-ma-' + lo + '-w" style="display:none">'
+  +     '<input type="text" id="slm-ma-' + lo + '" inputmode="numeric" autocomplete="one-time-code" maxlength="40" placeholder="Mã 6 số" aria-label="Mã 6 số">'
+  +     '<button type="button" id="slm-xn-' + lo + '-ok" data-slm="xn:' + lo + '">✅ Xác nhận</button>'
+  +     '<div class="slm-note" id="slm-ma-' + lo + '-note"></div>'
+  +   '</div>'
+  +   '<div class="slm-kq" id="slm-xn-' + lo + '-kq" style="display:none"></div>'
+  + '</div>';
+}
+
+var R = null, R_K = '', DANG = '', XEM = false, SUA = false;
+/* R = tình trạng máy chủ trả về lần gần nhất (của tài khoản R_K) · DANG = 'luu' | 'gui' | 'ma:c|p' (gửi mã) | 'xn:c|p' (nhập mã) đang chạy · XEM = đang hỏi tình trạng
+   SUA = chủ shop vừa sửa ô mà CHƯA Lưu ⇒ lượt hỏi máy chủ chạy ngầm KHÔNG được ghi đè lên chữ đang sửa */
+function khoaHienTai(){ var nd = nguoiDung(), u = uidShop(); return (u && nd) ? (u + '|' + nd.uid) : ''; }
+
+function taoBang(){
+  var m = q('modal-slm');
+  if(m) return m;
+  chenCss();
+  m = document.createElement('div');
+  m.className = 'modal-overlay'; m.id = 'modal-slm';
+  var opt = [1,2,3,4,5,6,0].map(function(i){ return '<option value="' + i + '">' + THU[i] + '</option>'; }).join('');
+  m.innerHTML = ''
+  + '<div class="modal">'
+  +   '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px">'
+  +     '<h2 style="margin:0">📧 Sao lưu tự động qua email</h2>'
+  +     '<button type="button" class="slm-x" data-slm="dong" style="background:#eef0f2;border:none;border-radius:8px;padding:8px 14px;font-size:.9em;font-weight:700;cursor:pointer;flex:0 0 auto">✖ Đóng</button>'
+  +   '</div>'
+  +   '<div class="settings-note">Mỗi tuần máy chủ tự gửi <b>bản sao lưu TOÀN BỘ</b> (Sổ Nợ + Bán hàng) vào email của shop — <b>không cần mở app</b>, không tốn bộ nhớ điện thoại. Lỡ mất máy, lỡ xoá nhầm vẫn lấy lại được.</div>'
+  +   '<div id="slm-tt" class="slm-tt dang">⏳ Đang hỏi máy chủ…</div>'
+  +   '<button type="button" id="slm-lai" class="slm-thu" data-slm="tai" style="display:none">🔄 Thử lại</button>'
+  +   '<div id="slm-form" style="display:none">'
+  +     '<label class="slm-row" id="slm-batrow"><input type="checkbox" id="slm-bat" style="width:20px;height:20px;flex:0 0 auto;margin:0"> <span><b>Tự động gửi mỗi tuần</b></span></label>'
+  +     '<label for="slm-thu">Gửi vào tối (khoảng 21 giờ):</label>'
+  +     '<select id="slm-thu">' + opt + '</select>'
+  +     '<label>Gửi tới email đăng nhập:</label>'
+  +     '<div class="slm-email" id="slm-email">—</div>'
+  +     hangXn('c', 'email đăng nhập')
+  +     '<label for="slm-email2">Gửi thêm tới 1 email nữa (không bắt buộc):</label>'
+  +     '<input type="email" id="slm-email2" placeholder="VD: tenban@gmail.com" autocomplete="email" inputmode="email" autocapitalize="off" spellcheck="false" maxlength="120">'
+  +     '<div class="slm-note">Để trống nếu chỉ cần gửi vào email đăng nhập. Email mới phải <b>xác nhận bằng mã 6 số</b> gửi tới email đó.</div>'
+  +     hangXn('p', 'email nhận thêm')
+  +     '<div class="modal-btns">'
+  +       '<button type="button" class="btn-cancel" data-slm="dong">Đóng</button>'
+  +       '<button type="button" class="btn-save" id="slm-luu" data-slm="luu">💾 Lưu cài đặt</button>'
+  +     '</div>'
+  +     '<button type="button" class="slm-goi" id="slm-gui" data-slm="gui">📨 Gửi bản sao lưu ngay bây giờ</button>'
+  +     '<div id="slm-kq" class="slm-kq" style="display:none"></div>'
+  +   '</div>'
+  +   '<div id="slm-he" class="slm-he" style="display:none"></div>'
+  +   '<details class="slm-hd"><summary>❓ Thư gồm những gì? Khi cần lấy lại thì làm sao?</summary>'
+  +     '<ul>'
+  +       '<li>Tệp <b>SoNo-BanHang-ToanBo-….json</b> — tệp <b>PHỤC HỒI</b>: đủ khách, giao dịch, hàng hoá, đơn bán, kho, nhà cung cấp, nhân viên, cài đặt… (y hệt tệp của nút 🛟 Sao lưu CỨU HỘ).</li>'
+  +       '<li>Tệp <b>So-No-….xlsx</b> — tệp <b>Excel</b> để xem / in danh sách khách nợ và lịch sử giao dịch (bấm vào là mở ngay trong Gmail).</li>'
+  +     '</ul>'
+  +     '<b>Khi cần lấy lại dữ liệu:</b>'
+  +     '<ol>'
+  +       '<li>Mở thư → tải tệp <b>.json</b> về máy.</li>'
+  +       '<li>Mở app, đăng nhập <b>đúng email của shop</b>.</li>'
+  +       '<li>🧰 Công cụ &amp; Sao lưu → <b>♻️ Phục hồi CỨU HỘ (toàn bộ)</b> → Chọn tệp → chọn tệp vừa tải.</li>'
+  +       '<li>Chọn <b>🔀 Gộp</b> (an toàn) → <b>♻️ Bắt đầu phục hồi</b>.</li>'
+  +     '</ol>'
+  +     '<div>🔐 Máy chủ <b>chỉ gửi vào email đã xác nhận</b> (tránh gửi nhầm dữ liệu cho người lạ): bấm <b>📨 Gửi mã xác nhận</b> → mở thư lấy <b>mã 6 số</b> → gõ vào ô → <b>✅ Xác nhận</b>. Email đã xác minh lúc đăng ký thì tự được tin.</div>'
+  +     '<div style="margin-top:4px">📭 Không thấy thư? Xem cả mục <b>Thư rác / Quảng cáo</b> rồi bấm <b>“Không phải thư rác”</b>. Thư gửi từ máy chủ Sổ Nợ.</div>'
+  +     '<div style="margin-top:4px">🔒 Đừng chuyển tiếp thư cho người lạ — trong tệp có toàn bộ số liệu của shop. Tệp chỉ phục hồi được vào đúng tài khoản của shop.</div>'
+  +   '</details>'
+  + '</div>';
+  (document.body || document.documentElement).appendChild(m);
+  m.addEventListener('click', function(ev){
+    if(ev.target === m){ dong(); return; }                                  /* chạm ra ngoài bảng ⇒ đóng (như các bảng khác) */
+    var t = ev.target && ev.target.closest ? ev.target.closest('[data-slm]') : null; if(!t) return;
+    var a = t.getAttribute('data-slm');
+    if(a === 'dong') dong();
+    else if(a === 'tai') tai();
+    else if(a === 'luu') luu();
+    else if(a === 'gui') gui();
+    else if(a === 'thugmail') thuGmail();
+    else if(a === 'ma:c' || a === 'ma:p') guiMa(a.slice(3));
+    else if(a === 'xn:c' || a === 'xn:p') xacNhan(a.slice(3));
+  });
+  ['c','p'].forEach(function(lo){
+    var o = q('slm-ma-' + lo); if(!o) return;
+    o.addEventListener('keydown', function(ev){ if(ev.key === 'Enter'){ ev.preventDefault(); xacNhan(lo); } });
+    o.addEventListener('input', function(){ var v = String(o.value || ''), s = v.replace(/[^0-9]/g, '').slice(0, 6); if(s !== v) o.value = s; });
+  });
+  ['slm-bat','slm-thu','slm-email2'].forEach(function(id){
+    var el = q(id); if(!el) return;
+    el.addEventListener('input', suaO); el.addEventListener('change', suaO);
+  });
+  var e2 = q('slm-email2');
+  if(e2) e2.addEventListener('keydown', function(ev){ if(ev.key === 'Enter'){ ev.preventDefault(); luu(); } });
+  return m;
+}
+/* Vừa đổi gì trong ô ⇒ bỏ dòng "✅ Đã lưu" cũ (để trợ lý không báo xong nhầm) */
+function boOk(){ var k = q('slm-kq'); if(k && k.getAttribute('data-ok')){ k.removeAttribute('data-ok'); k.removeAttribute('data-luc'); k.style.display = 'none'; } }
+function suaO(){ SUA = true; boOk(); }
+function kq(kieu, html, ok){
+  var k = q('slm-kq'); if(!k) return;
+  k.className = 'slm-kq ' + kieu; k.innerHTML = html; k.style.display = html ? '' : 'none';
+  if(ok){ k.setAttribute('data-ok', ok); k.setAttribute('data-luc', String(Date.now())); }
+  else { k.removeAttribute('data-ok'); k.removeAttribute('data-luc'); }
+}
+function nutBan(b){
+  var l = q('slm-luu'), g = q('slm-gui');
+  if(l){ l.disabled = !!b; l.textContent = DANG === 'luu' ? '⏳ Đang lưu…' : '💾 Lưu cài đặt'; }
+  if(g){ g.disabled = !!b; g.textContent = DANG === 'gui' ? '⏳ Đang tạo & gửi… (có thể mất 1–2 phút)' : '📨 Gửi bản sao lưu ngay bây giờ'; }
+  ['c','p'].forEach(function(lo){
+    var a = q('slm-ma-' + lo + '-gui'), o = q('slm-xn-' + lo + '-ok');
+    if(a) a.disabled = !!b;
+    if(o){ o.disabled = !!b; o.textContent = DANG === ('xn:' + lo) ? '⏳ Đang kiểm tra…' : '✅ Xác nhận'; }
+  });
+}
+/* Dòng báo kết quả trong khung xác nhận email */
+function xnkq(lo, kieu, html){
+  var k = q('slm-xn-' + lo + '-kq'); if(!k) return;
+  k.className = 'slm-kq ' + kieu; k.innerHTML = html; k.style.display = html ? '' : 'none';
+}
+/* Vẽ khung xác nhận email (lo) theo tình trạng máy chủ — KHÔNG đụng chữ đang gõ trong ô mã */
+function veXn(lo, r){
+  var row = q('slm-xn-' + lo); if(!row) return;
+  var email = lo === 'c' ? r.email : r.email2, daXn = lo === 'c' ? r.xnChinh : r.xnPhu, ma = lo === 'c' ? r.maC : r.maP;
+  var hien = !!(email && !daXn);
+  row.style.display = hien ? '' : 'none';
+  if(!hien){ xnkq(lo, '', ''); return; }
+  var t = q('slm-xn-' + lo + '-t');
+  if(t) t.innerHTML = '🔐 <b>' + esc(email) + '</b> <span class="slm-cxn">chưa xác nhận</span> — máy chủ <b>chưa gửi</b> bản sao lưu vào email này (tránh gửi nhầm dữ liệu cho người lạ).';
+  var nut = q('slm-ma-' + lo + '-gui'); if(nut) nut.textContent = ma ? '📨 Gửi lại mã' : '📨 Gửi mã xác nhận tới email này';
+  var w = q('slm-ma-' + lo + '-w'); if(w) w.style.display = ma ? '' : 'none';
+  var n = q('slm-ma-' + lo + '-note');
+  if(n) n.innerHTML = ma ? ('Gõ mã 6 số trong thư gửi tới <b>' + esc(email) + '</b> (gửi lúc ' + esc(gio(ma.luc)) + ', dùng được tới ' + esc(gio(ma.han)) + ' ngày ' + esc(ngay(ma.han)) + '). Không thấy thư? Xem cả mục <b>Thư rác / Quảng cáo</b>.') : '';
+}
+/* Các email máy chủ đang được phép gửi (đã xác nhận) */
+function emailTin(r){ var a = []; if(r){ if(r.email && r.xnChinh) a.push(r.email); if(r.email2 && r.xnPhu) a.push(r.email2); } return a; }
+
+/* Vẽ tình trạng từ dữ liệu máy chủ */
+function ve(r){
+  var tt = q('slm-tt'), f = q('slm-form'), lai = q('slm-lai');
+  if(!tt || !f) return;
+  if(lai) lai.style.display = 'none';
+  var chuMay = laChuMay(), h = '', cls = 'slm-tt';
+  if(!r.duDK){
+    cls += ' khoa';
+    if(r.hetHan) h = '🔒 Tài khoản đã <b>hết hạn hoặc bị khoá</b> — gia hạn để máy chủ tự gửi bản sao lưu qua email.';
+    else h = '🔒 Tài khoản đang <b>dùng thử</b>: sao lưu tự động qua email dành cho tài khoản <b>đã gia hạn</b>.<br>Trong lúc dùng thử, bấm <b>🛟 Sao lưu CỨU HỘ</b> trong 🧰 Công cụ để tự tải tệp về máy, rồi gửi tệp vào Zalo / email của mình.';
+  } else {
+    if(r.bat) h = '✅ <b>Đang BẬT</b> — mỗi tuần vào tối <b>' + esc(THU[r.thu] || 'Chủ nhật') + '</b> (khoảng ' + esc(r.gio || 21) + ' giờ).';
+    else h = '⏸️ <b>Đang TẮT</b> — máy chủ không tự gửi. ' + (r.laChu && chuMay ? 'Tick ô <b>Tự động gửi mỗi tuần</b> bên dưới rồi bấm <b>Lưu</b> để bật lại.' : 'Chủ shop bật lại được trong bảng này.');
+    var tin = emailTin(r), chua = [];
+    if(r.email && !r.xnChinh) chua.push(r.email);
+    if(r.email2 && !r.xnPhu) chua.push(r.email2);
+    if(r.bat && r.lanToi && tin.length) h += (r.lanToi - Date.now() < 35 * 60000)
+      ? '<br>📅 Lần gửi tới: <b>sắp gửi</b> (trong khoảng 30 phút nữa).'
+      : '<br>📅 Lần gửi tới: <b>' + esc(thuCua(r.lanToi)) + ' ' + esc(ngay(r.lanToi)) + '</b> khoảng ' + esc(gio(r.lanToi)) + '.';
+    if(tin.length) h += '<br>📬 Gửi tới: <b>' + tin.map(esc).join('</b>, <b>') + '</b> <span class="slm-ok">✅ đã xác nhận</span>';
+    if(chua.length) h += '<br>🔐 Chưa xác nhận (chưa gửi vào): ' + chua.map(esc).join(', ');
+    if(!tin.length && !chua.length) h += '<br>⚠️ Tài khoản chưa có email nhận thư — hãy thêm 1 email ở ô bên dưới.';
+    else if(!tin.length) h += '<div class="slm-loi">🔐 <b>Chưa có email nào được xác nhận</b> ⇒ máy chủ <b>chưa gửi</b> bản sao lưu (để tránh gửi nhầm dữ liệu cho người lạ). '
+      + (r.laChu && chuMay ? 'Bấm <b>📨 Gửi mã xác nhận</b> bên dưới, mở thư lấy <b>mã 6 số</b> rồi gõ vào ô → <b>✅ Xác nhận</b>.' : 'Chủ shop mở bảng này bằng tài khoản chủ để xác nhận email.') + '</div>';
+  }
+  if(r.lanCuoi && r.lanCuoi.luc){
+    var lc = r.lanCuoi, tk = lc.tk || {};
+    h += '<div class="slm-lan">🕘 Lần gửi gần nhất: <b>' + esc(ngay(lc.luc)) + ' ' + esc(gio(lc.luc)) + '</b> (' + (lc.kieu === 'tay' ? 'bấm gửi ngay' : 'tự động hằng tuần') + ')'
+      + (tk.nC != null ? ' — ' + so(tk.nC) + ' khách · ' + so(tk.nT) + ' giao dịch · ' + so(tk.nP) + ' sản phẩm · ' + so(tk.nO) + ' đơn' : '')
+      + (lc.byte ? ' (' + dl(lc.byte) + (lc.cach === 'zip' ? ', đã nén .zip' : lc.cach === 'link' ? ', gửi link tải' : '') + ')' : '') + '.</div>';
+  }
+  if(r.loiCuoi && r.loiCuoi.luc) h += '<div class="slm-loi">⚠️ Lần gửi lúc ' + esc(gio(r.loiCuoi.luc)) + ' ngày ' + esc(ngay(r.loiCuoi.luc)) + ' chưa được: <i>' + esc(r.loiCuoi.loi) + '</i>' + (r.duDK ? ' — máy chủ sẽ tự thử lại.' : '') + '</div>';
+  var choDoi = r.duDK && !(r.laChu && chuMay);
+  if(choDoi){
+    if(r.laNV) h += '<div class="slm-lan">👤 Máy nhân viên: chỉ <b>chủ shop</b> (đăng nhập bằng tài khoản chủ) mới đổi được cài đặt này.</div>';
+    else if(vaiPIN()) h += '<div class="slm-lan">👤 Đang ở vai trò nhân viên (mã PIN): chủ shop vào lại bằng mã PIN chủ mới đổi được cài đặt.</div>';
+    else h += '<div class="slm-lan">👤 Chỉ chủ shop mới đổi được cài đặt này.</div>';
+  }
+  tt.className = cls; tt.innerHTML = h;
+  var hien = !!(r.duDK && r.laChu && chuMay);
+  f.style.display = hien ? '' : 'none';
+  if(hien){
+    var em0 = q('slm-email');
+    if(em0) em0.innerHTML = r.email ? (esc(r.email) + (r.xnChinh ? ' <span class="slm-ok">✅ đã xác nhận</span>' : ' <span class="slm-cxn">⚠️ chưa xác nhận</span>')) : '(tài khoản chưa có email — nhập email ở ô dưới)';
+    veXn('c', r); veXn('p', r);
+  }
+  if(hien && DANG !== 'luu' && !SUA){
+    var cb = q('slm-bat'), th = q('slm-thu'), e2 = q('slm-email2');
+    if(cb) cb.checked = !!r.bat;
+    if(th) th.value = String(r.thu == null ? 0 : r.thu);
+    if(e2 && document.activeElement !== e2) e2.value = r.email2 || '';
+    var g = q('slm-gui');
+    if(g && r.tay && !DANG){
+      g.title = r.tay.conLai > 0 ? ('Hôm nay còn gửi được ' + r.tay.conLai + ' lần') : 'Hôm nay đã gửi đủ 5 lần';
+    }
+  }
+  veHe(r.he || null);
+}
+function veHe(he){
+  var b = q('slm-he'); if(!b) return;
+  if(!he){ b.style.display = 'none'; b.innerHTML = ''; return; }
+  var h = '<b>🔧 Máy chủ sao lưu</b> <span style="opacity:.7">(chỉ chủ phần mềm thấy)</span><br>';
+  if(he.loi){ h += '❌ ' + esc(he.loi); }
+  else {
+    h += '• Gmail gửi thư: <b>' + esc(he.gmail || '—') + '</b> · mật khẩu ứng dụng: ' + (he.coMatKhau ? '✅ đã cài' : '❌ CHƯA cài') + '<br>';
+    h += '• Lượt chạy gần nhất: ' + (he.lanChay ? esc(ngay(he.lanChay) + ' ' + gio(he.lanChay)) : 'chưa có') + ' · thư gửi gần nhất: ' + (he.guiCuoi ? esc(ngay(he.guiCuoi) + ' ' + gio(he.guiCuoi)) : 'chưa có') + '<br>';
+    h += '• Hôm nay đã gửi: <b>' + so(he.homNay) + '</b> / ' + so(he.tran) + ' thư · shop đang theo dõi: <b>' + (he.soShop == null ? '?' : so(he.soShop)) + '</b> · quét giấy phép: ' + esc(he.quetNgay || 'chưa') + '<br>';
+    if(he.tat) h += '• ⛔ Công tắc <b>tat</b> đang BẬT (saoluu_he/cauhinh) — máy chủ KHÔNG gửi thư tuần.<br>';
+    if(he.tamDungDen) h += '• ⏸️ Đang tạm dừng gửi tới <b>' + esc(ngay(he.tamDungDen) + ' ' + gio(he.tamDungDen)) + '</b><br>';
+    if(he.loiChung) h += '• ⚠️ Lỗi chung' + (he.loiChungLuc ? ' (' + esc(ngay(he.loiChungLuc) + ' ' + gio(he.loiChungLuc)) + ')' : '') + ': <b>' + esc(he.loiChung) + '</b><br>';
+  }
+  h += '<button type="button" class="slm-thu" data-slm="thugmail" id="slm-thugmail">🔌 Kiểm tra đăng nhập Gmail</button> <span id="slm-thugmail-kq"></span>';
+  b.innerHTML = h; b.style.display = '';
+}
+
+/* ───────── VIỆC ───────── */
+async function tai(){
+  taoBang();
+  var tt = q('slm-tt'), lai = q('slm-lai');
+  if(XEM) return;
+  if(!nguoiDung() || !uidShop()){
+    if(tt){ tt.className = 'slm-tt khoa'; tt.innerHTML = '🔑 Hãy đăng nhập để xem / cài đặt sao lưu qua email.'; }
+    return;
+  }
+  XEM = true;
+  var k0 = khoaHienTai();
+  if(tt && !R){ tt.className = 'slm-tt dang'; tt.innerHTML = '⏳ Đang hỏi máy chủ…'; }
+  try{
+    var r = await goi('xem', {}, 30000);
+    if(khoaHienTai() !== k0) return;                 /* vừa đổi tài khoản giữa chừng ⇒ bỏ kết quả cũ */
+    R = r; R_K = k0; ve(r);
+  }catch(e){
+    if(khoaHienTai() !== k0) return;
+    if(tt){ tt.className = 'slm-tt loi'; tt.innerHTML = esc(moTaLoi(e, 'xem')); }
+    if(lai) lai.style.display = '';
+    var f = q('slm-form'); if(f && !R) f.style.display = 'none';
+  }finally{ XEM = false; }
+}
+async function luu(){
+  if(DANG) return;
+  if(!laChuMay()){ kq('loi', 'Chỉ chủ shop (tài khoản chủ, không ở vai trò nhân viên PIN) mới đổi được cài đặt.'); return; }
+  var cb = q('slm-bat'), th = q('slm-thu'), e2 = q('slm-email2');
+  var thu = parseInt(th ? th.value : '0', 10); if(!(thu >= 0 && thu <= 6)) thu = 0;
+  var em2 = String((e2 && e2.value) || '').trim();
+  if(em2 && !emailOk(em2)){ kq('loi', '❌ Email nhận thêm chưa đúng — kiểm tra lại (ví dụ: <b>tenban@gmail.com</b>), hoặc để trống.'); try{ e2.focus(); }catch(_){} return; }
+  var k0 = khoaHienTai();
+  var e2Truoc = R ? (R.email2 || '') : '', tuGuiMa = false;
+  DANG = 'luu'; nutBan(true); kq('dang', '⏳ Đang lưu cài đặt…');
+  try{
+    var r = await goi('luu', { bat: !!(cb && cb.checked), thu: thu, email2: em2 }, 30000);
+    if(khoaHienTai() !== k0) return;
+    SUA = false; R = r; R_K = k0; DANG = ''; ve(r);
+    tuGuiMa = !!(r.email2 && !r.xnPhu && !r.maP && r.email2 !== e2Truoc);          /* vừa thêm email mới ⇒ tự gửi mã xác nhận */
+    var coTin = emailTin(r).length > 0;
+    kq('ok', !r.bat
+      ? '✅ Đã lưu: <b>TẮT</b> tự động gửi. Muốn bật lại thì tick ô rồi bấm Lưu.'
+      : (coTin
+        ? ('✅ Đã lưu. Máy chủ sẽ tự gửi mỗi tuần vào tối <b>' + esc(THU[r.thu] || '') + '</b>' + (r.lanToi ? (' — lần tới <b>' + esc(ngay(r.lanToi)) + '</b>') : '') + '.'
+          + (tuGuiMa ? '<br>📨 Email mới phải xác nhận — đang gửi mã 6 số tới <b>' + esc(r.email2) + '</b>…' : ''))
+        : ('✅ Đã lưu. ⚠️ Nhưng <b>chưa có email nào được xác nhận</b> nên máy chủ <b>chưa gửi</b> bản sao lưu — ' + (tuGuiMa ? 'đang gửi mã 6 số tới <b>' + esc(r.email2) + '</b>…' : 'bấm <b>📨 Gửi mã xác nhận</b> ở trên.'))), 'luu');
+    noi(r.bat ? '✅ Đã lưu cài đặt sao lưu qua email' : 'Đã tắt sao lưu tự động qua email');
+  }catch(e){
+    kq('loi', esc(moTaLoi(e, 'luu')));
+  }finally{ DANG = ''; nutBan(false); }
+  if(tuGuiMa && khoaHienTai() === k0) await guiMa('p');
+}
+/* Gửi mã 6 số tới email (lo = 'c' email đăng nhập · 'p' email nhận thêm) */
+async function guiMa(lo){
+  if(DANG) return;
+  if(!laChuMay()){ xnkq(lo, 'loi', 'Chỉ chủ shop (tài khoản chủ, không ở vai trò nhân viên PIN) mới xác nhận email được.'); return; }
+  var k0 = khoaHienTai();
+  DANG = 'ma:' + lo; nutBan(true);
+  var nut = q('slm-ma-' + lo + '-gui'); if(nut) nut.textContent = '⏳ Đang gửi mã…';
+  xnkq(lo, 'dang', '⏳ Máy chủ đang gửi mã 6 số…');
+  try{
+    var r = await goi('guiMa', { loai: lo }, 40000);
+    if(khoaHienTai() !== k0) return;
+    R = r; R_K = k0; DANG = ''; ve(r);
+    var mk = r.maKetQua || {};
+    if(mk.daXN) xnkq(lo, 'ok', '✅ Email này đã được xác nhận rồi.');
+    else {
+      xnkq(lo, 'ok', '📨 Đã gửi mã 6 số tới <b>' + esc(mk.gui || '') + '</b>. Mở hộp thư (xem cả mục <b>Thư rác / Quảng cáo</b>), lấy mã rồi gõ vào ô trên → bấm <b>✅ Xác nhận</b>.');
+      try{ var o = q('slm-ma-' + lo); if(o){ o.value = ''; o.focus(); } }catch(_){}
+    }
+  }catch(e){
+    if(khoaHienTai() !== k0) return;
+    xnkq(lo, 'loi', esc(moTaLoi(e, 'ma')));
+  }finally{ DANG = ''; nutBan(false); if(R && R_K === k0) veXn(lo, R); }
+}
+/* Nhập mã xác nhận */
+async function xacNhan(lo){
+  if(DANG) return;
+  if(!laChuMay()){ xnkq(lo, 'loi', 'Chỉ chủ shop (tài khoản chủ, không ở vai trò nhân viên PIN) mới xác nhận email được.'); return; }
+  var o = q('slm-ma-' + lo), ma = String((o && o.value) || '').replace(/[^0-9]/g, '');
+  if(ma.length !== 6){ xnkq(lo, 'loi', '❌ Mã gồm đúng <b>6 chữ số</b> — xem lại trong thư.'); try{ o.focus(); }catch(_){} return; }
+  var k0 = khoaHienTai();
+  DANG = 'xn:' + lo; nutBan(true); xnkq(lo, 'dang', '⏳ Đang kiểm tra mã…');
+  try{
+    var r = await goi('xnMa', { loai: lo, ma: ma }, 30000);
+    if(khoaHienTai() !== k0) return;
+    if(o) o.value = '';
+    R = r; R_K = k0; DANG = ''; ve(r);
+    var x = r.xnKetQua || {};
+    kq('ok', '✅ Đã xác nhận email <b>' + esc(x.email || '') + '</b>.' + (x.som
+      ? ' Máy chủ sẽ gửi <b>bản sao lưu đầu tiên trong khoảng 30 phút</b>, sau đó mỗi tuần 1 lần.'
+      : ' Từ lần gửi tới, bản sao lưu được gửi cả vào email này.'), 'xn');
+    try{ var k = q('slm-kq'); if(k && k.scrollIntoView) k.scrollIntoView({ block: 'nearest' }); }catch(_){}
+    noi('✅ Đã xác nhận email nhận sao lưu');
+  }catch(e){
+    if(khoaHienTai() !== k0) return;
+    xnkq(lo, 'loi', esc(moTaLoi(e, 'xn')));
+    try{ var r2 = await goi('xem', {}, 20000); if(khoaHienTai() === k0){ R = r2; R_K = k0; ve(r2); } }catch(_){}
+  }finally{ DANG = ''; nutBan(false); }
+}
+async function gui(){
+  if(DANG) return;
+  if(!laChuMay()){ kq('loi', 'Chỉ chủ shop (tài khoản chủ, không ở vai trò nhân viên PIN) mới bấm gửi được.'); return; }
+  var toi = emailTin(R);
+  var e2 = q('slm-email2'), moi = String((e2 && e2.value) || '').trim();
+  if(R && moi !== (R.email2 || '')){ kq('loi', '💾 Bạn vừa đổi ô email — bấm <b>Lưu cài đặt</b> trước rồi mới bấm gửi.'); return; }
+  if(R && !toi.length && (R.email || R.email2)){ kq('loi', '🔐 <b>Chưa có email nào được xác nhận</b> — bấm <b>📨 Gửi mã xác nhận</b> ở trên, mở thư lấy mã 6 số rồi gõ vào ô → <b>✅ Xác nhận</b>. Xác nhận xong mới gửi được.'); return; }
+  if(!confirm('📨 Gửi NGAY bản sao lưu toàn bộ vào email' + (toi.length ? (':\n' + toi.join('\n')) : '') + ' ?\n\nDữ liệu nhiều có thể mất 1–2 phút.')) return;
+  var k0 = khoaHienTai();
+  DANG = 'gui'; nutBan(true); kq('dang', '⏳ Máy chủ đang đọc dữ liệu, tạo tệp và gửi thư… Cứ để bảng này mở hoặc đóng lại cũng được.');
+  try{
+    var r = await goi('gui', {}, 540000);
+    if(khoaHienTai() !== k0) return;
+    R = r; R_K = k0; DANG = ''; ve(r);
+    var k = r.ketQua || {};
+    if(k.rong) kq('ok', 'ℹ️ Shop chưa có dữ liệu nào để sao lưu (chưa có khách, hàng hoá, đơn…). Có dữ liệu rồi máy chủ mới gửi thư.', 'gui');
+    else {
+      var tk = k.tk || {};
+      kq('ok', '✅ Đã gửi tới <b>' + (k.toi || []).map(esc).join('</b>, <b>') + '</b> — ' + so(tk.nC) + ' khách · ' + so(tk.nT) + ' giao dịch · ' + so(tk.nP) + ' sản phẩm · ' + so(tk.nO) + ' đơn'
+        + (k.byte ? ' (' + dl(k.byte) + (k.cach === 'zip' ? ', nén .zip' : k.cach === 'link' ? ', gửi link tải' : '') + ')' : '')
+        + '.<br>📭 Mở Gmail sau ít phút — không thấy thì xem cả mục <b>Thư rác / Quảng cáo</b>.', 'gui');
+      noi('✅ Đã gửi bản sao lưu vào email');
+    }
+  }catch(e){
+    if(khoaHienTai() !== k0) return;
+    kq('loi', esc(moTaLoi(e, 'gui')));
+    try{ var r2 = await goi('xem', {}, 20000); if(khoaHienTai() === k0){ R = r2; R_K = k0; ve(r2); } }catch(_){}
+  }finally{ DANG = ''; nutBan(false); }
+}
+async function thuGmail(){
+  var o = q('slm-thugmail-kq'), b = q('slm-thugmail');
+  if(b) b.disabled = true;
+  if(o) o.textContent = '⏳ Đang thử…';
+  try{
+    var r = await goi('thuGmail', {}, 40000);
+    if(o) o.textContent = r.ok ? ('✅ Gmail ' + (r.gmail || '') + ' đăng nhập được') : ('❌ ' + (r.loi || 'lỗi') + (r.chiTiet ? (' — ' + r.chiTiet) : ''));
+  }catch(e){ if(o) o.textContent = moTaLoi(e, 'thuGmail'); }
+  finally{ if(b) b.disabled = false; }
+}
+function mo(){
+  taoBang();
+  try{ if(typeof window.closeModal === 'function' && q('modal-tools') && q('modal-tools').classList.contains('active')) window.closeModal('modal-tools'); }catch(e){}
+  var m = q('modal-slm');
+  if(DANG !== 'luu' && DANG !== 'gui') kq('', '');
+  if(DANG !== 'luu') SUA = false;                    /* mở lại bảng ⇒ hiện đúng cài đặt trên máy chủ */
+  if(R && R_K !== khoaHienTai()){ R = null; R_K = ''; }
+  if(R) ve(R);
+  m.classList.add('active');
+  tai();
+}
+function dong(){ var m = q('modal-slm'); if(m) m.classList.remove('active'); }
+window.slmMo = mo;
+window.SLM = { mo: mo, tai: tai, trangThai: function(){ return R; } };
+
+/* ───────── NÚT trong bảng 🧰 Công cụ & Sao lưu ───────── */
+function chenNut(){
+  var goc = q('full-restore-btn');
+  if(!goc || !goc.parentNode || q('slm-btn')) return;
+  var b = document.createElement('button');
+  b.type = 'button'; b.id = 'slm-btn'; b.className = 'btn-import';
+  b.style.cssText = 'border-color:#1d4ed8;color:#1d4ed8';
+  b.textContent = '📧 Tự động gửi sao lưu về email (mỗi tuần)';
+  b.addEventListener('click', mo);
+  goc.parentNode.insertBefore(b, goc.nextSibling);
+}
+
+/* Đăng xuất / đổi tài khoản ⇒ quên tình trạng cũ, đóng bảng. (Lúc app mới mở, chưa đăng nhập xong ⇒ khoá rỗng: KHÔNG đóng bảng) */
+var _khoa = '';
+function nhip(){
+  try{
+    chenNut();
+    var k = khoaHienTai();
+    if(k !== _khoa){
+      var cu = _khoa; _khoa = k;
+      if(cu){ R = null; R_K = ''; SUA = false; dong(); }                     /* đăng xuất / đổi tài khoản */
+      else if(k && R_K !== k){ R = null; var m = q('modal-slm'); if(m && m.classList.contains('active')) tai(); }
+    }
+  }catch(e){}
+}
+var _lan = 0;
+(function cho(){
+  var san = false;
+  try{ san = !!(window.SKMOD && window.SKMOD.core && appChinh()); }catch(e){ san = false; }
+  if(!san){ if(++_lan < 240) setTimeout(cho, 500); return; }
+  nhip();
+  setInterval(nhip, 3000);
+})();
+chenNut();
+
+}catch(e){ try{ console.error('[slm] khối Sao lưu qua email lỗi khởi động', e); }catch(_){} }
+})();
+</script>
+<!-- ═══════════════ HẾT: SAO LƯU TỰ ĐỘNG QUA EMAIL ═══════════════ -->
 </body>
 </html>
