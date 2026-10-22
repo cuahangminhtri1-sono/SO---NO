@@ -31,9 +31,12 @@ button{font-family:inherit;cursor:pointer}
 #ds{padding:12px 12px 4px}
 .nhom{font-size:12.5px;font-weight:800;color:#3f7a68;letter-spacing:.3px;margin:16px 4px 8px}
 .nhom:first-child{margin-top:4px}
-.mon{display:flex;align-items:center;gap:11px;background:#fff;border-radius:14px;padding:11px 12px;margin-bottom:8px}
+.mon{display:flex;align-items:center;gap:11px;background:#fff;border-radius:14px;padding:11px 12px;margin-bottom:8px;flex-wrap:wrap}
 .mon-a{width:52px;height:52px;border-radius:10px;object-fit:cover;flex:none;background:#e4ece9}
-.mon-t{flex:1;min-width:0}
+.mon-t{flex:1;min-width:auto}
+.mon>.them,.mon>.dem{margin-left:auto}
+/* [CHỮ TO 2026-10-16] Khung chữ không bao giờ hẹp hơn giá tiền. Nút − SL + + chữ to mà không đủ chỗ
+   ⇒ nút xuống dòng dưới, nằm bên phải — trước đây giá tiền bị lòi ra đè lên nút. Đủ chỗ thì y như cũ. */
 .mon-t b{display:block;font-size:14.5px;font-weight:700;line-height:1.35;word-break:break-word}
 .mon-t span{display:block;font-size:14px;font-weight:800;color:#0d7a5f;margin-top:3px}
 .mon-t i{font-style:normal;font-size:11.5px;color:#8d9d97}
@@ -49,6 +52,8 @@ button{font-family:inherit;cursor:pointer}
 #thanh.on{display:block}
 #xem{width:100%;border:none;background:#0d7a5f;color:#fff;border-radius:14px;padding:15px 16px;font-size:15.5px;font-weight:800;display:flex;align-items:center;justify-content:space-between;gap:10px}
 #xem em{font-style:normal;background:rgba(255,255,255,.2);border-radius:999px;padding:2px 10px;font-size:13.5px}
+#xem.tran{flex-wrap:wrap}                  /* [CHỮ TO 2026-10-16] chỉ bật khi tổng tiền bị cắt (khối "THANH GIỎ CHỮ TO" cuối trang) */
+#xem.tran #xem-tien{margin-left:auto}
 
 /* ── KHAY XÁC NHẬN ── */
 #khay{position:fixed;inset:0;z-index:80;background:rgba(8,26,20,.55);display:none;align-items:flex-end;justify-content:center}
@@ -57,12 +62,16 @@ button{font-family:inherit;cursor:pointer}
 .grip{width:42px;height:4px;border-radius:4px;background:#cfdad6;margin:2px auto 12px}
 .sheet h3{font-size:16.5px;font-weight:800;margin:0 0 12px;padding:0 2px}
 .dong{background:#fff;border-radius:13px;padding:11px 12px;margin-bottom:8px}
-.dong-h{display:flex;align-items:center;gap:10px}
+.dong-h{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .dong-h b{flex:1;min-width:0;font-size:14px;font-weight:700;word-break:break-word}
-.dong-h .gia{font-size:14px;font-weight:800;color:#0d7a5f;white-space:nowrap}
+.dong-h>b{flex:1 1 4em;min-width:auto;max-width:100%;word-break:normal;overflow-wrap:break-word}
+.dong-h .gia{font-size:14px;font-weight:800;color:#0d7a5f;white-space:nowrap;margin-left:auto}
+/* [CHỮ TO 2026-10-16] Tên món KHÔNG bao giờ bị ép hẹp hơn chữ dài nhất của nó (và không dưới 4 chữ) — chỉ tên món,
+   số lượng trong nút − SL + giữ y cũ. Gọi nhiều (vd 240 lon = 6.000.000đ) + máy để chữ to mà không đủ chỗ
+   ⇒ thành tiền xuống dòng dưới, bên phải. Trước đây tên món bị ép còn 1 chữ, mỗi chữ 1 dòng. Đủ chỗ thì y như cũ. */
 .ghi{width:100%;margin-top:9px;border:1px solid #dce5e2;border-radius:9px;padding:8px 10px;font-size:13.5px;font-family:inherit;background:#fbfdfc}
-#tong{display:flex;align-items:center;justify-content:space-between;font-size:16px;font-weight:800;padding:12px 4px 4px}
-#tong b{font-size:21px;color:#c0392b}
+#tong{display:flex;align-items:center;justify-content:space-between;font-size:16px;font-weight:800;padding:12px 4px 4px;flex-wrap:wrap}
+#tong b{font-size:21px;color:#c0392b;margin-left:auto}   /* [CHỮ TO 2026-10-16] không đủ chỗ ⇒ tổng tiền xuống dòng (bên phải), không lòi ra ngoài */
 #note{width:100%;border:1px solid #dce5e2;border-radius:11px;padding:11px;font-size:14px;font-family:inherit;margin-bottom:9px;background:#fff}
 #gui{width:100%;border:none;background:#16a34a;color:#fff;border-radius:13px;padding:15px;font-size:16px;font-weight:800}
 #gui:disabled{background:#a9c3b8}
@@ -1358,5 +1367,36 @@ let lanCho = 0;
 })();
 </script>
 <!-- ═══════════════ HẾT: NHẮN TIN VỚI CỬA HÀNG ═══════════════ -->
+<!-- ═══════════════ THANH GIỎ CHỮ TO (khối độc lập · 2026-10-16) ═══════════════
+     Máy để chữ rất to + tổng tiền dài ⇒ "Xem giỏ & gửi bếp", "n món" và tổng tiền không còn vừa 1 hàng
+     ⇒ tổng tiền bị cắt mất mấy số cuối. Khối này CHỈ gắn lớp "tran" vào nút #xem đúng lúc bị cắt
+     ⇒ tổng tiền xuống dòng dưới (bên phải). Vừa chỗ thì không làm gì — thanh y như cũ.
+     Không đụng giỏ hàng, đơn hàng, Firebase. Khối này có trục trặc gì thì trang vẫn chạy y như cũ.
+     ═════════════════════════════════════════════════════════════════════════════════════ -->
+<script>
+(function(){
+'use strict';
+try{
+  var X = document.getElementById('xem');
+  if(!X || !window.MutationObserver) return;
+  var dang = false;
+  function chinh(){
+    if(dang) return; dang = true;
+    try{
+      X.classList.remove('tran');                                          /* đo ở dạng gốc (1 hàng) */
+      if(X.clientWidth > 0 && X.scrollWidth > X.clientWidth + 1) X.classList.add('tran');
+    }catch(e){}
+    dang = false;
+  }
+  new MutationObserver(chinh).observe(X, { childList: true, characterData: true, subtree: true });   /* đổi số món / tổng tiền */
+  var th = document.getElementById('thanh');
+  if(th) new MutationObserver(chinh).observe(th, { attributes: true, attributeFilter: ['class'] });  /* thanh vừa hiện */
+  window.addEventListener('resize', chinh);                                                          /* xoay máy */
+  document.addEventListener('visibilitychange', function(){ if(!document.hidden) chinh(); });       /* vừa đổi cỡ chữ trong Cài đặt rồi quay lại */
+  chinh();
+}catch(e){ try{ console.warn('[xem] khối thanh giỏ chữ to lỗi khởi động', e); }catch(_){} }
+})();
+</script>
+<!-- ═══════════════ HẾT: THANH GIỎ CHỮ TO ═══════════════ -->
 </body>
 </html>
