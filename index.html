@@ -745,7 +745,7 @@ import { getFirestore, initializeFirestore, persistentLocalCache, persistentMult
 import { getStorage, ref as _sref, uploadBytes, getDownloadURL, deleteObject, listAll }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
 
-const APP_BUILD = "2026-10-16-SN14"; // ⬆️ ĐỔI MỖI LẦN DEPLOY (đặt TRÙNG tên cache trong sw.js) — hiện ở ⚙️ Cài đặt để biết máy đã chạy bản mới chưa
+const APP_BUILD = "2026-10-23-SN16"; // ⬆️ ĐỔI MỖI LẦN DEPLOY (đặt TRÙNG tên cache trong sw.js) — hiện ở ⚙️ Cài đặt để biết máy đã chạy bản mới chưa
 const firebaseConfig = {
   apiKey: "AIzaSyA_kjQ-CdASRkf50Glz3kQajlkD5qGWC4k",
   authDomain: "so-no-cc57a.firebaseapp.com",
@@ -16577,7 +16577,7 @@ a:`<b class="snai-h">🔔 Nhận đơn khách gửi</b>
 <div class="snai-ok">✅ <b>Bàn đó đang mở sẵn trên máy tính tiền thì món khách gọi thêm TỰ CỘNG vào giỏ đang phục vụ</b>, kèm dòng báo <i>"Bàn … gọi thêm — đã cộng … món vào giỏ"</i>. Không sợ tính thiếu tiền, không sợ mất món lúc đóng bàn.</div>
 <div class="snai-warn">⚠️ Báo <b>"món không còn trong kho"</b>: món đó đã bị xóa khỏi kho sau khi đẩy thực đơn lên. App <b>bỏ qua món đó</b> và liệt kê tên ra — nhớ <b>báo khách đổi món</b>.</div>
 <div class="snai-warn">⚠️ Báo <b>"bàn không còn trong sơ đồ"</b>: bàn đó đã bị xóa. Tạo lại bàn rồi bấm nhận lại.</div>
-<div class="snai-tip">🔕 Không nghe chuông: kiểm tra âm lượng <b>Phương tiện (Media)</b> của máy, iPhone thì tắt chế độ <b>Im lặng</b>. Mở app xong nhớ <b>chạm màn hình một lần</b> để bật tiếng (iPhone bắt buộc). App phải đang mở thì mới reo — máy để ở quầy nên bật <b>Giữ màn hình luôn sáng</b> trong tab <b>Đơn QR</b>.</div>`},
+<div class="snai-tip">🔕 Không nghe chuông: kiểm tra âm lượng <b>Phương tiện (Media)</b> của máy, iPhone thì tắt chế độ <b>Im lặng</b>. Mở app xong nhớ <b>chạm màn hình một lần</b> để bật tiếng (iPhone bắt buộc). App đang mở thì reo nhạc chuông của app; đã <b>tắt hẳn app</b> (đã bật thông báo) thì điện thoại <b>reo nhắc bằng tiếng thông báo</b> tới khi có người nhận đơn. Máy để ở quầy nên bật <b>Giữ màn hình luôn sáng</b> trong tab <b>Đơn QR</b>.</div>`},
 
 {c:'qr',t:'Cập nhật thực đơn lên mã QR',k:'cap nhat thuc don len ma qr them mon moi doi gia khach khong thay mon',
 a:`<b class="snai-h">🔄 Cập nhật thực đơn</b>
@@ -16960,7 +16960,7 @@ a:`<b class="snai-h">✏️ Đổi tên hiện cho khách</b>
 <div class="snai-ok">✅ App báo "Đã đổi tên cửa hàng". Tên mới hiện ngay trên link online — quán ăn thì <b>thực đơn QR dán bàn cũng đổi theo</b>.</div>
 <div class="snai-tip">💡 Nên đặt tên dễ nhận ra, kèm khu vực. VD "Tạp hóa Cô Ba — chợ Mới", để khách không nhầm với tiệm khác.</div>`},
 
-{c:'onl',t:'Chuông báo đơn: thử chuông, bật tiếng, giữ màn hình sáng',k:'chuong bao don thu chuong khong nghe chuong khong keu chuong khong reo bat tieng giu man hinh sang man hinh tu tat im lang am luong cham de bat chuong da nghe tat chuong chuong to hon chuong nho reng reng nhac chuong',
+{c:'onl',t:'Chuông báo đơn: thử chuông, bật tiếng, giữ màn hình sáng',k:'chuong bao don thu chuong khong nghe chuong khong keu chuong khong reo bat tieng giu man hinh sang man hinh tu tat im lang am luong cham de bat chuong da nghe tat chuong chuong to hon chuong nho reng reng nhac chuong kieu chuong doi chuong tit tit coi bao tat han app thoat app thoat ung dung khi tat app van reo reo nhac bao don thong bao don thong bao khi tat app thong bao day cooldown don moi khong co thong bao',
 a:`<b class="snai-h">🔔 Chuông báo đơn</b>
 <b>📍 Ở đâu:</b> cuối tab <b>Bán online</b> (quán ăn: <b>Đơn QR</b>) có khung <b>Chuông báo đơn trên máy này</b>.
 <b>🎧 Dòng trạng thái nghĩa là:</b>
@@ -16970,18 +16970,19 @@ a:`<b class="snai-h">🔔 Chuông báo đơn</b>
 <li>⏳ <b>Đang nối lại</b> — mạng yếu, chờ chút app tự nối.</li>
 <li>⚪ <b>Chưa nghe đơn</b> — tắt hẳn app rồi mở lại.</li>
 </ul>
-<b>🪜 Thử chuông:</b> bấm nút <b>Thử chuông</b> → phải nghe tiếng <b>"reng reng · reng reng"</b> to như điện thoại đổ chuông, và máy rung.
+<b>🪜 Thử chuông:</b> bấm nút <b>Thử chuông</b> → máy phát <b>nhạc chuông</b> khoảng 6 giây như điện thoại có cuộc gọi tới, và máy rung.
+<b>🎵 Kiểu chuông:</b> ngay dưới nút Thử chuông có 2 nút: <b>🎵 Nhạc chuông</b> (mặc định — nghe như điện thoại đổ chuông) và <b>📢 Còi báo (to nhất)</b> (tiếng "reng reng" điện tử, to hơn, hợp quán ồn). Bấm nút nào là máy <b>chọn kiểu đó và kêu thử ngay</b>; nút đang chọn có dấu ✓. Mỗi máy chọn riêng, tiếng báo tin nhắn cũng đổi theo.
 <b>🪜 Giữ màn hình luôn sáng:</b> bật <b>công tắc</b> cạnh dòng "Giữ màn hình luôn sáng" — máy để ở quầy sẽ không tự tắt màn hình. Mỗi máy bật riêng.
-<b>🔔 Khi có đơn:</b> máy reo <b>"reng reng"</b> to như điện thoại đổ chuông — 3 phút đầu reo liên tục, sau đó cứ 20 giây reo 1 hồi — cho tới khi có người bấm <b>Xem đơn</b> hoặc <b>Đã nghe, tắt chuông</b> (bấm là im ngay). Trên máy tính, tên tab trình duyệt nhấp nháy "🔔 Có đơn mới!".
+<b>🔔 Khi có đơn:</b> máy đổ <b>nhạc chuông</b> như điện thoại có cuộc gọi tới — 3 phút đầu reo liên tục không ngắt, sau đó cứ 20 giây reo 1 lượt — cho tới khi có người bấm <b>Xem đơn</b> hoặc <b>Đã nghe, tắt chuông</b> (bấm là im ngay). Trên máy tính, tên tab trình duyệt nhấp nháy "🔔 Có đơn mới!".
 <div class="snai-warn">⚠️ <b>Không nghe chuông? Kiểm tra 4 thứ:</b>
 <ol>
 <li>Vặn to âm lượng <b>Phương tiện (Media)</b> — không phải âm lượng chuông gọi.</li>
 <li>iPhone: <b>tắt chế độ Im lặng</b> (gạt nút nhỏ bên hông máy).</li>
-<li>App phải <b>đang mở</b> trên màn hình — tắt app thì không reo được.</li>
+<li>Đã <b>tắt hẳn app</b> thì nhạc chuông của app không kêu được — lúc đó điện thoại <b>reo nhắc bằng tiếng thông báo</b> (phải bật thông báo trước — xem mục 📲 bên dưới).</li>
 <li>Thấy viên vàng <b>"🔕 Chạm để bật chuông báo đơn"</b> ở trên cùng → chạm vào nó.</li>
 </ol></div>
-<div class="snai-tip">🔊 Muốn chuông <b>to nhất</b>: vặn <b>hết cỡ</b> âm lượng <b>Phương tiện (Media)</b> — chuông của app kêu theo âm lượng này.</div>
-<div class="snai-tip">📲 <b>Khi đã TẮT hẳn app</b> (đã bật thông báo): điện thoại vẫn báo có đơn mới, nhưng kêu bằng <b>tiếng thông báo của điện thoại</b> — app không đổi được tiếng này. Muốn tiếng đó cũng to như chuông điện thoại (máy Android): lúc thông báo hiện ra, <b>nhấn giữ</b> vào thông báo → bấm <b>⚙️ Cài đặt</b> → nếu hiện danh sách thì chọn mục <b>Sổ Nợ</b> (hoặc mục có chữ <b>github.io</b>) → <b>Âm thanh</b> → chọn một <b>nhạc chuông</b> thật to → vặn to âm lượng <b>Nhạc chuông / Thông báo</b>. iPhone không cho chọn tiếng riêng — chỉ cần vặn to và tắt chế độ Im lặng.</div>
+<div class="snai-tip">🔊 Muốn chuông <b>to nhất</b>: vặn <b>hết cỡ</b> âm lượng <b>Phương tiện (Media)</b> — chuông của app kêu theo âm lượng này. Quán ồn quá thì chọn kiểu <b>📢 Còi báo</b>.</div>
+<div class="snai-tip">📲 <b>Khi đã TẮT hẳn app</b> (đã bật thông báo): có đơn là điện thoại <b>reo nhắc liên tục như có cuộc gọi tới</b> — 3 phút đầu cứ <b>12 giây kêu 1 lần</b>, sau đó mỗi phút 1 lần, tối đa 8 phút — tới khi <b>có người nhận đơn</b> (nhận ở máy nào cũng được). Muốn riêng máy đó thôi reo: <b>bấm vào thông báo</b> (mở app), <b>vuốt bỏ thông báo</b>, hoặc bấm <b>Đã nghe</b> trong app. Đang mở app trên màn hình thì thông báo không kêu chồng lên nhạc chuông của app.<br>Tiếng reo lúc này là <b>tiếng thông báo của điện thoại</b> — app không đổi được tiếng này. Muốn to như chuông điện thoại (máy Android): lúc thông báo hiện ra, <b>nhấn giữ</b> vào thông báo → bấm <b>⚙️ Cài đặt</b> → nếu hiện danh sách thì chọn mục <b>Sổ Nợ</b> (hoặc mục có chữ <b>github.io</b>) → <b>Âm thanh</b> → chọn một <b>nhạc chuông</b> thật to → vặn to âm lượng <b>Nhạc chuông / Thông báo</b>. Thấy các lần reo sau <b>nhỏ dần</b> (Android 15 trở lên): vào <b>Cài đặt</b> điện thoại → <b>Thông báo</b> → tắt mục <b>giảm dần âm lượng thông báo</b> (tiếng Anh: <i>Notification cooldown</i>). iPhone không cho chọn tiếng riêng — chỉ cần vặn to và tắt chế độ Im lặng.<br>Chưa bật thông báo: vào <span class="snai-path">🧰 Công cụ &amp; Sao lưu</span> → <b>🔔 Nhắc nợ tự động</b> → bấm <b>🔔 Cho phép hiện thông báo nhắc nợ</b> → điện thoại hỏi thì bấm <b>Cho phép</b>. Xong bấm <b>📲 Thử thông báo khi đã tắt app</b> ngay bên dưới để thử.</div>
 <div class="snai-tip">💡 Máy đang mở cửa hàng nào có link / mã QR thì <b>chỉ reo đơn của cửa hàng đó</b> — 2 cửa hàng 2 máy không reo chéo nhau.</div>`},
 
 {c:'onl',t:'Thời trang: khách chọn size, màu khi đặt online',k:'thoi trang my pham size mau dat online khach chon size mau het size tam het size bien the online',
@@ -17047,7 +17048,7 @@ a:`<b class="snai-h">💬 Tin nhắn khách</b>
 <b>👉 Cái này để làm gì:</b> khách đang xem <b>link bán online</b> của bạn, hoặc khách ngồi tại bàn <b>quét mã QR</b>, có thể <b>nhắn tin hỏi thẳng cửa hàng</b> ngay trên trang đó — hỏi còn hàng không, xin đổi món, hẹn giờ giao… Bạn <b>trả lời ngay trong app này</b>, không cần Zalo, không cần biết số điện thoại của khách.
 <b>📖 Bạn làm được những gì:</b>
 <ul>
-<li><b>Nhận tin ngay:</b> máy kêu <b>"reng reng"</b> như điện thoại đổ chuông, rung, hiện băng xanh ở trên cùng màn hình, và nút tròn xanh dương <b>💬 Tin nhắn</b> hiện số đỏ.</li>
+<li><b>Nhận tin ngay:</b> máy kêu <b>một đoạn nhạc ngắn</b>, rung, hiện băng xanh ở trên cùng màn hình, và nút tròn xanh dương <b>💬 Tin nhắn</b> hiện số đỏ.</li>
 <li><b>Trả lời</b> bằng cách gõ chữ, hoặc bấm <b>câu trả lời mẫu</b> có sẵn cho nhanh.</li>
 <li><b>📋 Chốt đơn:</b> gửi cho khách một tấm thẻ ghi tổng tiền + nội dung đã thỏa thuận. Khách bấm <b>✅ Đồng ý</b> là có bằng chứng lưu lại.</li>
 <li><b>Nhắn trước cho khách</b> đã đặt đơn online (ví dụ: báo hết size, hẹn lại giờ giao).</li>
@@ -17061,7 +17062,7 @@ a:`<b class="snai-h">💬 Tin nhắn khách</b>
 a:`<b class="snai-h">🔔 Nhận biết có tin nhắn mới</b>
 <b>👉 Khi khách vừa nhắn, app báo cho bạn bằng 4 cách cùng lúc:</b>
 <ol>
-<li><b>Tiếng "reng reng"</b> — to như điện thoại đổ chuông, kêu khoảng 1 giây. Lúc chuông báo đơn đang reo thì tiếng tin nhắn nhường cho chuông đơn (vẫn rung và hiện băng xanh).</li>
+<li><b>Một đoạn nhạc ngắn</b> khoảng 1,5 giây (máy chọn kiểu chuông <b>📢 Còi báo</b> thì là tiếng "reng reng"). Lúc chuông báo đơn đang reo thì tiếng tin nhắn nhường cho chuông đơn (vẫn rung và hiện băng xanh).</li>
 <li><b>Máy rung</b> (điện thoại Android).</li>
 <li><b>Băng màu xanh dương</b> trượt xuống ở <b>trên cùng màn hình</b>, ghi <i>"💬 Tên khách: nội dung tin"</i>. Băng tự ẩn sau khoảng 7 giây. <b>Chạm vào băng</b> là mở thẳng cuộc trò chuyện đó.</li>
 <li><b>Nút tròn xanh dương 💬 Tin nhắn</b> ở góc dưới bên phải (nằm <b>ngay phía trên</b> nút 🤖 TRỢ LÝ) hiện <b>số màu đỏ</b> = số cuộc chưa đọc, và <b>lắc lắc</b> để bạn chú ý.</li>
@@ -19296,8 +19297,9 @@ var TOURS={
    {s:'#qrd-ochon-m [data-act="qrd-ochon-luu"]',t:'Bấm <b>Lưu &amp; cập nhật link</b>.'}],
    done:'App báo link đang hiện mấy món.'},
  'chuong':{n:'Thử chuông báo đơn',e:'Chuông báo đơn: thử chuông, bật tiếng, giữ màn hình sáng',g:'onl',st:[S_POS,S_QRD,
-   {s:'#qrd-chuong [data-act="qrd-thuchuong"]',t:'Bấm <b>Thử chuông</b> — phải nghe tiếng "reng reng" to như điện thoại đổ chuông.',
+   {s:'#qrd-chuong [data-act="qrd-thuchuong"]',t:'Bấm <b>Thử chuông</b> — phải nghe nhạc chuông như điện thoại có cuộc gọi tới.',
     miss:'Chưa thấy khung chuông — gói Bán online chưa mở, hoặc đang tải.'},
+   {s:'#qrd-chuong [data-act="qrd-kieu"]',w:'see',t:'Đây là <b>Kiểu chuông</b>: 🎵 Nhạc chuông hoặc 📢 Còi báo (to nhất). Bấm nút nào là chọn kiểu đó và nghe thử ngay.'},
    {s:'#qrd-chuong [data-act="qrd-sang"]',w:'see',t:'Đây là công tắc <b>Giữ màn hình luôn sáng</b> — nên bật cho máy để ở quầy.'}],
    done:'Không nghe tiếng: vặn to âm lượng Phương tiện (Media), iPhone thì tắt chế độ Im lặng.'}
 };
@@ -23480,7 +23482,7 @@ if (window.__RMT_READY__) return; window.__RMT_READY__ = true;
 try{
 
 /* ĐỔI CHUỖI NÀY CHO TRÙNG APP_BUILD MỖI LẦN DEPLOY (chỉ để hiện ở bảng quản trị) */
-var BUILD = '2026-10-16-SN14';
+var BUILD = '2026-10-23-SN16';
 var NHIP   = 6*3600*1000;          /* báo về tối đa 6 giờ 1 lần — khỏi tốn lượt ghi */
 var KEY_HB = 'rmt_hb_v2';          /* [QT7] nhịp báo về tính RIÊNG từng tài khoản (bản v1 tính chung cả máy) */
 var KEY_XEM= 'rmt_xem_v1';
@@ -23854,15 +23856,65 @@ function moAm(c){
   try{ var p = c.resume(); if(p && typeof p.then === 'function') return p.then(function(){}, function(){}); }catch(e){}
   return Promise.resolve();
 }
-/* [SN14] 1 hồi chuông kiểu ĐIỆN THOẠI ĐỔ CHUÔNG ~2,6 giây: "reng-reng · reng-reng".
-   Reo lại mỗi 3 giây ⇒ nghe liên tục như đang có cuộc gọi tới.
-   Tiếng như chuông điện thoại bàn: 1,6 kHz và 2 kHz đổi qua lại 20 lần/giây — dải loa điện thoại phát to, rõ nhất.
-   Sóng gần vuông, đỉnh 0,97 < 1 ⇒ to hơn hẳn tiếng ting-tang cũ mà không rè.
-   Dựng 1 lần vào bộ nhớ (vài mili giây), các lần sau phát lại ngay.
-   Đang reo dở thì không chồng thêm (2 hồi chồng nhau sẽ rè). Bấm "Xem đơn" / "Đã nghe, tắt chuông" ⇒ im NGAY (dungPhat).
-   Máy nào không dựng được tiếng mới ⇒ tự dùng lại tiếng ting-tang cũ (phatCu). */
-var BUF_RENG = null, NGUON = null;
-/* soCap = số cặp "reng-reng" (1 cặp: reng 0,4 giây · nghỉ 0,2 · reng 0,4; giữa 2 cặp nghỉ 0,5 giây) */
+/* [SN15] CHUÔNG BÁO ĐƠN = NHẠC CHUÔNG như điện thoại có cuộc gọi tới (tiếng SN14 nghe chỉ "tít tít").
+   • Kiểu 🎵 "Nhạc chuông" (mặc định): giai điệu tự soạn, đàn marimba như nhạc chuông điện thoại, 3,2 giây/vòng,
+     phát LẶP LIỀN MẠCH không ngắt quãng. Kiểu 📢 "Còi báo": tiếng reng-reng của SN14 (to nhất), lặp mỗi 3 giây.
+     Mỗi máy chọn riêng trong khung "Chuông báo đơn trên máy này" (localStorage 'qrd_kieu').
+   • Có đơn: 3 phút đầu reo không ngừng; sau đó cứ 20 giây reo 1 vòng — tới khi có người bấm "Xem đơn" / "Đã nghe".
+   • Dựng vào bộ nhớ 1 lần (khoảng 0,1 giây), các lần sau phát ngay. Đang reo thì không chồng thêm (chồng nhau sẽ rè).
+   • "Xem đơn" / "Đã nghe, tắt chuông" / đơn được nhận ở máy khác / đăng xuất ⇒ im NGAY (dungPhat).
+   • Máy nào không dựng được tiếng mới ⇒ tự dùng lại tiếng ting-tang cũ (phatCu). */
+var BUF_RENG = {}, NGUON = null, KIEU_MEM = '';
+/* Kiểu chuông của máy này: chọn trong lần mở app này (KIEU_MEM) — không có thì lấy đã lưu — không có nữa thì Nhạc chuông.
+   (Máy chặn bộ nhớ trình duyệt vẫn đổi được kiểu trong lúc mở app.) */
+function kieuChuong(){ var k = KIEU_MEM; if(!k){ try{ k = localStorage.getItem('qrd_kieu') || ''; }catch(e){ k = ''; } } return k === 'coi' ? 'coi' : 'nhac'; }
+/* [SN15] Nhạc chuông tự soạn — Đô trưởng, 150 nhịp/phút, không lấy nhạc của hãng nào.
+   kieu 'don' = 1 vòng 3,2 giây để phát LẶP (đuôi nốt cuối gập về đầu vòng ⇒ nối liền mạch, không "bụp");
+   kieu 'tin' = 1 câu ngắn ~1,4 giây (khối Tin nhắn có 1 bản y hệt).
+   Mỗi nốt = marimba (sóng gốc ×1, ×3,93, ×9,8 tắt dần — đúng tiếng thanh gỗ marimba) + chuông sáng quãng tám trên
+   + tiếng giữ nhẹ cho đầy. Nén đỉnh có nhìn trước 5 ms ⇒ to đều mà không méo; đỉnh 0,97 < 1 ⇒ không rè. */
+function taoNhac(c, kieu){
+  var sr = c.sampleRate, PI2 = 2 * Math.PI, la = (kieu === 'tin'), i, k;
+  var NOT = la ? [[22, 0], [27, 0.12], [31, 0.24], [29, 0.48], [27, 0.6]]
+               : [[15, 0], [19, 0.2], [22, 0.4], [19, 0.8], [22, 1.0], [27, 1.2], [26, 1.6], [24, 1.8], [22, 2.0], [20, 2.2], [19, 2.4], [17, 2.6], [15, 2.8]];
+  var P = la ? 1.4 : 3.2, n = Math.ceil((P + (la ? 1.0 : 1.6)) * sr), x = new Float64Array(n);
+  function go(f, t0, a, hp, td){
+    var i0 = Math.round(t0 * sr);
+    for(var p = 0; p < hp.length; p++){
+      var fp = f * hp[p][0]; if(fp > sr * 0.45) continue;
+      var tau = td * hp[p][2], w = PI2 * fp / sr, cw = Math.cos(w), sw = Math.sin(w), re = 1, im = 0;
+      var d = Math.exp(-1 / (tau * sr)), e = a * hp[p][1], L = Math.min(n - i0, Math.ceil(tau * sr * 7)), at = Math.round(0.0015 * sr);
+      for(var j = 0; j < L; j++){ x[i0 + j] += im * e * (j < at ? j / at : 1); var r2 = re * cw - im * sw; im = re * sw + im * cw; re = r2; e *= d; }
+    }
+  }
+  function lien(f, t0, t1, a, nha){
+    var i0 = Math.round(t0 * sr), L = Math.min(n - i0, Math.round((t1 - t0) * sr)), w = PI2 * f / sr, th = Math.tanh(1.5);
+    var at = Math.round(0.004 * sr), rl = Math.round(nha * sr), d = Math.exp(-1 / (1.5 * sr)), e = a;
+    for(var j = 0; j < L; j++){ x[i0 + j] += e * Math.min(1, j / at, (L - j) / rl) * Math.tanh(1.5 * Math.sin(w * j)) / th; e *= d; }
+  }
+  var MAR = [[1, 1, 1], [3.93, 0.32, 0.32], [9.8, 0.09, 0.12]], CHG = [[1, 1, 1], [2.76, 0.25, 0.5], [5.4, 0.08, 0.25]];
+  for(k = 0; k < NOT.length; k++){
+    var f = 440 * Math.pow(2, NOT[k][0] / 12), t0 = NOT[k][1], cuoi = (k === NOT.length - 1);
+    go(f, t0, 1, MAR, Math.min(0.5, Math.max(0.15, 0.4 * Math.sqrt(1046.5 / f))));
+    go(f * 2, t0, 0.3, CHG, 0.5);
+    lien(f, t0, cuoi ? P : NOT[k + 1][1], 0.6, (la && cuoi) ? 0.45 : 0.012);
+  }
+  var m = la ? n : Math.round(P * sr), y = new Float64Array(m);
+  for(i = 0; i < n; i++) y[i % m] += x[i];
+  var V = la ? 1 : 3, N = m * V, z = new Float64Array(N), pk = 0;
+  for(i = 0; i < N; i++){ z[i] = y[i % m]; if(Math.abs(z[i]) > pk) pk = Math.abs(z[i]); }
+  var TH = 0.4 * pk, LA = Math.max(8, Math.round(0.005 * sr)), rel = Math.exp(-1 / (0.06 * sr));
+  var can = new Float64Array(N), g1 = new Float64Array(N), dq = [], hd = 0, acc = 0, gs = 1, g2;
+  for(i = 0; i < N; i++){ var a0 = Math.abs(z[i]); can[i] = a0 > TH ? TH / a0 : 1; }
+  for(i = N - 1; i >= 0; i--){ while(dq.length > hd && can[dq[dq.length - 1]] >= can[i]) dq.pop(); dq.push(i); while(dq[hd] > i + LA) hd++; g1[i] = can[dq[hd]]; }
+  for(i = 0; i < N; i++){ acc += g1[i]; if(i >= LA) acc -= g1[i - LA]; g2 = acc / Math.min(i + 1, LA); gs = g2 < gs ? g2 : gs * rel + g2 * (1 - rel); z[i] *= gs; }
+  var o = la ? 0 : m, b = c.createBuffer(1, m, sr), out = b.getChannelData(0), fo = Math.round(0.3 * sr);
+  pk = 0; for(i = 0; i < m; i++) if(Math.abs(z[o + i]) > pk) pk = Math.abs(z[o + i]);
+  for(i = 0; i < m; i++) out[i] = z[o + i] / pk * 0.97 * ((la && i > m - fo) ? (m - i) / fo : 1);
+  return b;
+}
+/* [SN14] Tiếng còi "reng-reng" (kiểu 📢 Còi báo): 1,6 kHz và 2 kHz đổi qua lại 20 lần/giây, sóng gần vuông, đỉnh 0,97.
+   soCap = số cặp "reng-reng" (1 cặp: reng 0,4 giây · nghỉ 0,2 · reng 0,4; giữa 2 cặp nghỉ 0,5 giây) */
 function taoReng(c, soCap){
   var sr = c.sampleRate, ON = 0.4, NGHI = 0.2, GIUA = 0.5, D = 3, th = Math.tanh(D), PI2 = 2 * Math.PI;
   var lich = [], t = 0, k, i;
@@ -23878,35 +23930,64 @@ function taoReng(c, soCap){
   }
   return b;
 }
-function bufReng(c){
-  if(!BUF_RENG || BUF_RENG.c !== c) BUF_RENG = { c: c, b: taoReng(c, 2) };
-  return BUF_RENG.b;
+/* [SN15] 1 vòng lặp của kiểu chuông: nhạc chuông 3,2 giây · còi 3 giây (2,55 giây reng-reng + 0,45 giây nghỉ, y nhịp SN14) */
+function bufReng(c, kieu){
+  var o = BUF_RENG[kieu];
+  if(o && o.c === c) return o.b;
+  var b;
+  if(kieu === 'coi'){
+    var r = taoReng(c, 2), n = Math.round(3 * c.sampleRate);
+    b = c.createBuffer(1, n, c.sampleRate);
+    b.getChannelData(0).set(r.getChannelData(0).subarray(0, Math.min(n, r.length)));
+  }else b = taoNhac(c, 'don');
+  BUF_RENG[kieu] = { c: c, b: b };
+  return b;
 }
+/* [SN15] Reo: có đơn trong 3 phút đầu ⇒ LẶP không ngừng (tới khi dungPhat / hết 3 phút);
+   sau 3 phút ⇒ mỗi lượt 1 vòng; bấm "Thử chuông" (chưa có đơn) ⇒ 2 vòng. */
 function phat(c){
-  if(NGUON && NGUON.c === c && c.currentTime < NGUON.het) return;   /* đang reo dở ⇒ không chồng thêm */
+  var lienTuc = BAO.length > 0 && (Date.now() - REO_TU < 180000);
+  if(NGUON && NGUON.c === c && c.currentTime < NGUON.het){          /* đang reo ⇒ không chồng thêm */
+    if(NGUON.lap && !lienTuc) hetVong(NGUON);                        /* hết 3 phút ⇒ reo nốt vòng đang dở rồi thôi */
+    return;
+  }
   var bay = Date.now(); if(bay - LAN_PHAT < 1200) return; LAN_PHAT = bay;
   try{
-    var b = bufReng(c), s = c.createBufferSource(), g = c.createGain();
-    s.buffer = b; s.connect(g); g.connect(c.destination);
-    var t = c.currentTime + 0.03, het = t + b.duration;
+    var b = bufReng(c, kieuChuong()), s = c.createBufferSource(), g = c.createGain();
+    s.buffer = b; s.loop = true; s.connect(g); g.connect(c.destination);
+    var t = c.currentTime + 0.03;
     s.start(t);
-    NGUON = { c: c, s: s, g: g, het: het };
+    NGUON = { c: c, s: s, g: g, t0: t, L: b.duration, het: Infinity, lap: true };
+    if(!lienTuc) hetVong(NGUON, t + b.duration * (BAO.length ? 1 : 2));
     return;
   }catch(e){}
   phatCu(c);
 }
-/* Im ngay hồi chuông đang reo — giảm dần trong 30 mili giây cho khỏi nghe tiếng "bụp" */
+/* [SN15] Cho vòng lặp dừng êm ở cuối vòng (tEnd), hoặc cuối vòng đang reo dở nếu không đưa tEnd */
+function hetVong(n, tEnd){
+  try{
+    var t = n.c.currentTime;
+    if(tEnd == null){ tEnd = n.t0 + Math.max(1, Math.ceil((t - n.t0) / n.L)) * n.L; if(tEnd - t < 0.2) tEnd += n.L; }
+    n.het = tEnd; n.lap = false;
+    n.g.gain.setValueAtTime(1, tEnd - 0.12);
+    n.g.gain.linearRampToValueAtTime(0, tEnd);
+    n.s.stop(tEnd + 0.02);
+  }catch(e){}
+}
+/* Im ngay tiếng chuông đang reo — giảm dần trong 30 mili giây cho khỏi nghe tiếng "bụp" */
 function dungPhat(){
   var n = NGUON; NGUON = null;
   if(!n) return;
   try{
     var t = n.c.currentTime;
     if(t >= n.het) return;
+    var v = 1; try{ v = Math.max(0, Math.min(1, n.g.gain.value)); }catch(e0){}
     n.g.gain.cancelScheduledValues(t);
-    n.g.gain.setValueAtTime(1, t);
+    n.g.gain.setValueAtTime(v, t);
     n.g.gain.linearRampToValueAtTime(0, t + 0.03);
-    n.s.stop(t + 0.035);
-  }catch(e){ try{ n.s.stop(); }catch(e2){} }
+  }catch(e){}
+  try{ n.s.stop(n.c.currentTime + 0.035); }catch(e2){}
+  setTimeout(function(){ try{ n.g.disconnect(); }catch(e3){} }, 150);   /* máy đời cũ không cho gọi stop() lần 2 ⇒ ngắt hẳn đường tiếng */
 }
 /* Tiếng cũ ~1 giây: ting-tang-ting-tang-TING — chỉ dùng khi máy không dựng được tiếng reng reng.
    1,3–2,1 kHz là dải loa điện thoại phát to, rõ nhất; pha sóng vuông cho tiếng gắt, dễ nghe giữa quán ồn.
@@ -23992,6 +24073,7 @@ function tatReo(){
 }
 /* [SN14] Cho khối Tin nhắn khách biết chuông đơn đang reo ⇒ tiếng tin nhắn nhường (2 tiếng to chồng nhau sẽ rè) */
 try{ window.snDangReoDon = function(){ try{ return !!(T_REO || T_TD || (NGUON && NGUON.c.currentTime < NGUON.het)); }catch(e){ return false; } }; }catch(e){}
+try{ window.snKieuChuong = kieuChuong; }catch(e){}   /* [SN15] khối Tin nhắn kêu theo kiểu chuông của máy */
 /* Tab trình duyệt (máy tính) nhấp nháy tiêu đề khi đang reo */
 function nhayTD(bat){
   if(bat){
@@ -24092,6 +24174,7 @@ function daNghe(){
   var bay = Date.now();
   BAO.forEach(function(d){ DA_NGHE[d.id] = bay; });
   luuNghe();
+  try{ if(window.snImDon) window.snImDon(BAO.map(function(d){ return d.id; })); }catch(e){}   /* [SN16] tắt app rồi, thông báo cũng thôi reo nhắc các đơn này trên máy này */
   BAO = [];
   tatReo(); veBao(); hienKhoa();
 }
@@ -24218,6 +24301,26 @@ function thaSang(){
 }
 
 /* ───────── khung "Chuông báo đơn trên máy này" trong tab Đơn QR ───────── */
+/* [SN15] Chọn kiểu chuông cho máy này: 🎵 Nhạc chuông (mặc định) · 📢 Còi báo (to nhất). Bấm là kêu thử ngay. */
+function htmlKieu(){
+  var k = kieuChuong();
+  function nut(id, chu){
+    return '<button type="button" class="qrd-b ' + (k === id ? 'green' : 'grey') + '" data-act="qrd-kieu" data-k="' + id + '" aria-pressed="' + (k === id ? 'true' : 'false') + '">'
+      + (k === id ? '✓ ' : '') + chu + '</button>';
+  }
+  return '<div class="qrd-hd" style="margin:12px 0 4px"><b>Kiểu chuông</b></div>'
+    + '<div class="qrd-row" style="margin-top:0">' + nut('nhac', '🎵 Nhạc chuông') + nut('coi', '📢 Còi báo (to nhất)') + '</div>'
+    + '<div class="qrd-st" style="margin-top:6px">Bấm để chọn, máy kêu thử ngay. Mỗi máy chọn riêng.</div>';
+}
+function chonKieu(k){
+  k = (k === 'coi') ? 'coi' : 'nhac';
+  KIEU_MEM = k;
+  try{ localStorage.setItem('qrd_kieu', k); }catch(e){}
+  veChuong();
+  if(BAO.length) return;                    /* đang có đơn reo: vòng reo sau tự theo kiểu mới */
+  dungPhat(); LAN_PHAT = 0;
+  chuong();                                 /* kêu thử kiểu vừa chọn */
+}
 function htmlChuongTrong(){
   var tt;
   if(!UID_NGHE) tt = '⚪ Chưa nghe đơn. Tắt hẳn app rồi mở lại.';
@@ -24234,11 +24337,12 @@ function htmlChuongTrong(){
   return '<div class="qrd-hd"><b>Chuông báo đơn trên máy này</b></div>'
     + '<div class="qrd-st">' + tt + (laQuanQR(cnMay()) ? '<br>Máy đang mở quán này nên chỉ reo đơn của quán này.' : '') + '</div>'
     + '<div class="qrd-row"><button class="qrd-b green" data-act="qrd-thuchuong">Thử chuông</button></div>'
+    + htmlKieu()                                                  /* [SN15] chọn kiểu chuông */
     + '<div class="qrd-hd" style="margin:12px 0 4px"><b>Giữ màn hình luôn sáng</b>'
     + '<button class="qrd-sw' + (sang ? ' on' : '') + '" data-act="qrd-sang" aria-label="Giữ màn hình luôn sáng"></button></div>'
     + '<div class="qrd-st">' + st + '</div>'
     + '<div class="qrd-st" style="margin-top:8px">Chuông kêu theo âm lượng <b>Phương tiện (Media)</b> của máy. '
-    + 'App phải đang mở thì mới reo, nên để 1 máy ở quầy, cắm sạc. iPhone: tắt chế độ Im lặng.</div>';
+    + 'Tắt hẳn app thì điện thoại reo nhắc bằng tiếng thông báo (phải bật thông báo) tới khi có người nhận đơn. Nên để 1 máy ở quầy, cắm sạc. iPhone: tắt chế độ Im lặng.</div>';
 }
 function htmlChuong(){ return '<div class="qrd-box" id="qrd-chuong">' + htmlChuongTrong() + '</div>'; }
 function veChuong(){ try{ var b = document.getElementById('qrd-chuong'); if(b) b.innerHTML = htmlChuongTrong(); }catch(e){} }
@@ -26419,6 +26523,7 @@ M.on('view:show', function(c){
 M.act('qrd-bao-xem',   function(){ if(Date.now() - BAO_HIEN < 700) return; xemDon(); });   /* chống bấm trúng ngay lúc khung vừa bật lên */
 M.act('qrd-bao-tat',   function(){ if(Date.now() - BAO_HIEN < 700) return; daNghe(); noi('🔕 Đã tắt chuông. Đơn vẫn nằm trong tab ' + tenTab() + '.'); });
 M.act('qrd-thuchuong', function(){ chuong(); });
+M.act('qrd-kieu',      function(el, ds){ chonKieu(ds && ds.k); });   /* [SN15] chọn kiểu chuông — bấm là kêu thử */
 M.act('qrd-khoa',      function(){ chuong(); });
 M.act('qrd-sang',      function(){
   var moi = !sangBat();
@@ -28182,11 +28287,58 @@ var AC = null;
 function moAm(){ try{ if(!AC){ var A = window.AudioContext || window.webkitAudioContext; if(A) AC = new A(); } if(AC && AC.state === 'suspended') AC.resume(); }catch(e){} }
 document.addEventListener('pointerdown', moAm, true);
 document.addEventListener('keydown', moAm, true);
-/* [SN14] Tiếng báo tin nhắn = 1 cặp "reng-reng" (~1 giây) to như điện thoại đổ chuông — cùng kiểu tiếng chuông báo đơn.
+/* [SN15] Tiếng báo tin nhắn theo KIỂU CHUÔNG của máy (khung "Chuông báo đơn trên máy này", localStorage 'qrd_kieu'):
+   🎵 Nhạc chuông (mặc định) ⇒ 1 câu nhạc marimba ngắn ~1,4 giây; 📢 Còi báo ⇒ 1 cặp "reng-reng" (~1 giây) như SN14.
    Chuông báo đơn đang reo ⇒ nhường (2 tiếng to chồng nhau sẽ rè; băng xanh, rung, nút 💬 vẫn báo như thường).
-   Đang reng dở ⇒ không chồng thêm. Máy không dựng được tiếng mới ⇒ dùng lại tiếng ting-ting cũ ở dưới. */
-var RENG_BUF = null, RENG_HET = 0;
-/* soCap = số cặp "reng-reng" (1 cặp: reng 0,4 giây · nghỉ 0,2 · reng 0,4; giữa 2 cặp nghỉ 0,5 giây) */
+   Đang kêu dở ⇒ không chồng thêm. Máy không dựng được tiếng mới ⇒ dùng lại tiếng ting-ting cũ ở dưới. */
+var RENG_BUF = {}, RENG_HET = 0;
+/* [SN15] Nhạc chuông tự soạn — Đô trưởng, 150 nhịp/phút, không lấy nhạc của hãng nào.
+   kieu 'don' = 1 vòng 3,2 giây để phát LẶP (đuôi nốt cuối gập về đầu vòng ⇒ nối liền mạch, không "bụp");
+   kieu 'tin' = 1 câu ngắn ~1,4 giây (khối Tin nhắn có 1 bản y hệt).
+   Mỗi nốt = marimba (sóng gốc ×1, ×3,93, ×9,8 tắt dần — đúng tiếng thanh gỗ marimba) + chuông sáng quãng tám trên
+   + tiếng giữ nhẹ cho đầy. Nén đỉnh có nhìn trước 5 ms ⇒ to đều mà không méo; đỉnh 0,97 < 1 ⇒ không rè. */
+function taoNhac(c, kieu){
+  var sr = c.sampleRate, PI2 = 2 * Math.PI, la = (kieu === 'tin'), i, k;
+  var NOT = la ? [[22, 0], [27, 0.12], [31, 0.24], [29, 0.48], [27, 0.6]]
+               : [[15, 0], [19, 0.2], [22, 0.4], [19, 0.8], [22, 1.0], [27, 1.2], [26, 1.6], [24, 1.8], [22, 2.0], [20, 2.2], [19, 2.4], [17, 2.6], [15, 2.8]];
+  var P = la ? 1.4 : 3.2, n = Math.ceil((P + (la ? 1.0 : 1.6)) * sr), x = new Float64Array(n);
+  function go(f, t0, a, hp, td){
+    var i0 = Math.round(t0 * sr);
+    for(var p = 0; p < hp.length; p++){
+      var fp = f * hp[p][0]; if(fp > sr * 0.45) continue;
+      var tau = td * hp[p][2], w = PI2 * fp / sr, cw = Math.cos(w), sw = Math.sin(w), re = 1, im = 0;
+      var d = Math.exp(-1 / (tau * sr)), e = a * hp[p][1], L = Math.min(n - i0, Math.ceil(tau * sr * 7)), at = Math.round(0.0015 * sr);
+      for(var j = 0; j < L; j++){ x[i0 + j] += im * e * (j < at ? j / at : 1); var r2 = re * cw - im * sw; im = re * sw + im * cw; re = r2; e *= d; }
+    }
+  }
+  function lien(f, t0, t1, a, nha){
+    var i0 = Math.round(t0 * sr), L = Math.min(n - i0, Math.round((t1 - t0) * sr)), w = PI2 * f / sr, th = Math.tanh(1.5);
+    var at = Math.round(0.004 * sr), rl = Math.round(nha * sr), d = Math.exp(-1 / (1.5 * sr)), e = a;
+    for(var j = 0; j < L; j++){ x[i0 + j] += e * Math.min(1, j / at, (L - j) / rl) * Math.tanh(1.5 * Math.sin(w * j)) / th; e *= d; }
+  }
+  var MAR = [[1, 1, 1], [3.93, 0.32, 0.32], [9.8, 0.09, 0.12]], CHG = [[1, 1, 1], [2.76, 0.25, 0.5], [5.4, 0.08, 0.25]];
+  for(k = 0; k < NOT.length; k++){
+    var f = 440 * Math.pow(2, NOT[k][0] / 12), t0 = NOT[k][1], cuoi = (k === NOT.length - 1);
+    go(f, t0, 1, MAR, Math.min(0.5, Math.max(0.15, 0.4 * Math.sqrt(1046.5 / f))));
+    go(f * 2, t0, 0.3, CHG, 0.5);
+    lien(f, t0, cuoi ? P : NOT[k + 1][1], 0.6, (la && cuoi) ? 0.45 : 0.012);
+  }
+  var m = la ? n : Math.round(P * sr), y = new Float64Array(m);
+  for(i = 0; i < n; i++) y[i % m] += x[i];
+  var V = la ? 1 : 3, N = m * V, z = new Float64Array(N), pk = 0;
+  for(i = 0; i < N; i++){ z[i] = y[i % m]; if(Math.abs(z[i]) > pk) pk = Math.abs(z[i]); }
+  var TH = 0.4 * pk, LA = Math.max(8, Math.round(0.005 * sr)), rel = Math.exp(-1 / (0.06 * sr));
+  var can = new Float64Array(N), g1 = new Float64Array(N), dq = [], hd = 0, acc = 0, gs = 1, g2;
+  for(i = 0; i < N; i++){ var a0 = Math.abs(z[i]); can[i] = a0 > TH ? TH / a0 : 1; }
+  for(i = N - 1; i >= 0; i--){ while(dq.length > hd && can[dq[dq.length - 1]] >= can[i]) dq.pop(); dq.push(i); while(dq[hd] > i + LA) hd++; g1[i] = can[dq[hd]]; }
+  for(i = 0; i < N; i++){ acc += g1[i]; if(i >= LA) acc -= g1[i - LA]; g2 = acc / Math.min(i + 1, LA); gs = g2 < gs ? g2 : gs * rel + g2 * (1 - rel); z[i] *= gs; }
+  var o = la ? 0 : m, b = c.createBuffer(1, m, sr), out = b.getChannelData(0), fo = Math.round(0.3 * sr);
+  pk = 0; for(i = 0; i < m; i++) if(Math.abs(z[o + i]) > pk) pk = Math.abs(z[o + i]);
+  for(i = 0; i < m; i++) out[i] = z[o + i] / pk * 0.97 * ((la && i > m - fo) ? (m - i) / fo : 1);
+  return b;
+}
+/* [SN14] Tiếng còi "reng-reng" (kiểu 📢 Còi báo): 1,6 kHz và 2 kHz đổi qua lại 20 lần/giây, sóng gần vuông, đỉnh 0,97.
+   soCap = số cặp "reng-reng" (1 cặp: reng 0,4 giây · nghỉ 0,2 · reng 0,4; giữa 2 cặp nghỉ 0,5 giây) */
 function taoReng(c, soCap){
   var sr = c.sampleRate, ON = 0.4, NGHI = 0.2, GIUA = 0.5, D = 3, th = Math.tanh(D), PI2 = 2 * Math.PI;
   var lich = [], t = 0, k, i;
@@ -28209,9 +28361,11 @@ function keu(){
     try{ if(window.snDangReoDon && window.snDangReoDon()) return; }catch(e0){}
     if(AC.currentTime < RENG_HET) return;
     try{
-      if(!RENG_BUF || RENG_BUF.c !== AC) RENG_BUF = { c: AC, b: taoReng(AC, 1) };
-      var s = AC.createBufferSource(); s.buffer = RENG_BUF.b; s.connect(AC.destination);
-      var t0 = AC.currentTime + 0.02; s.start(t0); RENG_HET = t0 + RENG_BUF.b.duration;
+      var kieu = 'nhac'; try{ kieu = ((window.snKieuChuong ? window.snKieuChuong() : localStorage.getItem('qrd_kieu')) === 'coi') ? 'coi' : 'nhac'; }catch(e2){}
+      var o = RENG_BUF[kieu];
+      if(!o || o.c !== AC) o = RENG_BUF[kieu] = { c: AC, b: (kieu === 'coi') ? taoReng(AC, 1) : taoNhac(AC, 'tin') };
+      var s = AC.createBufferSource(); s.buffer = o.b; s.connect(AC.destination);
+      var t0 = AC.currentTime + 0.02; s.start(t0); RENG_HET = t0 + o.b.duration;
       return;
     }catch(e1){}
     var t = AC.currentTime;
@@ -29669,6 +29823,8 @@ nhip();
        (Android không cho dùng new Notification()). Khối này lỗi thì app chạy y như cũ.
      • [SN11] Dòng trạng thái #sntb-tt dưới nút thử: máy đã đăng ký với máy chủ chưa + lỗi cụ thể (chụp màn hình là biết hỏng ở đâu).
        Nút thử chờ máy chủ XÁC NHẬN đã gửi lần 1 rồi mới bảo tắt app; lần 2 do máy chủ tự gửi 15 giây sau.
+     • [SN16] Máy chủ "chuongdon" (cdReoDon) gửi lại thông báo đơn chưa ai nhận (12 giây/lần trong 3 phút, rồi mỗi phút, tới phút 8).
+       window.snImDon(ids) = đơn đã bấm "Đã nghe"/"Xem đơn" trên máy này ⇒ sono-push-sw.js v2 thôi kêu các đơn đó.
      ═══════════════════════════════════════════════════════════════════════════════════════ -->
 <script type="module">
 import { getApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
@@ -29733,11 +29889,34 @@ function layReg(){
   if(!('serviceWorker' in navigator)) return Promise.resolve(null);
   if(!_regP){
     _regP = navigator.serviceWorker.register(SW_FILE, { scope: SW_SCOPE })
+      .then(function(r){ try{ if(r && r.update) r.update()['catch'](function(){}); }catch(e){} return r; })   /* [SN16] đăng ký lại cùng tên tệp thì trình duyệt KHÔNG tự hỏi bản sono-push-sw.js mới ⇒ mỗi lần mở app hỏi 1 lần */
       .then(choActive)
       .catch(function(e){ _regP = null; try{ console.warn('[sntb] chưa đăng ký được sono-push-sw.js', e); }catch(_){} return null; });
   }
   return _regP;
 }
+
+/* [SN16] Đơn đã "tắt chuông" trên máy này (bấm "Đã nghe" / "Xem đơn") ⇒ ghi cho sono-push-sw.js v2 biết:
+   tắt app rồi, máy chủ "chuongdon" có reo nhắc tiếp thì máy này cũng KHÔNG kêu các đơn đó nữa.
+   Cùng kho Cache Storage 'sn-push-v1' + cùng địa chỉ khoá với sono-push-sw.js (phạm vi SW + 'im/' + tag). Nhớ 1 ngày. */
+function imDon(ids){
+  try{
+    if(!ids || !ids.length || !window.caches) return;
+    var goc = new URL(SW_SCOPE, document.baseURI).href, bay = Date.now();
+    caches.open('sn-push-v1').then(function(c){
+      return Promise.all(ids.map(function(id){ return c.put(goc + 'im/' + encodeURIComponent('sn-don-' + id), new Response(String(bay))); }))
+        .then(function(){ return c.keys(); })
+        .then(function(ks){
+          return Promise.all(ks.map(function(k){                 /* dọn đơn quá 1 ngày */
+            return c.match(k).then(function(r){ return r ? r.text() : ''; }).then(function(t){
+              var x = Number(t) || 0; if(!(x > 0 && bay - x < 86400000)) return c['delete'](k);
+            });
+          }));
+        });
+    })['catch'](function(){});
+  }catch(e){}
+}
+window.snImDon = imDon;
 
 /* Hiện thông báo lúc APP ĐANG MỞ (Android bắt buộc đi qua SW) */
 window.snThongBao = function(title, opt){
