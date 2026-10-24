@@ -745,7 +745,7 @@ import { getFirestore, initializeFirestore, persistentLocalCache, persistentMult
 import { getStorage, ref as _sref, uploadBytes, getDownloadURL, deleteObject, listAll }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
 
-const APP_BUILD = "2026-10-23-SN16"; // ⬆️ ĐỔI MỖI LẦN DEPLOY (đặt TRÙNG tên cache trong sw.js) — hiện ở ⚙️ Cài đặt để biết máy đã chạy bản mới chưa
+const APP_BUILD = "2026-10-24-SN17"; // ⬆️ ĐỔI MỖI LẦN DEPLOY (đặt TRÙNG tên cache trong sw.js) — hiện ở ⚙️ Cài đặt để biết máy đã chạy bản mới chưa
 const firebaseConfig = {
   apiKey: "AIzaSyA_kjQ-CdASRkf50Glz3kQajlkD5qGWC4k",
   authDomain: "so-no-cc57a.firebaseapp.com",
@@ -16982,8 +16982,31 @@ a:`<b class="snai-h">🔔 Chuông báo đơn</b>
 <li>Thấy viên vàng <b>"🔕 Chạm để bật chuông báo đơn"</b> ở trên cùng → chạm vào nó.</li>
 </ol></div>
 <div class="snai-tip">🔊 Muốn chuông <b>to nhất</b>: vặn <b>hết cỡ</b> âm lượng <b>Phương tiện (Media)</b> — chuông của app kêu theo âm lượng này. Quán ồn quá thì chọn kiểu <b>📢 Còi báo</b>.</div>
-<div class="snai-tip">📲 <b>Khi đã TẮT hẳn app</b> (đã bật thông báo): có đơn là điện thoại <b>reo nhắc liên tục như có cuộc gọi tới</b> — 3 phút đầu cứ <b>12 giây kêu 1 lần</b>, sau đó mỗi phút 1 lần, tối đa 8 phút — tới khi <b>có người nhận đơn</b> (nhận ở máy nào cũng được). Muốn riêng máy đó thôi reo: <b>bấm vào thông báo</b> (mở app), <b>vuốt bỏ thông báo</b>, hoặc bấm <b>Đã nghe</b> trong app. Đang mở app trên màn hình thì thông báo không kêu chồng lên nhạc chuông của app.<br>Tiếng reo lúc này là <b>tiếng thông báo của điện thoại</b> — app không đổi được tiếng này. Muốn to như chuông điện thoại (máy Android): lúc thông báo hiện ra, <b>nhấn giữ</b> vào thông báo → bấm <b>⚙️ Cài đặt</b> → nếu hiện danh sách thì chọn mục <b>Sổ Nợ</b> (hoặc mục có chữ <b>github.io</b>) → <b>Âm thanh</b> → chọn một <b>nhạc chuông</b> thật to → vặn to âm lượng <b>Nhạc chuông / Thông báo</b>. Thấy các lần reo sau <b>nhỏ dần</b> (Android 15 trở lên): vào <b>Cài đặt</b> điện thoại → <b>Thông báo</b> → tắt mục <b>giảm dần âm lượng thông báo</b> (tiếng Anh: <i>Notification cooldown</i>). iPhone không cho chọn tiếng riêng — chỉ cần vặn to và tắt chế độ Im lặng.<br>Chưa bật thông báo: vào <span class="snai-path">🧰 Công cụ &amp; Sao lưu</span> → <b>🔔 Nhắc nợ tự động</b> → bấm <b>🔔 Cho phép hiện thông báo nhắc nợ</b> → điện thoại hỏi thì bấm <b>Cho phép</b>. Xong bấm <b>📲 Thử thông báo khi đã tắt app</b> ngay bên dưới để thử.</div>
+<div class="snai-tip">📲 <b>Khi đã TẮT hẳn app</b> (đã bật thông báo): có đơn là điện thoại <b>reo nhắc liên tục như có cuộc gọi tới</b> — 3 phút đầu cứ <b>12 giây kêu 1 lần</b>, sau đó mỗi phút 1 lần, tối đa 8 phút — tới khi <b>có người nhận đơn</b> (nhận ở máy nào cũng được). Muốn riêng máy đó thôi reo: <b>bấm vào thông báo</b> (mở app), <b>vuốt bỏ thông báo</b>, hoặc bấm <b>Đã nghe</b> trong app. Đang mở app trên màn hình thì thông báo không kêu chồng lên nhạc chuông của app.<br>Tiếng reo lúc này là <b>tiếng thông báo của điện thoại</b> — thường chỉ 1 tiếng "ting" ngắn. Muốn máy <b>đổ nhạc chuông</b>: tải <b>nhạc chuông đơn</b> rồi cài làm tiếng thông báo của Sổ Nợ — bấm nút <b>🎵</b> ở cuối khung này để xem từng bước. Thấy các lần reo sau <b>nhỏ dần</b> (Android 15 trở lên): vào <b>Cài đặt</b> điện thoại → <b>Thông báo</b> → tắt mục <b>giảm dần âm lượng thông báo</b> (tiếng Anh: <i>Notification cooldown</i>). iPhone không cho chọn tiếng riêng — chỉ cần vặn to và tắt chế độ Im lặng.<br>Chưa bật thông báo: vào <span class="snai-path">🧰 Công cụ &amp; Sao lưu</span> → <b>🔔 Nhắc nợ tự động</b> → bấm <b>🔔 Cho phép hiện thông báo nhắc nợ</b> → điện thoại hỏi thì bấm <b>Cho phép</b>. Xong bấm <b>📲 Thử thông báo khi đã tắt app</b> ngay bên dưới để thử.<button type="button" class="snai-sg" style="margin-top:8px" data-snaiq="Thoát app cũng đổ chuông: tiếng “ting” đổi thành chuông đơn">🎵 Xem cách cài nhạc chuông khi tắt app</button></div>
 <div class="snai-tip">💡 Máy đang mở cửa hàng nào có link / mã QR thì <b>chỉ reo đơn của cửa hàng đó</b> — 2 cửa hàng 2 máy không reo chéo nhau.</div>`},
+
+{c:'onl',t:'Thoát app cũng đổ chuông: tiếng “ting” đổi thành chuông đơn',k:'cai nhac chuong tai nhac chuong doi nhac chuong nhac chuong thong bao doi nhac chuong thong bao cai nhac chuong cho thong bao cai chuong cho thong bao cai chuong thong bao nhac chuong khi tat app tieng thong bao tieng thong bao chi ting am thanh thong bao doi am thanh thong bao chon am thanh thong bao chon am thanh thong bao so no am bao chi ting am bao doi am bao thong bao chi keu ting keu ting ting thong bao do chuong thong bao chuong don thu muc notifications tao thu muc notifications quan ly danh muc thong bao the loai thong bao pop up samsung oppo xiaomi vivo mp3 chuong don so no tat app van do chuong tat app khong do chuong tat app do chuong do chuong nhu dien thoai',go:'openRemSettings',
+a:`<b class="snai-h">🎵 Thoát app cũng đổ chuông</b>
+<b>👉 Chạy thế nào:</b> đã bật thông báo thì dù <b>tắt hẳn app</b> (thoát app), có đơn là điện thoại vẫn báo, cứ <b>12 giây reo lại 1 lần</b> (sau 3 phút thì mỗi phút 1 lần, tối đa 8 phút) tới khi có người nhận đơn. Muốn riêng máy đó thôi reo: <b>bấm vào thông báo</b>, <b>vuốt bỏ thông báo</b>, hoặc bấm <b>Đã nghe</b> trong app.<br>
+<b>👉 Vì sao phải cài nhạc chuông:</b> tiếng báo lúc tắt app là <b>tiếng thông báo của máy</b> — thường chỉ 1 tiếng <b>"ting"</b> ngắn. Cài <b>nhạc chuông đơn</b> làm tiếng thông báo của Sổ Nợ thì mỗi lần báo, máy <b>đổ nhạc chuông</b> khoảng 16 giây. <b>Mỗi điện thoại chỉ làm 1 lần.</b>
+<a class="snai-go" href="./Chuong-don-So-No.mp3" download="Chuong-don-So-No.mp3" style="text-align:center;text-decoration:none;box-sizing:border-box">⬇️ Bấm đây tải nhạc chuông đơn về máy</a>
+<b>🪜 Máy Samsung — làm từng bước:</b>
+<ol>
+<li>Bấm nút xanh <b>⬇️ Bấm đây tải nhạc chuông đơn</b> ở trên. File tải về nằm trong thư mục <b>Download</b>.</li>
+<li>Mở ứng dụng <b>Tệp của bạn</b> (hình <b>thư mục màu cam</b> — không thấy thì vuốt lên, gõ <b>Tệp</b> để tìm) → bấm <b>Bộ nhớ trong</b>.</li>
+<li>Chưa có thư mục <b>Notifications</b> thì bấm <b>⋮</b> (góc trên bên phải) → <b>Tạo thư mục</b> → gõ đúng chữ <b>Notifications</b> → <b>Tạo</b>.</li>
+<li>Mở thư mục <b>Download</b> → <b>nhấn giữ</b> file <b>Chuong-don-So-No</b> → bấm <b>Sao chép</b>.</li>
+<li>Quay ra <b>Bộ nhớ trong</b> → <b>mở thư mục Notifications</b> → bấm <b>Sao chép vào đây</b>.</li>
+<li>Vào <b>Cài đặt</b> → <b>Thông báo</b> → <b>Cài đặt nâng cao</b> → bật công tắc <b>Quản lý danh mục thông báo cho từng ứng dụng</b> (máy nào không có công tắc này thì bỏ qua).</li>
+<li>Vào <b>Cài đặt</b> → bấm 🔍 gõ <b>Sổ Nợ</b> → bấm app <b>Sổ Nợ</b> → <b>Thông báo</b> → <b>Thể loại thông báo</b> → bấm vào chữ <b>Chung</b> (không bấm công tắc).</li>
+<li>Chọn <b>Cảnh báo</b> → bấm <b>Âm thanh</b> → chọn <b>Chuông đơn Sổ Nợ</b> → quay lại. Bật luôn <b>Hiển thị dạng cửa sổ pop-up</b> để đơn hiện to trên màn hình.</li>
+</ol>
+<div class="snai-ok">✅ <b>Thử ngay:</b> <span class="snai-path">🧰 Công cụ &amp; Sao lưu</span> → <b>🔔 Nhắc nợ tự động</b> (hoặc bấm nút <b>▶ Mở ngay</b> ở cuối bài) → bấm <b>📲 Thử thông báo khi đã tắt app</b> → app báo <b>đã gửi 1/2</b> thì <b>tắt hẳn app</b> → khoảng 15 giây sau máy phải đổ <b>nhạc chuông mới</b>.</div>
+<div class="snai-warn">⚠️ Danh sách Âm thanh không có <b>Chuông đơn Sổ Nợ</b>: thường do ở bước 5 bấm <b>Sao chép vào đây</b> lúc còn đang ở Download. Phải <b>mở thư mục Notifications</b> trước rồi mới bấm.</div>
+<b>📱 Máy Android khác (Oppo, Xiaomi, Vivo…):</b> làm bước 1–5 bằng ứng dụng quản lý tệp của máy. Sau đó, lúc có thông báo Sổ Nợ, <b>nhấn giữ</b> vào thông báo → bấm <b>⚙️</b> → <b>Âm thanh</b> → chọn <b>Chuông đơn Sổ Nợ</b> (có máy ghi <b>Chuong-don-So-No</b>).
+<div class="snai-tip">💡 Trong Cài đặt không có app <b>Sổ Nợ</b> (đang mở app bằng Chrome): ở bước 7 vào <b>Ứng dụng → Chrome → Thông báo → Thể loại thông báo</b> → chọn mục <b>cuahangminhtri1-sono.github.io</b>.</div>
+<div class="snai-tip">🔈 Máy phải để chế độ <b>Âm thanh</b> (không phải Rung hay Tắt tiếng) và vặn to âm lượng <b>Thông báo</b>. Nhạc chuông này dùng cho mọi thông báo của Sổ Nợ, kể cả tin nhắn khách. Các lần reo sau <b>nhỏ dần</b> (Android 15 trở lên): <b>Cài đặt → Thông báo</b> → tắt mục <b>giảm dần âm lượng thông báo</b>. <b>iPhone</b> không cho đổi tiếng thông báo của app — chỉ cần vặn to và tắt chế độ Im lặng.</div>
+<div class="snai-tip">🔔 Chưa bật thông báo: <span class="snai-path">🧰 Công cụ &amp; Sao lưu</span> → <b>🔔 Nhắc nợ tự động</b> → bấm <b>🔔 Cho phép hiện thông báo nhắc nợ</b> → điện thoại hỏi thì bấm <b>Cho phép</b>.</div>`},
 
 {c:'onl',t:'Thời trang: khách chọn size, màu khi đặt online',k:'thoi trang my pham size mau dat online khach chon size mau het size tam het size bien the online',
 a:`<b class="snai-h">👕 Bán online hàng có size / màu</b>
@@ -17494,6 +17517,7 @@ a:`<b class="snai-h">📱 Máy nhân viên không gia hạn được</b>
 a:`<b class="snai-h">🆕 Tính năng mới thêm gần đây</b>
 <b>👉 Chạm vào nút bên dưới mỗi mục để đọc hướng dẫn chi tiết:</b>
 <ul>
+<li><b>🎵 Thoát app cũng đổ chuông</b> — tắt hẳn app mà có đơn, điện thoại vẫn <b>reo nhắc</b> tới khi có người nhận đơn. Cài <b>nhạc chuông đơn</b> 1 lần là máy đổ chuông thay cho tiếng "ting" ngắn.</li>
 <li><b>⏰ Ngày hết hạn sản phẩm (HSD)</b> — ghi hạn sử dụng cho từng món, ở <b>cả 5 ngành</b>; tab Kho tự báo món <b>sắp hết hạn / đã hết hạn</b>, bấm một cái là lọc ra.</li>
 <li><b>✏️ Sửa tên khách</b> — đổi tên, số điện thoại, địa chỉ của khách ngay trong bảng chi tiết; số nợ và giao dịch giữ nguyên.</li>
 <li><b>👁 Ảnh bằng chứng</b> — chọn 1 ảnh hóa đơn / giấy nợ để khách thấy luôn trên link công nợ.</li>
@@ -17512,6 +17536,7 @@ a:`<b class="snai-h">🆕 Tính năng mới thêm gần đây</b>
 <li><b>📋 Nhật ký thao tác</b> — xem ai đã xóa đơn, sửa công nợ, hủy ca.</li>
 <li><b>👀 Phía khách</b> — nhóm mục mới tả đúng những gì khách thấy khi đặt hàng qua link, gọi món tại bàn, xem ảnh lớn.</li>
 </ul>
+<button type="button" class="snai-sg" data-snaiq="Thoát app cũng đổ chuông: tiếng “ting” đổi thành chuông đơn">🎵 Thoát app cũng đổ chuông</button>
 <button type="button" class="snai-sg" data-snaiq="Ngày hết hạn (HSD) — báo hàng sắp hết hạn">⏰ Ngày hết hạn sản phẩm</button>
 <button type="button" class="snai-sg" data-snaiq="Sửa tên, số điện thoại, địa chỉ của khách (✏️ Sửa tên)">✏️ Sửa tên khách</button>
 <button type="button" class="snai-sg" data-snaiq="Ảnh bằng chứng trên link nợ — nút 👁 Cho khách xem">👁 Ảnh bằng chứng cho khách xem</button>
@@ -23482,7 +23507,7 @@ if (window.__RMT_READY__) return; window.__RMT_READY__ = true;
 try{
 
 /* ĐỔI CHUỖI NÀY CHO TRÙNG APP_BUILD MỖI LẦN DEPLOY (chỉ để hiện ở bảng quản trị) */
-var BUILD = '2026-10-23-SN16';
+var BUILD = '2026-10-24-SN17';
 var NHIP   = 6*3600*1000;          /* báo về tối đa 6 giờ 1 lần — khỏi tốn lượt ghi */
 var KEY_HB = 'rmt_hb_v2';          /* [QT7] nhịp báo về tính RIÊNG từng tài khoản (bản v1 tính chung cả máy) */
 var KEY_XEM= 'rmt_xem_v1';
