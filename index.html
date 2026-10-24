@@ -745,7 +745,7 @@ import { getFirestore, initializeFirestore, persistentLocalCache, persistentMult
 import { getStorage, ref as _sref, uploadBytes, getDownloadURL, deleteObject, listAll }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
 
-const APP_BUILD = "2026-10-24-SN17"; // ⬆️ ĐỔI MỖI LẦN DEPLOY (đặt TRÙNG tên cache trong sw.js) — hiện ở ⚙️ Cài đặt để biết máy đã chạy bản mới chưa
+const APP_BUILD = "2026-10-25-SN18"; // ⬆️ ĐỔI MỖI LẦN DEPLOY (đặt TRÙNG tên cache trong sw.js) — hiện ở ⚙️ Cài đặt để biết máy đã chạy bản mới chưa
 const firebaseConfig = {
   apiKey: "AIzaSyA_kjQ-CdASRkf50Glz3kQajlkD5qGWC4k",
   authDomain: "so-no-cc57a.firebaseapp.com",
@@ -17517,6 +17517,7 @@ a:`<b class="snai-h">📱 Máy nhân viên không gia hạn được</b>
 a:`<b class="snai-h">🆕 Tính năng mới thêm gần đây</b>
 <b>👉 Chạm vào nút bên dưới mỗi mục để đọc hướng dẫn chi tiết:</b>
 <ul>
+<li><b>◁ Nút Trở về của điện thoại</b> — đang mở bảng nào, bấm Trở về là <b>đóng đúng bảng đó</b> (như bấm Đóng / Hủy), không còn văng ra khỏi app. Ở màn chính bấm <b>2 lần</b> mới thoát.</li>
 <li><b>🎵 Thoát app cũng đổ chuông</b> — tắt hẳn app mà có đơn, điện thoại vẫn <b>reo nhắc</b> tới khi có người nhận đơn. Cài <b>nhạc chuông đơn</b> 1 lần là máy đổ chuông thay cho tiếng "ting" ngắn.</li>
 <li><b>⏰ Ngày hết hạn sản phẩm (HSD)</b> — ghi hạn sử dụng cho từng món, ở <b>cả 5 ngành</b>; tab Kho tự báo món <b>sắp hết hạn / đã hết hạn</b>, bấm một cái là lọc ra.</li>
 <li><b>✏️ Sửa tên khách</b> — đổi tên, số điện thoại, địa chỉ của khách ngay trong bảng chi tiết; số nợ và giao dịch giữ nguyên.</li>
@@ -17536,6 +17537,7 @@ a:`<b class="snai-h">🆕 Tính năng mới thêm gần đây</b>
 <li><b>📋 Nhật ký thao tác</b> — xem ai đã xóa đơn, sửa công nợ, hủy ca.</li>
 <li><b>👀 Phía khách</b> — nhóm mục mới tả đúng những gì khách thấy khi đặt hàng qua link, gọi món tại bàn, xem ảnh lớn.</li>
 </ul>
+<button type="button" class="snai-sg" data-snaiq="Nút Trở về ◁ của điện thoại (nút Back)">◁ Nút Trở về của điện thoại</button>
 <button type="button" class="snai-sg" data-snaiq="Thoát app cũng đổ chuông: tiếng “ting” đổi thành chuông đơn">🎵 Thoát app cũng đổ chuông</button>
 <button type="button" class="snai-sg" data-snaiq="Ngày hết hạn (HSD) — báo hàng sắp hết hạn">⏰ Ngày hết hạn sản phẩm</button>
 <button type="button" class="snai-sg" data-snaiq="Sửa tên, số điện thoại, địa chỉ của khách (✏️ Sửa tên)">✏️ Sửa tên khách</button>
@@ -18413,6 +18415,32 @@ Chừng nào còn dòng này thì <b>chỉ nên dùng khi có mạng</b>.</li>
 </ul>
 <div class="snai-warn">⚠️ Đang mất mạng hoặc còn dữ liệu chưa gửi mà bạn <b>đóng app / tắt tab</b>, trình duyệt sẽ hỏi <i>"Rời khỏi trang?"</i>. Hãy bấm <b>Ở lại</b>, bật mạng, chờ huy hiệu báo đã đồng bộ rồi mới đóng.</div>
 <div class="snai-tip">💡 Xem thêm 2 mục: <b>Mất mạng có bán hàng được không?</b> và <b>Huy hiệu "đang đồng bộ" là gì?</b></div>`},
+
+/* ───────────── ◁ NÚT TRỞ VỀ CỦA ĐIỆN THOẠI (SN18) ───────────── */
+{c:'bd',t:'Nút Trở về ◁ của điện thoại (nút Back)',k:'nut tro ve nut quay lai nut tro lai nut back nut lui tro ve quay lai tro lai vuot lui vuot quay lai vuot tu mep man hinh bam tro ve bi thoat bam tro ve bi thoat app bam quay lai bi thoat app bam tro lai bi thoat bam back bi thoat app bam tro lai vang ra ngoai bam quay lai app tat vuot lui thoat app quay lai man truoc dong tung bang lui tung buoc hien bam them 1 lan nua de thoat bam them lan nua bam 2 lan moi thoat bam hai lan moi thoat lo tay bam tro ve',
+a:`<b class="snai-h">◁ Nút Trở về của điện thoại</b>
+<b>👉 Bây giờ bấm nút Trở về là làm gì:</b> đang mở bảng nào thì bấm nút <b>Trở về</b> là <b>đóng đúng bảng đó</b> — y như bấm nút <b>Đóng</b> / <b>Hủy</b> / <b>✕</b> ở trong bảng. App <b>không tắt</b> nữa. Bảng nằm chồng lên nhau thì mỗi lần bấm đóng <b>1 bảng trên cùng</b>.
+<b>🪜 Ví dụ ở màn 📒 Sổ Nợ:</b>
+<ol>
+<li>Chạm tên khách → mở <b>Chi tiết khách</b> → bấm <b>🛒 Mua</b> → mở bảng ghi nợ.</li>
+<li>Bấm <b>Trở về</b> lần 1 ⇒ đóng bảng ghi nợ (như bấm <b>Hủy</b> — chưa bấm Lưu thì không ghi gì). Còn lại bảng Chi tiết khách.</li>
+<li>Bấm <b>Trở về</b> lần 2 ⇒ đóng Chi tiết khách, về danh sách khách.</li>
+<li>Bấm <b>Trở về</b> lần 3 ⇒ màn hình hiện dòng <b>"👉 Bấm nút Trở về thêm 1 lần nữa để thoát app"</b>.</li>
+<li>Bấm <b>Trở về</b> lần 4 ⇒ lúc này mới thoát app.</li>
+</ol>
+<b>🛒 Ở màn Bán hàng:</b> bấm Trở về đóng lần lượt: bảng thu tiền → giỏ hàng → màn Bán hàng (về lại màn 📒 Sổ Nợ). Hàng đã chọn trong giỏ <b>vẫn giữ nguyên</b> — bấm <b>🛒 BÁN HÀNG</b> vào lại là thấy.
+<div class="snai-tip">💡 Nút Trở về là nút <b>◁</b> (hoặc <b>‹</b>) ở cạnh dưới màn hình. Máy dùng <b>cử chỉ vuốt</b> thì <b>vuốt từ mép trái hoặc mép phải màn hình vào giữa</b> — cũng là Trở về.</div>
+<div class="snai-ok">✅ Bấm Trở về chỉ <b>đóng bảng</b>. App <b>không bao giờ</b> tự bấm giùm Lưu, Xóa, Hủy đơn, Chốt ca, Đóng phòng hay Thanh toán. Bảng đang gõ dở mà chưa bấm Lưu thì giống bấm Hủy: chữ vừa gõ trong bảng đó không được lưu.</div>
+<b>📌 Vài chỗ đặc biệt:</b>
+<ul>
+<li><b>🔔 Khung báo có đơn mới:</b> bấm Trở về = bấm <b>Đã nghe, tắt chuông</b>. Đơn <b>vẫn còn nguyên</b> trong tab Đơn, không mất.</li>
+<li><b>💰 Quỹ ca</b> và <b>bảng chọn người bán (mã PIN)</b>: bấm Trở về lùi <b>1 bước bên trong</b> trước (như bấm nút <b>‹</b>), bấm tiếp mới đóng.</li>
+<li>Đang <b>nhập / phục hồi dữ liệu</b> (nút Đóng bị mờ): bấm Trở về thì bảng <b>không đóng</b>, chỉ nhắc <b>"⏳ Bảng này đang chạy dở"</b>. Chờ chạy xong rồi hãy đóng.</li>
+<li>Đang gõ chữ (bàn phím đang hiện): bấm Trở về lần đầu chỉ <b>ẩn bàn phím</b>, bấm thêm lần nữa mới đóng bảng.</li>
+<li>Ảnh đang phóng to, hộp <b>💬 Tin nhắn khách</b>: bấm Trở về cũng đóng như trước giờ.</li>
+</ul>
+<div class="snai-warn">⚠️ Vừa mở app mà <b>chưa chạm vào màn hình lần nào</b> thì bấm Trở về app vẫn thoát ngay — điện thoại chưa cho app giữ nút này. Chỉ cần <b>chạm vào app 1 cái</b> (chạm chỗ nào cũng được) là nút Trở về chạy đúng như trên. Bảng tự hiện lên lúc vừa mở app (VD bảng nhắc gia hạn) thì chạm vào bảng 1 cái rồi hãy bấm Trở về.</div>
+<div class="snai-tip">💻 Máy tính: nút <b>←</b> của trình duyệt cũng đóng từng bảng như vậy (không có bước "bấm thêm 1 lần nữa"). iPhone mở bằng Safari: vuốt từ mép trái màn hình sang phải cũng đóng bảng.</div>`},
 ];
 
 /* ═════════════ 3) BỘ MÁY HIỂU TIẾNG VIỆT ═════════════ */
@@ -18885,6 +18913,7 @@ function ttsBtn(){
 var CRS=['App này gồm những gì?',
  'Đăng ký tài khoản mới — dùng thử miễn phí',
  'Cài app vào màn hình chính điện thoại',
+ 'Nút Trở về ◁ của điện thoại (nút Back)',
  'Thêm khách hàng mới',
  'Ghi khách mua hàng (ghi nợ)',
  'Ghi khách trả tiền (thu nợ)',
@@ -23507,7 +23536,7 @@ if (window.__RMT_READY__) return; window.__RMT_READY__ = true;
 try{
 
 /* ĐỔI CHUỖI NÀY CHO TRÙNG APP_BUILD MỖI LẦN DEPLOY (chỉ để hiện ở bảng quản trị) */
-var BUILD = '2026-10-24-SN17';
+var BUILD = '2026-10-25-SN18';
 var NHIP   = 6*3600*1000;          /* báo về tối đa 6 giờ 1 lần — khỏi tốn lượt ghi */
 var KEY_HB = 'rmt_hb_v2';          /* [QT7] nhịp báo về tính RIÊNG từng tài khoản (bản v1 tính chung cả máy) */
 var KEY_XEM= 'rmt_xem_v1';
@@ -30719,5 +30748,457 @@ chenNut();
 })();
 </script>
 <!-- ═══════════════ HẾT: SAO LƯU TỰ ĐỘNG QUA EMAIL ═══════════════ -->
+<!-- ═══════════════ NÚT TRỞ VỀ CỦA ĐIỆN THOẠI — đóng đúng bảng đang mở, KHÔNG văng ra khỏi app (drop-in · namespace ntv-) ═══════════════
+     VÌ SAO CÓ KHỐI NÀY
+       Trước đây đang mở một bảng (chi tiết khách, giỏ hàng, màn Bán hàng, menu Cài đặt…) mà bấm nút Trở về (◁) của
+       điện thoại ⇒ app ĐÓNG LUÔN. Muốn quay lại phải bấm nút Đóng / Hủy / ✕ ở trong app.
+     CÁCH CHẠY
+       • Mỗi bảng đang mở = 1 bước trong lịch sử trình duyệt (history.pushState). Bấm Trở về ⇒ khối này BẤM GIÙM đúng
+         nút Đóng / Hủy / ✕ / ‹ Quay lại của bảng nằm TRÊN CÙNG — y như người dùng tự bấm — ⇒ về đúng màn trước, app không tắt.
+         Bảng có nút "‹" lùi từng bước bên trong (Quỹ ca, cổng PIN nhân viên) ⇒ Trở về lùi 1 bước trước, rồi mới đóng.
+       • Đóng bảng bằng nút trong app ⇒ khối này tự gỡ bước lịch sử thừa (history.go lùi) để lần bấm Trở về sau vẫn đúng.
+       • Màn chính Sổ Nợ (không còn bảng nào mở) trên điện thoại Android: bấm Trở về lần 1 ⇒ hiện
+         "Bấm nút Trở về thêm 1 lần nữa để thoát app"; bấm lần 2 mới thoát (chống lỡ tay tắt app khi đang bán / chờ chuông đơn).
+       • CHỈ bấm những nút có sẵn tên Đóng / Hủy / Huỷ / Để sau / ✕ / ‹ Quay lại (+ "Đã nghe, tắt chuông" của khung báo đơn,
+         "Đã hiểu" của 2 khung thông báo). KHÔNG bao giờ bấm Xóa, Hủy đơn, Đóng ca, Đóng phòng, Lưu, Thanh toán…
+         Nút Đóng đang bị khoá (đang nhập / phục hồi dữ liệu…) ⇒ KHÔNG đóng, chỉ nhắc chờ.
+     LUẬT CỦA CHROME PHẢI THEO (đã thử trên Chrome thật)
+       • Thêm bước lịch sử khi người dùng CHƯA chạm vào trang, hoặc ngay sau khi vừa bấm Trở về mà chưa chạm lại
+         ⇒ Chrome ĐÁNH DẤU BỎ QUA các bước đó ⇒ lần Trở về kế tiếp VĂNG APP. Vì vậy khối này CHỈ thêm bước khi đã có
+         cú chạm thật kể từ lần bấm Trở về gần nhất; chưa có thì đợi cú chạm kế tiếp (đóng / mở bảng vẫn chạy bình thường).
+       • Lùi lịch sử bằng code (history.go) thì không bị luật này.
+     KHÔNG ĐỤNG KHỐI KHÁC
+       • 2 khối Tin nhắn khách (tnk-) và Xem ảnh lớn (xab-) đã tự lo nút Trở về ⇒ khi chúng đang mở, khối này đứng yên.
+       • Trang khách xem nợ / hóa đơn (?view=…) KHÔNG chạy khối này — nút Trở về của khách vẫn như web thường.
+       • Không sửa 1 dòng code cũ. Bọc try/catch toàn bộ: có lỗi gì thì app chạy y như cũ.
+     THÊM BẢNG MỚI VỀ SAU: thêm 1 dòng vào danh sách DS bên dưới (bộ chọn lúc bảng đang mở + nút đóng của bảng).
+       Bảng mới dạng .modal-overlay (Sổ Nợ) / .sk-modal (Bán hàng) có nút Đóng / Hủy thì KHÔNG cần thêm — tự nhận.
+       Khối mới nào TỰ dùng history.pushState thì phải thêm bộ chọn của nó vào NGOAI để khối này đứng yên khi nó mở.
+     ═══════════════════════════════════════════════════════════════════════════════════════════════════════════════ -->
+<script>
+(function(){
+"use strict";
+try{
+  var XEM = ''; try{ XEM = new URLSearchParams(location.search).get('view') || ''; }catch(e){}
+  if(XEM) return;                                         /* trang khách (link nợ / hóa đơn): để nút Trở về như web thường */
+  if(window.__SN_NUT_TRO_VE__) return;
+  window.__SN_NUT_TRO_VE__ = true;
+  var H = window.history;
+  if(!H || typeof H.pushState !== 'function' || typeof H.go !== 'function') return;
+
+  var DAU = 'snTroVe';                                    /* dấu riêng của khối này trong history.state */
+  var ANDROID = /Android/i.test(navigator.userAgent || '');
+  var NAV = (window.navigation && typeof window.navigation.addEventListener === 'function') ? window.navigation : null;
+  var MAX = 24;                                           /* trần số bước — phòng lỗi lặp */
+  try{ if('scrollRestoration' in H) H.scrollRestoration = 'manual'; }catch(e){}   /* Trở về KHÔNG kéo danh sách nhảy lên đầu */
+
+  /* ───────── tiện ích ───────── */
+  function $(id){ return document.getElementById(id); }
+  function qa(s, r){ try{ return Array.prototype.slice.call((r || document).querySelectorAll(s)); }catch(e){ return []; } }
+  function hien(x, xetMo){                                /* đang hiện trên màn hình? (xetMo: tính cả độ mờ) */
+    try{
+      if(!x || !x.getBoundingClientRect || !x.isConnected) return false;
+      var r = x.getBoundingClientRect(); if(r.width < 3 || r.height < 3) return false;
+      var n = x, k = 0;
+      while(n && n.nodeType === 1 && k < 40){
+        var cs = getComputedStyle(n);
+        if(cs.display === 'none' || cs.visibility === 'hidden') return false;
+        if(xetMo && parseFloat(cs.opacity) < 0.05) return false;
+        n = n.parentElement; k++;
+      }
+      return true;
+    }catch(e){ return false; }
+  }
+  function khoa(b){ return !!(b && (b.disabled || b.getAttribute('aria-disabled') === 'true')); }
+  function chu(x){ var t = ''; try{ t = String(x.textContent || '').replace(/\s+/g, ' ').trim(); if(t.normalize) t = t.normalize('NFC'); }catch(e){} return t; }
+  function noi(m){
+    try{ if(window.SKMOD && window.SKMOD.core && typeof window.SKMOD.core.toast === 'function'){ window.SKMOD.core.toast(m); return; } }catch(e){}
+    try{ if(typeof window.toast === 'function'){ window.toast(m); return; } }catch(e){}
+    try{ var t = $('toast'); if(t){ t.textContent = m; t.classList.add('show'); clearTimeout(noi.t); noi.t = setTimeout(function(){ t.classList.remove('show'); }, 3000); } }catch(e){}
+  }
+
+  /* Chữ của nút ĐÓNG được phép bấm — phải TRÙNG KHÍT cả chữ (không bắt "Hủy đơn", "Đóng ca", "Đóng phòng", "🗑 Hủy ca"…).
+     Ký hiệu trơn ✕ × KHÔNG có trong danh sách: app dùng ✕ cho cả nút XOÁ dòng (xoá bàn, xoá đơn giữ, xoá món trong giỏ…). */
+  var CHU_DONG = ['Đóng','✖ Đóng','✕ Đóng','× Đóng','‹ Đóng','Hủy','Huỷ','✖ Hủy','✕ Hủy','✖ Huỷ','Để sau','‹ Quay lại','← Quay lại','Quay lại'];
+  try{ CHU_DONG = CHU_DONG.map(function(s){ return s.normalize ? s.normalize('NFC') : s; }); }catch(e){}
+  function laChuDong(b){ return CHU_DONG.indexOf(chu(b)) >= 0; }
+  function nutChu(goc, chiTrong){                         /* nút có chữ Đóng / Hủy… trong 'goc' (chiTrong: chỉ tìm trong vùng này) */
+    var vung = chiTrong ? qa(chiTrong, goc) : [goc], i, j, bs, kq = null;
+    for(i = 0; i < vung.length; i++){
+      bs = qa('button,[role="button"]', vung[i]);
+      for(j = 0; j < bs.length; j++){
+        if(!laChuDong(bs[j])) continue;
+        if(hien(bs[j]) && !khoa(bs[j])) return bs[j];
+        if(!kq && hien(bs[j])) kq = bs[j];                /* có nút nhưng đang khoá ⇒ trả về để biết mà KHÔNG đóng */
+      }
+    }
+    return kq;
+  }
+  function nutDau(goc, ds, ngam){                         /* nút đầu tiên khớp danh sách bộ chọn (ngam: chấp nhận nút đang ẩn) */
+    var i, j, a, kq = null;
+    for(i = 0; i < ds.length; i++){
+      a = qa(ds[i], goc);
+      for(j = 0; j < a.length; j++){
+        if(hien(a[j]) && !khoa(a[j])) return a[j];
+        if(!kq && hien(a[j])) kq = a[j];
+      }
+    }
+    if(!kq && ngam){ for(i = 0; i < ds.length; i++){ a = qa(ds[i], goc); if(a.length) return a[0]; } }
+    return kq;
+  }
+
+  /* ───────── BẢNG SỔ NỢ (.modal-overlay) ─────────
+     Nút đóng thật của mọi bảng Sổ Nợ là onclick="closeModal('<id>')" (Hủy / Đóng / Để sau / ✕) — chỉ nhận nút gọi ĐÚNG
+     một lệnh đó (không nhận nút kiểu "closeModal('x');openImport()"). Bảng dựng sau (Sao lưu qua email) có nút Đóng riêng. */
+  function nutSN(el){
+    var id = el.id || '', i, bs = qa('[onclick]', el), ok = [], re;
+    try{ re = new RegExp('^\\s*closeModal\\(\\s*[\'"]' + id.replace(/[^\w-]/g, '') + '[\'"]\\s*\\)\\s*;?\\s*$'); }catch(e){ re = null; }
+    if(re && id){ for(i = 0; i < bs.length; i++){ if(re.test(bs[i].getAttribute('onclick') || '')) ok.push(bs[i]); } }
+    for(i = 0; i < ok.length; i++){ if(hien(ok[i]) && !khoa(ok[i])) return ok[i]; }
+    if(ok.length){ for(i = 0; i < ok.length; i++){ if(hien(ok[i])) return ok[i]; } }
+    var b = nutDau(el, ['[data-slm="dong"]']) || nutChu(el, '.modal-btns') || nutChu(el);
+    if(b) return b;
+    /* không thấy nút ⇒ đóng y như chạm ra ngoài bảng (closeModal của app) */
+    if(id && typeof window.closeModal === 'function') return function(){ window.closeModal(id); };
+    return null;
+  }
+  /* ───────── BẢNG BÁN HÀNG (.sk-modal) ─────────
+     Nút đóng theo mã hành động (data-act) — CHỈ những mã chắc chắn là đóng bảng. KHÔNG nhận rm-close (Đóng phòng & thanh toán),
+     rm-cancel, ca-close (Chốt ca), ca-cancel (Hủy ca), qrd-lhuy (Huỷ lịch)… */
+  var ACT_DONG = ['num-close','ca-x','rm-x','ms-x','kg-x','fs-pick-x','fs-mx-x','fnb-mgr-x','fnb-bom-x'];
+  function nutSK(el){
+    var id = el.id ? '#' + el.id : '', i, a = [], b;
+    if(id){
+      qa('[data-act="modal-close"],[data-act="qrd-mdong"]', el).forEach(function(x){ if(x.getAttribute('data-target') === id) a.push(x); });
+      for(i = 0; i < a.length; i++){ if(hien(a[i]) && !khoa(a[i])) return a[i]; }
+      for(i = 0; i < a.length; i++){ if(hien(a[i])) return a[i]; }
+    }
+    b = nutDau(el, ACT_DONG.map(function(x){ return '[data-act="' + x + '"]'; }).concat(['#sk-hw-cancel']));
+    b = b || nutChu(el, '.sk-card-acts');
+    if(b) return b;
+    /* Bảng không có nút Hủy / Đóng (vd "Quản lý phòng" chỉ có "Lưu & đóng") ⇒ đóng KHÔNG LƯU bằng đúng hàm đóng bảng
+       của màn Bán hàng (skCloseModal — hàm mà mọi nút Đóng / Hủy của bảng Bán hàng đều gọi). Không bấm nút Lưu. */
+    if(id && window.SKMOD && window.SKMOD.core && typeof window.SKMOD.core.closeModal === 'function'){
+      return function(){ window.SKMOD.core.closeModal(id); };
+    }
+    return null;
+  }
+  /* ───────── MÀN BÁN HÀNG (POS) + cổng PIN nhân viên ───────── */
+  function cong(){ var g = $('sk-gate'); return (g && g.classList.contains('on') && hien(g)) ? g : null; }
+  function luiPOS(el){
+    var g = cong(); if(!g) return null;
+    var f = $('sk-gate-forgot'), p = $('sk-gate-pin');
+    if(f && hien(f)) return nutDau(g, ['[data-act="pf-back"]']);                       /* "Quên PIN" ⇒ ‹ Quay lại */
+    if(p && hien(p)) return nutDau(g, ['[data-act="pin-key"][data-k="back"]']);        /* bàn phím PIN ⇒ ‹ về danh sách */
+    return null;
+  }
+  function nutPOS(el){ return nutDau(document, ['#snbh-posnav [data-act="close-pos"]', '#pos-screen .sk-x[data-act="close-pos"]'], true); }
+
+  /* ───────── DANH SÁCH BẢNG (q = bộ chọn LÚC ĐANG MỞ · nut = nút đóng · lui = nút lùi 1 bước bên trong) ───────── */
+  var DS = [
+    {k:'menu',    q:'#snbh-topbar .snbh-menu.on', dong:function(el){ el.classList.remove('on'); return true; }},   /* menu ⚙️ Cài đặt: y như chạm ra ngoài */
+    {k:'att',     q:'#att-overlay.active',     nut:['#att-overlay .att-head button']},
+    {k:'in',      q:'#sn-print-modal.on',      nut:['#sn-print-modal .sn-cancel']},
+    {k:'troly',   q:'#snai-mask.on',           nut:['#snai-x']},
+    {k:'dmk',     q:'#dmk-mask.on',            nut:['#dmk-x','#dmk-cancel']},
+    {k:'gt',      q:'#gt-mask.on',             nut:['#gt-x']},
+    {k:'mokhoa',  q:'#sn-unlock-ov.on',        nut:['#sn-unlock-cancel']},
+    {k:'baocao',  q:'#snr-ov.on',              nut:['#snr-close']},
+    {k:'muagoi',  q:'#sn-mua',                 nut:['#sn-mua [data-mg="x"]']},
+    {k:'cn-up',   q:'#cn-upsell',              nut:['#cn-upsell .cn-close']},
+    {k:'pos-up',  q:'#pos-upsell',             nut:['#pos-upsell [onclick="skClosePosUpsell()"]']},
+    {k:'ngm-up',  q:'#ngm-up',                 nut:['#ngm-up [data-ngm="x"]']},
+    {k:'nganh',   q:'#nga-mask.on',            nut:['#nga-mask [data-nga="x"]']},
+    {k:'baodon',  q:'#qrd-bao',                nut:['#qrd-bao [data-act="qrd-bao-tat"]']},                   /* "Đã nghe, tắt chuông" (đơn vẫn nằm ở tab Đơn) */
+    {k:'caiapp',  q:'#tsi-ov',                 nut:['#tsi-ok']},
+    {k:'tbadmin', q:'#rmt-mask',               nut:['#rmt-mask [data-r="ok"]']},
+    {k:'anhsp',   q:'.asp-xem',                nut:['.asp-xem > button']},
+    {k:'in-pos',  q:'#skPmenu',                nut:['#skPclose']},
+    {k:'in-tem',  q:'#skLbMenu',               nut:['#lbClose']},
+    {k:'in-don',  q:'#qrd-pm',                 nut:['#qrdPx']},
+    {k:'sn',      q:'.modal-overlay.active',   nut:nutSN},
+    {k:'quet',    q:'#sk-scanwrap.on',         nut:['#sk-scanwrap [data-act="scan-stop"]']},
+    {k:'sk',      q:'.sk-modal.on',            nut:nutSK, lui:['[data-act="ca-back"]','[data-act="ca-roi"]']},
+    {k:'gio',     q:'#sk-cart-sheet.on',       nut:['#sk-cart-sheet [data-act="cart-close"]']},
+    {k:'pos',     q:'#pos-screen.on',          nut:nutPOS, lui:luiPOS}
+  ];
+  var NGOAI = '#tnk-k.on, .xab.on';                       /* khối TỰ lo nút Trở về — đang mở thì khối này đứng yên */
+  /* Phần tử cố định KHÔNG phải bảng (thanh báo, nút nổi, khung nhắc nhỏ…) */
+  var BO = '#app,#public-view,#auth-screen,#locked-view,#pos-screen,#toast,.toast,#inapp-banner,#hotlineFab,#pwaNetBadge,#nhac-wrap,'
+         + '#tnk-fab,#tnk-bao,#tnk-k,.xab,#snai-fab,#snai-mask,#qrd-khoa,#dsl-sync-pill,#pwaUpdateBar,#pwaApplyToast,#rmt-bar,#tsi-bar,#iab-bar,'
+         + '#sntb-moi,#sn-print-sheet,#sk-print,#sk-scrim,#snbh-topbar,[id^="snai-"]';
+  var DIEN_TICH = 0.5;                                    /* bảng lạ: phải che ≥ 50% màn hình */
+
+  function zChuoi(el){
+    var k = [], n = el, i = 0;
+    try{
+      while(n && n.nodeType === 1 && n !== document.body && n !== document.documentElement && i < 60){
+        var cs = getComputedStyle(n);
+        if(cs.position !== 'static' && cs.zIndex !== 'auto') k.unshift(parseInt(cs.zIndex, 10) || 0);
+        else if(cs.position === 'fixed') k.unshift(0);
+        n = n.parentElement; i++;
+      }
+    }catch(e){}
+    return k;
+  }
+  function soZ(a, b){
+    var ka = a.z, kb = b.z, n = Math.max(ka.length, kb.length), i;
+    for(i = 0; i < n; i++){ var x = (i < ka.length ? ka[i] : 0), y = (i < kb.length ? kb[i] : 0); if(x !== y) return x - y; }
+    if(ka.length !== kb.length) return ka.length - kb.length;
+    try{
+      var p = a.el.compareDocumentPosition(b.el);
+      if(p & 16) return -1; if(p & 8) return 1; if(p & 4) return -1; if(p & 2) return 1;
+    }catch(e){}
+    return 0;
+  }
+  function timNut(d, el){
+    try{
+      if(typeof d.nut === 'function') return d.nut(el);
+      if(d.nut) return nutDau(document, d.nut);
+    }catch(e){}
+    return null;
+  }
+  function timLui(d, el){
+    try{
+      if(typeof d.lui === 'function') return d.lui(el);
+      if(d.lui){ var b = nutDau(el, d.lui); return (b && hien(b) && !khoa(b)) ? b : null; }
+    }catch(e){}
+    return null;
+  }
+  /* Danh sách bảng đang mở, xếp từ DƯỚI lên TRÊN */
+  function dsLop(){
+    var o = [], seen = [], i, j, a, d, x;
+    for(i = 0; i < DS.length; i++){
+      d = DS[i]; a = qa(d.q);
+      for(j = 0; j < a.length; j++){
+        x = a[j];
+        if(seen.indexOf(x) >= 0 || !hien(x)) continue;
+        seen.push(x); o.push({d:d, el:x});
+      }
+    }
+    /* Bảng LẠ (khối thêm về sau, chưa có trong danh sách): cố định, che ≥ 50% màn hình, có nút Đóng / Hủy… */
+    try{
+      var W = window.innerWidth || 360, Hh = window.innerHeight || 640;
+      var pool = Array.prototype.slice.call(document.body ? document.body.children : []);
+      var ps = $('pos-screen'); if(ps && ps.classList.contains('on')) pool = pool.concat(Array.prototype.slice.call(ps.children));
+      for(i = 0; i < pool.length; i++){
+        x = pool[i];
+        if(seen.indexOf(x) >= 0 || /^(SCRIPT|STYLE|LINK|META|NOSCRIPT|TEMPLATE|INPUT|AUDIO|VIDEO|IFRAME)$/.test(x.tagName)) continue;
+        try{ if(x.matches(BO) || x.matches(NGOAI)) continue; }catch(e){}
+        var dsMa = false; for(j = 0; j < DS.length; j++){ try{ if(x.matches(DS[j].q)){ dsMa = true; break; } }catch(e){} }
+        if(dsMa) continue;
+        if(/(^|\s)(sk-view|sk-tabs|sk-top|sk-body|sk-cartbar|sk-modal|sk-sheet|sk-scanwrap|sk-gate|modal-overlay)(\s|$)/.test(String(x.className || ''))) continue;
+        var cs = getComputedStyle(x);
+        if(cs.position !== 'fixed' || cs.pointerEvents === 'none' || parseFloat(cs.opacity) < 0.2) continue;
+        if(!hien(x, true)) continue;
+        var r = x.getBoundingClientRect();
+        var iw = Math.max(0, Math.min(r.right, W) - Math.max(r.left, 0)), ih = Math.max(0, Math.min(r.bottom, Hh) - Math.max(r.top, 0));
+        if(iw * ih < W * Hh * DIEN_TICH) continue;
+        var nb = nutChu(x); if(!nb) continue;
+        seen.push(x); o.push({d:{k:'la', nut:(function(b){ return function(){ return b; }; })(nb)}, el:x});
+      }
+    }catch(e){}
+    for(i = 0; i < o.length; i++){ o[i].z = zChuoi(o[i].el); o[i].lui = timLui(o[i].d, o[i].el); o[i].w = o[i].lui ? 2 : 1; }
+    o.sort(soZ);
+    return o;
+  }
+  function trong(L){ var s = 0; for(var i = 0; i < L.length; i++) s += L[i].w; return s; }
+  function ngoaiTren(){                                   /* bảng tnk / xab đang mở (lấy cái trên cùng) */
+    var a = qa(NGOAI).filter(function(x){ return hien(x); }), t = null;
+    a.forEach(function(x){ var o = {el:x, z:zChuoi(x)}; if(!t || soZ(o, t) > 0) t = o; });
+    return t;
+  }
+  /* Đóng (hoặc lùi 1 bước) bảng trên cùng. Trả về: 1 = đã đóng/lùi · 2 = bảng không đóng được lúc này (đã nhắc) · 0 = không còn bảng */
+  function dongTren(L){
+    L = L || dsLop();
+    if(!L.length) return 0;
+    var t = L[L.length - 1], ng = ngoaiTren();
+    if(ng && soZ(ng, t) > 0) return 0;                    /* bảng tnk / xab đang ở trên — để nó tự lo */
+    try{
+      if(t.lui){ t.lui.click(); return 1; }
+      if(typeof t.d.dong === 'function'){ t.d.dong(t.el); return 1; }
+      var b = timNut(t.d, t.el);
+      if(typeof b === 'function'){ b(); return 1; }
+      if(b && !khoa(b)){ b.click(); return 1; }
+    }catch(e){ try{ console.warn('[ntv] đóng bảng lỗi', e); }catch(_){} return 2; }
+    noi('⏳ Bảng này đang chạy dở — chờ xong rồi hãy bấm Trở về / Đóng.');
+    return 2;
+  }
+  function dongDuoc(t){
+    if(!t) return true;
+    if(t.lui || typeof t.d.dong === 'function') return true;
+    var b = timNut(t.d, t.el);
+    return typeof b === 'function' || !!(b && !khoa(b));
+  }
+
+  /* ───────── CHỐT CHẶN "BẤM LẦN NỮA ĐỂ THOÁT" (chỉ màn chính Sổ Nợ, điện thoại Android) ───────── */
+  function coChan(){
+    if(!ANDROID) return false;
+    var ap = $('app'); if(!ap || !hien(ap)) return false;
+    var lk = $('locked-view'); if(lk && hien(lk)) return false;
+    return true;
+  }
+
+  /* ───────── SỔ BƯỚC LỊCH SỬ ───────── */
+  function cuaMinh(s){ return !!(s && typeof s === 'object' && s[DAU] === 1 && typeof s.d === 'number' && s.d >= 1 && s.d <= 99); }
+  function sauHienTai(){ var s = null; try{ s = H.state; }catch(e){} return cuaMinh(s) ? s.d : 0; }
+  var CUR = sauHienTai();     /* số bước CỦA KHỐI NÀY tính tới bước đang đứng (tải lại trang thì đọc lại từ history.state) */
+  var CHO = null;             /* đang lùi bằng code: {d: đích, han: hạn chờ} */
+  var DUOC = false;           /* đã có cú chạm thật kể từ lần bấm Trở về gần nhất ⇒ mới được thêm bước (luật Chrome) */
+  var LW = -1;                /* tổng số bước của các bảng ở lần soát trước (để biết vừa có bảng ĐÓNG bằng nút trong app) */
+  var NL = null;              /* sự kiện navigate gần nhất (Chrome): ai bấm lùi — người dùng hay code */
+  var DEM = [];               /* cầu chì: đếm số lần đụng lịch sử trong 10 giây */
+  function cauChi(){
+    var t = Date.now(); DEM = DEM.filter(function(x){ return t - x < 10000; });
+    if(DEM.length >= 60) return false;                    /* bất thường ⇒ ngưng 10 giây, không bao giờ làm treo trang */
+    DEM.push(t); return true;
+  }
+  function duocThem(){
+    if(!DUOC) return false;
+    try{ var ua = navigator.userActivation; if(ua && ua.hasBeenActive === false) return false; }catch(e){}
+    return true;
+  }
+  function luiDuoc(k){                                    /* lùi k bước bằng code mà KHÔNG rời khỏi trang này */
+    if(k < 1 || k > CUR) return false;
+    try{
+      if(NAV && NAV.currentEntry && typeof NAV.entries === 'function'){
+        var ci = NAV.currentEntry.index, es = NAV.entries(), dich = null;
+        for(var i = 0; i < es.length; i++){ if(es[i].index === ci - k){ dich = es[i]; break; } }
+        if(!dich || dich.sameDocument === false) return false;
+      }
+    }catch(e){}
+    return true;
+  }
+  function lui(muon){
+    var k = CUR - muon;
+    if(k < 1 || !luiDuoc(k) || !cauChi()) return;
+    CHO = {d:muon, han:Date.now() + 1500};
+    try{ H.go(-k); }catch(e){ CHO = null; }
+  }
+
+  function sync(){
+    try{
+      if(CHO){ if(Date.now() > CHO.han){ CHO = null; } else { hen(150); return; } }
+      if(qa(NGOAI).some(function(x){ return hien(x); })) return;      /* tnk / xab đang mở: không đụng lịch sử */
+      CUR = sauHienTai();
+      var L = dsLop(), lw = trong(L), muon = (coChan() ? 1 : 0) + lw;
+      if(muon > MAX) muon = MAX;
+      if(muon > CUR){
+        if(duocThem()){
+          while(CUR < muon && cauChi()){ CUR++; H.pushState(mk(CUR), ''); }
+        }
+      }else if(muon < CUR && LW >= 0 && lw < LW){
+        lui(muon);                                        /* vừa đóng bảng bằng nút trong app ⇒ gỡ bước thừa */
+      }
+      LW = lw;
+    }catch(e){ try{ console.warn('[ntv] soát lỗi', e); }catch(_){} }
+  }
+  function mk(d){ var s = {}; s[DAU] = 1; s.d = d; return s; }
+  var HEN = 0;
+  function hen(ms){ if(HEN) return; HEN = setTimeout(function(){ HEN = 0; sync(); }, ms || 0); }
+
+  /* ───────── CÚ CHẠM THẬT (chỉ những sự kiện Chrome tính là "người dùng đã tương tác") ───────── */
+  function cham(e){
+    try{
+      if(!e || e.isTrusted === false) return;
+      var t = e.type;
+      if(t === 'keydown'){ if(e.key === 'Escape' || e.key === 'Esc') return; }
+      else if(t === 'pointerdown'){ if(e.pointerType !== 'mouse') return; }
+      else if(t === 'pointerup'){ if(e.pointerType === 'mouse') return; }
+      DUOC = true; hen(0);
+    }catch(_){}
+  }
+  ['pointerdown','pointerup','mousedown','touchend','keydown','click'].forEach(function(t){
+    try{ window.addEventListener(t, cham, {capture:true, passive:true}); }catch(e){}
+  });
+
+  /* ───────── CHROME: biết ai bấm lùi + giữ lại bước khi bảng chưa đóng được ───────── */
+  if(NAV){
+    try{
+      NAV.addEventListener('navigate', function(e){
+        try{
+          if(e.navigationType !== 'traverse') return;
+          var dst = e.destination, cu = NAV.currentEntry;
+          NL = {nguoi:!!e.userInitiated, t:Date.now()};
+          if(!e.userInitiated || !e.cancelable || !dst || !cu || dst.sameDocument === false) return;
+          if(cu.index - dst.index !== 1) return;
+          var L = dsLop(), t = L.length ? L[L.length - 1] : null, ng = ngoaiTren();
+          if(t && ng && soZ(t, ng) > 0){                  /* bảng của khối này đang ĐÈ LÊN tnk / xab ⇒ đóng bảng trên cùng, giữ nguyên lịch sử */
+            e.preventDefault(); NL = null; DUOC = false;
+            setTimeout(function(){ dongTren(); hen(60); }, 0);
+            return;
+          }
+          if(t && !ng && !dongDuoc(t)){                   /* bảng đang chạy dở (nút Đóng bị khoá) ⇒ giữ nguyên, chỉ nhắc */
+            e.preventDefault(); NL = null; DUOC = false;
+            noi('⏳ Bảng này đang chạy dở — chờ xong rồi hãy bấm Trở về / Đóng.');
+          }
+        }catch(_){}
+      });
+    }catch(e){}
+  }
+
+  /* ───────── BẤM TRỞ VỀ (bắt ở pha capture: chạy TRƯỚC tnk / xab, lúc màn hình còn y như lúc bấm) ───────── */
+  window.addEventListener('popstate', function(ev){
+    try{
+      var s = ev.state, ngoai = qa(NGOAI).some(function(x){ return hien(x); });
+      var nd = cuaMinh(s) ? s.d : ((ngoai && s && typeof s === 'object') ? CUR : 0);
+      var nguoi, biet = false;
+      if(NL && Date.now() - NL.t < 2000){ nguoi = NL.nguoi; biet = true; }
+      else nguoi = !(CHO && nd === CHO.d);
+      NL = null;
+      if(CHO && !nguoi && nd === CHO.d){ CHO = null; CUR = nd; hen(30); return; }    /* bước lùi do chính khối này */
+      var truoc = (biet && nguoi) ? CUR : (CHO ? CHO.d : CUR);
+      CHO = null;
+      var bo = truoc - nd;                                /* số bước CỦA KHỐI NÀY vừa bị gỡ */
+      CUR = nd;
+      if(nguoi) DUOC = false;                             /* luật Chrome: sau khi bấm Trở về phải chạm lại mới được thêm bước */
+      if(nguoi && bo > 0 && !ngoai){
+        var L0 = dsLop(), lw0 = trong(L0), dem = 0, r = 0, i, truocEl = null, L1;
+        for(i = 0; i < bo; i++){
+          L1 = (i === 0) ? L0 : dsLop();
+          if(i > 0 && L1.length && L1[L1.length - 1].el === truocEl && !L1[L1.length - 1].lui) break;   /* bảng chưa kịp đóng ⇒ không bấm lần 2 */
+          truocEl = L1.length ? L1[L1.length - 1].el : null;
+          r = dongTren(L1); if(r !== 1) break; dem++;
+        }
+        LW = lw0 - dem;                                   /* mốc: các bước còn lại ứng với các bảng còn lại */
+        if(r === 0 && dem === 0){                         /* không còn bảng nào ⇒ đang ở màn chính */
+          if(ANDROID) noi('👉 Bấm nút Trở về thêm 1 lần nữa để thoát app');
+          if(nd > 0) lui(0);                              /* bước cũ còn sót (do tải lại trang) ⇒ gỡ hết để lần sau thoát được ngay */
+        }
+      }
+      hen(60);
+    }catch(e){ try{ console.warn('[ntv] popstate lỗi', e); }catch(_){} }
+  }, true);
+
+  /* ───────── THEO DÕI BẢNG MỞ / ĐÓNG ───────── */
+  /* Chỉ để ý những thay đổi CÓ THỂ là mở / đóng bảng (bảng mới gắn vào body / màn Bán hàng, hoặc đổi class / style của
+     chính các khung bảng) — bỏ qua mọi thay đổi lặt vặt khác (danh sách, đồng hồ, khung chỉ dẫn của trợ lý…) cho máy yếu đỡ nóng. */
+  var KHUNG = '.modal-overlay,.sk-modal,.sk-sheet,#sk-scanwrap,#pos-screen,#sk-gate,#sk-gate-pin,#sk-gate-list,#sk-gate-forgot,'
+            + '.snbh-menu,#att-overlay,#sn-print-modal,#snai-mask,.dmk-mask,.gt-mask,.sn-unlock-ov,.snr-ov,.nga-mask,#pos-upsell,'
+            + '#app,#auth-screen,#locked-view,#public-view,#tnk-k,.xab';
+  var BO_MO = '#toast,.toast,#inapp-banner,#hotlineFab,#pwaNetBadge,#nhac-wrap,#tnk-fab,#tnk-bao,#snai-fab,#qrd-khoa,#dsl-sync-pill,'
+            + '#pwaUpdateBar,#pwaApplyToast,#rmt-bar,#tsi-bar,#iab-bar,#sntb-moi,[id^="snai-kt"],[id^="snai-tr"]';   /* nút nổi, thanh báo: không phải bảng */
+  function dangKe(m){
+    try{
+      var t = m.target; if(!t || t.nodeType !== 1) return false;
+      if(m.type === 'childList') return t === document.body || t.id === 'pos-screen';
+      if(t.matches(BO_MO)) return false;
+      var p = t.parentNode;
+      if(p === document.body || (p && p.id === 'pos-screen')) return true;   /* khung gắn thẳng vào body / màn Bán hàng */
+      return t.matches(KHUNG);
+    }catch(e){ return true; }
+  }
+  try{
+    new MutationObserver(function(ms){
+      for(var i = 0; i < ms.length; i++){ if(dangKe(ms[i])){ hen(40); return; } }
+    }).observe(document.documentElement, {subtree:true, childList:true, attributes:true, attributeFilter:['class','style']});
+  }catch(e){}
+  setInterval(function(){ hen(0); }, 1500);               /* lưới an toàn */
+  window.addEventListener('pageshow', function(){ CUR = sauHienTai(); LW = -1; hen(0); });
+  hen(0);
+}catch(e){ try{ console.warn('[ntv] khối Nút Trở về lỗi khởi động', e); }catch(_){} }
+})();
+</script>
+<!-- ═══════════════ HẾT: NÚT TRỞ VỀ CỦA ĐIỆN THOẠI ═══════════════ -->
 </body>
 </html>
