@@ -745,7 +745,7 @@ import { getFirestore, initializeFirestore, persistentLocalCache, persistentMult
 import { getStorage, ref as _sref, uploadBytes, getDownloadURL, deleteObject, listAll }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
 
-const APP_BUILD = "2026-10-25-SN18"; // ⬆️ ĐỔI MỖI LẦN DEPLOY (đặt TRÙNG tên cache trong sw.js) — hiện ở ⚙️ Cài đặt để biết máy đã chạy bản mới chưa
+const APP_BUILD = "2026-10-25-SN19"; // ⬆️ ĐỔI MỖI LẦN DEPLOY (đặt TRÙNG tên cache trong sw.js) — hiện ở ⚙️ Cài đặt để biết máy đã chạy bản mới chưa
 const firebaseConfig = {
   apiKey: "AIzaSyA_kjQ-CdASRkf50Glz3kQajlkD5qGWC4k",
   authDomain: "so-no-cc57a.firebaseapp.com",
@@ -21417,6 +21417,89 @@ try{
   }};
 }catch(e){}
 
+/* ═════════════ 5h) [SN19] XÓA TÀI KHOẢN — bài hướng dẫn + "Có gì mới" + chỉ tận tay trong bảng 🗑️ ═════════════
+   Chỉ BỔ SUNG lúc chạy (không sửa bài gốc trong file): 1 bài mới (đặt CUỐI ⇒ câu hỏi trùng điểm vẫn về bài cũ) · 1 dòng + 1 nút
+   trong "Có gì mới" · lựa chọn 🗑️ trong khung "Bạn cần làm gì?" của menu ⚙️ và của màn đăng nhập · bài chỉ tiếp cho bảng
+   #modal-xoatk. Bảng 🗑️ do khối XÓA TÀI KHOẢN (xtk-) cuối file dựng. */
+try{
+  var e8={c:'bd',t:'Xóa tài khoản của mình',
+  k:'xoa tai khoan huy tai khoan xoa tk xoa vinh vien dong tai khoan khong dung nua khong xai nua ngung dung app ngung su dung thoi dung xoa tai khoan cua toi xoa tai khoan so no xoa tai khoan dang nhap go tai khoan account xoa acc xoa account xoa nick khong muon dung nua',
+  go:'xtkMo',
+  a:'<b class="snai-h">🗑️ Xóa tài khoản</b>'
+   +'<b>👉 Dùng khi nào:</b> không dùng app nữa và muốn <b>xoá hẳn tài khoản</b> cùng <b>toàn bộ dữ liệu</b> trên máy chủ.'
+   +'<div class="snai-warn">⚠️ <b>Xoá là mất vĩnh viễn, không khôi phục được</b> — kể cả chủ phần mềm cũng không lấy lại được. Thời hạn đã mua còn lại cũng mất theo.</div>'
+   +'<b>🪜 Làm từng bước:</b><ol>'
+   +'<li><b>Nên làm trước:</b> tải số liệu về máy để giữ lại — bấm nút <b>🛟 Tải bản sao lưu toàn bộ</b> (hoặc <b>📥 Tải sổ nợ ra Excel</b>) ngay trong bảng xoá.</li>'
+   +'<li>Bấm <span class="snai-path">⚙️ Cài đặt</span> (góc trên bên phải màn 📒 Sổ Nợ) → bấm <b>🗑️ Xóa tài khoản</b> (ngay trên chữ Đăng xuất).</li>'
+   +'<li>Đọc kỹ khung đỏ — những gì sẽ bị xoá.</li>'
+   +'<li>Gõ chữ <b>XOA</b> vào ô xác nhận (có dấu hay không dấu đều được).</li>'
+   +'<li>Gõ <b>mật khẩu đăng nhập</b> → bấm nút đỏ <b>🗑️ Xóa vĩnh viễn tài khoản</b>.</li>'
+   +'<li>Tài khoản còn hạn <b>đã trả tiền</b>, còn <b>yêu cầu gia hạn chờ duyệt</b>, hoặc email còn dùng <b>app khác</b> ⇒ app hỏi lại lần cuối (khung vàng). Chắc chắn thì bấm <b>🗑️ Vẫn xoá vĩnh viễn</b>.</li>'
+   +'<li>Chờ app báo <b>✅ Đã xoá xong</b> — dữ liệu nhiều có thể mất vài phút, <b>đừng tắt app</b>. Bấm <b>Đóng</b> là về màn đăng nhập.</li></ol>'
+   +'<b>🗑️ Sẽ bị xoá:</b> sổ nợ (khách, mọi lần mua / trả, ảnh, chữ ký) · bán hàng (sản phẩm, kho, đơn, ca, sổ quỹ, nhà cung cấp, mọi cửa hàng / chi nhánh) · link nợ, hoá đơn online, cửa hàng online, mã QR tại bàn, đơn + tin nhắn của khách · tài khoản nhân viên · sao lưu qua email · thông báo · và <b>tài khoản đăng nhập</b>.'
+   +'<div class="snai-ok">📌 <b>Chủ phần mềm chỉ giữ lại:</b> sổ ghi các lần bạn đã chuyển khoản gia hạn (để đối chiếu tiền) và dấu <b>"email này đã dùng thử"</b> — đăng ký lại bằng email đó vẫn được nhưng <b>không được dùng thử miễn phí lần nữa</b>.</div>'
+   +'<div class="snai-tip">💡 <b>Tài khoản đã hết hạn / bị khoá</b> vẫn xoá được: ở màn báo hết hạn bấm chữ nhỏ <b>🗑️ Xóa tài khoản</b> dưới nút Đăng xuất. <b>Không vào được app</b>: ở màn đăng nhập bấm chữ nhỏ <b>🗑️ Xóa tài khoản</b> ở dưới cùng → gõ email + mật khẩu.</div>'
+   +'<div class="snai-ok">👥 <b>Máy nhân viên</b> (đăng nhập bằng tài khoản nhân viên riêng): xoá chỉ xoá <b>tài khoản đăng nhập của nhân viên đó</b> — sổ sách của cửa hàng giữ nguyên.</div>'
+   +'<div class="snai-warn">📧 Email dùng chung cho app khác của chủ phần mềm (Cafe, TrọSafe, NhàXe, Xe Hợp Đồng) thì dữ liệu ở các app đó <b>cũng bị xoá</b>. Đã chuyển khoản gia hạn mà chưa được duyệt thì <b>gọi hotline trước khi xoá</b>.</div>'
+   +'<div class="snai-tip">🔒 Phải gõ đúng mật khẩu mới xoá được — người khác cầm máy cũng không xoá nhầm được. Quên mật khẩu thì ở màn đăng nhập bấm <b>Quên mật khẩu?</b> để đặt lại trước.</div>'};
+  KB.push(e8); e8.id=KB.length-1; e8._t=nrm(e8.t); e8._k=nrm(e8.k+' '+e8.t+' '+(CAT[e8.c]?CAT[e8.c].n:'')); e8._a=nrm(strip(e8.a));
+  var xtkSua=function(t,f){ var x=byTitle(t); if(!x) return; var a=f(x.a); if(a&&a!==x.a){ x.a=a; x._a=nrm(strip(a)); } };
+  xtkSua('Có gì mới trong app? (tính năng vừa thêm)',function(a){
+    a=a.replace('<ul>\n<li>','<ul>\n<li><b>🗑️ Xóa tài khoản</b> — không dùng nữa thì tự xoá tài khoản cùng toàn bộ dữ liệu ngay trong app: <b>⚙️ Cài đặt → 🗑️ Xóa tài khoản</b>. Xoá rồi là mất vĩnh viễn — nhớ tải bản sao lưu trước.</li>\n<li>');
+    var i=a.indexOf('<button type="button" class="snai-sg"');
+    if(i>0) a=a.slice(0,i)+'<button type="button" class="snai-sg" data-snaiq="'+e8.t+'">🗑️ Xóa tài khoản</button>\n'+a.slice(i);
+    return a;
+  });
+}catch(e){}
+try{
+  var xtkChu=function(s){ s=String(s||''); try{ s=s.normalize('NFD').replace(/[\u0300-\u036f]/g,''); }catch(e){} return s.replace(/[đĐ]/g,'d').replace(/\s+/g,'').toUpperCase(); };
+  /* menu ⚙️: thêm lựa chọn 🗑️ ngay trên 🚪 Đăng xuất */
+  var _xtkM=KTG['menu'];
+  if(_xtkM&&typeof _xtkM.st==='function'){
+    var _xtkMSt=_xtkM.st;
+    _xtkM.st=function(L){
+      var s=_xtkMSt.apply(this,arguments);
+      try{
+        if(s&&s.ch&&s.ch.length){
+          var c=ktCh('🗑️ Xóa tài khoản (xoá vĩnh viễn)',ktv('[data-snbh="xoatk"]',L.el),'Bấm <b>🗑️ Xóa tài khoản</b> — đọc kỹ khung cảnh báo trước khi xoá.');
+          if(c){ var k=-1; for(var i=0;i<s.ch.length;i++){ if(/Đăng xuất/.test(s.ch[i].t)) k=i; } s.ch.splice(k>=0?k:s.ch.length,0,c); }
+        }
+      }catch(e){}
+      return s;
+    };
+  }
+  /* màn đăng nhập: thêm lựa chọn 🗑️ (cuối danh sách) */
+  var _xtkA=KTG['auth'];
+  if(_xtkA&&typeof _xtkA.st==='function'){
+    var _xtkASt=_xtkA.st;
+    _xtkA.st=function(L){
+      var s=_xtkASt.apply(this,arguments);
+      try{
+        if(s&&s.w==='pick'&&s.ch){
+          var c=ktCh('🗑️ Tôi muốn XOÁ tài khoản này',ktv('#auth-screen [data-xtk="dn"]'),'Bấm chữ nhỏ <b>🗑️ Xóa tài khoản</b> ở dưới cùng khung đăng nhập.');
+          if(c) s.ch.push(c);
+        }
+      }catch(e){}
+      return s;
+    };
+  }
+  /* bảng 🗑️ (#modal-xoatk): chỉ từng bước */
+  KTG['sn:modal-xoatk']={n:'Bảng 🗑️ Xóa tài khoản',kb:'Xóa tài khoản của mình',st:function(L){
+    var r=L.el,st=r.getAttribute('data-st')||'nhap',kq=ktq('#xtk-kq',r),nut=ktq('#xtk-xoa',r);
+    if(st==='kiem'||st==='xoa') return KS((kq&&visEl(kq))?kq:nut,'⏳ Đang '+(st==='kiem'?'kiểm tra':'xoá')+'…','Chờ tới khi app báo xong. <b>Đừng tắt app.</b> Dữ liệu nhiều có thể mất vài phút.','wait');
+    if(st==='xong') return {w:'fin',t:'Đã xoá xong tài khoản. Bấm Đóng để về màn đăng nhập.'};
+    if(st==='xacnhan') return KS(nut,'Đọc kỹ khung vàng. Chắc chắn thì bấm '+ktB('🗑️ Vẫn xoá vĩnh viễn')+'.','Không muốn xoá nữa thì bấm <b>Hủy</b>.','click');
+    if(st==='loi') return KS(nut,'Đọc dòng báo đỏ rồi bấm '+ktB('🔄 Thử lại')+'.','Vẫn không được thì bấm số hotline ở cuối bảng để được xoá giúp.','click');
+    var em=ktq('#xtk-em',r);
+    if(em&&visEl(em)&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(ktVal(em))) return KS(em,'Gõ '+ktB('email')+' của tài khoản cần xoá.','Đúng email bạn dùng để đăng nhập app.','type');
+    var xn=ktq('#xtk-xn',r);
+    if(xtkChu(ktVal(xn))!=='XOA') return KS(xn,'Gõ chữ '+ktB('XOA')+' vào ô này.','Để chắc là bạn muốn xoá thật, không phải bấm nhầm. Có dấu hay không dấu đều được.','type');
+    var mk=ktq('#xtk-mk',r);
+    if(ktEmpty(mk)) return KS(mk,'Gõ '+ktB('mật khẩu đăng nhập')+' của tài khoản.','Bấm 👁 để nhìn thấy chữ vừa gõ.','type');
+    return KS(nut,'Bấm '+ktB('🗑️ Xóa vĩnh viễn tài khoản')+'.','Muốn giữ số liệu thì bấm nút tải bản sao lưu ở khung xanh phía trên <b>trước</b>.','click');
+  }};
+}catch(e){}
+
 /* ═════════════ 6) KHỞI ĐỘNG ═════════════ */
 function boot(){ try{ build(); }catch(e){} }
 if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',boot);
@@ -23536,7 +23619,7 @@ if (window.__RMT_READY__) return; window.__RMT_READY__ = true;
 try{
 
 /* ĐỔI CHUỖI NÀY CHO TRÙNG APP_BUILD MỖI LẦN DEPLOY (chỉ để hiện ở bảng quản trị) */
-var BUILD = '2026-10-25-SN18';
+var BUILD = '2026-10-25-SN19';
 var NHIP   = 6*3600*1000;          /* báo về tối đa 6 giờ 1 lần — khỏi tốn lượt ghi */
 var KEY_HB = 'rmt_hb_v2';          /* [QT7] nhịp báo về tính RIÊNG từng tài khoản (bản v1 tính chung cả máy) */
 var KEY_XEM= 'rmt_xem_v1';
@@ -31200,5 +31283,693 @@ try{
 })();
 </script>
 <!-- ═══════════════ HẾT: NÚT TRỞ VỀ CỦA ĐIỆN THOẠI ═══════════════ -->
+<!-- ═══════════════ XÓA TÀI KHOẢN (drop-in · namespace xtk-) — tự xoá tài khoản + TOÀN BỘ dữ liệu ngay trong app ═══════════════
+     VÌ SAO: đăng ký tài khoản được thì cũng phải tự xoá được (Google Play / App Store bắt buộc).
+     LỐI VÀO
+       • ⚙️ Cài đặt → 🗑️ Xóa tài khoản (ngay trên Đăng xuất). Chủ shop và máy nhân viên đều có; tài khoản admin thì không.
+       • Màn tài khoản hết hạn / bị khoá / chưa dùng thử: nút chữ nhỏ "🗑️ Xóa tài khoản" dưới nút Đăng xuất.
+       • Màn đăng nhập: nút chữ nhỏ "🗑️ Xóa tài khoản" dưới cùng — gõ email + mật khẩu của tài khoản cần xoá.
+       • Link …/SO---NO/?xoatk=1 (dán vào mục "URL xoá tài khoản" của Google Play) ⇒ mở thẳng bảng này.
+       • window.xtkMo() — trợ lý dùng.
+     CÁCH CHẠY
+       • Gõ chữ XOA + mật khẩu ⇒ đăng nhập lại trên một PHIÊN PHỤ (bộ nhớ tạm, không đụng phiên chính) để chắc đúng chủ tài khoản,
+         lấy "vé" đăng nhập rồi thoát phiên phụ NGAY (không để khối khác bắt nhầm).
+       • Hỏi máy chủ bằng vé đó (Cloud Function xoaTaiKhoan · codebase xoatk · asia-southeast1, gọi đúng giao thức callable).
+         Máy chủ chưa cài ⇒ báo, KHÔNG đụng gì.
+       • Còn gói ĐÃ TRẢ TIỀN chưa hết hạn / còn đơn gia hạn chờ duyệt / email còn dùng app khác / nhân viên đăng nhập ở màn
+         đăng nhập ⇒ hỏi lại thêm 1 lần.
+       • Chờ dữ liệu chưa gửi của máy này lên máy chủ (máy NHÂN VIÊN bắt buộc — chưa gửi xong thì KHÔNG xoá) ⇒ đăng xuất máy này
+         ⇒ nhờ máy chủ xoá. Dữ liệu nhiều thì máy chủ làm nhiều lượt, app tự gọi tiếp. Lỗi mạng ⇒ tự thử lại 3 lần, rồi nút 🔄.
+       • Xong ⇒ thôi nhận thông báo đẩy, dọn dữ liệu của tài khoản đó trong máy (bộ nhớ app, kho cứu hộ; bộ đệm Firestore chỉ dọn
+         khi không còn việc chờ gửi của tài khoản khác) rồi tải lại trang về màn đăng nhập.
+     KHÔNG sửa code cũ, KHÔNG đổi Firestore / Storage Rules. Khối này lỗi gì thì app chạy y như cũ.
+     ═══════════════════════════════════════════════════════════════════════════════════════════════════════════════ -->
+<script type="module">
+import { getApp, getApps, initializeApp, deleteApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getAuth, initializeAuth, inMemoryPersistence, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+(function(){
+var XEM = ''; try{ XEM = new URLSearchParams(location.search).get('view') || ''; }catch(e){}
+if(XEM) return;                                            /* trang khách xem nợ / hóa đơn: không có gì ở đây */
+if(window.__XTK_READY__) return; window.__XTK_READY__ = true;
+try{
+
+/* ═════════ CẤU HÌNH ═════════ */
+var FB    = 'https://www.gstatic.com/firebasejs/10.12.0/';
+var VUNG  = 'asia-southeast1';
+var HAM   = 'xoaTaiKhoan';
+var ADMIN = 'cuahangminhtri1@gmail.com';
+var ID    = 'modal-xoatk';
+var TEN_GOI = { sono:'Sổ Nợ', sono_pos:'Bán hàng (POS)', sono_cn:'Chi nhánh thêm', sono_cn_fnb:'Chi nhánh Nhà hàng · Cafe',
+  sono_cn_fs:'Chi nhánh Thời trang · Mỹ phẩm', sono_cn_rm:'Chi nhánh Karaoke · Spa', sono_cn_kg:'Chi nhánh Bán sỉ · Cân ký',
+  sono_fnb:'Ngành Nhà hàng · Quán ăn · Cafe', sono_fs:'Ngành Thời trang · Mỹ phẩm', sono_rm:'Ngành Karaoke · Spa · Nhà nghỉ',
+  sono_kg:'Ngành Vật liệu XD · Nông sản · Bán sỉ', sono_qr:'Bán online / Đơn QR', cafe:'Quản Lý Cafe · Trà Sữa',
+  tro:'TrọSafe (nhà trọ)', xe:'NhàXe Pro', hd:'Xe Hợp Đồng' };
+/* ════════════════════════════ */
+
+/* ───────── TIỆN ÍCH ───────── */
+function q(id){ return document.getElementById(id); }
+function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]; }); }
+function noi(m){ try{ if(typeof window.toast === 'function'){ window.toast(m); return; } }catch(e){} try{ window.SKMOD.core.toast(m); }catch(e){} }
+function ngu(ms){ return new Promise(function(r){ setTimeout(r, ms); }); }
+function appChinh(){
+  var app = null;
+  try{ app = getApp(); }catch(e){ app = null; }
+  if(!app){
+    var a = []; try{ a = getApps() || []; }catch(e2){ a = []; }
+    for(var i = 0; i < a.length; i++){
+      var n = String((a[i] && a[i].name) || '');
+      if(a[i] && n !== 'errlog' && n !== 'pub' && n.indexOf('xoatk-') !== 0 && n.indexOf('nvcreate-') !== 0){ app = a[i]; break; }
+    }
+  }
+  return app;
+}
+function nguoiDung(){ try{ var a = appChinh(); var u = a ? getAuth(a).currentUser : null; return (u && !u.isAnonymous) ? u : null; }catch(e){ return null; } }
+function uidShop(){ try{ return (window.SKMOD && window.SKMOD.core && window.SKMOD.core.uid()) || null; }catch(e){ return null; } }
+function laNVMay(){ try{ return !!(document.body && document.body.classList.contains('la-nv')); }catch(e){ return false; } }
+function laAdmin(){
+  try{ if(typeof window.snLaAdmin === 'function' && window.snLaAdmin()) return true; }catch(e){}
+  var u = nguoiDung(); return !!(u && String(u.email || '').toLowerCase() === ADMIN);
+}
+function hotSo(){ try{ return String(window.SN_CFG.hotline()) || '0977823979'; }catch(e){ return '0977823979'; } }
+function hotChu(){ try{ return String(window.SN_CFG.hotTxt()) || '0977 823 979'; }catch(e){ return '0977 823 979'; } }
+function hien(x){ try{ return !!(x && x.isConnected && getComputedStyle(x).display !== 'none' && x.getBoundingClientRect().height > 0); }catch(e){ return false; } }
+function chuanXN(s){ s = String(s || ''); try{ s = s.normalize('NFD').replace(/[\u0300-\u036f]/g, ''); }catch(e){} return s.replace(/[đĐ]/g, 'd').replace(/\s+/g, '').toUpperCase(); }
+function emailOk(s){ return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(s || '').trim()); }
+function ngayVN(ms){ var d = new Date(Number(ms)); if(isNaN(d.getTime())) return ''; function p(n){ return (n < 10 ? '0' : '') + n; } return p(d.getDate()) + '/' + p(d.getMonth() + 1) + '/' + d.getFullYear(); }
+function urlSach(){ try{ var u = new URL(location.href); u.searchParams.delete('xoatk'); return u.toString(); }catch(e){ return location.href; } }
+function boThamSo(){ try{ var s = urlSach(); if(s !== location.href) history.replaceState(history.state, '', s); }catch(e){} }
+
+/* ───────── TRẠNG THÁI ─────────
+   st: nhap (gõ XOA + mật khẩu) · kiem (đang kiểm tra) · xacnhan (hỏi lại lần cuối) · xoa (máy chủ đang xoá) · loi · xong */
+var S = moi('dn');
+function moi(mode){ return { mode:mode, st:'nhap', busy:false, tok:'', uid2:'', email:'', mk:'', kiem:null,
+  laNV:false, shop:'', daDangXuat:false, loiMa:'', luc0:0, demGio:0, xong:false, daGoiXoa:false }; }
+
+/* ───────── GIAO DIỆN ───────── */
+var CSS = ''
++ '#modal-xoatk .modal{padding-bottom:calc(24px + env(safe-area-inset-bottom,0px))}'
++ '#modal-xoatk h2{color:#b42318;margin-bottom:6px}'
++ '#modal-xoatk .xtk-tk{font-size:.86em;color:#374151;margin-bottom:10px;word-break:break-all}'
++ '#modal-xoatk .xtk-tk b{color:#111827}'
++ '#modal-xoatk .xtk-canh{background:#fdecea;border:1.5px solid #f5b7b1;border-radius:10px;padding:10px 12px;font-size:.86em;line-height:1.55;color:#7a1f16}'
++ '#modal-xoatk .xtk-canh b{color:#912018}'
++ '#modal-xoatk .xtk-canh ul{margin:6px 0 4px;padding-left:18px}'
++ '#modal-xoatk .xtk-canh li{margin-bottom:3px}'
++ '#modal-xoatk .xtk-giu{margin-top:8px;background:#f3f4f6;border-radius:10px;padding:9px 12px;font-size:.8em;line-height:1.5;color:#374151}'
++ '#modal-xoatk .xtk-sl{margin-top:10px;background:#e8f5ee;border:1.5px solid #b7dfc9;border-radius:10px;padding:10px 12px;font-size:.84em;line-height:1.5;color:#14503a}'
++ '#modal-xoatk .xtk-sl button{display:block;width:100%;margin-top:7px;background:#fff;border:1.5px solid #0a5f4a;color:#0a5f4a;border-radius:8px;padding:9px;font-size:.95em;font-weight:700;cursor:pointer}'
++ '#modal-xoatk .xtk-sl button:disabled{opacity:.6;cursor:not-allowed}'
++ '#modal-xoatk label{color:#374151;font-weight:600}'
++ '#modal-xoatk .xtk-row{position:relative;display:flex;align-items:center}'
++ '#modal-xoatk .xtk-row input{padding-right:46px}'
++ '#modal-xoatk .xtk-eye{position:absolute;right:4px;border:none;background:transparent;font-size:17px;cursor:pointer;padding:8px;border-radius:8px}'
++ '#modal-xoatk #xtk-xn{text-transform:uppercase;letter-spacing:2px;font-weight:700}'
++ '#modal-xoatk input:disabled{background:#f3f4f6;color:#6b7280}'
++ '#modal-xoatk .xtk-b2{display:none;margin-top:10px;background:#fff8e1;border:1.5px solid #f9d77e;border-radius:10px;padding:10px 12px;font-size:.86em;line-height:1.55;color:#5f4b00}'
++ '#modal-xoatk .xtk-b2 ul{margin:6px 0 4px;padding-left:18px}'
++ '#modal-xoatk .xtk-b2 li{margin-bottom:4px}'
++ '#modal-xoatk .xtk-kq{display:none;margin-top:10px;font-size:.86em;line-height:1.55;border-radius:8px;padding:9px 11px;word-break:break-word}'
++ '#modal-xoatk .xtk-kq.dang{display:block;background:#f3f4f6;color:#374151;border:1px solid #e5e7eb}'
++ '#modal-xoatk .xtk-kq.loi{display:block;background:#fdecea;color:#912018;border:1px solid #f5b7b1}'
++ '#modal-xoatk .xtk-kq.ok{display:block;background:#e8f5ee;color:#0f5132;border:1px solid #b7dfc9;font-size:.95em}'
++ '#modal-xoatk .xtk-nut{display:flex;flex-direction:column;gap:8px;margin-top:14px}'
++ '#modal-xoatk .xtk-xoa{width:100%;padding:13px;border:none;border-radius:10px;background:#c0392b;color:#fff;font-size:1em;font-weight:800;cursor:pointer}'
++ '#modal-xoatk .xtk-xoa:disabled{background:#e8a59d;cursor:not-allowed}'
++ '#modal-xoatk .xtk-huy{width:100%;flex:none}'
++ '#modal-xoatk .xtk-huy:disabled{opacity:.55;cursor:not-allowed}'
++ '#modal-xoatk .xtk-hot{text-align:center;margin-top:12px;font-size:.86em;color:#555}'
++ '#modal-xoatk .xtk-hot a{color:#555;font-weight:800;text-decoration:none;white-space:nowrap}'
++ '#modal-xoatk[data-st="xong"] #xtk-b1,#modal-xoatk[data-st="xong"] .xtk-b2,#modal-xoatk[data-st="xong"] #xtk-xoa{display:none!important}'
++ '.xtk-mi label{color:#9b2c2c!important}'
++ '.xtk-lk{background:none;border:none;color:#9b2c2c;text-decoration:underline;font-size:.86em;padding:8px;margin-top:2px;cursor:pointer}'
++ '.xtk-dn{text-align:center;margin-top:16px}'
++ '.xtk-dn button{background:none;border:none;color:#9aa0a6;text-decoration:underline;font-size:.8em;cursor:pointer;padding:6px}';
+
+function dung(){
+  if(q(ID)) return q(ID);
+  try{ var st = document.createElement('style'); st.id = 'xtk-css'; st.textContent = CSS; document.head.appendChild(st); }catch(e){}
+  var w = document.createElement('div');
+  w.innerHTML = ''
+   + '<div class="modal-overlay" id="' + ID + '" role="dialog" aria-modal="true" aria-label="Xóa tài khoản" data-st="nhap">'
+   + '<div class="modal">'
+   + '<h2>🗑️ Xóa tài khoản</h2>'
+   + '<div class="xtk-tk" id="xtk-tk"></div>'
+   + '<div id="xtk-b1">'
+   +   '<div class="xtk-canh" id="xtk-canh"></div>'
+   +   '<div class="xtk-giu" id="xtk-giu"></div>'
+   +   '<div class="xtk-sl" id="xtk-sl"><b>💾 Nên làm trước khi xoá:</b> tải số liệu về máy để giữ lại (xoá rồi là không lấy lại được).'
+   +     '<button type="button" id="xtk-sl-json">🛟 Tải bản sao lưu toàn bộ (.json)</button>'
+   +     '<button type="button" id="xtk-sl-xls">📥 Tải sổ nợ ra Excel (.xlsx)</button></div>'
+   +   '<div id="xtk-em-w"><label for="xtk-em">Email của tài khoản cần xoá</label>'
+   +     '<input id="xtk-em" type="email" autocomplete="username" inputmode="email" placeholder="VD: tenban@gmail.com"></div>'
+   +   '<label for="xtk-xn">Gõ chữ <b>XOA</b> vào ô dưới để xác nhận</label>'
+   +   '<input id="xtk-xn" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="XOA">'
+   +   '<label for="xtk-mk">Mật khẩu đăng nhập</label>'
+   +   '<div class="xtk-row"><input id="xtk-mk" type="password" autocomplete="current-password" placeholder="Mật khẩu của tài khoản này">'
+   +     '<button type="button" class="xtk-eye" id="xtk-eye" aria-label="Hiện mật khẩu">👁</button></div>'
+   + '</div>'
+   + '<div class="xtk-b2" id="xtk-b2"></div>'
+   + '<div class="xtk-kq" id="xtk-kq"></div>'
+   + '<div class="xtk-nut">'
+   +   '<button type="button" class="xtk-xoa" id="xtk-xoa" disabled>🗑️ Xóa vĩnh viễn tài khoản</button>'
+   +   '<button type="button" class="btn-cancel xtk-huy" id="xtk-huy" onclick="closeModal(\'' + ID + '\')">Hủy</button>'
+   + '</div>'
+   + '<div class="xtk-hot">Cần hỗ trợ? <a href="tel:0977823979">📞 Gọi 0977 823 979</a></div>'
+   + '</div></div>';
+  var m = w.firstChild;
+  document.body.appendChild(m);
+  /* chạm ra ngoài bảng = Hủy (trừ lúc đang chạy · đã xoá xong thì phải bấm Đóng — khỏi lỡ tay làm mất dòng báo ✅) */
+  m.addEventListener('click', function(e){ if(e.target === m && !S.busy && S.st !== 'xong') dongBang(); });
+  ['xtk-xn','xtk-mk','xtk-em'].forEach(function(i){ var x = q(i); if(x) x.addEventListener('input', veNut); });
+  q('xtk-mk').addEventListener('keydown', function(e){ if(e.key === 'Enter'){ e.preventDefault(); if(!q('xtk-xoa').disabled) bamXoa(); } });
+  q('xtk-eye').addEventListener('click', function(){ var i = q('xtk-mk'); i.type = (i.type === 'password' ? 'text' : 'password'); q('xtk-eye').textContent = (i.type === 'password' ? '👁' : '🙈'); });
+  q('xtk-xoa').addEventListener('click', bamXoa);
+  q('xtk-sl-json').addEventListener('click', function(){ taiVe('json'); });
+  q('xtk-sl-xls').addEventListener('click', function(){ taiVe('xls'); });
+  /* bảng bị đóng (nút Hủy / Đóng, nút Trở về, chạm ngoài, hoặc khối khác đóng hộ) */
+  try{
+    new MutationObserver(function(){ if(!m.classList.contains('active')) khiDong(); }).observe(m, { attributes:true, attributeFilter:['class'] });
+  }catch(e){}
+  return m;
+}
+function dongBang(){ try{ if(typeof window.closeModal === 'function') window.closeModal(ID); else q(ID).classList.remove('active'); }catch(e){ try{ q(ID).classList.remove('active'); }catch(_){} } }
+function khiDong(){
+  var m = q(ID); if(!m) return;
+  if(S.busy){ m.classList.add('active'); return; }                 /* đang xoá dở: không cho đóng */
+  if(S.st === 'xong'){ ketThuc(); return; }                        /* đã xoá xong ⇒ dọn bộ đệm rồi về màn đăng nhập */
+  S.tok = ''; S.mk = '';
+  try{ q('xtk-mk').value = ''; q('xtk-mk').type = 'password'; q('xtk-eye').textContent = '👁'; }catch(e){}
+  if(S.daDangXuat){ S = moi('cdn'); }                               /* máy đã đăng xuất mà chưa xoá xong ⇒ lần mở sau phải gõ lại email */
+}
+
+function canhChu(){
+  var nv = (S.mode === 'dn' && laNVMay());
+  if(nv) return '<b>⚠️ Đây là tài khoản NHÂN VIÊN của cửa hàng.</b> Xoá chỉ xoá <b>tài khoản đăng nhập này</b>: máy này không vào cửa hàng được nữa. '
+    + '<b>Sổ nợ, hàng hoá, đơn hàng… của cửa hàng vẫn còn nguyên</b> (do chủ shop quản lý). Xoá rồi không khôi phục được.';
+  return '<b>⚠️ XOÁ LÀ MẤT VĨNH VIỄN — không khôi phục được.</b> Sẽ bị xoá hết:<ul>'
+    + '<li><b>Sổ nợ:</b> khách hàng, mọi lần mua / trả, ảnh hoá đơn, chữ ký của khách.</li>'
+    + '<li><b>Bán hàng:</b> sản phẩm, kho, đơn hàng, ca bán, sổ quỹ, nhà cung cấp, mọi cửa hàng / chi nhánh, nhân viên.</li>'
+    + '<li><b>Link nợ, hoá đơn online, cửa hàng online, mã QR tại bàn</b> (khách mở sẽ không thấy gì), đơn và tin nhắn của khách.</li>'
+    + '<li>Tài khoản đăng nhập của nhân viên, cài đặt sao lưu qua email, thông báo trên các máy.</li>'
+    + '<li><b>Tài khoản đăng nhập này</b> — email này không đăng nhập được nữa. Thời hạn đã mua còn lại cũng mất theo.</li></ul>'
+    + (S.mode === 'cdn' ? 'Nếu đây là tài khoản <b>nhân viên</b>: chỉ xoá tài khoản đăng nhập, sổ sách cửa hàng giữ nguyên.' : '');
+}
+function giuChu(){
+  return 'ℹ️ Chủ phần mềm chỉ giữ lại: <b>sổ ghi các lần bạn đã chuyển khoản gia hạn</b> (để đối chiếu tiền) và dấu <b>"email này đã dùng thử"</b> — '
+    + 'đăng ký lại bằng email này vẫn dùng được nhưng <b>không được dùng thử miễn phí lần nữa</b>.'
+    + ' Email này dùng chung cho app khác của chủ phần mềm (Cafe, TrọSafe, NhàXe…) thì dữ liệu ở các app đó cũng bị xoá theo.';
+}
+function coTheTaiVe(){
+  if(S.mode !== 'dn' || laNVMay()) return false;
+  try{ var a = window._accInfo; if(!a || a.ok !== true) return false; }catch(e){ return false; }
+  return hien(q('app')) && (typeof window.backupFullJSON === 'function' || typeof window.exportExcel === 'function');
+}
+async function taiVe(kieu){
+  if(S.busy) return;
+  var b = q(kieu === 'json' ? 'xtk-sl-json' : 'xtk-sl-xls');
+  try{ if(b) b.disabled = true; }catch(e){}
+  try{
+    if(kieu === 'json' && typeof window.backupFullJSON === 'function') await window.backupFullJSON();
+    else if(kieu === 'xls' && typeof window.exportExcel === 'function') await window.exportExcel();
+    else noi('Chưa tải được — hãy dùng 🧰 Công cụ & Sao lưu.');
+  }catch(e){ noi('Chưa tải được: ' + ((e && (e.code || e.message)) || e)); }
+  try{ if(b) b.disabled = false; }catch(e){}
+}
+
+function bao(chu, lop){ var k = q('xtk-kq'); if(!k) return; k.className = 'xtk-kq' + (lop ? ' ' + lop : ''); k.innerHTML = chu || ''; if(!chu) k.className = 'xtk-kq'; }
+function hopLe(){
+  var em = S.mode === 'cdn' ? String((q('xtk-em') || {}).value || '').trim() : S.email;
+  return chuanXN((q('xtk-xn') || {}).value) === 'XOA' && String((q('xtk-mk') || {}).value || '').length > 0 && emailOk(em);
+}
+function veNut(){
+  var b = q('xtk-xoa'), h = q('xtk-huy'), m = q(ID); if(!b || !m) return;
+  m.setAttribute('data-st', S.st);
+  var t = { nhap:'🗑️ Xóa vĩnh viễn tài khoản', kiem:'⏳ Đang kiểm tra…', xacnhan:'🗑️ Vẫn xoá vĩnh viễn', xoa:'⏳ Đang xoá… đừng tắt app', loi:'🔄 Thử lại', xong:'' }[S.st] || '';
+  if(b.textContent !== t) b.textContent = t;
+  b.disabled = (S.st === 'nhap') ? !hopLe() : (S.st === 'kiem' || S.st === 'xoa');
+  h.disabled = S.busy;
+  var th = (S.st === 'xong') ? 'Đóng' : 'Hủy';
+  if(h.textContent !== th) h.textContent = th;
+  var khoa = S.st !== 'nhap';
+  ['xtk-em','xtk-xn','xtk-mk'].forEach(function(i){ var x = q(i); if(x) x.disabled = khoa; });
+  var b2 = q('xtk-b2'); if(b2) b2.style.display = (S.st === 'xacnhan') ? 'block' : 'none';
+  var sl = q('xtk-sl'); if(sl) sl.style.display = (S.st === 'nhap' && coTheTaiVe()) ? '' : 'none';
+}
+
+/* ───────── MỞ BẢNG ───────── */
+function mo(mode){
+  try{
+    var m = dung();
+    if(S.busy || S.st === 'xong' || (S.st === 'loi' && S.daDangXuat)){ m.classList.add('active'); veNut(); return; }   /* đang dở / đã xong: hiện lại đúng chỗ */
+    var u = nguoiDung();
+    if(mode !== 'cdn') mode = u ? 'dn' : 'cdn';
+    if(mode === 'dn' && laAdmin()){ noi('👑 Tài khoản chủ phần mềm (admin) không xoá bằng app.'); return; }
+    S = moi(mode);
+    if(mode === 'dn'){ S.email = String(u.email || '').trim(); S.uid2 = ''; }
+    q('xtk-tk').innerHTML = (mode === 'dn')
+      ? ('Tài khoản: <b>' + esc(S.email || '—') + '</b>' + (laNVMay() ? ' · <b>nhân viên</b>' : ''))
+      : 'Gõ email + mật khẩu của tài khoản cần xoá (không cần đăng nhập vào app).';
+    q('xtk-em-w').style.display = (mode === 'cdn') ? '' : 'none';
+    var em = q('xtk-em');
+    if(mode === 'cdn'){ var ei = q('email-input'); em.value = (ei && emailOk(ei.value)) ? String(ei.value).trim() : ''; } else em.value = S.email;
+    q('xtk-xn').value = ''; q('xtk-mk').value = ''; q('xtk-mk').type = 'password'; q('xtk-eye').textContent = '👁';
+    q('xtk-canh').innerHTML = canhChu();
+    q('xtk-giu').innerHTML = giuChu();
+    q('xtk-giu').style.display = (mode === 'dn' && laNVMay()) ? 'none' : '';
+    q('xtk-b2').innerHTML = '';
+    bao('', '');
+    veNut();
+    m.classList.add('active');
+    try{ var md = m.querySelector('.modal'); if(md) md.scrollTop = 0; }catch(e){}
+  }catch(e){ try{ console.warn('[xtk] mở bảng lỗi', e); }catch(_){} }
+}
+window.xtkMo = function(){ mo(); };
+
+/* ───────── GỌI MÁY CHỦ (bằng phiên phụ) ───────── */
+/* Kiểm mật khẩu trên một PHIÊN PHỤ (bộ nhớ tạm) rồi THOÁT NGAY, chỉ giữ lại "vé" đăng nhập (ID token, sống 1 giờ) để gọi máy chủ.
+   Phiên phụ không bao giờ nằm lại: các khối khác hay dò "app nào đang đăng nhập" (vd Giới thiệu bạn bè) sẽ không bắt nhầm nó. */
+async function dangNhapPhu(email, mk){
+  var goc = appChinh(); if(!goc) throw { code:'xtk/chua-san' };
+  var a2 = initializeApp(goc.options, 'xoatk-' + Date.now() + '-' + Math.floor(Math.random() * 1e6));
+  var u2 = null;
+  try{
+    u2 = initializeAuth(a2, { persistence: inMemoryPersistence });
+    try{ u2.languageCode = 'vi'; }catch(e){}
+    var cr = await signInWithEmailAndPassword(u2, email, mk);
+    var tok = String((await cr.user.getIdToken()) || '');
+    if(!tok) throw { code:'auth/internal-error' };
+    S.tok = tok; S.uid2 = cr.user.uid; S.email = String(cr.user.email || email).trim();
+    return true;
+  }finally{
+    try{ if(u2) await signOut(u2); }catch(e){}
+    try{ await deleteApp(a2); }catch(e){}
+  }
+}
+/* Gọi hàm callable bằng đúng giao thức của SDK Firebase (POST {data} + "Authorization: Bearer <vé>") — y hệt
+   firebase-functions.js 10.12.0 (_errorForResponse / decode), khỏi phải nạp thêm phần mềm phụ. */
+var MA_HTTP = { 0:'internal', 400:'invalid-argument', 401:'unauthenticated', 403:'permission-denied', 404:'not-found', 409:'aborted',
+  429:'resource-exhausted', 499:'cancelled', 500:'internal', 501:'unimplemented', 503:'unavailable', 504:'deadline-exceeded' };
+var MA_TT = { OK:'ok', CANCELLED:'cancelled', UNKNOWN:'unknown', INVALID_ARGUMENT:'invalid-argument', DEADLINE_EXCEEDED:'deadline-exceeded',
+  NOT_FOUND:'not-found', ALREADY_EXISTS:'already-exists', PERMISSION_DENIED:'permission-denied', UNAUTHENTICATED:'unauthenticated',
+  RESOURCE_EXHAUSTED:'resource-exhausted', FAILED_PRECONDITION:'failed-precondition', ABORTED:'aborted', OUT_OF_RANGE:'out-of-range',
+  UNIMPLEMENTED:'unimplemented', INTERNAL:'internal', UNAVAILABLE:'unavailable', DATA_LOSS:'data-loss' };
+function giaiMa(j){
+  if(j == null) return j;
+  if(Array.isArray(j)) return j.map(giaiMa);
+  if(typeof j === 'object'){
+    var t = j['@type'];
+    if(t === 'type.googleapis.com/google.protobuf.Int64Value' || t === 'type.googleapis.com/google.protobuf.UInt64Value') return Number(j.value);
+    var o = {}; for(var k in j){ if(Object.prototype.hasOwnProperty.call(j, k)) o[k] = giaiMa(j[k]); } return o;
+  }
+  return j;
+}
+function urlHam(){ var pid = 'so-no-cc57a'; try{ pid = appChinh().options.projectId || pid; }catch(e){} return 'https://' + VUNG + '-' + pid + '.cloudfunctions.net/' + HAM; }
+async function goi(viec, ms){
+  if(!S.tok) throw { code:'functions/unauthenticated', message:'unauthenticated' };
+  var data = { viec: viec }; if(viec === 'xoa') data.xacNhan = 'XOA';
+  var ac = null; try{ ac = new AbortController(); }catch(e){ ac = null; }
+  var het = false, hen = setTimeout(function(){ het = true; try{ if(ac) ac.abort(); }catch(e){} }, ms);
+  var st = 0, j = null;
+  try{
+    var r = await fetch(urlHam(), { method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer ' + S.tok },
+      body: JSON.stringify({ data: data }), signal: ac ? ac.signal : undefined });
+    st = r.status;
+    try{ j = await r.json(); }catch(e){ j = null; }
+  }catch(e){ st = 0; j = null; }                                  /* mất mạng / bị chặn: y như SDK (mã internal) */
+  finally{ clearTimeout(hen); }
+  if(het) throw { code:'functions/deadline-exceeded', message:'deadline-exceeded' };
+  var code = (st >= 200 && st < 300) ? 'ok' : (MA_HTTP[st] || 'unknown'), msg = code;
+  var er = (j && typeof j === 'object') ? j.error : null;
+  if(er && typeof er === 'object'){
+    if(typeof er.status === 'string'){ if(!MA_TT[er.status]) throw { code:'functions/internal', message:'internal' }; code = MA_TT[er.status]; msg = er.status; }
+    if(typeof er.message === 'string') msg = er.message;
+  }
+  if(code !== 'ok') throw { code:'functions/' + code, message: msg };
+  var kq = (j && typeof j === 'object') ? ((typeof j.data !== 'undefined') ? j.data : j.result) : undefined;
+  if(typeof kq === 'undefined') throw { code:'functions/internal', message:'internal' };   /* vd Wi-Fi công cộng trả trang đăng nhập */
+  return giaiMa(kq) || {};
+}
+function maLoi(e){ return String((e && e.code) || ''); }
+function moTaLoiDN(e){
+  var c = maLoi(e);
+  if(/wrong-password|invalid-credential|invalid-login-credentials|user-not-found|user-mismatch/.test(c))
+    return S.mode === 'dn' ? '❌ Mật khẩu không đúng. Gõ lại cho đúng (chữ hoa / chữ thường khác nhau).' : '❌ Sai email hoặc mật khẩu.';
+  if(/too-many-requests/.test(c)) return '⏳ Thử sai nhiều lần quá — đợi vài phút rồi thử lại.';
+  if(/network-request-failed/.test(c) || navigator.onLine === false) return '📶 Không có mạng — cần bật Wi-Fi / 4G để xoá tài khoản.';
+  if(/user-disabled/.test(c)) return '🔒 Tài khoản này đang bị khoá — gọi <a href="tel:' + esc(hotSo()) + '">' + esc(hotChu()) + '</a> để được xoá giúp.';
+  if(/invalid-email/.test(c)) return '❌ Email không hợp lệ.';
+  if(c === 'xtk/chua-san') return '⏳ App đang khởi động — chờ vài giây rồi thử lại.';
+  return '❌ Chưa kiểm tra được mật khẩu (' + esc(c || 'lỗi') + '). Thử lại.';
+}
+/* kiem = true: lỗi lúc mới KIỂM TRA (chưa xoá gì, nút đỏ vẫn là "Xóa vĩnh viễn") · false: lỗi lúc đang XOÁ (nút 🔄 Thử lại) */
+function moTaLoiMC(e, kiem){
+  var c = maLoi(e), m = String((e && e.message) || '');
+  var tho = !m || m === c || m.toLowerCase().replace(/_/g, '-') === c.replace(/^functions\//, '').toLowerCase();
+  var lai = kiem ? 'bấm lại nút đỏ' : 'bấm 🔄 Thử lại';
+  var chua = kiem ? ' Chưa có gì bị xoá.' : '';
+  var goiHot = ' Hoặc gọi <a href="tel:' + esc(hotSo()) + '">' + esc(hotChu()) + '</a> để được xoá giúp.';
+  if(navigator.onLine === false) return '📶 Máy đang mất mạng — bật Wi-Fi / 4G rồi ' + lai + '.' + chua;
+  if(c === 'functions/not-found' || (c === 'functions/permission-denied' && tho)) return '⏳ Máy chủ xoá tài khoản <b>chưa được cài</b> (chủ phần mềm đang cài đặt). Chưa có gì bị xoá.' + goiHot;   /* 403 trơn = cổng hàm chưa mở */
+  if(c === 'functions/internal' && tho) return '⏳ Chưa kết nối được máy chủ xoá tài khoản — mạng yếu, hoặc máy chủ chưa cài xong. Thử lại sau ít phút.' + chua + goiHot;
+  if(c === 'functions/deadline-exceeded') return kiem ? ('⏳ Máy chủ trả lời chậm — ' + lai + ' để thử lại.' + chua) : '⏳ Dữ liệu nhiều nên máy chủ vẫn đang xoá — bấm 🔄 Thử lại để làm tiếp.';
+  if((c === 'functions/unavailable' || c === 'functions/unknown') && tho) return '📶 Mạng yếu hoặc máy chủ đang bận — ' + lai + '.' + chua;
+  if(c === 'functions/unauthenticated') return kiem ? ('🔑 Phiên xác nhận đã hết — ' + lai + ' để thử lại.') : '🔑 Phiên xác nhận đã hết — bấm 🔄 Thử lại (app tự nhập lại mật khẩu bạn vừa gõ).';
+  if(c === 'functions/failed-precondition' && !kiem) return '🔑 Đã quá 15 phút kể từ lúc gõ mật khẩu — bấm 🔄 Thử lại (app tự xác nhận lại mật khẩu bạn vừa gõ).';
+  if(!c) return '📶 Chưa kết nối được (' + esc(m.slice(0, 120) || 'lỗi') + ') — kiểm tra mạng rồi ' + lai + '.' + chua + goiHot;   /* vd tải hỏng phần mềm phụ lúc mất mạng */
+  if(!tho) return esc(m.slice(0, 300));
+  return '❌ Chưa xoá được (' + esc(c || 'lỗi') + ').' + goiHot;
+}
+function tamThoi(c){ return /^functions\/(aborted|unavailable|deadline-exceeded|internal|unknown)$/.test(c); }
+
+/* ───────── BẤM NÚT ĐỎ ───────── */
+async function bamXoa(){
+  if(S.busy) return;
+  if(S.st === 'nhap') return kiemTra();
+  if(S.st === 'xacnhan') return tienHanh();
+  if(S.st === 'loi') return thuLai();
+}
+async function kiemTra(){
+  if(!hopLe()){ veNut(); return; }
+  var email = S.mode === 'cdn' ? String(q('xtk-em').value || '').trim() : S.email;
+  var mk = String(q('xtk-mk').value || '');
+  if(String(email).toLowerCase() === ADMIN){ bao('👑 Tài khoản chủ phần mềm (admin) không xoá bằng app.', 'loi'); return; }
+  if(S.mode === 'dn' && !nguoiDung()){ S.mode = 'cdn'; }
+  S.busy = true; S.st = 'kiem'; S.mk = mk; veNut();
+  bao('⏳ Đang kiểm tra mật khẩu…', 'dang');
+  try{ await dangNhapPhu(email, mk); }
+  catch(e){ S.busy = false; S.st = 'nhap'; S.mk = ''; bao(moTaLoiDN(e), 'loi'); veNut(); return; }
+  if(S.mode === 'dn'){
+    var cu = nguoiDung();
+    if(cu && cu.uid !== S.uid2){ S.busy = false; S.st = 'nhap'; bao('❌ Email / mật khẩu này không phải của tài khoản đang đăng nhập.', 'loi'); S.tok = ''; veNut(); return; }
+    if(cu) S.shop = uidShop() || '';
+    else S.mode = 'cdn';                                           /* máy vừa bị đăng xuất (vd lệnh từ xa) — mật khẩu đã đúng nên làm tiếp */
+  }
+  if(S.mode === 'cdn'){
+    try{ S.shop = String(localStorage.getItem('sono_shopuid_' + S.uid2) || ''); }catch(e){ S.shop = ''; }
+  }
+  if(String(S.email).toLowerCase() === ADMIN){ S.busy = false; S.st = 'nhap'; bao('👑 Tài khoản chủ phần mềm (admin) không xoá bằng app.', 'loi'); veNut(); return; }
+  bao('⏳ Đang hỏi máy chủ…', 'dang');
+  var k;
+  try{ k = await goi('kiem', 60000); }
+  catch(e){ S.busy = false; S.st = 'nhap'; bao(moTaLoiMC(e, true), 'loi'); S.tok = ''; veNut(); return; }
+  if(k && k.daXoa){                                               /* tài khoản đã bị xoá từ trước (vd xoá ở máy khác) */
+    if(S.mode === 'dn' && nguoiDung()){ try{ await dangXuatChinh(); }catch(e){} S.daDangXuat = true; }
+    S.busy = false; await xongRoi({ xong:true, daXoa:true }); return;
+  }
+  if(!k || k.ok !== true){ S.busy = false; S.st = 'nhap'; bao('❌ Máy chủ trả lời lạ — thử lại sau ít phút. Chưa có gì bị xoá.', 'loi'); S.tok = ''; veNut(); return; }
+  S.kiem = k; S.laNV = !!k.laNV;
+  if(S.laNV && !S.shop){ try{ S.shop = String(localStorage.getItem('sono_shopuid_' + S.uid2) || ''); }catch(e){} }
+  var hoi = canHoi(k);
+  if(hoi){ S.busy = false; S.st = 'xacnhan'; q('xtk-b2').innerHTML = hoi; bao('', ''); veNut(); try{ q('xtk-b2').scrollIntoView({ block:'nearest' }); }catch(e){} return; }
+  S.busy = false;
+  return tienHanh();
+}
+function canHoi(k){
+  var ds = [], i, g;
+  if(k.goiTra && k.goiTra.length){
+    var t = [];
+    for(i = 0; i < k.goiTra.length; i++){ g = k.goiTra[i]; t.push('<b>' + esc(TEN_GOI[g.app] || g.app) + '</b> (' + (g.vv ? 'vĩnh viễn' : 'tới ' + esc(ngayVN(g.den))) + ')'); }
+    ds.push('Tài khoản còn hạn <b>ĐÃ TRẢ TIỀN</b>: ' + t.join(', ') + '. Xoá là <b>mất luôn</b> thời hạn này.');
+  }
+  if(k.choDuyet) ds.push('Bạn đang có <b>yêu cầu gia hạn chờ duyệt</b>. Nếu đã chuyển khoản, hãy gọi <a href="tel:' + esc(hotSo()) + '">' + esc(hotChu()) + '</a> <b>trước khi xoá</b> để được xử lý tiền.');
+  if(k.appKhac && k.appKhac.length){
+    var a = []; for(i = 0; i < k.appKhac.length; i++) a.push('<b>' + esc(TEN_GOI[k.appKhac[i]] || k.appKhac[i]) + '</b>');
+    ds.push('Email này còn dùng cho app: ' + a.join(', ') + ' — dữ liệu ở app đó <b>cũng bị xoá</b> theo.');
+  }
+  if(S.mode === 'cdn' && k.laNV) ds.push('Đây là tài khoản <b>NHÂN VIÊN</b> của một cửa hàng: chỉ xoá tài khoản đăng nhập này, sổ sách cửa hàng giữ nguyên.');
+  if(!ds.length) return '';
+  if(!k.laNV && k.soNV > 0) ds.push('Cửa hàng có <b>' + Number(k.soNV) + ' tài khoản nhân viên</b> — cũng bị xoá / gỡ theo.');
+  var h = '<b>⚠️ Đọc kỹ lần cuối:</b><ul>';
+  for(i = 0; i < ds.length; i++) h += '<li>' + ds[i] + '</li>';
+  return h + '</ul>Chắc chắn vẫn xoá thì bấm nút đỏ <b>🗑️ Vẫn xoá vĩnh viễn</b>. Không xoá nữa thì bấm <b>Hủy</b>.';
+}
+
+/* Chờ dữ liệu chưa gửi của máy này lên máy chủ (tối đa ms). true = đã gửi xong / không có gì chờ. */
+async function choGuiXong(ms){
+  try{
+    var db = window.SKMOD && window.SKMOD.fb && window.SKMOD.fb.db; if(!db || !nguoiDung()) return true;
+    var M = await import(FB + 'firebase-firestore.js');
+    var xong = false;
+    await Promise.race([ M.waitForPendingWrites(db).then(function(){ xong = true; }, function(){ xong = false; }), ngu(ms) ]);
+    return xong;
+  }catch(e){ return true; }
+}
+async function dangXuatChinh(){
+  try{ if(typeof window.snDangXuatNgay === 'function'){ await window.snDangXuatNgay(); return; } }catch(e){}
+  try{ var a = appChinh(); if(a) await signOut(getAuth(a)); }catch(e){}
+}
+function demGio(){
+  clearInterval(S.demGio);
+  var t0 = Date.now(), n = 1;
+  S.demGio = setInterval(function(){
+    if(S.st !== 'xoa'){ clearInterval(S.demGio); return; }
+    var g = Math.floor((Date.now() - t0) / 1000), p = Math.floor(g / 60), s = g % 60;
+    bao('⏳ Máy chủ đang xoá dữ liệu' + (S.luot > 1 ? ' (lượt ' + S.luot + ')' : '') + '… <b>' + p + ':' + (s < 10 ? '0' : '') + s + '</b><br>Đừng tắt app. Dữ liệu nhiều có thể mất vài phút.', 'dang');
+  }, 1000);
+}
+async function tienHanh(){
+  if(S.busy) return;
+  S.busy = true; S.st = 'xoa'; veNut();
+  var cu = (S.mode === 'dn' && !S.daDangXuat) ? nguoiDung() : null;
+  if(cu && cu.uid === S.uid2){                                     /* chỉ đăng xuất khi máy đang đăng nhập ĐÚNG tài khoản sắp xoá */
+    if(navigator.onLine === false){
+      S.busy = false; S.st = 'loi'; S.loiMa = 'xtk/mat-mang';
+      bao('📶 Máy đang mất mạng — bật Wi-Fi / 4G rồi bấm 🔄 Thử lại. Chưa có gì bị xoá.', 'loi');
+      veNut(); return;
+    }
+    bao('⏳ Đang gửi nốt dữ liệu của máy này lên máy chủ…', 'dang');
+    var guiXong = await choGuiXong(S.laNV ? 20000 : 8000);
+    if(!guiXong && S.laNV){
+      S.busy = false; S.st = 'loi'; S.loiMa = 'xtk/chua-dong-bo';
+      bao('📶 Máy này còn <b>dữ liệu bán hàng chưa gửi lên máy chủ</b>. Bật mạng, chờ huy hiệu báo <b>đã đồng bộ</b> rồi bấm 🔄 Thử lại — để không mất đơn của cửa hàng.', 'loi');
+      veNut(); return;
+    }
+    bao('⏳ Đang đăng xuất máy này…', 'dang');
+    await dangXuatChinh();
+    S.daDangXuat = true;
+  }else if(S.mode === 'dn'){ S.daDangXuat = true; }
+  await vongXoa();
+}
+async function vongXoa(){
+  S.luot = 0; var loiLien = 0;
+  demGio();
+  while(true){
+    S.luot++;
+    try{
+      S.daGoiXoa = true;
+      var r = await goi('xoa', 545000);
+      loiLien = 0;
+      if(r && r.xong){ clearInterval(S.demGio); S.busy = false; await xongRoi(r); return; }
+      if(r && r.conTiep && S.luot < 30) continue;
+      throw { code:'xtk/la', message:'Máy chủ trả lời lạ — bấm 🔄 Thử lại.' };
+    }catch(e){
+      var c = maLoi(e);
+      if(tamThoi(c) && ++loiLien <= 3 && S.luot < 30 && navigator.onLine !== false){ await ngu(3000 * loiLien); continue; }
+      clearInterval(S.demGio);
+      S.busy = false; S.st = 'loi'; S.loiMa = c;
+      bao(moTaLoiMC(e), 'loi'); veNut(); return;
+    }
+  }
+}
+async function thuLai(){
+  if(S.busy) return;
+  if(S.loiMa === 'xtk/chua-dong-bo' || S.loiMa === 'xtk/mat-mang'){ S.st = 'xacnhan'; return tienHanh(); }
+  S.busy = true; S.st = 'xoa'; veNut();
+  /* phiên phụ hết hạn / quá 15 phút ⇒ tự đăng nhập lại bằng mật khẩu vừa gõ */
+  if(!S.tok || /unauthenticated|failed-precondition/.test(S.loiMa)){
+    bao('⏳ Đang xác nhận lại mật khẩu…', 'dang');
+    try{ await dangNhapPhu(S.email, S.mk); }
+    catch(e){
+      S.busy = false; S.st = 'loi'; S.loiMa = maLoi(e);
+      /* mật khẩu vừa đúng mà nay không đăng nhập được nữa sau khi đã nhờ máy chủ xoá ⇒ gần như chắc tài khoản ĐÃ bị xoá xong */
+      if(S.daGoiXoa && /wrong-password|invalid-credential|invalid-login-credentials|user-not-found/.test(S.loiMa))
+        bao('⚠️ Không đăng nhập lại được bằng mật khẩu vừa gõ — rất có thể tài khoản <b>đã được xoá xong</b>. Bấm <b>Hủy</b> rồi thử đăng nhập: báo <b>"Sai email hoặc mật khẩu"</b> là đã xoá xong. Cần chắc chắn thì gọi <a href="tel:' + esc(hotSo()) + '">' + esc(hotChu()) + '</a>.', 'loi');
+      else bao(moTaLoiDN(e), 'loi');
+      veNut(); return;
+    }
+  }
+  if(S.mode === 'dn' && !S.daDangXuat && nguoiDung()){ S.busy = false; S.st = 'xacnhan'; return tienHanh(); }
+  await vongXoa();
+}
+
+/* ───────── XONG ───────── */
+async function xongRoi(r){
+  S.st = 'xong'; S.busy = false; S.xong = true; S.mk = '';
+  try{ q('xtk-mk').value = ''; }catch(e){}
+  var nv = !!(r && r.laNV) || S.laNV;
+  bao('<b>✅ Đã xoá xong tài khoản ' + esc(S.email) + (nv ? ' (nhân viên).' : '') + '</b><br>'
+    + (nv ? 'Sổ sách của cửa hàng vẫn còn nguyên. ' : 'Toàn bộ dữ liệu đã được xoá khỏi máy chủ. ')
+    + 'Cảm ơn bạn đã dùng Sổ Nợ!<br>Bấm <b>Đóng</b> để về màn đăng nhập.', 'ok');
+  veNut();
+  var m = q(ID); if(m && !m.classList.contains('active')) m.classList.add('active');
+  try{ await thoiThongBao(); }catch(e){}
+  S.tok = '';
+  var ds = [S.uid2]; if(S.laNV && S.shop && S.shop !== S.uid2) ds.push(S.shop);
+  try{ donBoNho(ds); }catch(e){}
+  try{ await donCuuHo(ds); }catch(e){}
+}
+async function thoiThongBao(){
+  try{
+    if(!('serviceWorker' in navigator)) return;
+    var reg = await navigator.serviceWorker.getRegistration('./sono-push/');
+    if(!reg || !reg.pushManager) return;
+    var s = await reg.pushManager.getSubscription();
+    if(s) await s.unsubscribe();
+  }catch(e){}
+}
+function donBoNho(uids){
+  uids = (uids || []).filter(function(x){ return typeof x === 'string' && x.length >= 6; });
+  if(!uids.length) return;
+  [window.localStorage, window.sessionStorage].forEach(function(st){
+    try{
+      if(!st) return;
+      var ks = [], i;
+      for(i = 0; i < st.length; i++) ks.push(st.key(i));
+      ks.forEach(function(k){
+        if(!k || k === 'rmt_dev_v1' || k === 'sntb_v1') return;   /* rmt_dev_v1: chống dùng thử lại trên máy này · sntb_v1: khối thông báo tự gỡ khi thấy đã đăng xuất */
+        for(var j = 0; j < uids.length; j++){ if(k.indexOf(uids[j]) >= 0){ try{ st.removeItem(k); }catch(e){} return; } }
+      });
+    }catch(e){}
+  });
+  ['sn_gac_v1','sn_xm_v1','rmt_hb_v2'].forEach(function(k){
+    try{
+      var o = JSON.parse(localStorage.getItem(k) || 'null');
+      if(!o || typeof o !== 'object' || Array.isArray(o)) return;
+      var doi = false;
+      uids.forEach(function(u){ if(Object.prototype.hasOwnProperty.call(o, u)){ delete o[u]; doi = true; } });
+      if(doi) localStorage.setItem(k, JSON.stringify(o));
+    }catch(e){}
+  });
+  try{ if(uids.indexOf(String(localStorage.getItem('sn_saigio_v1') || '')) >= 0) localStorage.removeItem('sn_saigio_v1'); }catch(e){}
+}
+function moKho(ten, cb){                               /* mở kho IndexedDB CÓ SẴN (không tạo mới) */
+  try{
+    var r = indexedDB.open(ten), tao = false;
+    r.onupgradeneeded = function(){ tao = true; try{ r.transaction.abort(); }catch(e){} };
+    r.onerror = function(){ cb(null); };
+    r.onblocked = function(){ cb(null); };
+    r.onsuccess = function(){ if(tao){ try{ r.result.close(); }catch(e){} cb(null); return; } cb(r.result); };
+  }catch(e){ cb(null); }
+}
+function donCuuHo(uids){                               /* kho cứu hộ ngoại tuyến (IndexedDB sono_cuuho_v1): khoá '<uid>|…' */
+  return new Promise(function(res){
+    var het = false; function xong(){ if(!het){ het = true; res(); } }
+    setTimeout(xong, 6000);
+    moKho('sono_cuuho_v1', function(d){
+      if(!d){ xong(); return; }
+      try{
+        if(!d.objectStoreNames.contains('kv')){ d.close(); xong(); return; }
+        var t = d.transaction('kv', 'readwrite'), st = t.objectStore('kv');
+        uids.forEach(function(u){ if(u) try{ st['delete'](IDBKeyRange.bound(u + '|', u + '|\uffff')); }catch(e){} });
+        t.oncomplete = function(){ try{ d.close(); }catch(e){} xong(); };
+        t.onerror = t.onabort = function(){ try{ d.close(); }catch(e){} xong(); };
+      }catch(e){ try{ d.close(); }catch(_){} xong(); }
+    });
+  });
+}
+/* Bộ đệm Firestore trong máy: chỉ dọn khi KHÔNG còn việc chờ gửi của tài khoản nào khác (không làm mất đơn của ai) */
+function chiCoViecCua(uids){
+  return new Promise(function(res){
+    var pid = 'so-no-cc57a'; try{ pid = appChinh().options.projectId || pid; }catch(e){}
+    var het = false; function xong(v){ if(!het){ het = true; res(v); } }
+    setTimeout(function(){ xong(false); }, 5000);
+    moKho('firestore/[DEFAULT]/' + pid + '/main', function(d){
+      if(!d){ xong(false); return; }
+      try{
+        if(!d.objectStoreNames.contains('mutations')){ d.close(); xong(false); return; }
+        var rq = d.transaction('mutations', 'readonly').objectStore('mutations').getAll();
+        rq.onsuccess = function(){
+          var a = rq.result || [];
+          var ok = a.every(function(m){ return m && typeof m.userId === 'string' && (m.userId === '' || uids.indexOf(m.userId) >= 0); });
+          try{ d.close(); }catch(e){} xong(ok);
+        };
+        rq.onerror = function(){ try{ d.close(); }catch(e){} xong(false); };
+      }catch(e){ try{ d.close(); }catch(_){} xong(false); }
+    });
+  });
+}
+var _ketThuc = false;
+async function ketThuc(){
+  if(_ketThuc) return; _ketThuc = true;
+  try{
+    var db = window.SKMOD && window.SKMOD.fb && window.SKMOD.fb.db;
+    if(db && !nguoiDung() && S.uid2 && (await chiCoViecCua([S.uid2]))){   /* chỉ tính việc chờ của ĐÚNG tài khoản vừa xoá (không tính shop của nhân viên) */
+      var M = await import(FB + 'firebase-firestore.js');
+      await Promise.race([ (async function(){ await M.terminate(db); await M.clearIndexedDbPersistence(db); })(), ngu(5000) ]);
+    }
+  }catch(e){}
+  try{ location.replace(urlSach()); }catch(e){ try{ location.reload(); }catch(_){} }
+}
+
+/* ───────── LỐI VÀO ───────── */
+function ganMenu(){
+  try{
+    var m = document.querySelector('#snbh-topbar .snbh-menu'); if(!m) return;
+    var it = m.querySelector('[data-snbh="xoatk"]');
+    if(!it){
+      it = document.createElement('div'); it.className = 'snbh-mi xtk-mi'; it.setAttribute('data-snbh', 'xoatk');
+      it.innerHTML = '<span class="snbh-mic">🗑️</span><label>Xóa tài khoản</label>';
+      it.addEventListener('click', function(ev){ try{ ev.stopPropagation(); }catch(e){} try{ m.classList.remove('on'); }catch(e){} mo('dn'); });
+      var out = m.querySelector('[data-snbh="logout"]');
+      if(out) m.insertBefore(it, out); else m.appendChild(it);
+    }
+    var ds = laAdmin() ? 'none' : '';
+    if(it.style.display !== ds) it.style.display = ds;
+  }catch(e){}
+}
+function ganKhoa(){
+  try{
+    var a = q('locked-actions'); if(!a || laAdmin()) return;
+    if(a.querySelector('[data-xtk="khoa"]')) return;
+    var b = document.createElement('button'); b.type = 'button'; b.className = 'xtk-lk'; b.setAttribute('data-xtk', 'khoa');
+    b.textContent = '🗑️ Xóa tài khoản';
+    b.addEventListener('click', function(){ mo('dn'); });
+    a.appendChild(b);
+  }catch(e){}
+}
+function ganDangNhap(){
+  try{
+    var box = document.querySelector('#auth-screen .auth-box'); if(!box || box.querySelector('[data-xtk="dn"]')) return;
+    var d = document.createElement('div'); d.className = 'xtk-dn';
+    d.innerHTML = '<button type="button" data-xtk="dn">🗑️ Xóa tài khoản</button>';
+    d.querySelector('button').addEventListener('click', function(){ mo('cdn'); });
+    box.appendChild(d);
+  }catch(e){}
+}
+function gan(){ ganMenu(); ganKhoa(); ganDangNhap(); }
+gan();
+document.addEventListener('DOMContentLoaded', gan);
+setTimeout(gan, 400);
+setInterval(gan, 1500);
+try{
+  var la = q('locked-actions');
+  if(la && window.MutationObserver) new MutationObserver(function(){ ganKhoa(); }).observe(la, { childList:true });
+}catch(e){}
+/* đang xoá dở mà khối khác lỡ đóng bảng (vd khoá màn hình lúc giấy phép vừa bị xoá) ⇒ hiện lại ngay */
+setInterval(function(){
+  try{ var m = q(ID); if(m && (S.busy || S.st === 'xong') && !m.classList.contains('active')) m.classList.add('active'); }catch(e){}
+}, 700);
+
+/* ───────── LINK ?xoatk=1 (trang "xoá tài khoản" cho Google Play) ───────── */
+(async function(){
+  var co = false; try{ co = new URLSearchParams(location.search).has('xoatk'); }catch(e){}
+  if(!co) return;
+  var a = null;
+  for(var i = 0; i < 60 && !(a = appChinh()); i++) await ngu(500);
+  if(!a) return;
+  try{ var au = getAuth(a); if(au.authStateReady) await au.authStateReady(); }catch(e){}
+  await ngu(300);
+  if(nguoiDung()){
+    for(var j = 0; j < 60; j++){ if(hien(q('app')) || hien(q('locked-view'))) break; await ngu(500); }
+    if(laAdmin()){ boThamSo(); return; }
+    mo('dn');
+  }else mo('cdn');
+  boThamSo();
+})();
+
+}catch(e){ try{ console.warn('[xtk] khối Xóa tài khoản lỗi khởi động', e); }catch(_){} }
+})();
+</script>
+<!-- ═══════════════ HẾT: XÓA TÀI KHOẢN ═══════════════ -->
 </body>
 </html>
