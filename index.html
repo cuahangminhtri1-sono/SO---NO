@@ -745,7 +745,7 @@ import { getFirestore, initializeFirestore, persistentLocalCache, persistentMult
 import { getStorage, ref as _sref, uploadBytes, getDownloadURL, deleteObject, listAll }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
 
-const APP_BUILD = "2026-10-29-SN21"; // ⬆️ ĐỔI MỖI LẦN DEPLOY (đặt TRÙNG tên cache trong sw.js) — hiện ở ⚙️ Cài đặt để biết máy đã chạy bản mới chưa
+const APP_BUILD = "2026-10-30-SN23"; // ⬆️ ĐỔI MỖI LẦN DEPLOY (đặt TRÙNG tên cache trong sw.js) — hiện ở ⚙️ Cài đặt để biết máy đã chạy bản mới chưa
 const firebaseConfig = {
   apiKey: "AIzaSyA_kjQ-CdASRkf50Glz3kQajlkD5qGWC4k",
   authDomain: "so-no-cc57a.firebaseapp.com",
@@ -21752,7 +21752,7 @@ try{
    +'<li><b>Hỏi:</b> <i>ai nợ nhiều nhất</i> · <i>cô Ba nợ bao nhiêu</i> · <i>hôm nay bán được bao nhiêu</i> · <i>bia còn bao nhiêu</i> · <i>hàng nào sắp hết</i> · <i>việc hôm nay</i></li></ul>'
    +'<div class="snai-tip">💡 Nói <b>nhiều việc trong 1 câu</b> cũng được: <i>ghi nợ cô Ba 200k, anh Tư trả 100k</i> ⇒ AI làm từng việc. Số tiền nói kiểu nào cũng hiểu: <b>200k</b> · <b>200 nghìn</b> · <b>1tr2</b> · <b>hai trăm rưỡi</b> · <b>1.500.000đ</b>. Gõ <b>có dấu</b> thì AI hiểu chuẩn hơn (vì “bạn” khác “bán”).</div>'
    +'<div class="snai-ok">📋 <b>Việc hôm nay:</b> mở AI là thấy ngay khách cần nhắc nợ, hàng sắp hết, hàng sắp hết hạn, chưa sao lưu — mỗi việc có nút làm luôn. Con số màu cam trên thanh 🤖 là số việc đang chờ.</div>'
-   +'<div class="snai-ok">🔒 <b>An toàn:</b> AI làm bằng đúng các nút có sẵn của app nên <b>quyền nhân viên, khoá sổ, PIN người bán, quỹ ca</b> vẫn y như khi bạn tự bấm. AI chạy <b>ngay trong máy</b> — không gửi dữ liệu đi đâu, không cần mạng AI, không tốn phí.</div>'
+   +'<div class="snai-ok">🔒 <b>An toàn:</b> AI làm bằng đúng các nút có sẵn của app nên <b>quyền nhân viên, khoá sổ, PIN người bán, quỹ ca</b> vẫn y như khi bạn tự bấm. AI chạy <b>ngay trong máy</b> — không cần mạng, không tốn phí. Chỉ khi AI trong máy <b>chưa hiểu</b> câu mới nhờ <b>🌐 AI online</b> (bạn chọn ở nút ⚙️ — xem bài “AI online”).</div>'
    +'<div class="snai-tip">⚙️ Nút <b>⚙️</b> trên bảng AI: bật <b>⚡ Làm luôn, không hỏi lại</b> ⇒ câu đã rõ ràng thì AI làm ngay, không cần bấm ✅ (vẫn có ↶ Hoàn tác). Mặc định <b>TẮT</b> cho chắc ăn. Đóng bảng AI: bấm <b>✕</b> hoặc nút <b>Trở về</b> của điện thoại.</div>'};
   var e13={c:'sn',t:'🤖 AI làm giúp: câu ra lệnh cho Sổ Nợ',
   k:'ghi no thu no nhac no gui link in bang ke noi ghi no go ghi no them khach sua ten khach tim khach ai hieu ten khach',
@@ -21898,6 +21898,168 @@ try{
         for(i=0;i<r.length;i++){ if(r[i].e===e){ chon=r[i]; break; } }
         if(!chon) chon={e:e,s:(r[0]?r[0].s:10)+1,h:1};
         out=[chon];
+        for(i=0;i<r.length;i++){ if(r[i]!==chon) out.push(r[i]); }
+        return out.slice(0,6);
+      }catch(x){ return r; }
+    };
+  }
+}catch(e){}
+/* ═════════════ 5k) [SN22] 🌐 AI ONLINE — 2 bài mới + "Có gì mới" + mẹo + chỉ tận tay thẻ hỏi AI online ═════════════
+   Chỉ BỔ SUNG lúc chạy (không sửa bài gốc): 2 bài đặt CUỐI KB · 1 dòng + 1 nút đầu "Có gì mới" · mẹo trong bài 🤖 AI hiểu sai ·
+   🆘 Kẹt? Chỉ tôi hiểu thẻ "🌐 Hỏi AI online" / đang chờ AI online · câu hỏi có "AI online / Gemini / hết lượt" ⇒ bài AI online. */
+try{
+  var e16={c:'bd',t:'🌐 AI online — khi AI trong máy chưa hiểu câu',
+  k:'ai online gemini google ai tren mang ai mang hoi ai online luon tu hoi online khong dung ai online ai hieu cau long noi long go khong dau ai hieu tieng long ai online hoi lai',
+  go:'ALG_MO',
+  a:'<b class="snai-h">🌐 AI online — nhờ Gemini hiểu giúp câu khó</b>'
+   +'<b>👉 Cái này để làm gì:</b> <b>🤖 AI làm giúp</b> chạy ngay trong máy, hiểu được phần lớn câu. Câu <b>quá lạ</b> (nói lóng, gõ không dấu, gọi tên tắt / biệt danh, giọng nói bị máy nghe sai) thì AI trong máy chưa hiểu — lúc đó app nhờ <b>AI online</b> (Gemini của Google, qua máy chủ riêng của app) dịch câu ra lệnh chuẩn.'
+   +'<b>🗣️ Ví dụ câu AI online hiểu được:</b><ul>'
+   +'<li><i>bà ba lấy 2 xị</i> ⇒ ghi nợ Cô Ba … 200.000đ</li>'
+   +'<li><i>cho thằng tư thiếu 1 củ rưỡi</i> ⇒ ghi nợ Anh Tư 1.500.000đ</li>'
+   +'<li><i>lấy cho anh tư két ken ghi sổ</i> ⇒ bán 1 thùng bia Heineken cho Anh Tư ghi nợ</li>'
+   +'<li><i>5 lạng thịt với chục trứng tiền mặt</i> ⇒ bán 0,5 kg thịt, 10 quả trứng</li>'
+   +'<li><i>đếm lại tiger còn 2 thùng lẻ 5 lon</i> ⇒ kiểm kho bia Tiger còn 53 lon</li></ul>'
+   +'<b>🪜 Dùng thế nào:</b><ol>'
+   +'<li>Gõ / nói việc như thường vào bảng <b>🤖 AI làm giúp</b>.</li>'
+   +'<li>AI trong máy chưa hiểu ⇒ hiện thẻ <b>🤔 AI trong máy chưa hiểu câu này</b> có nút <b>🌐 Hỏi AI online</b>. Bấm ⇒ chờ vài giây.</li>'
+   +'<li>Hiện <b>🌐 AI online hiểu là: …</b> + <b>thẻ xem lại</b> (có nhãn 🌐 AI online). Xem kỹ khách, số tiền, món → đúng thì bấm <b>✅</b>. Sai thì sửa ngay trong thẻ hoặc bấm <b>✕ Bỏ</b>.</li>'
+   +'<li>AI online thiếu thông tin thì <b>🌐 AI online hỏi lại</b> (vd “Ghi nợ cho Cô Ba bao nhiêu tiền?”) ⇒ chỉ cần gõ câu trả lời (vd <i>200k</i>).</li></ol>'
+   +'<b>⚙️ Chọn cách dùng</b> (nút ⚙️ trên bảng AI → mục <b>🌐 AI online</b>):<ul>'
+   +'<li><b>Hỏi tôi trước</b> (mặc định): hiện nút 🌐 Hỏi AI online — bấm mới gửi.</li>'
+   +'<li><b>Tự hỏi luôn</b>: AI trong máy chưa hiểu là tự hỏi AI online (cũng bật được bằng nút <b>🌐 Luôn tự hỏi online</b> trên thẻ).</li>'
+   +'<li><b>Không dùng AI online</b>: chỉ dùng AI trong máy.</li></ul>'
+   +'<div class="snai-tip">💡 Thẻ nào AI trong máy <b>chưa chắc tên khách / tên hàng</b> có thêm nút <b>🌐 AI online hiểu lại câu này</b>.</div>'
+   +'<div class="snai-ok">🔒 <b>An toàn:</b> việc AI online hiểu ra <b>không bao giờ tự làm</b> (kể cả đã bật ⚡ Làm luôn) — luôn hiện thẻ xem lại, bạn bấm ✅ mới ghi. Quyền nhân viên, khoá sổ… y như khi tự bấm.</div>'
+   +'<div class="snai-warn">📶 Cần <b>có mạng</b>. Gửi đi: <b>câu bạn gõ</b> + <b>vài tên khách / tên hàng liên quan</b> (để AI chép đúng tên trong sổ) — <b>không</b> gửi số điện thoại, số nợ. Mỗi shop có <b>giới hạn lượt mỗi ngày</b> (thẻ trả lời có ghi “Hôm nay shop còn … lượt”).</div>'};
+  var e17={c:'loi',t:'🌐 AI online báo lỗi — chưa sẵn sàng, hết lượt, mất mạng',
+  k:'ai online loi ai online khong chay ai online chua san sang het luot ai online het luot hoi ai online nhanh qua ai online tam nghi ai online mat mang kiem tra ai online gemini loi',
+  go:'ALG_MO',
+  a:'<b class="snai-h">🌐 AI online báo lỗi — làm sao?</b>'
+   +'<div class="snai-ok">✅ Lỗi AI online <b>không ảnh hưởng</b> app: <b>🤖 AI trong máy</b> và mọi chức năng khác vẫn chạy bình thường.</div>'
+   +'<ul>'
+   +'<li><b>“AI online chưa sẵn sàng…”</b> / <b>“…chưa được cài khoá Gemini…”</b> — chủ phần mềm chưa cài xong máy chủ AI online (hoặc mạng chập chờn). Thử lại sau; vẫn vậy thì báo chủ phần mềm.</li>'
+   +'<li><b>“Hôm nay shop đã dùng hết … lượt AI online”</b> — mỗi shop có giới hạn lượt mỗi ngày. Mai dùng tiếp. Trong lúc chờ: nói rõ <b>việc + tên + số tiền</b> để AI trong máy hiểu.</li>'
+   +'<li><b>“AI online đang tạm tắt”</b> — chủ phần mềm đang tắt AI online. Dùng AI trong máy như thường.</li>'
+   +'<li><b>“Hỏi AI online nhanh quá”</b> — bấm dồn nhiều lần trong 1 phút. Chờ 1 phút rồi hỏi tiếp.</li>'
+   +'<li><b>“AI online tạm nghỉ…”</b> — cả hệ thống đã chạm mức chi phí tối đa chủ phần mềm đặt (thường đầu tháng sau dùng lại).</li>'
+   +'<li><b>“Gói dùng app của shop đã hết hạn”</b> — gia hạn gói rồi dùng lại.</li>'
+   +'<li><b>“Máy đang mất mạng”</b> / <b>“Mạng yếu…”</b> / <b>“AI online đang bận / chậm…”</b> / <b>“…trả lời chậm quá”</b> — bật Wi-Fi / 4G, chờ ít phút rồi bấm <b>↻ Hỏi AI online lại</b>.</li>'
+   +'<li><b>“Phiên đăng nhập đã cũ”</b> / <b>“Cần đăng nhập app…”</b> — ⚙️ Cài đặt → Đăng xuất rồi đăng nhập lại.</li>'
+   +'<li>Báo lỗi khác (<b>“…gặp lỗi…”</b>, <b>“Máy chủ chưa đọc được…”</b>) — thử lại sau ít phút; vẫn vậy thì báo chủ phần mềm.</li>'
+   +'<li><b>“AI online đề nghị «…» nhưng AI trong máy chưa làm được”</b> — bấm <b>✏️ Sửa câu này</b>, sửa lại cho rõ rồi gửi.</li>'
+   +'<li>Không thấy nút <b>🌐 Hỏi AI online</b> — có thể đã chọn <b>Không dùng AI online</b>: bấm ⚙️ trên bảng AI → mục 🌐 AI online → chọn <b>Hỏi tôi trước</b>.</li></ul>'
+   +'<div class="snai-tip">🔧 Chủ phần mềm (tài khoản admin): bảng AI → ⚙️ → <b>🔌 Kiểm tra AI online</b> — báo máy chủ chạy tốt chưa, mô hình nào, đã dùng bao nhiêu lượt / tiền trong tháng. Xem lỗi chi tiết: chạy <b>XEM-NHATKY.bat</b> trong gói máy chủ.</div>'};
+  [e16,e17].forEach(function(e){ KB.push(e); e.id=KB.length-1; e._t=nrm(e.t); e._k=nrm(e.t+' '+e.k+' '+(CAT[e.c]?CAT[e.c].n:'')); e._a=nrm(strip(e.a)); });
+  var onlSua=function(t,f){ var x=byTitle(t); if(!x) return; var a=f(x.a); if(a&&a!==x.a){ x.a=a; x._a=nrm(strip(a)); } };
+  onlSua('Có gì mới trong app? (tính năng vừa thêm)',function(a){
+    a=a.replace('<ul>\n<li>','<ul>\n<li><b>🌐 AI online</b> — câu <b>🤖 AI làm giúp</b> trong máy chưa hiểu (nói lóng, gõ không dấu, gọi tên tắt…) thì bấm <b>🌐 Hỏi AI online</b>: Gemini hiểu giúp, app vẫn hiện thẻ xem lại, bấm ✅ mới làm.</li>\n<li>');
+    var i=a.indexOf('<button type="button" class="snai-sg"');
+    if(i>0) a=a.slice(0,i)+'<button type="button" class="snai-sg" data-snaiq="'+e16.t+'">🌐 AI online là gì</button>\n'+a.slice(i);
+    return a;
+  });
+  onlSua('🤖 AI làm giúp chưa hiểu đúng ý — nói sao cho AI hiểu',function(a){ return a+'<div class="snai-tip">🌐 Câu khó (nói lóng, không dấu, tên tắt): bấm <b>🌐 Hỏi AI online</b> trên thẻ “AI trong máy chưa hiểu” — hoặc bật ⚙️ → <b>Tự hỏi luôn</b>.</div>'; });
+}catch(e){}
+try{
+  /* 🆘 Kẹt? Chỉ tôi: thẻ hỏi AI online / đang chờ AI online */
+  if(KTG['x:alg-ov']&&typeof KTG['x:alg-ov'].st==='function'){
+    var onlCu=KTG['x:alg-ov'].st;
+    KTG['x:alg-ov'].st=function(L){
+      try{
+        var r=L.el;
+        if(!ktv('.alg-tam.on',r)){
+          var cho=ktv('[data-alg-o="onl-cho"]',r);
+          if(cho) return KS(cho,'⏳ Đang hỏi AI online…','Chờ vài giây. Mất mạng thì AI online không trả lời được.','wait');
+          var ds=r.querySelectorAll?r.querySelectorAll('[data-alg="onl-1"]'):[], nut=null;
+          for(var i=ds.length-1;i>=0;i--){ if(visEl(ds[i])&&!ds[i].disabled){ nut=ds[i]; break; } }
+          var ais=r.querySelectorAll?r.querySelectorAll('#alg-bd .alg-ai'):[];
+          if(nut&&ais.length&&ais[ais.length-1].contains(nut)){
+            var the=nut.closest?nut.closest('.alg-c'):null, nn=ktB(kttx(nut)||'🌐 Hỏi AI online');
+            if(the&&the.classList&&the.classList.contains('loi')) return KS(nut,'AI online chưa trả lời được (đọc dòng ❌ ở trên). Bấm '+nn+' để thử lại.','Mất mạng thì bật Wi-Fi / 4G trước. AI trong máy vẫn dùng bình thường.','click');
+            if(the&&ktv('[data-alg="onl-bo"]',the)) return KS(nut,'Câu có cách nói tiền kiểu “xị / củ” — AI trong máy dễ đọc sai số tiền. Bấm '+nn+' để AI online hiểu đúng.','Hoặc bấm '+ktB('🤖 Vẫn để AI trong máy làm')+'.','click');
+            return KS(nut,'AI trong máy chưa hiểu câu này. Bấm '+nn+' để nhờ AI online hiểu giúp.','Hoặc gõ lại câu rõ hơn: <b>việc</b> + <b>tên khách / tên hàng</b> + <b>số tiền / số lượng</b>.','click');
+          }
+        }
+      }catch(e){}
+      return onlCu.apply(this,arguments);
+    };
+  }
+  /* tìm kiếm: câu nói tới AI online / Gemini / hết lượt / nói lóng ⇒ bài AI online.
+     Câu KHÔNG nói tới AI online ⇒ 2 bài AI online KHÔNG đứng đầu (giữ kết quả như bản cũ — vd "ai làm ca sáng": "sáng" bỏ dấu trùng "sẵn sàng") */
+  if(typeof e16==='object'&&e16&&e16.t&&e17){
+    var ONL_CUM=/(^| )(ai online|online ai|gemini|ai tren mang|ai mang|hoi ai online|het luot ai|luot ai online|may chu ai|tu hoi online|noi long|tieng long)( |$)/;
+    var ONL_THEM=/(^| )(hoi online|google ai|ai google|ai cua google)( |$)/;
+    var onlCo=function(s,nq){ return ONL_CUM.test(nq)||/\d\s*xị(?![0-9A-Za-zÀ-ɏḀ-ỿ])/i.test(s); };
+    var onlLa=function(e){ return e===e16||e===e17; };
+    var onlHa=function(r,q){
+      try{
+        if(!r||r.length<2||!onlLa(r[0].e)) return r;
+        var s=String(q==null?'':q), nq=nrm(s);
+        if(!nq||byTitle(s.trim())||onlCo(s,nq)||ONL_THEM.test(nq)) return r;
+        for(var i=1;i<r.length;i++){ if(!onlLa(r[i].e)) return [r[i]].concat(r.slice(0,i),r.slice(i+1)); }
+      }catch(x){}
+      return r;
+    };
+    /* hạ 2 bài AI online NGAY TỪ lõi tìm kiếm (trước bộ lọc "ai = người nào" của 5j) ⇒ 5j xử lý y như bản cũ */
+    if(typeof _algSearch==='function'){ var _onlGoc=_algSearch; _algSearch=function(q){ return onlHa(_onlGoc(q),q); }; }
+    var _onlSearch=search;
+    search=function(q){
+      var r=_onlSearch(q);
+      try{
+        if(!r) return r;
+        var s=String(q==null?'':q), nq=nrm(s);
+        if(!nq||byTitle(s.trim())) return r;
+        if(typeof window.ALG_MO!=='function'||!onlCo(s,nq)) return onlHa(r,q);
+        var e=/(^| )(loi|bao loi|chua san sang|khong chay|khong duoc|het luot|nhanh qua|tam nghi|mat mang|kiem tra|khong thay)( |$)/.test(nq)?e17:e16;
+        var chon=null,i;
+        for(i=0;i<r.length;i++){ if(r[i].e===e){ chon=r[i]; break; } }
+        if(!chon) chon={e:e,s:(r[0]?r[0].s:10)+1,h:1};
+        var out=[chon];
+        for(i=0;i<r.length;i++){ if(r[i]!==chon) out.push(r[i]); }
+        return out.slice(0,6);
+      }catch(x){ return r; }
+    };
+  }
+}catch(e){}
+/* ═════════════ 5l) [SN23] 🔢 AI LÀM GIÚP HIỂU ĐÚNG SỐ LƯỢNG — "Có gì mới" + mẹo trong 2 bài AI + tìm đúng bài ═════════════
+   Chỉ BỔ SUNG lúc chạy (không sửa bài gốc): 1 dòng + 1 nút đầu "Có gì mới" · 1 khung mẹo cuối bài 🤖 AI hiểu sai · 1 câu trong bài
+   🤖 câu ra lệnh cho Sổ Nợ · câu hỏi nói tới AI + "số lượng" (vd "AI hiểu số lượng thành tiền") ⇒ bài 🤖 AI hiểu sai đứng đầu. */
+try{
+  var e15sl=byTitle('🤖 AI làm giúp chưa hiểu đúng ý — nói sao cho AI hiểu');
+  var slSua=function(t,f){ var x=byTitle(t); if(!x) return; var a=f(x.a); if(a&&a!==x.a){ x.a=a; x._a=nrm(strip(a)); } };
+  slSua('Có gì mới trong app? (tính năng vừa thêm)',function(a){
+    a=a.replace('<ul>\n<li>','<ul>\n<li><b>🔢 AI làm giúp hiểu đúng SỐ LƯỢNG</b> — số đi với đơn vị (<i>2 bao</i>, <i>5 gói</i>, <i>3 ký</i>, <i>2 thùng</i>…) là <b>số lượng</b>, không còn bị hiểu thành tiền. Vd <i>ghi nợ cô Ba 2 bao xi măng 200k</i> ⇒ <b>200.000đ</b> (trước đây AI đọc nhầm thành 2.000đ). Gõ không dấu <i>ban 2 qua trung</i> cũng hiểu là 2 quả; <i>anh Tư trả tiền 2 thùng bia 760k</i> ⇒ thu <b>760.000đ</b>.</li>\n<li>');
+    var i=a.indexOf('<button type="button" class="snai-sg"');
+    if(i>0&&e15sl) a=a.slice(0,i)+'<button type="button" class="snai-sg" data-snaiq="'+e15sl.t+'">🔢 Nói số lượng sao cho AI hiểu</button>\n'+a.slice(i);
+    return a;
+  });
+  slSua('🤖 AI làm giúp chưa hiểu đúng ý — nói sao cho AI hiểu',function(a){
+    return a+'<div class="snai-tip">🔢 <b>Số lượng hay tiền?</b> Số đứng <b>ngay trước đơn vị</b> (bao, gói, ký, kg, thùng, két, chai, lon, quả, vỉ, khối…) là <b>số lượng</b>; số có <b>k / nghìn / triệu / đ</b> là <b>tiền</b>. Vd <i>ghi nợ cô Ba 2 bao xi măng 200k</i> ⇒ số tiền <b>200.000đ</b>, “2 bao” là số lượng · <i>bán 2 kg tỏi</i> ⇒ Tỏi <b>2 kg</b> · <i>anh Tư trả tiền 2 thùng bia 760k</i> ⇒ thu nợ <b>760.000đ</b>. Nói tiền thì <b>nhớ kèm k / nghìn / triệu</b> là AI hiểu chắc nhất.</div>';
+  });
+  slSua('🤖 AI làm giúp: câu ra lệnh cho Sổ Nợ',function(a){
+    return a.replace('<li>Chữ sau số tiền (“tiền gạo”, “2 bao xi măng”) được ghi vào ô <b>Mua gì</b>.</li>',
+      '<li>Chữ sau số tiền (“tiền gạo”, “2 bao xi măng”) được ghi vào ô <b>Mua gì</b>.</li>'
+      +'<li>Nói số lượng trước cũng được: <i>ghi nợ cô Ba 2 bao xi măng 200k</i> ⇒ nợ <b>200.000đ</b> (“2 bao” là số lượng, không phải tiền). Hàng đó có trong kho Bán hàng thì AI làm thẻ <b>bán ghi nợ</b> (trừ luôn tồn kho).</li>');
+  });
+}catch(e){}
+try{
+  /* tìm kiếm: câu hỏi nói tới AI + "số lượng" / "đơn vị" ⇒ bài 🤖 AI hiểu sai đứng đầu (câu không nói tới AI: giữ kết quả như bản cũ) */
+  var e15s=byTitle('🤖 AI làm giúp chưa hiểu đúng ý — nói sao cho AI hiểu');
+  if(e15s){
+    var SL_CH='0-9A-Za-z\\u00C0-\\u024F\\u1E00-\\u1EFF';
+    var SL_HOA=new RegExp('(^|[^'+SL_CH+'])A\\.?I\\.?(?!['+SL_CH+'])');
+    var SL_AI=/(^| )(ai lam giup|ai hieu|ai doc|ai nham|ai cu)( |$)/;   /* "ai" viết thường thường là "người nào" ⇒ chỉ nhận vài cụm chắc chắn nói về AI */
+    var SL_SL=/(^| )(so luong|sl|don vi)( |$)/;
+    var _slSearch=search;
+    search=function(q){
+      var r=_slSearch(q);
+      try{
+        if(!r||typeof window.ALG_MO!=='function') return r;   /* khối AI làm giúp nằm cuối file ⇒ xét lúc tìm, không xét lúc nạp */
+        var s=String(q==null?'':q), nq=nrm(s);
+        if(!nq||byTitle(s.trim())||!SL_SL.test(nq)||!(SL_HOA.test(s)||SL_AI.test(nq))) return r;
+        var chon=null,i;
+        for(i=0;i<r.length;i++){ if(r[i].e===e15s){ chon=r[i]; break; } }
+        if(!chon) chon={e:e15s,s:(r[0]?r[0].s:10)+1,h:1};
+        var out=[chon];
         for(i=0;i<r.length;i++){ if(r[i]!==chon) out.push(r[i]); }
         return out.slice(0,6);
       }catch(x){ return r; }
@@ -24024,7 +24186,7 @@ if (window.__RMT_READY__) return; window.__RMT_READY__ = true;
 try{
 
 /* ĐỔI CHUỖI NÀY CHO TRÙNG APP_BUILD MỖI LẦN DEPLOY (chỉ để hiện ở bảng quản trị) */
-var BUILD = '2026-10-29-SN21';
+var BUILD = '2026-10-30-SN23';
 var NHIP   = 6*3600*1000;          /* báo về tối đa 6 giờ 1 lần — khỏi tốn lượt ghi */
 var KEY_HB = 'rmt_hb_v2';          /* [QT7] nhịp báo về tính RIÊNG từng tài khoản (bản v1 tính chung cả máy) */
 var KEY_XEM= 'rmt_xem_v1';
@@ -35527,18 +35689,26 @@ try{window.SNCAM.moKhung=moKhung;window.SNCAM.dongKhung=dongKhung;window.SNCAM.d
 
 </script>
 <!-- ═══════════════ HẾT: CAMERA THÔNG MINH ═══════════════ -->
-<!-- ═══════════════ [SN21] 🤖 AI LÀM GIÚP — bảo gì làm nấy (drop-in · namespace alg- · window.ALG) ═══════════════
+<!-- ═══════════════ [SN21 · SN22 · SN23] 🤖 AI LÀM GIÚP — bảo gì làm nấy (drop-in · namespace alg- · window.ALG) ═══════════════
      VÌ SAO CÓ KHỐI NÀY
        Chủ shop muốn AI làm thay các việc trên app. Người dùng chỉ cần GÕ (hoặc bấm 🎤 trên bàn phím để NÓI) việc cần làm:
        "ghi nợ cô Ba 200k tiền gạo" · "anh Tư trả 500k" · "bán 2 thùng tiger cho anh Tư ghi nợ" · "nhập 10 thùng tiger giá 380k" ·
        "kiểm kho coca còn 12 chai" · "đổi giá tiger thành 19k" · "nhắc nợ anh Tư" · "ai nợ nhiều nhất" · "hôm nay bán được bao nhiêu"…
      CÁCH CHẠY
-       • Bộ hiểu tiếng Việt chạy 100% TRONG MÁY (không gọi mạng, không Gemini, không tốn phí). Hiểu bằng chính tên khách / tên hàng /
+       • Bộ hiểu tiếng Việt chạy TRONG MÁY (không gọi mạng, không tốn phí). Hiểu bằng chính tên khách / tên hàng /
          đơn vị của shop; phân biệt dấu ("bạn" ≠ "bán", "trả" ≠ "trắng"); đọc tiền kiểu 200k · 1tr2 · hai trăm rưỡi · 1.500.000đ.
+       • [SN22] 🌐 AI ONLINE: câu bộ trong máy CHƯA hiểu ⇒ (hỏi ý người dùng, hoặc tự nếu đã bật) gọi Cloud Function "aiHieu"
+         (codebase aionline, asia-southeast1 — máy chủ giữ khoá Gemini, app KHÔNG có khoá). Gửi câu + vài TÊN khách / hàng / NCC
+         liên quan (không số điện thoại, không số nợ) ⇒ nhận CÂU LỆNH CHUẨN ⇒ chạy lại bộ hiểu trong máy ⇒ thẻ xem lại + ✅
+         (lệnh từ AI online không bao giờ tự làm). Máy chủ chưa cài / mất mạng / hết lượt ⇒ báo rõ, AI trong máy vẫn chạy.
+       • [SN23] SỐ LƯỢNG ≠ TIỀN: số đi với đơn vị ("2 bao", "5 gói", "3 ký", "2 trăm viên", "5 khối"; gõ không dấu "2 qua", "3 vi" đứng
+         trước tên hàng) là SỐ LƯỢNG — không còn đọc thành 2.000đ. Đơn vị riêng của shop (khối, ổ, xị…) cũng nhận. "1tr05" = 1.050.000 ·
+         "ngày 25", "ST25", "500ml" không phải tiền · thu nợ có nhắc tên hàng ("trả tiền 2 thùng bia 760k") giữ đúng số tiền + ghi chú ·
+         "trả nợ / thu nợ …" không thành bán ghi nợ · ghi chú giữ cả số lượng ("tiền 2 bao gạo").
        • Việc nào GHI vào sổ ⇒ hiện THẺ XEM LẠI (sửa được khách, số tiền, món, đơn vị, giá) ⇒ bấm ✅ mới làm. Có ↶ Hoàn tác.
        • AI làm bằng ĐÚNG hàm / nút có sẵn của app (openTx·saveTx, saveNewCustomer, SKMOD.core.finalize, phiếu nhập, Quỹ ca…)
          ⇒ giữ nguyên quyền nhân viên, khoá sổ, PIN người bán, quỹ ca, nhật ký, đồng bộ offline. KHÔNG ghi thẳng Firestore.
-       • Không sửa code cũ: chỉ thêm khối này + 2 dòng nút Trở về (alg-tam · alg) + mục 5j của trợ lý hướng dẫn.
+       • Không sửa code cũ: chỉ thêm khối này + 2 dòng nút Trở về (alg-tam · alg) + mục 5j · 5k · 5l của trợ lý hướng dẫn.
      LỖI GÌ CŨNG KHÔNG ẢNH HƯỞNG APP: cả khối bọc try/catch; trang khách (?view=) không chạy. -->
 <script>
 (function(){
@@ -35547,7 +35717,7 @@ try{
 var XEM = ''; try{ XEM = new URLSearchParams(location.search).get('view') || ''; }catch(e){}
 if(XEM) return;                       /* trang khách (link nợ / hoá đơn): không chạy */
 if(window.ALG) return;
-var VER = '1.0';
+var VER = '1.2';
 
 /* ═════════════ 0) BỘ HIỂU TIẾNG VIỆT ═════════════ */
 /* ═══════════════ BỘ HIỂU TIẾNG VIỆT — AI LÀM GIÚP (chạy 100% trong máy) ═══════════════
@@ -35574,7 +35744,7 @@ function tokenize(raw){
   var s = low(raw).replace(/[‘’“”"`´]/g, ' ').replace(/[()\[\]{}<>]/g, ' ').replace(/ /g, ' ');
   var out = [], i = 0, n = s.length;
   var at = 0;
-  function push(o, t){ var nn = strip(o); out.push({ o: o, n: nn, t: t || 'w', a: (t || 'w') === 'w' && ACC.test(o), i: (ACC.test(o) && DIS[o]) || nn, r: R.substr(at, o.length) }); }
+  function push(o, t){ var nn = strip(o); out.push({ o: o, n: nn, t: t || 'w', a: (t || 'w') === 'w' && ACC.test(o), i: (ACC.test(o) && DIS[o]) || nn, r: R.substr(at, o.length), p: at }); }
   while(i < n){
     var c = s[i];
     at = i;
@@ -35672,6 +35842,7 @@ function readNum(T, i, ngu){
         var v = nv.v, S = lastScale;
         var nxt = T[j + 1], nsc = nxt ? scaleOf(nxt) : null;
         if(nsc && nsc !== 'muoi' && nsc < S){ cur += v; got = true; j++; lastTok = 'num'; continue; }
+        if(nv.int && !nv.sep && /^0\d{1,2}$/.test(t.o)){ total += v * S / Math.pow(10, t.o.length); got = true; j++; lastTok = 'tail'; continue; }   /* [SN23] 1tr05 = 1.050.000 */
         if(nv.dec){ total += v * S / 10; }
         else if(v < 10) total += v * S / 10;
         else if(v < 100) total += v * S / 100;
@@ -35763,18 +35934,67 @@ function asMoney(r){
 
 /* ───────── 2) ĐƠN VỊ ───────── */
 var UNIT_ACC = {};
-('cái chiếc con lon chai thùng lốc két gói hộp bịch bao kg ký kí kilo kilogam g gam gram gr lạng lít l ml chục tá cặp đôi bộ cuộn cây viên vỉ tuýp lọ hũ bình can ly cốc tô đĩa dĩa phần suất mớ trái quả củ bắp tấm tờ quyển cuốn thanh mét m sợi khay set combo túi bọc xô tấn yến khoanh miếng lát kiện cục ống cành nải buồng chùm dây lượng chỉ bó xấp tép thỏi cân bầu rổ thúng sọt giỏ hột hạt quả lố').split(' ').forEach(function(u){ UNIT_ACC[u] = 1; });
+('cái chiếc con lon chai thùng lốc két gói hộp bịch bao kg ký kí kilo kilogam g gam gram gr lạng lít l ml chục tá cặp đôi bộ cuộn cây viên vỉ tuýp lọ hũ bình can ly cốc tô đĩa dĩa phần suất mớ trái quả củ bắp tấm tờ quyển cuốn thanh mét m sợi khay set combo túi bọc xô tấn yến khoanh miếng lát kiện cục ống cành nải buồng chùm dây lượng chỉ bó xấp tép thỏi cân bầu rổ thúng sọt giỏ hột hạt quả lố khối xị giạ tạ xâu').split(' ').forEach(function(u){ UNIT_ACC[u] = 1; });
 var UNIT_WORD = {};
 Object.keys(UNIT_ACC).forEach(function(u){ UNIT_WORD[strip(u)] = 1; });
 /* chữ KHÔNG DẤU trùng với chữ thường dùng ("can"=cần, "qua"=hôm qua, "doi"=đổi, "bo"=bỏ, "tui"=tui…) ⇒ không coi là đơn vị khi gõ không dấu */
-['con','chi','thanh','can','mo','hu','tam','cap','doi','ta','cu','to','dia','ong','day','luong','ro','gio','hot','lat','tui','vi','bo','thoi','qua'].forEach(function(w){ delete UNIT_WORD[w]; });
+['con','chi','thanh','can','mo','hu','tam','cap','doi','ta','cu','to','dia','ong','day','luong','ro','gio','hot','lat','tui','vi','bo','thoi','qua','khoi','xi','gia','xau'].forEach(function(w){ delete UNIT_WORD[w]; });
 function isUnit(tok){
   if(!tok || tok.t !== 'w') return false;
   if(tok.a) return !!UNIT_ACC[tok.o];
   return !!UNIT_WORD[tok.n] || (ACCM && (tok.o === 'con' || tok.o === 'ly' || tok.o === 'lon'));
 }
+/* [SN23] đơn vị RIÊNG của shop (lấy từ đơn vị gốc + đơn vị quy đổi của hàng trong kho) — chỉ dùng ở chỗ đọc SỐ LƯỢNG */
+var US_ACC = Object.create(null), US_N = Object.create(null);
+var US_MO = { 'khoi':1, 'xi':1 };   /* dạng không dấu của đơn vị mới ở trên — chỉ dùng để nhận ra "số + đơn vị" là SỐ LƯỢNG (không phải tiền) */
+function donViShop(hg){
+  var a = Object.create(null), n = Object.create(null);
+  for(var i = 0; i < hg.length; i++){
+    var p = hg[i]; if(!p) continue;
+    var ds = [p.baseUnit]; if(Array.isArray(p.units)) for(var k = 0; k < p.units.length; k++) if(p.units[k]) ds.push(p.units[k].name);
+    for(var z = 0; z < ds.length; z++){
+      if(ds[z] == null || ds[z] === '') continue;
+      var tk = nameToks(String(ds[z])), t0 = null;   /* nhớ sẵn theo tên ⇒ kho lớn không chậm */
+      for(var x = 0; x < tk.length; x++) if(tk[x].t === 'w'){ t0 = tk[x]; break; }
+      if(!t0) continue;
+      if(t0.a ? UNIT_ACC[t0.o] : UNIT_WORD[t0.n]) continue;                       /* đã là đơn vị sẵn */
+      if(STOP_ACC[t0.o] || HON_ACC[t0.o] || DIGW_ACC.hasOwnProperty(t0.o) || NUMNAME_ACC[t0.o]) continue;   /* chữ thường dùng ⇒ bỏ */
+      a[t0.o] = 1;
+      if(t0.n.length >= 3 && !STOPN[t0.n] && !HON[t0.n] && !NAMENUM[t0.n] && !DIGW_RAW.hasOwnProperty(t0.n) && !UNIT_MO_DEL[t0.n]) n[t0.n] = 1;
+    }
+  }
+  return { a: a, n: n };
+}
+function isUnitQ(tok){
+  if(isUnit(tok)) return true;
+  if(!tok || tok.t !== 'w') return false;
+  return tok.a ? !!US_ACC[tok.o] : (!!US_N[tok.n] || !!US_ACC[tok.o]);
+}
+/* chữ ngay sau con số là ĐƠN VỊ ⇒ con số đó là SỐ LƯỢNG ("2 thùng", "3 ký", "2 trăm viên", "5 khối"), không phải tiền */
+function laDonViSL(tok){ return isUnitQ(tok) || (!!tok && tok.t === 'w' && !tok.a && !!US_MO[tok.n]); }
+/* chữ ĐẾM ngay sau con số ("2 tháng", "3 công", "2 chuyến", "3 giờ", "2 người") ⇒ con số là SỐ ĐẾM, không phải tiền.
+   Trừ khi là mốc thời gian: "trả 200 tuần sau", "200 ngày mai", "200 lần này", "200 tháng 10" ⇒ con số vẫn là tiền */
+var DEM_ACC = {}; ('tháng tuần ngày lần giờ tiếng người đứa buổi công chuyến xe phòng vé lượt đêm').split(' ').forEach(function(w){ DEM_ACC[w] = 1; });
+var DEM_N = { nguoi:1, buoi:1, tieng:1, xe:1, luot:1 };
+var MOC_TG = /^(sau|truoc|trc|nay|toi|kia|mai|mot|nua|roi|qua|hom|dau|cuoi|chieu|sang|trua)$/;
+function laDem(T, j){
+  var t = T[j]; if(!t || t.t !== 'w') return false;
+  if(!(t.a ? DEM_ACC[t.o] : DEM_N[t.n])) return false;
+  var n1 = T[j + 1];
+  if(n1 && n1.t === 'w' && MOC_TG.test(n1.n)) return false;
+  if(n1 && (n1.t === 'num' || n1.t === 'slash') && (t.n === 'thang' || t.n === 'ngay' || t.n === 'tuan')) return false;
+  return true;
+}
+var UNIT_MO_DEL = { con:1, chi:1, thanh:1, can:1, mo:1, hu:1, tam:1, cap:1, doi:1, ta:1, cu:1, to:1, dia:1, ong:1, day:1, luong:1, ro:1, gio:1, hot:1, lat:1, tui:1, vi:1, bo:1, thoi:1, qua:1, gia:1, xau:1 };
+/* [SN23] chữ không dấu có thể là đơn vị ("qua" = quả, "vi" = vỉ…) — bỏ chữ hay đi với tiền: còn, chị, cần, đây, ông, giá, lát, lương, củ (tiền lóng) */
+function laDonViYeu(T, j){
+  var t = T[j]; if(!t || t.t !== 'w' || t.a || !UNIT_MO_DEL[t.n] || /^(con|chi|can|day|ong|gia|lat|luong|cu)$/.test(t.n)) return false;
+  var n1 = T[j + 1];
+  if(n1 && n1.t === 'w' && /^(ngan|nh|bank|banking|tk|stk|tai|the|momo|zalo|zalopay|vnpay|vi|app|mang|ck|chuyen|khoan|so|dien|tu)$/.test(n1.n)) return false;   /* "qua ngân hàng", "vì…", "ví momo" */
+  return true;
+}
 var UNIT_GROUP = { ky:'kg', ki:'kg', kilo:'kg', kilogam:'kg', kg:'kg', can:'kg', gam:'g', gram:'g', gr:'g', g:'g', lit:'lit', l:'lit', chiec:'cai', cai:'cai', trai:'qua', qua:'qua', coc:'ly', ly:'ly', dia:'dia', cuon:'cuon' };
-var UNIT_FACTOR = { kg:{ kg:1, g:0.001, lang:0.1 }, g:{ g:1, kg:1000, lang:100 }, lit:{ lit:1, ml:0.001 }, ml:{ ml:1, lit:1000 }, lang:{ lang:1, kg:10, g:0.01 } };
+var UNIT_FACTOR = { kg:{ kg:1, g:0.001, lang:0.1, yen:10, tan:1000 }, g:{ g:1, kg:1000, lang:100 }, lit:{ lit:1, ml:0.001 }, ml:{ ml:1, lit:1000 }, lang:{ lang:1, kg:10, g:0.01 } };
 function ug(u){ u = strip(u).replace(/\s+/g, ' ').trim(); return UNIT_GROUP[u] || u; }
 function unitsOf(p){
   var a = [{ name: String(p.baseUnit || 'cái'), ratio: 1, price: Number(p.price) || 0, base: true }];
@@ -35795,8 +36015,11 @@ function findUnit(p, word){
     var g = ug(us[i].name), F = UNIT_FACTOR[g];
     if(F && F[w]) return { u: us[i], f: F[w], i: i };
   }
+  var dn = UNIT_DONG[w];   /* [SN23] két ⇄ thùng */
+  if(dn) for(i = 0; i < us.length; i++){ if(ug(us[i].name) === dn) return { u: us[i], f: 1, i: i }; }
   return null;
 }
+var UNIT_DONG = { ket:'thung', thung:'ket' };
 
 /* ───────── 3) TỪ NGỮ ───────── */
 var HON = { co:1, chu:1, bac:1, anh:1, chi:1, em:1, ong:1, ba:1, di:1, cau:1, mo:1, thim:1, duong:1, chau:1, be:1, me:1, ma:1, thay:1, cha:1, che:1, hia:1, o:1, sep:1, tia:1, bo:1, cu:1, thang:1, on:1 };
@@ -35817,6 +36040,12 @@ var STOPN = {};
 var STOP_ACC = {};
 ('trả nợ mua lấy ghi thu bán nhập tiền đồng nghìn ngàn triệu chuyển khoản mặt hôm nay qua kia ngày giá vốn tồn còn bao nhiêu mấy rồi xong thanh toán đưa gửi chịu thiếu thêm cho của với và là thì mà để ở tại lúc vào ra hết đủ sạch bớt trước sau nữa lần đợt số điện thoại địa chỉ hàng sản phẩm món cái lon chai thùng gói hộp ký chú nội dung vì do giúp nhé nha nhen nghe đi à hả mình tôi tao ơi vậy thế nào làm sao không có chưa đã đang sẽ phải cần muốn xem kiểm tra nhắc đòi in bảng kê chia sẻ ca quỹ chốt mở lưu xuất hủy huỷ kho nhận khách hoàn tác tính giảm tăng mới cũ những các một hai ba bốn năm sáu bảy tám chín mười rưỡi từ đến lên xuống bạn chào cảm ơn xin dạ vâng ừ ok lạ quen vãng lai tui tớ nó họ ai').split(' ').forEach(function(w){ STOP_ACC[w] = 1; });
 function isStop(tok){ return !!tok && tok.t === 'w' && !!STOPN[tok.n]; }
+/* [SN23] chữ gõ CÓ DẤU (hoặc câu có dấu) mà KHÔNG phải chữ thường dùng ⇒ được làm tên hàng 1 chữ: "tỏi" ≠ "tôi", "đá" ≠ "đã", "cá" ≠ "ca", "muối" ≠ "mười" */
+var CHU_THUONG = {};
+('sổ mã đó chợ nhá ạ máy thành cửa nhà cả đổi dùng nói mượn tối dư nửa').split(' ').forEach(function(w){ CHU_THUONG[w] = 1; });
+function chuRieng(tok){ return !!tok && tok.t === 'w' && (tok.a || ACCM) && !STOP_ACC[tok.o] && !CHU_THUONG[tok.o]; }
+/* chữ T[k] có phải chữ "nội dung" (có thể là 1 phần tên hàng) không — để biết chữ kia đứng riêng hay nằm trong cụm tên dài ("cà phê sữa đá", "trà xanh") */
+function keTen(T, k, opt){ var t = T[k]; if(!t || t.t !== 'w' || (opt && opt.skip && opt.skip(k))) return false; return (!isStop(t) || chuRieng(t)) && !isUnitQ(t) && !isHon(t); }
 function isStopStrict(tok){ return !!tok && tok.t === 'w' && (tok.a || ACCM ? !!STOP_ACC[tok.o] : !!STOPN[tok.n]); }
 
 /* ───────── 4) SO KHỚP 1 CHỮ (có tính dấu) ───────── */
@@ -36074,7 +36303,7 @@ function findProds(T, a, b, PI, opt){
       for(var i = 0; i < PI.P.length; i++){ var X = PI.P[i]; if(X.bc && (X.bc === code || X.bc === '0' + code || '0' + X.bc === code)){ C.push({ s: s, e: s + 1, ds: [{ p: X.p, sc: 1.05 }], top: 1.05, code: 1 }); } }
       continue;
     }
-    if(isUnit(t0) && T[s - 1] && (T[s - 1].t === 'num' || digitOf(T[s - 1], false) != null || T[s - 1].n === 'ruoi')) continue;
+    if(isUnitQ(t0) && T[s - 1] && (T[s - 1].t === 'num' || digitOf(T[s - 1], false) != null || T[s - 1].n === 'ruoi')) continue;
     if(t0.t === 'w' && isStop(t0) && !opt.loose){
       /* chữ thường dùng chỉ mở đầu tên hàng khi có hàng mang ĐÚNG chữ đó (vd "Trà xanh", "Bánh mì") */
       var okStart = false;
@@ -36088,12 +36317,14 @@ function findProds(T, a, b, PI, opt){
       if(opt.skip && opt.skip(s + L - 1)) break;
       var q = T.slice(s, s + L);
       /* đoạn chỉ gồm số / đơn vị ⇒ không phải tên hàng (trừ tên hàng là số: "333" ngay sau đơn vị) */
-      var content = q.some(function(x){ return x.t === 'w' && !isUnit(x); });
+      var content = q.some(function(x){ return x.t === 'w' && !isUnitQ(x); });
       if(!content){
-        if(!(L === 1 && q[0].t === 'num' && /^\d{3,}$/.test(q[0].o) && T[s - 1] && isUnit(T[s - 1]) && !(T[s + 1] && (scaleOf(T[s + 1]) || isCur(T[s + 1]))))) continue;
+        if(!(L === 1 && q[0].t === 'num' && /^\d{3,}$/.test(q[0].o) && T[s - 1] && isUnitQ(T[s - 1]) && !(T[s + 1] && (scaleOf(T[s + 1]) || isCur(T[s + 1]))))) continue;
       }
       if(q[q.length - 1].t === 'num' && T[s + L] && (scaleOf(T[s + L]) || isCur(T[s + L]))) break;   /* "… 200k" là tiền */
-      var allStop = !q.some(function(x){ return x.t === 'num' && x.n.length >= 3; }) && q.every(function(x){ return x.t !== 'w' || isStop(x) || isUnit(x); });
+      var allStop = !q.some(function(x){ return x.t === 'num' && x.n.length >= 3; }) && q.every(function(x){ return x.t !== 'w' || isStop(x) || isUnitQ(x); });
+      var mien = allStop && L === 1 && opt.cu !== true && chuRieng(q[0]) && !keTen(T, s - 1, opt) && !keTen(T, s + 1, opt) && !(T[s - 1] && isHon(T[s - 1])) && (opt.cu !== 'sl' || (T[s - 1] && (T[s - 1].t === 'num' || isUnitQ(T[s - 1]))));   /* [SN23] tên hàng 1 chữ CÓ DẤU đứng riêng: "2 ký tỏi", "2 bịch đá", "3 gói muối" */
+      if(mien) allStop = false;
       var res = [], gen = 0;
       if(PI.mk && PI.voc){
         gen = ++PI.gen;
@@ -36105,6 +36336,7 @@ function findProds(T, a, b, PI, opt){
         var X2 = PI.P[i2];
         if(q[0].t === 'num' && !X2.tk.some(function(t){ return t.n === q[0].n; })) continue;
         if(X2.sku && L === 1 && X2.sku === q[0].n && X2.sku.length >= 2){ res.push({ p: X2.p, sc: 1.02 }); continue; }
+        if(mien && wEq(q[0], X2.tk[0]) !== 1) continue;   /* [SN23] chữ đứng riêng chỉ khớp hàng có tên MỞ ĐẦU bằng chữ đó ("đá" ⇒ Đá viên, không ⇒ Trà đá) */
         var sc = scoreProd(q, X2, PI);
         if(sc >= 0.5 && (!allStop || (L >= 2 && sc >= 0.95))) res.push({ p: X2.p, sc: sc });
       }
@@ -36122,6 +36354,15 @@ function findProds(T, a, b, PI, opt){
     pick.push(C[c]); for(z = C[c].s; z < C[c].e; z++) taken[z] = 1;
   }
   pick.sort(function(x, y){ return x.s - y.s; });
+  for(var g = 0; g + 1 < pick.length; g++){
+    var A1 = pick[g], A2 = pick[g + 1];
+    if(A1.e !== A2.s || A1.code || A2.code) continue;
+    var gop = null;
+    for(var c2 = 0; c2 < C.length; c2++){ if(C[c2].s === A1.s && C[c2].e === A2.e){ gop = C[c2]; break; } }
+    if(!gop || gop.top < (opt.min || 0.58) || gop.top < 0.9 * Math.min(A1.top, A2.top)) continue;
+    var p0 = gop.ds[0].p;
+    if(A1.ds.some(function(d){ return d.p === p0; }) && A2.ds.some(function(d){ return d.p === p0; })){ pick.splice(g, 2, gop); g--; }
+  }
   return pick;
 }
 
@@ -36131,7 +36372,7 @@ var QW = /( bao nhieu | may | khong | chua | the nao | sao | gi | dau | nao | ko
 function title(s){ return String(s || '').split(/\s+/).filter(Boolean).map(function(w){ return w.charAt(0).toUpperCase() + w.slice(1); }).join(' '); }
 function rawOf(toks){ return toks.map(function(x){ return x.r || x.o; }).join(' ').replace(/\s+([,.;!?])/g, '$1').trim(); }
 function cap1(x){ x = String(x || '').trim(); return x ? x.charAt(0).toUpperCase() + x.slice(1) : x; }
-function moneyNear(T, a, b, skip){
+function moneyNear(T, a, b, skip, info){
   for(var i = a; i < b; i++){
     if(skip && skip(i)) continue;
     if(T[i].t !== 'num' && !(T[i].t === 'w' && (digitOf(T[i], false) != null || scaleOf(T[i]) === 100 || T[i].n === 'nua' || T[i].n === 'chuc' || scaleOf(T[i]) === 'muoi'))) continue;
@@ -36142,12 +36383,32 @@ function moneyNear(T, a, b, skip){
       if(bad) continue;
       /* số điện thoại / mã vạch không phải tiền */
       if(T[i].t === 'num' && /^0\d{8,10}$/.test(T[i].o.replace(/[.,]/g, '')) && !r.sc) continue;
+      /* [SN23] "2 thùng", "3 ký", "2 trăm viên", "5 khối" là SỐ LƯỢNG hàng — không phải tiền */
+      if(!r.sc && !r.cur && T[r.j] && T[r.j].n !== 'chuc' && (laDonViSL(T[r.j]) || laDem(T, r.j))){ if(info) info.sl = true; i = r.j - 1; continue; }
+      /* [SN23] gõ không dấu "2 qua", "3 vi", "2 tui" (quả / vỉ / túi) mà phía sau còn số tiền rõ ràng ⇒ con số này là số lượng */
+      if(!r.sc && !r.cur && laDonViYeu(T, r.j)){ var sau2 = moneyNear(T, r.j, b, skip); if(sau2 && (sau2.r.sc || sau2.r.cur)){ if(info) info.sl = true; return sau2; } }
+      /* [SN23] số dính liền sau chữ ngắn ("ST25", "A4") là MÃ / tên hàng — không phải tiền */
+      if(maSo(T, i)) continue;
+      /* [SN23] "ngày 25" là NGÀY — không phải tiền */
+      if(laNgaySo(T, i)) continue;
+      /* [SN23] chữ số đứng 1 mình ("ba", "bảy" — hay là TÊN) mà phía sau còn số tiền rõ ràng (70k, 2 triệu, 50.000đ) ⇒ lấy số tiền rõ ràng */
+      if(T[i].t === 'w' && r.j === i + 1 && !r.sc && !r.cur){ var sau = moneyNear(T, r.j, b, skip); if(sau && (sau.r.sc || sau.r.cur)) return sau; }
       return { r: r, m: asMoney(r), i: i, j: r.j };
     }
   }
   return null;
 }
 function markR(used, a, b){ for(var z = a; z < b; z++) used[z] = 1; }
+/* [SN23] số dính liền ngay sau chữ ngắn không dấu ("st25", "a4") ⇒ là mã hàng */
+function maSo(T, i){
+  var t = T[i], p = T[i - 1];
+  return !!t && t.t === 'num' && !!p && p.t === 'w' && p.p != null && t.p != null && p.p + p.o.length === t.p && !p.a && p.o.length <= 4 && !STOPN[p.n] && !scaleOf(p) && !isCur(p);
+}
+/* [SN23] số ngay sau chữ "ngày" là ngày trong tháng (giống cách dateOf hiểu) */
+function laNgaySo(T, i){
+  var p = T[i - 1], t = T[i], n1 = T[i + 1];
+  return !!p && p.t === 'w' && p.n === 'ngay' && !!t && t.t === 'num' && /^\d{1,2}$/.test(t.o) && +t.o >= 1 && +t.o <= 31 && !(n1 && (scaleOf(n1) || n1.n === 'ngay' || isCur(n1)));
+}
 function dateOf(T, a, b){
   for(var i = a; i < b; i++){
     var t = T[i], n1 = T[i + 1];
@@ -36218,16 +36479,17 @@ function verbs(s){
 }
 
 /* ───────── 9) TÁCH MÓN HÀNG ───────── */
-function qtyBefore(T, idx){
+function qtyBefore(T, idx, ps){
   if(!idx.length) return null;
   for(var st = 0; st < idx.length; st++){
     var i = idx[st];
     if(T[i].n === 'x' && T[i].t === 'w' && T[i + 1] && T[i + 1].t === 'num') continue;
+    if(T[i].t === 'w' && T[i - 1] && isHon(T[i - 1]) && idx.indexOf(i - 1) >= 0) continue;   /* [SN23] "cô Ba", "anh Tư" (chưa là khách trong sổ): tên, không phải số */
     var r = readNum(T, i, 'sl');
     if(!r || r.pct || r.cur || r.sc) continue;
     var j = r.j, un = null, q = r.v, use = [];
     for(var z = i; z < r.j; z++) use.push(z);
-    if(T[j] && isUnit(T[j]) && idx.indexOf(j) >= 0){ un = T[j].o; use.push(j); j++; }
+    if(T[j] && (isUnitQ(T[j]) || (ps != null && j + 1 === ps && T[j].t === 'w' && !T[j].a && UNIT_MO_DEL[T[j].n])) && idx.indexOf(j) >= 0){ un = T[j].o; use.push(j); j++; }   /* [SN23] "2 qua trung": chữ không dấu ngay trước tên hàng là đơn vị */
     if(T[j] && T[j].t === 'w' && T[j].n === 'ruoi' && idx.indexOf(j) >= 0){ q += 0.5; use.push(j); j++; }
     var rest = idx.filter(function(z){ return z >= j; });
     var bad = rest.some(function(z){ return T[z].t === 'sep' || !/^(cai|loai|hieu|mon|mat|hang|sp|con|cho|nua|them|thu|chai|lon)$/.test(T[z].n); });
@@ -36239,10 +36501,12 @@ function qtyBefore(T, idx){
 }
 function qtyBeforeIdx(T, idx){
   for(var st = 0; st < idx.length; st++){
-    var i = idx[st], r = readNum(T, i, 'sl');
+    var i = idx[st];
+    if(T[i].t === 'w' && T[i - 1] && isHon(T[i - 1]) && idx.indexOf(i - 1) >= 0) continue;   /* [SN23] tên sau xưng hô */
+    var r = readNum(T, i, 'sl');
     if(!r || r.pct || r.cur || r.sc) continue;
     var j = r.j;
-    if(T[j] && isUnit(T[j])) j++;
+    if(T[j] && isUnitQ(T[j])) j++;
     if(T[j] && T[j].n === 'ruoi') j++;
     var rest = idx.filter(function(z){ return z >= j; });
     if(rest.every(function(z){ return T[z].t !== 'sep' && /^(cai|loai|hieu|mon|mat|hang|sp|con|cho|nua|them|va|voi)$/.test(T[z].n); })) return i;
@@ -36262,39 +36526,41 @@ function tailInfo(T, j, end, used, it){
     }
     if(t.n === 'gia' || t.n === 'moi' || t.n === 'von' || (t.n === 'nhap' && T[i - 1] && T[i - 1].n === 'gia')){
       var mi = i + 1;
-      while(mi < end && T[mi] && (T[mi].n === 'la' || T[mi].n === 'ban' || T[mi].n === 'von' || T[mi].n === 'nhap' || T[mi].n === 'moi' || isUnit(T[mi]) || T[mi].n === 'mot' || T[mi].o === '1')){
-        if(isUnit(T[mi]) && T[mi - 1] && (T[mi - 1].n === 'moi' || T[mi - 1].n === 'mot' || T[mi - 1].o === '1')) it.giaUn = T[mi].o;
+      while(mi < end && T[mi] && (T[mi].n === 'la' || T[mi].n === 'ban' || T[mi].n === 'von' || T[mi].n === 'nhap' || T[mi].n === 'moi' || isUnitQ(T[mi]) || T[mi].n === 'mot' || T[mi].o === '1')){
+        if(isUnitQ(T[mi]) && T[mi - 1] && (T[mi - 1].n === 'moi' || T[mi - 1].n === 'mot' || T[mi - 1].o === '1')) it.giaUn = T[mi].o;
         mi++;
       }
       var r = readNum(T, mi, 'tien');
       if(r && !r.pct){
         var m = asMoney(r); it.gia = m.v; it.giaK = m.k; used[i] = 1; markR(used, i + 1, r.j); i = r.j;
-        if(T[i] && T[i].t === 'per' && T[i + 1] && isUnit(T[i + 1])){ it.giaUn = T[i + 1].o; used[i] = used[i + 1] = 1; i += 2; }
-        else if(T[i] && (T[i].n === 'mot' || T[i].n === 'moi' || (T[i].t === 'num' && T[i].o === '1')) && T[i + 1] && isUnit(T[i + 1])){ it.giaUn = T[i + 1].o; used[i] = used[i + 1] = 1; i += 2; }
+        if(T[i] && T[i].t === 'per' && T[i + 1] && isUnitQ(T[i + 1])){ it.giaUn = T[i + 1].o; used[i] = used[i + 1] = 1; i += 2; }
+        else if(T[i] && (T[i].n === 'mot' || T[i].n === 'moi' || (T[i].t === 'num' && T[i].o === '1')) && T[i + 1] && isUnitQ(T[i + 1])){ it.giaUn = T[i + 1].o; used[i] = used[i + 1] = 1; i += 2; }
         continue;
       }
       i++; continue;
     }
+    if(t.t === 'num' && laNgaySo(T, i)){ i++; continue; }   /* [SN23] "ngày 25" là ngày */
     var r2 = (t.t === 'num' || digitOf(t, false) != null || scaleOf(t) === 100 || t.n === 'chuc' || t.n === 'nua') ? readNum(T, i, 'sl') : null;
     if(r2 && !r2.pct){
       var after = T[r2.j];
       if(r2.sc || r2.cur || (after && after.t === 'per')){
         var m2 = asMoney(r2), k2 = r2.j, perU = null;
-        if(after && after.t === 'per' && T[k2 + 1] && isUnit(T[k2 + 1])){ perU = T[k2 + 1].o; k2 += 2; }
-        else if(T[k2] && (T[k2].n === 'mot' || T[k2].n === 'moi' || (T[k2].t === 'num' && T[k2].o === '1')) && T[k2 + 1] && isUnit(T[k2 + 1])){ perU = T[k2 + 1].o; k2 += 2; }
+        if(after && after.t === 'per' && T[k2 + 1] && isUnitQ(T[k2 + 1])){ perU = T[k2 + 1].o; k2 += 2; }
+        else if(T[k2] && (T[k2].n === 'mot' || T[k2].n === 'moi' || (T[k2].t === 'num' && T[k2].o === '1')) && T[k2 + 1] && isUnitQ(T[k2 + 1])){ perU = T[k2 + 1].o; k2 += 2; }
         if(perU){ it.gia = m2.v; it.giaK = m2.k; it.giaUn = perU; }
         else { it.tong = m2.v; it.tongK = m2.k; }
         markR(used, i, k2); i = k2; continue;
       }
       if(it.q == null){
         it.q = r2.v; markR(used, i, r2.j); i = r2.j;
-        if(T[i] && isUnit(T[i])){ it.un = T[i].o; used[i] = 1; i++; }
+        if(T[i] && isUnitQ(T[i])){ it.un = T[i].o; used[i] = 1; i++; }
         if(T[i] && T[i].n === 'ruoi'){ it.q += 0.5; used[i] = 1; i++; }
         continue;
       }
+      if(T[r2.j] && T[r2.j].n !== 'chuc' && (laDonViSL(T[r2.j]) || laDem(T, r2.j))){ markR(used, i, r2.j + 1); i = r2.j + 1; continue; }   /* [SN23] "500ml", "24 lon": quy cách — không phải tiền */
       var m3 = asMoney(r2); it.tong = m3.v; it.tongK = m3.k; markR(used, i, r2.j); i = r2.j; continue;
     }
-    if(isUnit(t) && it.un == null && it.q != null){ it.un = t.o; used[i] = 1; i++; continue; }
+    if(isUnitQ(t) && it.un == null && it.q != null){ it.un = t.o; used[i] = 1; i++; continue; }
     if(t.n === 'ruoi' && it.q != null){ it.q += 0.5; used[i] = 1; i++; continue; }
     i++;
   }
@@ -36306,11 +36572,12 @@ function parseItems(T, a, b, PI, used){
   for(var k = 0; k < sp.length; k++){
     var S = sp[k], nextS = (k + 1 < sp.length) ? sp[k + 1].s : b;
     var it = { ds: S.ds, p: S.ds[0].p, sc: S.top, s: S.s, e: S.e, q: null, un: null, gia: null, tong: null };
+    var truoc = []; for(var z0 = prevEnd; z0 < b; z0++) if(!used[z0]) truoc.push(z0);   /* [SN23] nhớ chữ món này dùng (số lượng, đơn vị…) */
     var before = [];
     for(var i = prevEnd; i < S.s; i++) if(!used[i]) before.push(i);
-    var qv = qtyBefore(T, before);
+    var qv = qtyBefore(T, before, S.s);
     if(qv){ it.q = qv.q; it.un = qv.un; qv.idx.forEach(function(z){ used[z] = 1; }); it.qTruoc = 1; }
-    else if(S.s - 1 >= prevEnd && isUnit(T[S.s - 1]) && !used[S.s - 1]){ it.un = T[S.s - 1].o; used[S.s - 1] = 1; }
+    else if(S.s - 1 >= prevEnd && isUnitQ(T[S.s - 1]) && !used[S.s - 1]){ it.un = T[S.s - 1].o; used[S.s - 1] = 1; }
     markR(used, S.s, S.e);
     var tailEnd = nextS;
     if(k + 1 < sp.length){
@@ -36320,6 +36587,7 @@ function parseItems(T, a, b, PI, used){
     }
     tailInfo(T, S.e, tailEnd, used, it);
     prevEnd = Math.max(tailEnd, S.e);
+    try{ Object.defineProperty(it, '_dung', { value: truoc.filter(function(z){ return !!used[z]; }), enumerable: false, configurable: true, writable: true }); }catch(e){}
     items.push(it);
   }
   return items;
@@ -36379,7 +36647,7 @@ function splitClauses(T){
 function pickCust(T, n, ctx, used){
   var CI = ctx._ci, cands = custCands(T, 0, n, CI, function(i){ return !!used[i]; });
   if(!cands.length) return null;
-  var prods = ctx._pi && ctx._pi.P.length ? findProds(T, 0, n, ctx._pi, { skip: function(i){ return !!used[i]; } }) : [];
+  var prods = ctx._pi && ctx._pi.P.length ? findProds(T, 0, n, ctx._pi, { skip: function(i){ return !!used[i]; }, cu: 'sl' }) : [];
   for(var c = 0; c < cands.length; c++){
     var cb = cands[c];
     if(cb.top < 55) break;
@@ -36390,13 +36658,15 @@ function pickCust(T, n, ctx, used){
   return null;
 }
 function noteOf(T, used){
-  var o = [];
+  var o = [], lienO = -9;
   for(var i = 0; i < T.length; i++){
     if(used[i]) continue;
     var t = T[i];
     if(t.t === 'sep') continue;
     if(o.length === 0 && /^(ghi|no|tra|thanh|toan|cho|cua|khach|kh|so|them|mua|chiu|thieu|thu|tien|dong|vnd|d|nhe|nha|nhen|nghe|giup|voi|di|a|ha|oi|roi|lai|ck|chuyen|khoan|mat|het|du|sach|hom|nay|qua|kia|ngay|lay|dua|gui|vao|la|bot|truoc|vo|moi|duoc|vay|muon)$/.test(t.n) && t.n !== 'tien') continue;
-    o.push(t.o);
+    if(o.length && lienO === i - 1 && T[lienO].p != null && T[lienO].p + T[lienO].o.length === t.p) o[o.length - 1] += t.o;   /* [SN23] chữ dính liền ("st25", "500ml") giữ dính liền */
+    else o.push(t.o);
+    lienO = i;
   }
   var x = o.join(' ').trim();
   x = x.replace(/\s+(nhé|nha|nhen|nghe|giùm|giúp|với|đi|ạ|ha|rồi|nhe|nhá|nhá|luôn|liền)(\s+(nhé|nha|nhen|nghe|đi|ạ))?$/i, '').trim();
@@ -36599,7 +36869,7 @@ function parseClause(T, ctx, prev){
       var sc3 = custCands(T, a7 + 1, n, ctx._si || [], function(i){ return !!used[i]; });
       if(sc3.length && sc3[0].top >= 55){ res.ncc = sc3[0]; markR(used, a7, sc3[0].e); break; }
       var nm3 = []; for(var a8 = st3; a8 < n && T[a8].t === 'w' && !isStopStrict(T[a8]) && !used[a8]; a8++) nm3.push(T[a8].o);
-      if(nm3.length && !findProds(T, st3, st3 + nm3.length, PI, {}).length){ res.nccMoi = title(nm3.join(' ')); markR(used, a7, st3 + nm3.length); break; }
+      if(nm3.length && !findProds(T, st3, st3 + nm3.length, PI, { cu: true }).length){ res.nccMoi = title(nm3.join(' ')); markR(used, a7, st3 + nm3.length); break; }
     }
   }
 
@@ -36629,7 +36899,7 @@ function parseClause(T, ctx, prev){
     }
     var mo3 = moneyNear(T, 0, n, function(i){ return !!used[i]; });
     if(mo3){ res.tien = mo3.m.v; res.tienK = mo3.m.k; markR(used, mo3.i, mo3.j); }
-    for(var a6 = 0; a6 < n; a6++){ if(T[a6].n === 'gia' && T[a6 + 1] && isUnit(T[a6 + 1]) && it0){ var fu = findUnit(it0.p, T[a6 + 1].o); if(fu) it0.u = fu.u; } }
+    for(var a6 = 0; a6 < n; a6++){ if(T[a6].n === 'gia' && T[a6 + 1] && isUnitQ(T[a6 + 1]) && it0){ var fu = findUnit(it0.p, T[a6 + 1].o); if(fu) it0.u = fu.u; } }
     if(!items.length){ var gp5 = guessProd(T, 0, n, used); if(gp5) res.tenHang = gp5; }
     return res;
   }
@@ -36644,14 +36914,15 @@ function parseClause(T, ctx, prev){
   }
 
   var vb = verbs(sv);
-  if(!cust && (vb.no || vb.tra || vb.mua)){ var gnE = guessName(T, 0, n, used); if(gnE && !findProds(T, gnE.s, gnE.e, PI, {}).length){ res._gn = gnE; markR(used, gnE.s, gnE.e); } }
+  if(!cust && (vb.no || vb.tra || vb.mua)){ var gnE = guessName(T, 0, n, used); if(gnE && !findProds(T, gnE.s, gnE.e, PI, { cu: true }).length){ res._gn = gnE; markR(used, gnE.s, gnE.e); } }
   for(var hz = 0; hz + 1 < n; hz++){ if((T[hz].n === 'mot' || T[hz].n === 'phan') && T[hz + 1].n === 'nua' && !used[hz]){ used[hz] = used[hz + 1] = 1; } }
-  var money = moneyNear(T, 0, n, function(i){ return !!used[i]; });
+  var mInfo = {}, money = moneyNear(T, 0, n, function(i){ return !!used[i]; }, mInfo);
+  var coTien = !!money || !!mInfo.sl;   /* [SN23] câu có nói số tiền HOẶC số lượng (bản cũ coi số lượng là tiền ⇒ giữ đúng luồng cũ, chỉ sửa GIÁ TRỊ tiền) */
   var banRo = / (ban|tinh tien|xuat cho|giao cho|thanh toan cho|bo vao gio|them vao gio|cho vao gio) /.test(sv) && !/ (ban la|ban oi|ban co|cac ban|nguoi ban|ban gi|ban nao|ban duoc) /.test(sv)
     && !/^ ban (ghi|tra|thu|nhac|xem|giup|lam|mo|kiem|nhap|doi|sua|them|xoa|gui|in|hoan|chot|tinh) /.test(sv.replace(/ (oi|a|nhe|nha) /g, ' '));
 
   /* ── hỏi tồn / giá / nợ ── */
-  if(isQ && !vb.ban && !(vb.no && money) && !(vb.tra && money)){
+  if(isQ && !vb.ban && !(vb.no && coTien) && !(vb.tra && coTien)){
     if(items.length && / (gia|bao nhieu tien|may tien|may nghin|may k|gia ca|ban sao|ban bao nhieu) /.test(s) && !/ (con bao nhieu|ton|con may|con khong|con hang|con khong) /.test(s)){ res.y = 'hoi_gia'; res.ds = items; donViHoi(T, items); return res; }
     if(items.length){ res.y = 'hoi_ton'; res.ds = items; donViHoi(T, items); return res; }
     if(cust){ res.y = 'hoi_kh'; res.kh = cust; return res; }
@@ -36665,17 +36936,19 @@ function parseClause(T, ctx, prev){
   /* ── BÁN HÀNG ── */
   var hasItems = items.length > 0;
   /* "ghi nợ cô Ba 200k tiền gạo": có SỐ TIỀN riêng, món không nói số lượng ⇒ là GHI SỔ NỢ (tên món thành ghi chú), không phải bán */
-  function sauTien(it){ for(var z = it.s - 1; z >= Math.max(0, it.s - 4); z--){ if(T[z].n === 'tien' && T[z].t === 'w') return true; if(!(T[z].t === 'num' || isUnit(T[z]) || digitOf(T[z], false) != null)) return false; } return false; }
+  function sauTien(it){ for(var z = it.s - 1; z >= Math.max(0, it.s - 4); z--){ if(T[z].n === 'tien' && T[z].t === 'w') return true; if(!(T[z].t === 'num' || isUnitQ(T[z]) || digitOf(T[z], false) != null)) return false; } return false; }
   if(hasItems && !banRo && money && (vb.no || vb.mua) && items.every(function(it){ return (!it.qNoi || sauTien(it)) && it.tong == null && it.gia == null; })){
-    items.forEach(function(it){ for(var z = it.s; z < it.e; z++) used[z] = 0; });
+    items.forEach(function(it){ for(var z = it.s; z < it.e; z++) used[z] = 0; if(it._dung) it._dung.forEach(function(z){ used[z] = 0; }); });   /* [SN23] trả luôn số lượng / đơn vị của món về ghi chú */
     items = []; hasItems = false;
   }
-  var chiHang = hasItems && !vb.tra && !money && items.some(function(it){ return it.qNoi; }) && (function(){ for(var z = 0; z < n; z++){ var tz = T[z]; if(used[z] || tz.t === 'sep' || tz.t === 'num' || isUnit(tz) || /^(va|voi|cho|nua|them|lay|tinh|tien|nhe|nha|a|nhen|di|mat|khach|kh)$/.test(tz.n)) continue; return false; } return true; })();
-  var saleCtx = banRo || (hasItems && (vb.ban || vb.mua || vb.no || chiHang));
-  if(saleCtx && !hasItems && !cust && !money && !res._gn && / (ban|ban hang|tinh tien) $/.test(sv) && sv.trim().split(' ').length <= 3){ res.y = 'mo'; res.man = 'ban hang'; return res; }
+  var chiHang = hasItems && !vb.tra && !coTien && items.some(function(it){ return it.qNoi; }) && (function(){ for(var z = 0; z < n; z++){ var tz = T[z]; if(used[z] || tz.t === 'sep' || tz.t === 'num' || isUnitQ(tz) || /^(va|voi|cho|nua|them|lay|tinh|tien|nhe|nha|a|nhen|di|mat|khach|kh)$/.test(tz.n)) continue; return false; } return true; })();
+  var noBan = vb.no && (!/ (tra|thu) no /.test(sv) || verbs(sv.replace(/ (tra|thu) no /g, ' tra ')).no);   /* [SN23] "trả nợ" / "thu nợ" không phải ghi nợ */
+  var saleCtx = banRo || (hasItems && (vb.ban || vb.mua || noBan || chiHang));
+  if(saleCtx && !hasItems && !cust && !coTien && !res._gn && / (ban|ban hang|tinh tien) $/.test(sv) && sv.trim().split(' ').length <= 3){ res.y = 'mo'; res.man = 'ban hang'; return res; }
   if(saleCtx && (hasItems || banRo) && ctx.pos !== false && !(vb.tra && !hasItems)){
     res.y = 'ban'; res.ds = items;
-    if(cust) res.kh = cust; else { var gn2 = guessName(T, 0, n, used); if(gn2 && / (cho|khach|kh|ghi no|no) /.test(sv)) res.tenKhach = gn2.ten; }
+    if(cust) res.kh = cust; else { var gn2 = res._gn || guessName(T, 0, n, used); if(gn2 && / (cho|khach|kh|ghi no|no) /.test(sv)) res.tenKhach = gn2.ten; }
+    delete res._gn;
     res.tt = methodOf(sv);
     if(!res.tt && vb.no) res.tt = 'debt';
     if(roles.dua != null){ res.khachDua = roles.dua; res.tt = res.tt || 'cash'; }
@@ -36693,20 +36966,25 @@ function parseClause(T, ctx, prev){
   }
 
   /* ── SỔ NỢ: ghi nợ / thu nợ ── */
-  var kTra = vb.tra || / (dua|gui|chuyen) /.test(sv) && !!cust && !!money && !vb.no;
-  if(kTra || vb.no || vb.mua || (cust && money) || (prev && (prev.y === 'ghino' || prev.y === 'thuno') && (cust || money))){
+  var kTra = vb.tra || / (dua|gui|chuyen) /.test(sv) && !!cust && coTien && !vb.no;
+  if(kTra || vb.no || vb.mua || (cust && coTien) || (prev && (prev.y === 'ghino' || prev.y === 'thuno') && (cust || coTien))){
     var loai = kTra ? 'thuno' : ((vb.no || vb.mua) ? 'ghino' : (prev && (prev.y === 'ghino' || prev.y === 'thuno') ? prev.y : null));
     if(kTra && (vb.no || vb.mua) && !/ con (lai )?(thi )?(ghi )?(no|ghi so) /.test(sv)){
       loai = / (tra sau|tra cham|chua tra|se tra|hen tra) /.test(sv) ? 'ghino' : (/ (mua|lay|ghi no|no them|no lai) /.test(sv) && !/ (tra no|tra tien|thu no|tra het|tra du|tra bot) /.test(sv) ? 'ghino' : 'thuno');
     }
     res.y = loai || 'tien_kh';
     if(cust) res.kh = cust;
-    else { var gn3 = res._gn || guessName(T, 0, n, used); if(gn3){ res.ten = gn3.ten; markR(used, gn3.s, gn3.e); } else if(prev && prev.kh && loai && !money){ res.kh = prev.kh; res.keThua = 1; } }
+    else { var gn3 = res._gn || guessName(T, 0, n, used); if(gn3){ res.ten = gn3.ten; markR(used, gn3.s, gn3.e); } else if(prev && prev.kh && loai && !coTien){ res.kh = prev.kh; res.keThua = 1; } }
     delete res._gn;
+    if(loai === 'thuno' && items.length){   /* [SN23] thu nợ không bán món nào: chữ của món ("tiền 2 thùng bia") là ghi chú, số tiền là số tiền trả */
+      items.forEach(function(it){ var ro = !(it.sc < 0.7); if(ro) for(var z = it.s; z < it.e; z++) used[z] = 0; if(it._dung) it._dung.forEach(function(z){ if(ro || z < it.s || z >= it.e) used[z] = 0; }); });   /* tên hàng đoán yếu (gõ không dấu, chữ "tra" = trả) thì không đưa vào ghi chú */
+      items = [];
+      if(!money){ var mInfo2 = {}; money = moneyNear(T, 0, n, function(i){ return !!used[i]; }, mInfo2); if(money || mInfo2.sl) coTien = true; }
+    }
     if(money){ res.tien = money.m.v; res.tienK = money.m.k; res.tienNghi = money.m.nghi; markR(used, money.i, money.j); }
     if(loai === 'thuno'){
-      if(!money && / (het|du|sach|toan bo|tat|het no|du no|sach no|tat toan) /.test(sv)) res.het = true;
-      if(!money && / (mot nua|nua no|phan nua|mot phan hai) /.test(sv)) res.nua = true;
+      if(!coTien && / (het|du|sach|toan bo|tat|het no|du no|sach no|tat toan) /.test(sv)) res.het = true;
+      if(!coTien && / (mot nua|nua no|phan nua|mot phan hai) /.test(sv)) res.nua = true;
       if(/ (chuyen khoan|ck|qua ngan hang|bank|qr|chuyen tien) /.test(sv)) res.ck = true;
     }
     var dt = dateOf(T, 0, n); if(dt){ res.ngay = dt; markR(used, dt.s, dt.e); }
@@ -36725,7 +37003,7 @@ function donViHoi(T, items){
   items.forEach(function(it, k){
     if(it.un) return;
     var end = (k + 1 < items.length) ? items[k + 1].s : T.length;
-    for(var z = it.e; z < end; z++){ if(isUnit(T[z])){ var fu = findUnit(it.p, T[z].o); if(fu){ it.u = fu.u; it.un = T[z].o; } break; } }
+    for(var z = it.e; z < end; z++){ if(isUnitQ(T[z])){ var fu = findUnit(it.p, T[z].o); if(fu){ it.u = fu.u; it.un = T[z].o; } break; } }
   });
 }
 function readNumAt(T, k){
@@ -36748,7 +37026,7 @@ function guessProd(T, a, b, used){
   var o = [];
   for(var i = a; i < b; i++){
     var t = T[i]; if(used[i] || t.t !== 'w') { if(o.length) break; continue; }
-    if(isStopStrict(t) || isUnit(t) || isHon(t)) { if(o.length) break; continue; }
+    if(isStopStrict(t) || isUnitQ(t) || isHon(t)) { if(o.length) break; continue; }
     o.push(t.o);
   }
   return o.length ? o.join(' ') : null;
@@ -36760,7 +37038,7 @@ function prep(ctx){
   var kh = ctx.khach || [], hg = ctx.hang || [], nc = ctx.ncc || [], nv = ctx.nv || [];
   var sig = kh.length + '|' + hg.length + '|' + nc.length + '|' + nv.length + '|' + (kh[0] && kh[0].id) + (kh[kh.length - 1] && kh[kh.length - 1].name) + (hg[0] && hg[0].id) + (hg[hg.length - 1] && hg[hg.length - 1].name) + '|' + (ctx.ver || '');
   if(ctx._sig !== sig){
-    ctx._ci = custIndex(kh); ctx._pi = prodIndex(hg); ctx._si = custIndex(nc); ctx._nvi = custIndex(nv); ctx._sig = sig;
+    ctx._ci = custIndex(kh); ctx._pi = prodIndex(hg); ctx._si = custIndex(nc); ctx._nvi = custIndex(nv); ctx._us = donViShop(hg); ctx._sig = sig;
   }
   return ctx;
 }
@@ -36772,6 +37050,7 @@ function parse(raw, ctx){
   var T = tokenize(raw);
   ACCM = T.some(function(t){ return t.a; });
   ctx = prep(ctx);
+  US_ACC = (ctx._us && ctx._us.a) || Object.create(null); US_N = (ctx._us && ctx._us.n) || Object.create(null);   /* [SN23] đơn vị riêng của shop */
   var C = splitClauses(T);
   var merged = [], prev = null;
   for(var i = 0; i < C.length; i++){
@@ -37174,12 +37453,17 @@ function themMe(t){ var d = document.createElement('div'); d.className = 'alg-me
 function themAI(html, id){ var d = document.createElement('div'); d.className = 'alg-ai'; if(id) d.id = id; d.innerHTML = html; BD.appendChild(d); cuon(); return d; }
 
 /* ── CÀI ĐẶT (máy này) ── */
-var CAI = { luon: false };
-try{ var _c = JSON.parse(localStorage.getItem('alg_cai_v1') || '{}'); if(_c && typeof _c === 'object') CAI.luon = !!_c.luon; }catch(e){}
+var CAI = { luon: false, online: 'hoi' };
+try{ var _c = JSON.parse(localStorage.getItem('alg_cai_v1') || '{}'); if(_c && typeof _c === 'object'){ CAI.luon = !!_c.luon; if(_c.online === 'luon' || _c.online === 'tat') CAI.online = _c.online; } }catch(e){}
 function luuCai(){ try{ localStorage.setItem('alg_cai_v1', JSON.stringify(CAI)); }catch(e){} }
 function veCai(){
   $('alg-cai-in').innerHTML = '<h3>⚙️ Cài đặt AI làm giúp</h3>'
     + '<label class="alg-sw"><input type="checkbox" data-alg-f="cai-luon"' + (CAI.luon ? ' checked' : '') + '><div><b>⚡ Làm luôn, không hỏi lại</b><small>Câu đã rõ ràng (đúng khách, đúng hàng, đủ số tiền) thì AI làm ngay, không cần bấm ✅. Việc lớn (chốt ca, xoá khách) vẫn hỏi. Làm xong vẫn có nút ↶ Hoàn tác.</small></div></label>'
+    + '<h3 style="margin-top:14px">🌐 AI online — khi AI trong máy chưa hiểu câu</h3>'
+    + [['hoi', 'Hỏi tôi trước', 'Hiện nút 🌐 Hỏi AI online — bấm mới gửi.'], ['luon', 'Tự hỏi luôn', 'Chưa hiểu là tự hỏi AI online. Việc vẫn hiện thẻ xem lại, bấm ✅ mới làm.'], ['tat', 'Không dùng AI online', 'Chỉ dùng AI trong máy.']].map(function(x){
+        return '<label class="alg-sw"><input type="radio" name="alg-onl" value="' + x[0] + '" data-alg-f="cai-onl"' + (cheDoOnl() === x[0] ? ' checked' : '') + '><div><b>' + x[1] + '</b><small>' + x[2] + '</small></div></label>'; }).join('')
+    + '<div class="alg-n" style="margin:8px 0">AI online gửi <b>câu bạn gõ</b> + <b>vài tên khách / tên hàng liên quan</b> qua máy chủ của app tới Gemini (Google) để hiểu câu — không gửi số điện thoại, số nợ. Cần có mạng. Mỗi shop có giới hạn lượt mỗi ngày.</div>'
+    + ((function(){ try{ return !!(window.snLaAdmin && window.snLaAdmin()); }catch(e){ return false; } })() ? '<div class="alg-ac"><button type="button" data-alg="onl-kiem">🔌 Kiểm tra AI online</button></div><div id="alg-onl-kq" style="margin-top:8px"></div>' : '')
     + '<div class="alg-n" style="margin:12px 0 8px">Cài đặt này chỉ áp dụng trên máy này.</div>'
     + '<div class="alg-ac"><button type="button" data-alg="xoa-chat">🧹 Xoá cuộc trò chuyện</button><button type="button" class="g" data-alg="cai-x">Xong</button></div>';
 }
@@ -37444,7 +37728,7 @@ function soat(b){
 }
 function veBuoc(b, so, tong){
   var tieuDe = TEN[b.y] || 'Việc';
-  var h = '<div class="alg-c ' + ({ ok: 'ok', loi: 'loi', bo: 'bo', dang: 'dang' }[b.trang] || '') + '" id="alg-' + b.id + '"><div class="alg-h">' + tieuDe + (tong > 1 ? '<span class="so">' + so + '/' + tong + '</span>' : '') + '</div>';
+  var h = '<div class="alg-c ' + ({ ok: 'ok', loi: 'loi', bo: 'bo', dang: 'dang' }[b.trang] || '') + '" id="alg-' + b.id + '"><div class="alg-h">' + tieuDe + (b.online ? '<span class="so">🌐 AI online</span>' : '') + (tong > 1 ? '<span class="so"' + (b.online ? ' style="margin-left:4px"' : '') + '>' + so + '/' + tong + '</span>' : '') + '</div>';
   if(b.trang === 'ok' || b.trang === 'loi' || b.trang === 'bo' || b.trang === 'dang' || b.trang === 'cho_app' || b.trang === 'xong_app'){
     h += '<div>' + (b.kq || '') + '</div>';
     if(b.trang === 'ok' && (b.huy || b.xem)){
@@ -37456,6 +37740,8 @@ function veBuoc(b, so, tong){
   h += '<div data-alg-o="than" data-b="' + b.id + '">' + veThan(b) + '</div>';
   var s = soat(b);
   h += '<div data-alg-o="soat" data-b="' + b.id + '">' + veSoat(s) + '</div>';
+  if(!b.online && (b.goc || b.raw) && cheDoOnl() !== 'tat' && (s.loi.some(function(x){ return /^(Chọn khách|Chưa có món|Chưa rõ món|Chọn: khách mua chịu)/.test(x); }) || s.canh.some(function(x){ return /chưa chắc/.test(x); })))
+    h += '<div class="alg-ch" style="margin-top:6px"><button type="button" data-alg="onl-lai" data-b="' + b.id + '">🌐 AI online hiểu lại câu này</button></div>';
   if(tong <= 1) h += '<div class="alg-ac"><button type="button" class="g" data-alg="lam" data-b="' + b.id + '"' + (s.loi.length ? ' disabled' : '') + '>✅ ' + nutLam(b) + '</button><button type="button" data-alg="bo" data-b="' + b.id + '">✕ Bỏ</button></div>';
   else h += '<div class="alg-ac"><button type="button" data-alg="bo" data-b="' + b.id + '" style="flex:0 0 auto;min-height:36px;padding:6px 12px;font-size:13px">✕ Bỏ việc này</button></div>';
   return h + '</div>';
@@ -37486,6 +37772,7 @@ function veLai(b){
 function goO(el, doi_){
   var f = el.getAttribute && el.getAttribute('data-alg-f'); if(!f) return;
   if(f === 'cai-luon'){ CAI.luon = !!el.checked; luuCai(); return; }
+  if(f === 'cai-onl'){ if(el.checked && /^(hoi|luon|tat)$/.test(el.value)){ CAI.online = el.value; luuCai(); } return; }
   var b = B[el.getAttribute('data-b')]; if(!b || b.trang !== 'cho') return;
   var i = +el.getAttribute('data-i'), m = (b.ds && b.ds[i]) || null, v = el.value;
   var veCa = false;
@@ -38190,7 +38477,8 @@ function chuaHieu(t){
 
 /* ═════════════ 10) NHẬN CÂU ⇒ HIỂU ⇒ THẺ ═════════════ */
 var CO_HANG = /(bán|ban|nhập|nhap|kho|giá|gia|tồn|ton|xuất|xuat|hủy|huỷ|huy|kiểm|kiem|thùng|thung|lon|chai|gói|goi|kg|ký|hộp|hop|bao|lốc|chục|còn bao nhiêu|còn mấy|sắp hết|hết hạn|bán chạy)/i;
-async function gui(chu, imMe){
+async function gui(chu, imMe, opt){
+  opt = opt || {};
   var t = String(chu != null ? chu : (IN ? IN.value : '')).trim(); if(!t) return;
   if(chu == null && IN){ IN.value = ''; IN.style.height = 'auto'; }
   if(!imMe) themMe(t);
@@ -38198,7 +38486,23 @@ async function gui(chu, imMe){
   var r;
   try{ r = NLU.parse(t, ctxHieu()); }catch(e){ loi(e); r = { cau: [] }; }
   var cau = (r.cau || []).filter(function(c){ return c && c.y; });
-  if(!cau.length){ chuaHieu(t); return; }
+  /* [SN22] AI online vừa hỏi lại: câu này tự nó là 1 việc ĐỦ (AI trong máy làm được) ⇒ việc mới, bỏ câu hỏi cũ;
+     còn lại (vd "200k", "cô Ba Lan") là câu TRẢ LỜI ⇒ hỏi tiếp AI online kèm ngữ cảnh */
+  if(!opt.tuOnline && ONL.truoc && Date.now() - ONL.truoc.luc < 300000 && cheDoOnl() !== 'tat'){
+    if(cau.length && cau.every(tuDuOnl)) ONL.truoc = null;
+    else { await hoiOnline(t); return; }
+  }
+  if(!cau.length){
+    if(opt.tuOnline){ themAI('<div class="alg-c">⚠️ AI online đề nghị «<b>' + esc(soDepOnl(t)) + '</b>» nhưng AI trong máy chưa làm được câu này. Bạn sửa lại rồi gửi nhé.<div class="alg-ch"><button type="button" data-alg="dien" data-t="' + esc(t) + '">✏️ Sửa câu này</button></div></div>'); return; }
+    if(!(await thuOnline(t))) chuaHieu(t);
+    return;
+  }
+  /* [SN22] tiền nói lóng ("2 xị", "1 củ rưỡi") ⇒ AI trong máy dễ đọc sai số tiền ⇒ nhờ AI online (trừ khi người dùng chọn để AI trong máy làm) */
+  if(!opt.tuOnline && !opt.boOnline && longTien(t)){ if(await thuOnline(t, 'long')) return; }
+  /* [SN22] việc cần TÊN HÀNG mà không nhận ra món nào (kho đã có hàng) ⇒ coi như chưa hiểu ⇒ AI online */
+  if(!opt.tuOnline && dsHang().length && cau.every(function(c){ return /^(ban|nhap|kiemkho|xuathuy|doigia|hoi_ton|hoi_gia)$/.test(c.y) && !(c.ds && c.ds.length); })){
+    if(await thuOnline(t)) return;
+  }
   var canKho = cau.some(function(c){ return (c.y === 'ban' || c.y === 'nhap' || c.y === 'kiemkho' || c.y === 'xuathuy' || c.y === 'doigia') && !(c.ds && c.ds.length); });
   if(canKho && !dsHang().length){
     themAI('<div class="alg-c">Để hiểu đúng <b>tên hàng</b>, AI cần danh sách hàng của shop — mở màn 🛒 Bán hàng 1 lần là có.<div class="alg-ac"><button type="button" class="g" data-alg="pos-lenh" data-t="' + esc(t) + '">🛒 Mở Bán hàng rồi làm tiếp</button></div></div>');
@@ -38212,7 +38516,7 @@ async function gui(chu, imMe){
       else if(c.y === 'giup') themAI(veGiup());
       else if(c.y === 'viec') viecHomNay(false);
       else if(c.y === 'hoantac') hoanTacCuoi();
-      else if(LAM[c.y] || c.y === 'ghino_hoi'){ var b = taoBuoc(c); if(b.y === 'ban' && !b.tt && !b.kh && !b.khMoi) b.tt = 'cash'; b.ttNoi = !!c.tt || c.khachDua != null; buoc.push(b); }
+      else if(LAM[c.y] || c.y === 'ghino_hoi'){ var b = taoBuoc(c); if(b.y === 'ban' && !b.tt && !b.kh && !b.khMoi) b.tt = 'cash'; b.ttNoi = !!c.tt || c.khachDua != null; if(opt.tuOnline) b.online = true; b.goc = cau.length === 1 ? t : (c.raw || t); buoc.push(b); }
     }catch(e){ loi(e); }
   });
   if(buoc.length) taoKeHoach(buoc);
@@ -38221,7 +38525,7 @@ function taoKeHoach(buoc){
   var k = { id: 'k' + (++SEQ), buoc: buoc };
   KH[k.id] = k; buoc.forEach(function(b){ b.k = k.id; B[b.id] = b; });
   var d = themAI('', 'alg-kehoach-' + k.id); d.innerHTML = veKeHoach(k); cuon();
-  if(CAI.luon && buoc.every(function(b){ var s = soat(b); return !NGUY[b.y] && !s.loi.length && !s.canh.length && !(b.kh && b.kh.phanVan) && !(b.y === 'ban' && !b.ttNoi) && !(b.y === 'ban' && b.tt === 'qr'); })) chayHet(k);
+  if(CAI.luon && buoc.every(function(b){ var s = soat(b); return !b.online && !NGUY[b.y] && !s.loi.length && !s.canh.length && !(b.kh && b.kh.phanVan) && !(b.y === 'ban' && !b.ttNoi) && !(b.y === 'ban' && b.tt === 'qr'); })) chayHet(k);
 }
 async function chayHet(k){ for(var i = 0; i < k.buoc.length; i++){ var b = k.buoc[i]; if(b.trang === 'cho') await lamBuoc(b); } veLai(k.buoc[0]); }
 function hoanTacCuoi(){
@@ -38293,6 +38597,10 @@ function bamAI(el, ev){
     case 'dien': IN.value = el.getAttribute('data-t') || ''; IN.dispatchEvent(new Event('input')); try{ IN.focus(); var L = IN.value.length; IN.setSelectionRange(L, L); }catch(e){} return;
     case 'pos-lenh': (async function(){ var t = el.getAttribute('data-t'); el.disabled = true; try{ await moPOS(null, true); await doi(hangSong, 6000); }catch(e){ themAI('<div class="alg-c loi">❌ ' + esc(e.message || e) + '</div>'); return; } if(t) gui(t, true); })(); return;
     case 'snai': dong(); try{ if(window.SNAI_ASK) window.SNAI_ASK(el.getAttribute('data-t') || ''); }catch(e){} return;
+    case 'onl-1': el.disabled = true; hoiOnline(el.getAttribute('data-t') || ''); return;
+    case 'onl-luon': el.disabled = true; CAI.online = 'luon'; luuCai(); themAI('<div class="alg-c ok">🌐 Từ nay câu nào AI trong máy chưa hiểu sẽ <b>tự hỏi AI online</b> (đổi lại ở nút ⚙️). Việc vẫn hiện thẻ xem lại, bấm ✅ mới làm.</div>'); hoiOnline(el.getAttribute('data-t') || ''); return;
+    case 'onl-kiem': kiemOnline(el); return;
+    case 'onl-bo': el.disabled = true; gui(el.getAttribute('data-t') || '', true, { boOnline: true }); return;
     case 'man': moMan(el.getAttribute('data-v')); return;
     case 'xem-kh': xemKhach(el.getAttribute('data-id')); return;
     case 'nhac1': try{ var c = lamNhac1(el.getAttribute('data-id')); el.textContent = '✓ Đã mở'; el.classList.remove('g'); themAI('<div class="alg-c ok">📤 Đã mở cửa sổ gửi lời nhắc cho <b>' + esc(c.name) + '</b> (nợ ' + vnd(c.debt) + ').</div>'); }catch(e){ themAI('<div class="alg-c loi">❌ ' + esc(e.message || e) + '</div>'); } return;
@@ -38304,6 +38612,7 @@ function bamAI(el, ev){
   }
   if(!b) return;
   switch(a){
+    case 'onl-lai': if(b.trang !== 'cho') return; var goc = b.goc || b.raw || ''; b.trang = 'bo'; b.kq = '🌐 Đã nhờ AI online hiểu lại câu: «' + esc(goc) + '».'; veLai(b); hoiOnline(goc); return;
     case 'lam': lamBuoc(b); return;
     case 'bo': b.trang = 'bo'; b.kq = 'Đã bỏ việc này.'; veLai(b); return;
     case 'huy': huyBuoc(b); return;
@@ -38347,11 +38656,196 @@ function ganNut(){
   }catch(e){ loi(e); }
 }
 
+/* ═════════════ 12b) [SN22] 🌐 AI ONLINE — hỏi máy chủ khi AI TRONG MÁY chưa hiểu ═════════════
+   • Máy chủ = Cloud Function "aiHieu" (codebase aionline, asia-southeast1) giữ khoá Gemini — app KHÔNG có khoá nào.
+   • Gửi: câu người dùng + VÀI tên khách / tên hàng / nhà cung cấp liên quan (chỉ TÊN — không số điện thoại, không số nợ).
+   • Nhận: CÂU LỆNH CHUẨN ⇒ chạy lại qua bộ hiểu trong máy ⇒ THẺ XEM LẠI như thường (bấm ✅ mới làm, giữ quyền / khoá sổ).
+   • Lệnh từ AI online KHÔNG BAO GIỜ tự làm (kể cả bật "Làm luôn").
+   • Cài đặt máy này (alg_cai_v1.online): 'hoi' hỏi tôi trước (mặc định) · 'luon' tự hỏi · 'tat' không dùng. */
+var FB_CDN = 'https://www.gstatic.com/firebasejs/10.12.0/';
+var ONL = { dang: false, truoc: null };
+var STOP_ONL = {};
+('ghi no ban mua lay nhap con bao nhieu may thung lon chai goi hop kg cai khach them sua doi xoa nhac gui link in ke chot nop ve hom nay qua ngay thang tuan nghin ngan trieu tr va voi la thi ma de tai cua nha nhe di oi tien mat chuyen khoan het nua roi rui nhieu so dien thoai dia tim xem kiem giup lam nao sao gi dum gium vay the cho duoc khong chua').split(' ').forEach(function(w){ STOP_ONL[w] = 1; });
+
+/* gọi hàm aiHieu bằng SDK functions (cùng phiên đăng nhập của app) */
+async function goiOnline(data, ms){
+  var A = await import(FB_CDN + 'firebase-app.js');
+  var app = null;
+  try{ app = A.getApp(); }catch(e){ app = null; }
+  if(!app){ var as = []; try{ as = A.getApps() || []; }catch(e){} for(var i = 0; i < as.length; i++) if(as[i] && as[i].name !== 'errlog' && as[i].name !== 'pub'){ app = as[i]; break; } }
+  if(!app){ var e0 = new Error('App chưa sẵn sàng'); e0.code = 'alg/chua-san'; throw e0; }
+  var Fn = await import(FB_CDN + 'firebase-functions.js');
+  var r = await Fn.httpsCallable(Fn.getFunctions(app, 'asia-southeast1'), 'aiHieu', { timeout: ms || 55000 })(data);
+  return (r && r.data) || {};
+}
+/* chỉ để HIỆN cho dễ đọc: 200000đ ⇒ 200.000đ (lệnh đưa cho AI trong máy vẫn giữ nguyên) */
+function soDepOnl(s){ return String(s == null ? '' : s).replace(/(\d{4,})(?=đ)/g, function(m){ return m.replace(/\B(?=(\d{3})+(?!\d))/g, '.'); }); }
+/* lỗi ⇒ câu dễ hiểu (máy chủ đã trả câu tiếng Việt thì dùng luôn) */
+function moTaLoiOnline(e){
+  var c = String((e && e.code) || ''), m = String((e && e.message) || (e == null ? '' : e));
+  var tho = !m || m === c || m.toLowerCase() === c.replace(/^functions\//, '').toLowerCase() || /^(internal|INTERNAL|unknown|UNKNOWN|NOT_FOUND|not-found)$/.test(m);
+  try{ if(navigator.onLine === false) return '📶 Máy đang mất mạng — AI online cần có mạng. AI trong máy vẫn dùng được.'; }catch(x){}
+  if(c === 'alg/chua-san') return '⏳ App đang khởi động — chờ vài giây rồi thử lại.';
+  if(!c && /import|module|fetch/i.test(m)) return '📶 Chưa tải được phần kết nối AI online (mạng chập chờn) — thử lại sau ít phút.';
+  if(c === 'functions/not-found' || (c === 'functions/internal' && tho)) return '⏳ AI online chưa sẵn sàng (máy chủ chưa cài xong, hoặc mạng chập chờn). AI trong máy vẫn chạy bình thường.';
+  if(c === 'functions/unauthenticated') return '🔑 Phiên đăng nhập đã cũ — Đăng xuất rồi đăng nhập lại để dùng AI online.';
+  if(c === 'functions/deadline-exceeded') return '📶 AI online trả lời chậm quá — thử lại sau ít phút.';
+  if((c === 'functions/unavailable' || c === 'functions/unknown' || c === 'functions/cancelled') && tho) return '📶 Mạng yếu hoặc máy chủ AI chưa trả lời — thử lại sau ít phút.';
+  if(!tho) return m.slice(0, 300);
+  return '❌ AI online chưa trả lời được (' + (c || 'không rõ') + ').';
+}
+/* ── chọn VÀI tên liên quan để gửi kèm (đúng tên trong sổ ⇒ AI online chép lại y tên) ── */
+function lev1Onl(a, b){
+  if(a === b) return true;
+  var la = a.length, lb = b.length; if(Math.abs(la - lb) > 1) return false;
+  var i = 0, j = 0, d = 0;
+  while(i < la && j < lb){ if(a[i] === b[j]){ i++; j++; continue; } if(++d > 1) return false; if(la > lb) i++; else if(lb > la) j++; else { i++; j++; } }
+  return d + (la - i) + (lb - j) <= 1;
+}
+function tuCauOnl(t){
+  var o = [];
+  try{ NLU.tokenize(t).forEach(function(x){ if(x.t === 'w' && x.n.length >= 2 && !STOP_ONL[x.n] && o.indexOf(x.n) < 0) o.push(x.n); }); }catch(e){}
+  return o;
+}
+function diemTenOnl(tu, ten){
+  if(!tu.length) return 0;
+  var tk = []; try{ tk = NLU.nameToks(ten).map(function(x){ return x.n; }); }catch(e){ return 0; }
+  var d = 0;
+  for(var a = 0; a < tu.length; a++){
+    var w = tu[a], b = 0;
+    for(var k = 0; k < tk.length; k++){
+      var n = tk[k], s = 0;
+      if(n === w) s = 3;
+      else if(w.length >= 3 && n.length >= 3 && (n.indexOf(w) === 0 || w.indexOf(n) === 0)) s = 2;
+      else if(w.length >= 3 && n.indexOf(w) >= 0) s = 1.5;
+      else if(w.length >= 4 && n.length >= 4 && lev1Onl(w, n)) s = 1.5;
+      if(s > b) b = s;
+    }
+    d += b;
+  }
+  return d;
+}
+function tenHangOnl(p){
+  var us = []; try{ us = donVi(p) || []; }catch(e){}
+  var dv = us.map(function(u){ return (u.base || !(soN(u.ratio) > 1)) ? u.name : (u.name + '=' + sl(u.ratio)); }).filter(Boolean);
+  return String(p.name) + (dv.length ? ' [' + dv.join(', ') + ']' : '');
+}
+function goiYOnline(t){
+  var tu = tuCauOnl(t);
+  var ks = dsKhach(), hs = dsHang(), ns = dsNcc(), kh = [], sp = [];
+  ks.map(function(c){ return { c: c, d: diemTenOnl(tu, c.name) }; }).filter(function(x){ return x.d > 0; })
+    .sort(function(a, b){ return (b.d - a.d) || (soN(b.c.debt) - soN(a.c.debt)); }).slice(0, 25)
+    .forEach(function(x){ if(kh.indexOf(x.c.name) < 0) kh.push(x.c.name); });
+  ks.filter(function(c){ return soN(c.debt) > 0; }).sort(function(a, b){ return soN(b.debt) - soN(a.debt); })
+    .forEach(function(c){ if(kh.length < 35 && kh.indexOf(c.name) < 0) kh.push(c.name); });
+  hs.map(function(p){ return { p: p, d: diemTenOnl(tu, p.name) }; }).filter(function(x){ return x.d > 0; })
+    .sort(function(a, b){ return (b.d - a.d) || (soN(b.p.stock) - soN(a.p.stock)); }).slice(0, 40)
+    .forEach(function(x){ var s = tenHangOnl(x.p); if(sp.indexOf(s) < 0) sp.push(s); });
+  if(sp.length < 15 && CO_HANG.test(t)) hs.slice().sort(function(a, b){ return soN(b.stock) - soN(a.stock); })
+    .forEach(function(p){ if(sp.length < 25){ var s = tenHangOnl(p); if(sp.indexOf(s) < 0) sp.push(s); } });
+  return { kh: kh.map(function(x){ return String(x).slice(0, 60); }), sp: sp.map(function(x){ return String(x).slice(0, 140); }), ncc: ns.slice(0, 15).map(function(x){ return String(x.name).slice(0, 60); }) };
+}
+/* tiền nói kiểu LÓNG ("2 xị", "1 củ rưỡi", "5 lít" khi nói nợ) — AI trong máy dễ đọc sai số tiền ⇒ nên hỏi AI online.
+   "củ / xị" đứng ngay trước tên rau củ / hàng (2 củ tỏi, 3 củ hành, 1 xị rượu, 2 xi măng) là SỐ LƯỢNG ⇒ không tính */
+var TIEN_LONG = /(^|[\s,.])(\d+([.,]\d+)?|một|mot|hai|ba|bốn|bon|tư|năm|nam|lăm|lam|sáu|sau|bảy|bay|tám|tam|chín|chin|mười|muoi|chục|chuc|trăm|tram|rưỡi|ruoi)\s*(xị|xỉ|xi|củ|cu)(?=$|[\s,.;!?])(?!\s+(?:hành|tỏi|gừng|nghệ|riềng|sả|kiệu|cải|cà|khoai|sắn|đậu|dền|năng|mì|ấu|su|dong|sen|măng|dầu|rượu|đế|nếp|hanh|gung|ruou)(?=$|[\s,.;!?]))/i;
+var TIEN_LIT = /(^|[\s,.])(\d+([.,]\d+)?|một|mot|hai|ba|bốn|bon|năm|nam|mười|muoi|chục|chuc|trăm|tram)\s*(lít|lit)(?=$|[\s,.;!?])/i;
+function longTien(t){
+  var x = String(t || '').toLowerCase();
+  if(TIEN_LONG.test(x)) return true;
+  return TIEN_LIT.test(x) && /(nợ|lấy|thiếu|trả|đưa|chịu|\bno\b|\blay\b|thieu|\btra\b|\bdua\b|chiu)/.test(x) && !/(dầu|sữa|nước|xăng|rượu|bia|mắm|giấm|dau an|sua|nuoc|xang|ruou|mam)/.test(x);
+}
+/* câu tự nó đã là 1 việc ĐỦ? (dùng khi AI online đang chờ câu trả lời) */
+function tuDuOnl(c){
+  if(!c || !c.y || c.y === 'hoi_kh' || c.y === 'ghino_hoi') return false;
+  if(/^hoi_/.test(c.y) || c.y === 'mo' || c.y === 'viec' || c.y === 'giup' || c.y === 'hoantac') return true;
+  if(LAM[c.y]){ try{ return !soat(taoBuoc(c)).loi.length; }catch(e){ return false; } }
+  return false;
+}
+/* ── luồng chính ── */
+function cheDoOnl(){ return CAI.online === 'luon' || CAI.online === 'tat' ? CAI.online : 'hoi'; }
+/* trả true nếu đã lo (hiện thẻ hỏi ý / hỏi AI online) — false để chỗ gọi hiện "chưa hiểu" như cũ */
+async function thuOnline(t, ly){
+  var cd = cheDoOnl();
+  if(cd === 'tat') return false;
+  if(cd === 'hoi'){ veHoiOnline(t, ly); return true; }
+  await hoiOnline(t);
+  return true;
+}
+function viDuNut(t){
+  var g = viDu().slice(0, 3);
+  return '<div class="alg-ch">' + g.map(function(x){ return '<button type="button" data-alg="dien" data-t="' + esc(x) + '">' + esc(x) + '</button>'; }).join('') + '</div>';
+}
+function veHoiOnline(t, ly){
+  var long = ly === 'long';
+  themAI('<div class="alg-c"><div class="alg-h">' + (long ? '🤔 Câu có cách nói tiền kiểu “xị / củ / lít”' : '🤔 AI trong máy chưa hiểu câu này') + '</div>'
+    + (long ? '<div>AI trong máy dễ đọc sai số tiền kiểu này (vd “2 xị” = 200.000đ).</div>' : '')
+    + '<div>Nhờ <b>🌐 AI online</b> hiểu giúp không? (gửi câu này + vài tên khách / tên hàng liên quan qua máy chủ của app tới Gemini của Google — không gửi số điện thoại, số nợ)</div>'
+    + '<div class="alg-ac"><button type="button" class="g" data-alg="onl-1" data-t="' + esc(t) + '">🌐 Hỏi AI online</button><button type="button" data-alg="onl-luon" data-t="' + esc(t) + '">🌐 Luôn tự hỏi online</button></div>'
+    + (long ? '<div class="alg-ac"><button type="button" data-alg="onl-bo" data-t="' + esc(t) + '">🤖 Vẫn để AI trong máy làm</button></div>'
+      : '<div class="alg-n" style="margin-top:8px">Hoặc nói rõ <b>việc</b> + <b>tên khách / tên hàng</b> + <b>số tiền / số lượng</b>, ví dụ:</div>' + viDuNut(t)
+      + '<div class="alg-ac"><button type="button" data-alg="lenh" data-t="giúp">❓ AI làm được gì</button><button type="button" data-alg="snai" data-t="' + esc(t) + '">🆘 Hỏi Trợ lý hướng dẫn</button></div>')
+    + '</div>');
+}
+async function hoiOnline(t){
+  if(ONL.dang){ themAI('<div class="alg-c">⏳ AI online đang trả lời câu trước — chờ chút rồi gửi lại nhé.</div>'); return; }
+  var truoc = (ONL.truoc && Date.now() - ONL.truoc.luc < 300000) ? { cau: ONL.truoc.cau, hoi: ONL.truoc.hoi } : null;
+  ONL.truoc = null;
+  try{ if(navigator.onLine === false){ themAI('<div class="alg-c loi">📶 Máy đang mất mạng — AI online cần có mạng. AI trong máy vẫn dùng được.' + viDuNut(t) + '</div>'); return; } }catch(e){}
+  ONL.dang = true;
+  var cho = themAI('<div class="alg-c" data-alg-o="onl-cho"><span class="alg-dot"></span><span class="alg-dot"></span><span class="alg-dot"></span> 🌐 Đang hỏi AI online…</div>');
+  var g = goiYOnline(truoc ? truoc.cau + ' ' + t : t);
+  var data = { v: 1, cau: t, kh: g.kh, sp: g.sp, ncc: g.ncc, ngay: dmy(new Date()), truoc: truoc, man: posMo() ? 'pos' : 'sono' };
+  var r = null, loiE = null;
+  try{ r = await goiOnline(data, 55000); }catch(e){ loiE = e; }
+  ONL.dang = false;
+  try{ cho.remove(); }catch(e){}
+  if(loiE){
+    loi(loiE);
+    themAI('<div class="alg-c loi"><div>❌ ' + esc(moTaLoiOnline(loiE)) + '</div><div class="alg-ac"><button type="button" data-alg="onl-1" data-t="' + esc(t) + '">↻ Hỏi AI online lại</button></div></div>');
+    return;
+  }
+  await xuLyOnline(t, r || {}, truoc);
+}
+async function xuLyOnline(t, r, truoc){
+  var con = (r.con != null && isFinite(r.con)) ? '<div class="alg-n" style="margin-top:6px">🌐 Hôm nay shop còn ' + Math.max(0, Math.round(r.con)) + ' lượt AI online.</div>' : '';
+  var lenh = Array.isArray(r.lenh) ? r.lenh.filter(function(x){ return typeof x === 'string'; }).map(function(x){ return x.replace(/\s*\[[^\]\n]{0,120}\]/g, ' ').replace(/\s+([,;])/g, '$1').replace(/\s{2,}/g, ' ').trim(); }).filter(Boolean).slice(0, 6) : [];   /* bỏ [đơn vị…] lỡ chép theo danh sách hàng */
+  if(r.loai === 'lenh' && lenh.length){
+    themAI('<div class="alg-c"><div class="alg-h">🌐 AI online hiểu là</div>' + lenh.map(function(x){ return '<div>• <b>' + esc(soDepOnl(x)) + '</b></div>'; }).join('')
+      + '<div class="alg-n" style="margin-top:6px">Xem kỹ thẻ bên dưới rồi mới bấm ✅ (AI online có thể hiểu sai).</div>' + con + '</div>');
+    for(var i = 0; i < lenh.length; i++){ try{ await gui(lenh[i], true, { tuOnline: true }); }catch(e){ loi(e); } }
+    return;
+  }
+  if(r.loai === 'hoi_lai' && r.hoi){
+    ONL.truoc = { cau: (truoc ? truoc.cau + ' · ' : '') + t, hoi: String(r.hoi), luc: Date.now() };
+    themAI('<div class="alg-c"><div class="alg-h">🌐 AI online hỏi lại</div><div>' + esc(r.hoi) + '</div><div class="alg-n" style="margin-top:6px">Gõ câu trả lời vào ô dưới cùng (vd chỉ cần gõ số tiền).</div>' + con + '</div>');
+    return;
+  }
+  if(r.loai === 'huong_dan' && r.huong_dan){
+    themAI('<div class="alg-c"><div class="alg-h">📖 Câu này là hỏi cách dùng app</div><div>Trợ lý hướng dẫn trả lời chi tiết từng bước:</div><div class="alg-ac"><button type="button" class="g" data-alg="snai" data-t="' + esc(r.huong_dan) + '">🆘 Hỏi Trợ lý: ' + esc(r.huong_dan) + '</button></div>' + con + '</div>');
+    return;
+  }
+  themAI('<div class="alg-c"><div class="alg-h">🌐 AI online</div><div>' + esc(r.tra_loi || 'AI online cũng chưa hiểu câu này. Bạn nói rõ việc + tên khách / tên hàng + số tiền / số lượng giúp mình nhé.') + '</div>' + (r.loai === 'khong_lam_duoc' ? viDuNut(t) : '') + con + '</div>');
+}
+/* chủ phần mềm (admin): kiểm tra máy chủ AI online ngay trong bảng ⚙️ */
+async function kiemOnline(el){
+  var o = $('alg-onl-kq'); if(!o) return;
+  if(el) el.disabled = true;
+  o.innerHTML = '<div class="alg-n"><span class="alg-dot"></span><span class="alg-dot"></span><span class="alg-dot"></span> Đang kiểm tra máy chủ AI online…</div>';
+  try{
+    var r = await goiOnline({ v: 1, viec: 'kiem' }, 60000);
+    var th = r.thang || {};
+    o.innerHTML = '<div class="alg-c ok">✅ <b>AI online chạy tốt</b><br>Mô hình: <b>' + esc(r.mo_hinh || '?') + '</b> · trả lời trong ' + (Math.round(soN(r.ms) / 100) / 10).toLocaleString('vi-VN') + ' giây'
+      + '<br>Câu thử «ghi no co ba 2 xi» ⇒ <b>' + esc(soDepOnl(r.thu || '?')) + '</b>'
+      + '<br>Tháng này: ' + soN(th.n).toLocaleString('vi-VN') + ' lượt · ước tính ' + (Math.round(soN(th.usd) * 100) / 100).toLocaleString('vi-VN') + ' USD / trần ' + soN(th.tran).toLocaleString('vi-VN') + ' USD · mỗi shop ' + soN(r.luot_ngay_moi_shop) + ' lượt/ngày</div>';
+  }catch(e){ loi(e); o.innerHTML = '<div class="alg-c loi">❌ ' + esc(moTaLoiOnline(e)) + '</div>'; }
+  if(el) el.disabled = false;
+}
+
 /* ═════════════ 13) KHỞI ĐỘNG ═════════════ */
 window.ALG = { ok: true, ver: VER, mo: mo, dong: dong,
   lam: function(t){ mo(); if(t) gui(t); },
   hieu: function(t){ return NLU.parse(t, ctxHieu()); },
-  _nlu: NLU, _b: function(){ return B; }, _his: function(){ return HIS; } };
+  _nlu: NLU, _b: function(){ return B; }, _his: function(){ return HIS; }, _onl: function(){ return ONL; }, _goiY: function(t){ return goiYOnline(t); } };
 /* nút "▶ Mở ngay" trong bài của Trợ lý hướng dẫn: đóng trợ lý rồi mở AI làm giúp */
 window.ALG_MO = function(){ try{ var m = $('snai-mask'), x = $('snai-x'); if(m && m.classList.contains('on') && x) x.click(); }catch(e){} setTimeout(function(){ mo(); }, 120); };
 ganNut();
