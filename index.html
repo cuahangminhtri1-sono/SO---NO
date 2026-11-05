@@ -618,6 +618,7 @@
       <button class="btn-save" style="flex:1;padding:10px;background:#2980b9" onclick="openTx('tra')">💰 Trả</button>
       <button class="btn-share" onclick="generateShareLink()">📤 Chia sẻ</button>
       <button class="btn-share" onclick="openSignatures()">✍️ Chữ ký</button>
+      <button class="btn-share" id="hdg-nut" onclick="hdgMo()">📝 Hợp đồng</button>
       <button class="btn-share" onclick="snOpenPrint()">🖨️ In A4/A5</button>
       <button class="btn-share sn-editonly" onclick="openEditCust()">✏️ Sửa tên</button>
       <button class="btn-danger" onclick="deleteCustomer()">🗑</button>
@@ -654,6 +655,15 @@
     <h2 id="signs-title">✍️ Chữ ký xác nhận</h2>
     <div id="signs-body"><div class="loading">Đang tải...</div></div>
     <button class="btn-cancel" style="width:100%;margin-top:16px" onclick="closeModal('modal-signs')">Đóng</button>
+  </div>
+</div>
+
+<!-- MODAL: 📝 Hợp đồng kèm link công nợ — chủ shop lập · khách ký trên link [SN25] -->
+<div class="modal-overlay" id="modal-hd">
+  <div class="modal">
+    <h2 id="hdg-title">📝 Hợp đồng</h2>
+    <div id="hdg-body"><div class="loading">Đang tải...</div></div>
+    <button class="btn-cancel" style="width:100%;margin-top:16px" onclick="closeModal('modal-hd')">Đóng</button>
   </div>
 </div>
 
@@ -745,7 +755,7 @@ import { getFirestore, initializeFirestore, persistentLocalCache, persistentMult
 import { getStorage, ref as _sref, uploadBytes, getDownloadURL, deleteObject, listAll }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
 
-const APP_BUILD = "2026-11-05-SN24"; // ⬆️ ĐỔI MỖI LẦN DEPLOY (đặt TRÙNG tên cache trong sw.js) — hiện ở ⚙️ Cài đặt để biết máy đã chạy bản mới chưa
+const APP_BUILD = "2026-11-06-SN25"; // ⬆️ ĐỔI MỖI LẦN DEPLOY (đặt TRÙNG tên cache trong sw.js) — hiện ở ⚙️ Cài đặt để biết máy đã chạy bản mới chưa
 const firebaseConfig = {
   apiKey: "AIzaSyA_kjQ-CdASRkf50Glz3kQajlkD5qGWC4k",
   authDomain: "so-no-cc57a.firebaseapp.com",
@@ -1328,7 +1338,7 @@ if(viewToken){
           <div class="pub-debt ${isZero?'zero':(shopOwes?'i-owe':'')}">${isZero?'✅ Đã thanh toán xong':(shopOwes?fmt(-bal):fmt(bal))}</div>
         </div>
         ${qrHtml}
-        ${proofHtml}
+        ${proofHtml}${d.hopDong?'<div id="pub-hd-wrap"></div>':''}
         <div class="pub-card"><div style="font-weight:700;margin-bottom:12px">📋 Lịch sử giao dịch</div>${d.truncated?`<div style="font-size:.78em;color:#999;margin-bottom:10px">Hiển thị ${d.txShown} giao dịch gần nhất (tổng ${d.txTotal}). Liên hệ chủ shop để xem đầy đủ.</div>`:''}${txHtml}</div>
         <div id="pub-sign-wrap"></div>
         <div style="text-align:center;color:#bbb;font-size:0.75em;margin:4px 0 24px">Cập nhật: ${d.updatedAt||''}</div>`;
@@ -1436,11 +1446,13 @@ function _clearPad(){ if(_sctx&&_scanvas){ _sctx.save();_sctx.setTransform(1,0,0
 async function initSignSection(token,d){
   const wrap=document.getElementById('pub-sign-wrap'); if(!wrap) return;
   const debt=d.debt||0;
-  let signs=[];
+  let signs=[],_hdgAll=[];   /* [SN25] */
   try{
     const qs=await getDocs(query(collection(db,'shares',token,'chuky'),orderBy('taoLuc','desc')));
     signs=qs.docs.map(x=>x.data());
+    _hdgAll=signs; signs=signs.filter(s=>!hdgMk(s));   /* [SN25] chữ ký HỢP ĐỒNG tách riêng — không tính là "đã ký xác nhận nợ" */
   }catch(e){}
+  try{ hdgPubInit(token,d,_hdgAll); }catch(e){}   /* [SN25] 📝 thẻ hợp đồng (chỉ có khi chủ shop để Hiện trên link) */
   wrap.innerHTML=_renderSignCard(debt,signs);
   _setupPad();
   const clr=document.getElementById('sign-clear'); if(clr) clr.addEventListener('click',_clearPad);
@@ -3791,9 +3803,10 @@ async function syncShare(token,custId,name,phone,debt){
   try{
     const snap=await getDocs(query(collection(db,'users',UID,'customers',custId,'transactions'),orderBy('date','desc')));
     const transactions=snap.docs.map(d=>{const t=d.data();return{type:t.type,amount:t.amount,note:t.note||'',memo:t.memo||'',date:fmtDate(t.date)};});
-    let proof=null;
+    let proof=null,_hdgCho=null;   /* [SN25] */
     try{
       const cdoc=await getDoc(doc(db,'users',UID,'customers',custId));
+      try{ const _h=cdoc.exists()?cdoc.data().hopDong:null; if(_h&&_h.id&&_h.bat!==false)_hdgCho=hdgChoLink(_h); }catch(_){}   /* [SN25] 📝 hợp đồng kèm link */
       const proofTxId=cdoc.exists()?cdoc.data().proofTxId:null;
       if(proofTxId){const pd=snap.docs.find(d=>d.id===proofTxId);const att=pd&&pd.data().att;
         if(att&&(att.t||'').startsWith('image/')){
@@ -3812,6 +3825,7 @@ async function syncShare(token,custId,name,phone,debt){
     const docData={name,phone:phone||'',debt,updatedAt,ownerUid:UID,transactions:[]};
     if(shop)docData.shop=shop;
     if(proof)docData.proof=proof;
+    if(_hdgCho)docData.hopDong=_hdgCho;   /* [SN25] 📝 chỉ khi chủ shop để "Hiện trên link" */
     let used=byteLen(docData);                 // kích thước phần khung + ảnh bằng chứng (nếu có)
     if(used>MAX_SHARE&&proof){delete docData.proof;used=byteLen(docData);} // ảnh quá lớn thì bỏ ảnh trước
     const kept=[];                             // transactions đã sắp MỚI→CŨ (orderBy date desc)
@@ -3867,7 +3881,7 @@ window.openSignatures=async()=>{
     }
     const rows=qs.docs.map(dref=>{const s=dref.data();return '<div class="sign-done">'
       +'<img src="'+(s.img||'')+'" alt="chữ ký">'
-      +'<div class="sign-meta"><b>'+escHtml(s.ten||'—')+'</b><br>Nợ đã xác nhận: <b style="color:#c0392b">'+fmt(s.noTaiThoiDiemKy||0)+'</b><br><span style="color:#999">'+escHtml(s.hienThi||'')+'</span></div>'
+      +'<div class="sign-meta"><b>'+escHtml(s.ten||'—')+'</b><br>'+hdgDongKy(s)+'<br><span style="color:#999">'+escHtml(s.hienThi||'')+'</span></div>'   /* [SN25] */
       +'</div>';}).join('');
     body.innerHTML='<div style="font-size:.82em;color:#666;margin-bottom:10px">Tổng <b>'+qs.size+'</b> chữ ký. Bấm giữ ảnh để lưu về máy làm bằng chứng.</div>'+rows;
   }catch(e){
@@ -3979,6 +3993,1066 @@ window.saveEditCust=function(){
   toast('✅ Đã sửa tên khách: '+name);
   if(c.shareToken){ try{ syncShare(c.shareToken,id,name,phone,c.debt||0).catch(function(){}); }catch(e){} }
 };
+/* ═══════════════ [SN25] 📝 HỢP ĐỒNG KÈM LINK CÔNG NỢ (namespace hdg) ═══════════════
+   Chủ shop lập hợp đồng cho TỪNG khách (🤝 mua bán – mua chịu trả chậm · 🧾 giấy xác nhận nợ & cam kết trả · ✍️ tự soạn).
+   Để "Hiện trên link" ⇒ trang khách (?view=) có thêm thẻ 📝 Hợp đồng: khách đọc toàn văn, tick đồng ý, ký bằng ngón tay.
+   Chưa lập / để ẩn ⇒ trang khách Y HỆT bản cũ (giống 👁 Ảnh bằng chứng: chọn mới hiện).
+   DỮ LIỆU — KHÔNG đổi Firestore Rules, KHÔNG đổi Storage Rules:
+     • users/{uid}/customers/{cid}.hopDong    hợp đồng hiện tại (bản đầy đủ của chủ shop)
+       .hopDongCu  hợp đồng đã kết thúc (mới → cũ, tối đa 10) — giữ để in lại / đối chiếu
+     • shares/{token}.hopDong  bản CÔNG KHAI (hdgChoLink) — syncShare chép sang khi hopDong.bat !== false
+     • Chữ ký khách (Bên B) = 1 bản ghi trong shares/{token}/chuky, ĐÚNG 7 trường như chữ ký nợ
+       {ten,img,noTaiThoiDiemKy,soGiaoDich,ua,hienThi,taoLuc}; nhận ra nhờ dấu ở ĐẦU trường ua:
+       "#HD1|B|<số HĐ>|<mã kiểm tra>#" — mã kiểm tra = 16 ký tự đầu SHA-256 của nội dung hợp đồng
+       ⇒ chữ ký gắn chặt với ĐÚNG nội dung khách đã đọc; sửa nội dung là mã đổi ⇒ phải ký lại.
+     • Chữ ký Bên A (chủ shop) = ảnh PNG nhỏ (data URL) trong hopDong.kyA — KHÔNG tính vào mã kiểm tra.
+   KHOÁ: khách ký rồi ⇒ không sửa / không xoá được; muốn đổi điều khoản ⇒ 🆕 Lập hợp đồng mới (bản cũ cất vào hopDongCu).
+   Hàm dùng ở trang khách đều là function declaration (được kéo lên đầu module) — gọi được từ khối ?view= ở đầu file. */
+function hdgS(x){ return String(x==null?'':x); }
+function hdgE(x){ return escHtml(hdgS(x)); }
+function hdg$(id){ return document.getElementById(id); }
+function hdgRe(){ return /^#HD1\|([AB])\|([A-Za-z0-9-]{1,40})\|([0-9a-f]{16})#/; }
+function hdgMk(s){ try{ var m=hdgRe().exec(hdgS(s&&s.ua)); return m?{ben:m[1],id:m[2],h:m[3]}:null; }catch(e){ return null; } }
+function hdgMkTao(ben,id,h){ return '#HD1|'+ben+'|'+id+'|'+h+'# '; }
+function hdgMs(t){ try{ if(!t) return 0; if(typeof t.toMillis==='function') return t.toMillis(); if(t.seconds!=null) return Number(t.seconds)*1000; return Number(t)||0; }catch(e){ return 0; } }
+/* SHA-256 thuần JS (đồng bộ, chạy y hệt trên mọi máy — không cần crypto.subtle) */
+function hdgSha256(str){
+  var s=hdgS(str),b=[],i,c,c2;
+  for(i=0;i<s.length;i++){
+    c=s.charCodeAt(i);
+    if(c<0x80) b.push(c);
+    else if(c<0x800) b.push(0xc0|(c>>6),0x80|(c&63));
+    else if(c>=0xd800&&c<=0xdbff&&i+1<s.length&&(c2=s.charCodeAt(i+1))>=0xdc00&&c2<=0xdfff){
+      var cp=0x10000+((c-0xd800)<<10)+(c2-0xdc00); i++;
+      b.push(0xf0|(cp>>18),0x80|((cp>>12)&63),0x80|((cp>>6)&63),0x80|(cp&63));
+    }
+    else if(c>=0xd800&&c<=0xdfff) b.push(0xef,0xbf,0xbd);
+    else b.push(0xe0|(c>>12),0x80|((c>>6)&63),0x80|(c&63));
+  }
+  var K=[0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,
+    0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,
+    0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,
+    0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,
+    0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,
+    0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2];
+  var H=[0x6a09e667,0xbb67ae85,0x3c6ef372,0xa54ff53a,0x510e527f,0x9b05688c,0x1f83d9ab,0x5be0cd19];
+  var n=b.length,hi=Math.floor(n/0x20000000),lo=(n*8)>>>0;
+  b.push(0x80); while((b.length%64)!==56) b.push(0);
+  b.push((hi>>>24)&255,(hi>>>16)&255,(hi>>>8)&255,hi&255,(lo>>>24)&255,(lo>>>16)&255,(lo>>>8)&255,lo&255);
+  var W=new Array(64);
+  for(var o=0;o<b.length;o+=64){
+    for(i=0;i<16;i++) W[i]=((b[o+4*i]<<24)|(b[o+4*i+1]<<16)|(b[o+4*i+2]<<8)|b[o+4*i+3])>>>0;
+    for(i=16;i<64;i++){
+      var x=W[i-15],y=W[i-2];
+      var s0=((x>>>7)|(x<<25))^((x>>>18)|(x<<14))^(x>>>3);
+      var s1=((y>>>17)|(y<<15))^((y>>>19)|(y<<13))^(y>>>10);
+      W[i]=(W[i-16]+s0+W[i-7]+s1)>>>0;
+    }
+    var a=H[0],bb=H[1],cc=H[2],d=H[3],e=H[4],f=H[5],g=H[6],h=H[7];
+    for(i=0;i<64;i++){
+      var S1=((e>>>6)|(e<<26))^((e>>>11)|(e<<21))^((e>>>25)|(e<<7));
+      var ch=(e&f)^(~e&g);
+      var t1=(h+S1+ch+K[i]+W[i])>>>0;
+      var S0=((a>>>2)|(a<<30))^((a>>>13)|(a<<19))^((a>>>22)|(a<<10));
+      var mj=(a&bb)^(a&cc)^(bb&cc);
+      var t2=(S0+mj)>>>0;
+      h=g; g=f; f=e; e=(d+t1)>>>0; d=cc; cc=bb; bb=a; a=(t1+t2)>>>0;
+    }
+    H[0]=(H[0]+a)>>>0; H[1]=(H[1]+bb)>>>0; H[2]=(H[2]+cc)>>>0; H[3]=(H[3]+d)>>>0;
+    H[4]=(H[4]+e)>>>0; H[5]=(H[5]+f)>>>0; H[6]=(H[6]+g)>>>0; H[7]=(H[7]+h)>>>0;
+  }
+  var out=''; for(i=0;i<8;i++) out+=('00000000'+H[i].toString(16)).slice(-8);
+  return out;
+}
+/* Nội dung chuẩn để tính mã kiểm tra — đúng những gì khách ĐỌC (không gồm chữ ký Bên A, cờ hiện/ẩn, ngày giờ lưu) */
+function hdgChuan(h){
+  h=h||{}; var A=h.benA||{},B=h.benB||{};
+  return JSON.stringify([1,hdgS(h.id),hdgS(h.mau),hdgS(h.tieuDe),hdgS(h.phuDe),hdgS(h.ngay),hdgS(h.noiKy),
+    [hdgS(A.ten),hdgS(A.daiDien),hdgS(A.sdt),hdgS(A.diaChi),hdgS(A.mst)],
+    [hdgS(B.ten),hdgS(B.sdt),hdgS(B.diaChi),hdgS(B.cccd)],hdgS(h.noiDung)]);
+}
+function hdgHash(h){ return hdgSha256(hdgChuan(h)).slice(0,16); }
+function hdgAnhA(u){ u=hdgS(u); return (u.length<240000&&/^data:image\/png;base64,[A-Za-z0-9+\/]+=*$/.test(u))?u:''; }
+function hdgAnhB(u){
+  u=hdgS(u);
+  if(/^https:\/\/(firebasestorage\.googleapis\.com|storage\.googleapis\.com|[a-z0-9.-]+\.firebasestorage\.app)\/[^"'<>\s\\]+$/.test(u)) return u;
+  return hdgAnhA(u);
+}
+/* Bản CÔNG KHAI chép lên link khách — chỉ những trường khách cần đọc */
+function hdgChoLink(h){
+  if(!h||typeof h!=='object'||!h.id) return null;
+  var A=h.benA||{},B=h.benB||{};
+  var o={v:1,id:hdgS(h.id),mau:hdgS(h.mau),tieuDe:hdgS(h.tieuDe),phuDe:hdgS(h.phuDe),ngay:hdgS(h.ngay),noiKy:hdgS(h.noiKy),
+    benA:{ten:hdgS(A.ten),daiDien:hdgS(A.daiDien),sdt:hdgS(A.sdt),diaChi:hdgS(A.diaChi),mst:hdgS(A.mst)},
+    benB:{ten:hdgS(B.ten),sdt:hdgS(B.sdt),diaChi:hdgS(B.diaChi),cccd:hdgS(B.cccd)},
+    noiDung:hdgS(h.noiDung)};
+  var ka=h.kyA&&hdgAnhA(h.kyA.img);
+  if(ka) o.kyA={ten:hdgS(h.kyA.ten).slice(0,80),img:ka,luc:Number(h.kyA.luc)||0};
+  return o;
+}
+/* Chữ ký Bên B của hợp đồng h trong danh sách chuky (xếp MỚI → CŨ):
+   kyB = lần ký SỚM NHẤT đúng nội dung hiện tại · kyBCu = ký bản nội dung khác · kyTruoc = ký đúng bản trước khi sửa */
+function hdgKyCua(h,signs){
+  var H=hdgHash(h),id=hdgS(h&&h.id),tH=hdgS(h&&h.truoc&&h.truoc.h),kyB=null,kyBCu=[],kyTruoc=null;
+  (signs||[]).forEach(function(s){
+    var m=hdgMk(s); if(!m||m.ben!=='B'||m.id!==id) return;
+    var r={ten:hdgS(s.ten),img:hdgS(s.img),hienThi:hdgS(s.hienThi),h:m.h,luc:hdgMs(s.taoLuc)};
+    if(m.h===H) kyB=r;
+    else{ kyBCu.push(r); if(tH&&m.h===tH) kyTruoc=r; }
+  });
+  return {H:H,kyB:kyB,kyBCu:kyBCu,kyTruoc:kyTruoc};
+}
+/* ───── chữ số · ngày · tiền ───── */
+function hdgTien(n){ return Math.round(Number(n)||0).toLocaleString('vi-VN'); }
+function hdgSoTien(v){ var s=hdgS(v).replace(/[^\d]/g,''); return s?Math.min(Number(s),999999999999999):0; }
+function hdgPT(v){ var x=parseFloat(hdgS(v).replace(',','.').replace(/[^\d.]/g,'')); return isFinite(x)&&x>0?Math.round(x*100)/100:0; }
+function hdgPTChu(x){ return String(x).replace('.',','); }
+function hdgHomNay(){ var d=new Date(),p=function(n){ return String(n).padStart(2,'0'); }; return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate()); }
+function hdgSauNgay(k){ var d=new Date(); d.setDate(d.getDate()+k); var p=function(n){ return String(n).padStart(2,'0'); }; return p(d.getDate())+'/'+p(d.getMonth()+1)+'/'+d.getFullYear(); }
+function hdgNgayOk(iso){ var m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(hdgS(iso)); if(!m) return false; var y=+m[1],mo=+m[2],d=+m[3],t=new Date(y,mo-1,d); return y>=2000&&y<=2100&&t.getFullYear()===y&&t.getMonth()===mo-1&&t.getDate()===d; }
+function hdgNgayVN(iso){ var m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(hdgS(iso)); return m?(m[3]+'/'+m[2]+'/'+m[1]):hdgS(iso); }
+function hdgNgayChu(iso){ var m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(hdgS(iso)); return m?('ngày '+m[3]+' tháng '+m[2]+' năm '+m[1]):''; }
+function hdgLuc(ms){ ms=Number(ms)||0; if(!ms) return ''; var d=new Date(ms); if(isNaN(d)) return ''; return d.getHours()+':'+String(d.getMinutes()).padStart(2,'0')+' ngày '+d.toLocaleDateString('vi-VN'); }   /* cùng kiểu giờ với chữ ký của khách */
+/* Đọc số tiền thành chữ: 1250000 → "Một triệu hai trăm năm mươi nghìn đồng" */
+function hdgDocSo(n){
+  n=Math.floor(Math.abs(Number(n)||0));
+  if(!n) return 'Không đồng';
+  var CS=['không','một','hai','ba','bốn','năm','sáu','bảy','tám','chín'];
+  function ba(x,dau){
+    var tr=Math.floor(x/100),ch=Math.floor((x%100)/10),dv=x%10,o=[];
+    if(!(dau&&tr===0)) o.push(CS[tr]+' trăm');
+    if(ch===0){ if(dv&&!(dau&&tr===0)) o.push('linh'); }
+    else if(ch===1) o.push('mười');
+    else o.push(CS[ch]+' mươi');
+    if(dv){ if(dv===1&&ch>=2) o.push('mốt'); else if(dv===5&&ch>=1) o.push('lăm'); else o.push(CS[dv]); }
+    return o.join(' ');
+  }
+  function chin(x,dau){            /* x < 1 tỷ */
+    var g=[x%1000,Math.floor(x/1000)%1000,Math.floor(x/1000000)],DV=['','nghìn','triệu'],o=[],dauNhom=dau;
+    for(var i=2;i>=0;i--){ if(!g[i]) continue; o.push(ba(g[i],dauNhom)+(DV[i]?' '+DV[i]:'')); dauNhom=false; }
+    return o.join(' ');
+  }
+  function doc(x,dau){
+    var q=Math.floor(x/1000000000),r=x%1000000000,o=[];
+    if(q) o.push(doc(q,dau)+' tỷ');
+    if(r) o.push(chin(r,dau&&!q));
+    return o.join(' ');
+  }
+  var t=doc(n,true);
+  return t.charAt(0).toUpperCase()+t.slice(1)+' đồng';
+}
+function hdgCau(v){ var t=hdgS(v).replace(/\s+/g,' ').trim().replace(/[\s.;,]+$/,''); return t; }
+/* ───── 3 mẫu hợp đồng — soạn sẵn nội dung từ các ô chủ shop điền ───── */
+function hdgNhan(mau){
+  if(mau==='camket') return {a:'BÊN CHO NỢ (BÊN A)',b:'BÊN NỢ (BÊN B)',so:'/GXN',ten:'giấy xác nhận công nợ',ngan:'Giấy xác nhận nợ & cam kết trả'};
+  if(mau==='tuy') return {a:'BÊN A',b:'BÊN B',so:'/HĐ',ten:'hợp đồng',ngan:'Hợp đồng'};
+  return {a:'BÊN BÁN (BÊN A)',b:'BÊN MUA (BÊN B)',so:'/HĐMB',ten:'hợp đồng mua bán',ngan:'Hợp đồng mua bán (mua chịu – trả chậm)'};
+}
+function hdgKhungTuSoan(){
+  return 'Điều 1. Nội dung thỏa thuận\n(Ghi rõ nội dung hai bên thỏa thuận…)\n\n'
+    +'Điều 2. Thời hạn và cách thanh toán\n(Ghi rõ số tiền, thời hạn, cách trả…)\n\n'
+    +'Điều 3. Hình thức giao kết\nVăn bản này được lập dưới dạng điện tử: Bên B xem nội dung trên đường link do Bên A gửi và ký tên trực tiếp trên màn hình. Hai bên thống nhất sử dụng hình thức này; văn bản và chữ ký điện tử không bị phủ nhận giá trị pháp lý chỉ vì được thể hiện dưới dạng điện tử.\n\n'
+    +'Điều 4. Giải quyết tranh chấp\nTranh chấp phát sinh (nếu có) được hai bên thương lượng giải quyết; không thương lượng được thì một bên có quyền yêu cầu Tòa án có thẩm quyền giải quyết theo quy định của pháp luật.';
+}
+function hdgSoanMau(mau,f){
+  f=f||{}; var L=[],dk=0,lai=hdgPT(f.lai),them=hdgS(f.them).trim(),nh='';
+  var D=function(t){ dk++; L.push(''); L.push('Điều '+dk+'. '+t); };
+  var P=function(t){ L.push(t); };
+  var bk=f.nganHang||null;
+  if(bk&&hdgS(bk.account).trim()) nh=' vào tài khoản số '+hdgS(bk.account).trim()+(hdgS(bk.bankName).trim()?(' tại ngân hàng '+hdgS(bk.bankName).trim()):'')+(hdgS(bk.accName).trim()?(', chủ tài khoản '+hdgS(bk.accName).trim()):'');
+  var giaoKet=function(loai){ return loai+' được lập dưới dạng điện tử: Bên B xem nội dung trên đường link do Bên A gửi và ký tên trực tiếp trên màn hình. Hai bên thống nhất sử dụng hình thức này; '+loai.toLowerCase()+' và chữ ký điện tử không bị phủ nhận giá trị pháp lý chỉ vì được thể hiện dưới dạng điện tử. Mỗi bên có thể in hoặc lưu bản '+loai.toLowerCase()+' để giữ.'; };
+  var tranhChap='Tranh chấp phát sinh (nếu có) được hai bên thương lượng giải quyết; không thương lượng được thì một bên có quyền yêu cầu Tòa án có thẩm quyền giải quyết theo quy định của pháp luật.';
+  if(mau==='camket'){
+    var soNo=hdgSoTien(f.soNo),cach=hdgCau(f.cachTra)||('trả hết một lần trước ngày '+hdgSauNgay(30));
+    P('Căn cứ Bộ luật Dân sự năm 2015 và Luật Giao dịch điện tử năm 2023.');
+    P('Hai bên cùng xác nhận số nợ và thống nhất cam kết trả nợ như sau:');
+    D('Xác nhận số nợ');
+    P('Tính đến ngày '+hdgNgayVN(hdgNgayOk(f.tinhDen)?f.tinhDen:hdgHomNay())+', Bên B còn nợ Bên A số tiền '+hdgTien(soNo)+' đồng (bằng chữ: '+hdgDocSo(soNo)+'). Số nợ này đúng với sổ công nợ của Bên A mà Bên B đã được xem trên đường link công nợ.');
+    D('Cam kết trả nợ');
+    P('Bên B cam kết trả cho Bên A toàn bộ số tiền nêu trên như sau: '+cach+'.');
+    D('Hình thức trả nợ');
+    P('Bên B trả bằng tiền mặt hoặc chuyển khoản'+nh+'. Mỗi lần trả, Bên A ghi nhận vào sổ công nợ và trừ vào số nợ còn lại.');
+    D('Chậm trả');
+    if(lai>0) P('Quá thời hạn đã cam kết mà Bên B chưa trả đủ thì Bên B phải trả lãi chậm trả theo lãi suất '+hdgPTChu(lai)+'%/năm trên số tiền chậm trả, tính từ ngày quá hạn đến ngày trả xong.');
+    else P('Hai bên thỏa thuận không tính lãi đối với số tiền chậm trả. Quá thời hạn đã cam kết mà Bên B chưa trả đủ thì Bên A có quyền yêu cầu Bên B trả ngay toàn bộ số nợ còn lại.');
+    D('Hình thức giao kết'); P(giaoKet('Giấy này'));
+    D('Giải quyết tranh chấp'); P(tranhChap);
+    D('Hiệu lực'); P('Giấy này có hiệu lực kể từ khi Bên B ký và chấm dứt khi Bên B đã trả hết số nợ nêu trên.');
+    if(them){ D('Thỏa thuận khác'); P(them); }
+    return {tieuDe:'GIẤY XÁC NHẬN CÔNG NỢ VÀ CAM KẾT TRẢ NỢ',phuDe:'',noiDung:L.join('\n').replace(/^\n+/,'')};
+  }
+  var hm=hdgSoTien(f.hanMuc),noCu=hdgSoTien(f.noCu),hanTra=hdgCau(f.hanTra)||'trong vòng 30 ngày kể từ ngày nhận hàng của từng lần mua',
+      thoiHan=hdgCau(f.thoiHan)||'khi hai bên thanh toán xong mọi khoản nợ phát sinh từ hợp đồng này';
+  P('Căn cứ Bộ luật Dân sự năm 2015, Luật Giao dịch điện tử năm 2023 và nhu cầu, khả năng của hai bên.');
+  P('Hai bên thống nhất ký hợp đồng mua bán hàng hóa với các điều khoản sau:');
+  D('Hàng hóa, số lượng và giá');
+  P('Bên A bán cho Bên B hàng hóa theo nhu cầu của Bên B trong từng lần mua. Tên hàng, số lượng, đơn giá và thành tiền của mỗi lần mua được ghi trên hóa đơn, phiếu giao hàng hoặc trong sổ công nợ của Bên A; các chứng từ này là một phần không tách rời của hợp đồng.');
+  D('Mua chịu (ghi nợ)');
+  P(hm>0?('1. Bên A đồng ý cho Bên B mua chịu. Tổng số tiền Bên B còn nợ tại mọi thời điểm không vượt quá '+hdgTien(hm)+' đồng (bằng chữ: '+hdgDocSo(hm)+'); vượt mức này, Bên A có quyền đề nghị Bên B thanh toán bớt trước khi giao thêm hàng.')
+        :'1. Bên A đồng ý cho Bên B mua chịu. Số tiền mua chịu mỗi lần do hai bên thỏa thuận.');
+  P('2. Mỗi lần mua chịu và mỗi lần thanh toán được Bên A ghi vào sổ công nợ; số nợ còn lại được cập nhật trên đường link xem công nợ Bên A gửi cho Bên B. Bên B có trách nhiệm kiểm tra và báo ngay cho Bên A khi thấy sai sót.');
+  if(noCu>0) P('3. Tại thời điểm ký hợp đồng, Bên B còn nợ Bên A số tiền '+hdgTien(noCu)+' đồng (bằng chữ: '+hdgDocSo(noCu)+'). Khoản nợ này được thanh toán theo Điều 3.');
+  D('Thời hạn và hình thức thanh toán');
+  P('1. Thời hạn thanh toán: '+hanTra+'.');
+  P('2. Hình thức thanh toán: tiền mặt hoặc chuyển khoản'+nh+'.');
+  P('3. Mỗi lần Bên B thanh toán, số tiền được trừ vào số nợ còn lại và ghi nhận trong sổ công nợ của Bên A.');
+  D('Chậm thanh toán');
+  P('1. Quá thời hạn thanh toán mà Bên B chưa trả đủ, Bên A có quyền tạm ngừng bán chịu cho đến khi Bên B trả xong phần quá hạn.');
+  P(lai>0?('2. Bên B trả lãi chậm trả theo lãi suất '+hdgPTChu(lai)+'%/năm trên số tiền chậm trả, tính từ ngày quá hạn đến ngày trả xong.'):'2. Hai bên thỏa thuận không tính lãi đối với số tiền chậm trả.');
+  D('Trách nhiệm của các bên');
+  P('1. Bên A giao hàng đúng chủng loại, số lượng, chất lượng như đã thỏa thuận; ghi chép đầy đủ, chính xác từng lần giao hàng và thanh toán.');
+  P('2. Bên B kiểm tra hàng khi nhận; thanh toán đầy đủ, đúng hạn; báo cho Bên A khi thay đổi số điện thoại hoặc địa chỉ.');
+  D('Hình thức giao kết'); P(giaoKet('Hợp đồng'));
+  D('Giải quyết tranh chấp'); P(tranhChap);
+  D('Hiệu lực hợp đồng'); P('Hợp đồng có hiệu lực kể từ khi Bên B ký đến '+thoiHan+'.');
+  if(them){ D('Thỏa thuận khác'); P(them); }
+  return {tieuDe:'HỢP ĐỒNG MUA BÁN HÀNG HÓA',phuDe:'(Mua chịu – trả chậm)',noiDung:L.join('\n').replace(/^\n+/,'')};
+}
+/* ───── dựng tờ hợp đồng (dùng chung: trang khách · bảng chủ shop · bản in) ───── */
+function hdgThan(t){
+  var out=[],trong=0;
+  hdgS(t).replace(/\r\n?/g,'\n').split('\n').forEach(function(l){
+    var s=l.replace(/\s+$/,'');
+    if(!s.trim()){ if(out.length&&!trong){ out.push('<div class="hdg-gap"></div>'); trong=1; } return; }
+    trong=0;
+    if(/^\s*(Điều|ĐIỀU)\s+\d+/.test(s)) out.push('<div class="hdg-dieu">'+hdgE(s.trim())+'</div>');
+    else if(/^\s*(Căn cứ|CĂN CỨ)(\s|$)/.test(s)) out.push('<div class="hdg-cc">'+hdgE(s.trim())+'</div>');
+    else out.push('<div class="hdg-l">'+hdgE(s)+'</div>');
+  });
+  return out.join('');
+}
+function hdgDocHtml(h,o){
+  o=o||{}; h=h||{};
+  var A=h.benA||{},B=h.benB||{},N=hdgNhan(h.mau),H=hdgHash(h);
+  var dong=function(k,v){ v=hdgS(v).trim(); return v?'<div class="hdg-r">'+k+': '+hdgE(v)+'</div>':''; };
+  var ka=h.kyA&&hdgAnhA(h.kyA.img),kb=o.kyB||null,kbi=kb?hdgAnhB(kb.img):'';
+  var tenA=hdgS((h.kyA&&h.kyA.ten)||A.daiDien||A.ten).trim(),tenB=hdgS((kb&&kb.ten)||B.ten).trim();
+  return '<div class="hdg-qh">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</div>'
+    +'<div class="hdg-tn">Độc lập – Tự do – Hạnh phúc</div><div class="hdg-gach"></div>'
+    +'<div class="hdg-td">'+hdgE(h.tieuDe||'HỢP ĐỒNG')+'</div>'
+    +(hdgS(h.phuDe).trim()?'<div class="hdg-pd">'+hdgE(h.phuDe)+'</div>':'')
+    +'<div class="hdg-so">Số: '+hdgE(h.id)+N.so+'</div>'
+    +'<div class="hdg-l">Hôm nay, '+(hdgNgayChu(h.ngay)||'ngày …')+(hdgS(h.noiKy).trim()?(', tại '+hdgE(hdgS(h.noiKy).trim())):'')+', chúng tôi gồm:</div>'
+    +'<div class="hdg-ben"><div class="hdg-ben-t">'+N.a+': '+hdgE(hdgS(A.ten).trim()||'…')+'</div>'+dong('Người đại diện',A.daiDien)+dong('Điện thoại',A.sdt)+dong('Địa chỉ',A.diaChi)+dong('Mã số thuế',A.mst)+'</div>'
+    +'<div class="hdg-ben"><div class="hdg-ben-t">'+N.b+': '+hdgE(hdgS(B.ten).trim()||'…')+'</div>'+dong('Điện thoại',B.sdt)+dong('Số CCCD',B.cccd)+dong('Địa chỉ',B.diaChi)+'</div>'
+    +'<div class="hdg-than">'+hdgThan(h.noiDung)+'</div>'
+    +'<div class="hdg-ky">'
+      +'<div class="hdg-ky-c"><div class="hdg-ky-r">ĐẠI DIỆN BÊN A</div><div class="hdg-ky-n">(Ký, ghi rõ họ tên)</div>'
+        +(ka?'<div class="hdg-ky-a"><img src="'+ka+'" alt="Chữ ký Bên A"></div>':'<div class="hdg-ky-a"></div>')
+        +'<div class="hdg-ky-ten">'+hdgE(tenA)+'</div>'
+        +(ka&&h.kyA.luc?'<div class="hdg-ky-luc">Đã ký điện tử lúc '+hdgE(hdgLuc(h.kyA.luc))+'</div>':'')+'</div>'
+      +'<div class="hdg-ky-c"><div class="hdg-ky-r">ĐẠI DIỆN BÊN B</div><div class="hdg-ky-n">(Ký, ghi rõ họ tên)</div>'
+        +(kbi?'<div class="hdg-ky-a"><img src="'+hdgE(kbi)+'" alt="Chữ ký Bên B"></div>':'<div class="hdg-ky-a">'+(o.choKy?'<span class="hdg-ky-cho">⏳ Chờ ký</span>':'')+'</div>')
+        +'<div class="hdg-ky-ten">'+hdgE(tenB)+'</div>'
+        +(kb&&kb.hienThi?'<div class="hdg-ky-luc">Đã ký điện tử lúc '+hdgE(kb.hienThi)+'</div>':'')+'</div>'
+    +'</div>'
+    +'<div class="hdg-ma">'+hdgE(N.ten.charAt(0).toUpperCase()+N.ten.slice(1))+' điện tử · Mã kiểm tra nội dung: <b>'+H.replace(/(.{4})(?=.)/g,'$1 ')+'</b></div>';
+}
+/* In / Lưu PDF: dùng chung bộ in A4 của bảng kê (window.snPrintDoc) — chờ ảnh chữ ký tải xong (tối đa 3 giây) */
+function hdgIn(h,kyB){
+  try{
+    var html='<div class="sn-doc hdg-doc">'+hdgDocHtml(h,{kyB:kyB||null})+'</div>';
+    var urls=[],m,re=/<img[^>]+src="([^"]+)"/g;
+    while((m=re.exec(html))) if(!/^data:/.test(m[1])) urls.push(m[1].replace(/&amp;/g,'&'));
+    var xong=false,con=urls.length;
+    var chay=function(){ if(xong) return; xong=true; if(typeof window.snPrintDoc==='function') window.snPrintDoc(html,'A4'); else alert('Máy này chưa in được — thử lại sau khi tải lại trang.'); };
+    if(!con){ chay(); return; }
+    urls.forEach(function(u){ var im=new Image(); im.onload=im.onerror=function(){ if(--con<=0) chay(); }; im.src=u; if(im.complete) setTimeout(function(){ if(im.naturalWidth&&--con<=0) chay(); },0); });
+    setTimeout(chay,3000);
+  }catch(e){ alert('⚠️ In chưa được: '+((e&&e.message)||e)); }
+}
+/* Ô ký bằng ngón tay (bản riêng — không đụng ô ký nợ #sign-pad của trang khách) */
+function hdgPad(cv){
+  var st={ink:false,ve:false,last:null,x0:1e9,y0:1e9,x1:-1e9,y1:-1e9,ctx:null,w:300,h:180,r:1};
+  var box=cv.parentElement,ratio=window.devicePixelRatio||1;
+  st.w=(box&&box.clientWidth)||300; st.r=ratio;
+  cv.width=Math.round(st.w*ratio); cv.height=Math.round(st.h*ratio);
+  var ctx=cv.getContext('2d'); ctx.setTransform(ratio,0,0,ratio,0,0);
+  ctx.lineWidth=2.5; ctx.lineCap='round'; ctx.lineJoin='round'; ctx.strokeStyle='#12263a'; st.ctx=ctx;
+  var pos=function(e){ var r=cv.getBoundingClientRect(),p=(e.touches&&e.touches[0])||e; return {x:p.clientX-r.left,y:p.clientY-r.top}; };
+  var om=function(p){ if(p.x<st.x0)st.x0=p.x; if(p.y<st.y0)st.y0=p.y; if(p.x>st.x1)st.x1=p.x; if(p.y>st.y1)st.y1=p.y; };
+  var start=function(e){ e.preventDefault(); st.ve=true; st.last=pos(e); om(st.last); };
+  var move=function(e){ if(!st.ve) return; e.preventDefault(); var p=pos(e); ctx.beginPath(); ctx.moveTo(st.last.x,st.last.y); ctx.lineTo(p.x,p.y); ctx.stroke(); st.last=p; om(p); st.ink=true; };
+  var end=function(){ st.ve=false; };
+  if(window.PointerEvent){ cv.addEventListener('pointerdown',start); cv.addEventListener('pointermove',move); window.addEventListener('pointerup',end); window.addEventListener('pointercancel',end); }
+  else{ cv.addEventListener('touchstart',start,{passive:false}); cv.addEventListener('touchmove',move,{passive:false}); cv.addEventListener('touchend',end);
+        cv.addEventListener('mousedown',start); cv.addEventListener('mousemove',move); window.addEventListener('mouseup',end); }
+  var cat=function(maxW,maxH){
+    var p=8,x0=Math.max(0,st.x0-p),y0=Math.max(0,st.y0-p),x1=Math.min(st.w,st.x1+p),y1=Math.min(st.h,st.y1+p);
+    if(!(x1>x0&&y1>y0)){ x0=0; y0=0; x1=st.w; y1=st.h; }
+    var w=x1-x0,h=y1-y0,k=Math.min(1,maxW/(w*st.r),maxH/(h*st.r));
+    var o=document.createElement('canvas'); o.width=Math.max(1,Math.round(w*st.r*k)); o.height=Math.max(1,Math.round(h*st.r*k));
+    o.getContext('2d').drawImage(cv,x0*st.r,y0*st.r,w*st.r,h*st.r,0,0,o.width,o.height);
+    return o;
+  };
+  return {
+    coMuc:function(){ return st.ink; },
+    xoa:function(){ ctx.save(); ctx.setTransform(1,0,0,1,0,0); ctx.clearRect(0,0,cv.width,cv.height); ctx.restore(); st.ink=false; st.x0=st.y0=1e9; st.x1=st.y1=-1e9; },
+    url:function(maxW,maxH){ return cat(maxW,maxH).toDataURL('image/png'); },
+    blob:function(maxW,maxH){ var o=cat(maxW,maxH); return new Promise(function(res,rej){ try{ o.toBlob(function(b){ if(b) res(b); else rej(new Error('Không tạo được ảnh chữ ký')); },'image/png'); }catch(e){ rej(e); } }); }
+  };
+}
+function hdgCss(){
+  if(hdg$('hdg-css')) return;
+  var st=document.createElement('style'); st.id='hdg-css';
+  st.textContent=[
+    '.hdg-doc{font-family:"Times New Roman",Times,"Noto Serif",serif;font-size:14.5px;line-height:1.55;color:#111;word-wrap:break-word;overflow-wrap:break-word}',
+    '.sn-doc.hdg-doc{font-family:"Times New Roman",Times,"Noto Serif",serif;font-size:13.5px;line-height:1.5}',
+    '.hdg-doc .hdg-qh,.hdg-doc .hdg-tn{text-align:center;font-weight:700;font-size:.95em}',
+    '.hdg-doc .hdg-gach{width:160px;max-width:60%;border-top:1px solid #111;margin:4px auto 14px}',
+    '.hdg-doc .hdg-td{text-align:center;font-weight:800;font-size:1.16em;text-transform:uppercase;margin-top:4px}',
+    '.hdg-doc .hdg-pd{text-align:center;font-style:italic;margin-top:1px}',
+    '.hdg-doc .hdg-so{text-align:center;margin:3px 0 12px}',
+    '.hdg-doc .hdg-l{margin:2px 0;text-align:justify;white-space:pre-wrap}',
+    '.hdg-doc .hdg-ben{margin:8px 0}',
+    '.hdg-doc .hdg-ben-t{font-weight:700}',
+    '.hdg-doc .hdg-r{padding-left:14px}',
+    '.hdg-doc .hdg-than{margin-top:8px}',
+    '.hdg-doc .hdg-dieu{font-weight:700;margin:8px 0 2px}',
+    '.hdg-doc .hdg-cc{font-style:italic;margin:2px 0}',
+    '.hdg-doc .hdg-gap{height:4px}',
+    '.hdg-doc .hdg-ky{display:flex;gap:14px;margin-top:22px;text-align:center}',
+    '.hdg-doc .hdg-ky-c{flex:1;min-width:0}',
+    '.hdg-doc .hdg-ky-r{font-weight:700}',
+    '.hdg-doc .hdg-ky-n{font-style:italic;font-size:.86em;color:#444}',
+    '.hdg-doc .hdg-ky-a{height:80px;display:flex;align-items:center;justify-content:center;margin:6px 0 2px}',
+    '.hdg-doc .hdg-ky-a img{max-width:100%;max-height:80px;object-fit:contain}',
+    '.hdg-doc .hdg-ky-cho{font-family:"Segoe UI",Arial,sans-serif;font-size:.76em;color:#a15c00;background:#fff6e6;border:1px dashed #ffc766;border-radius:8px;padding:3px 8px}',
+    '.hdg-doc .hdg-ky-ten{font-weight:700;min-height:1.2em}',
+    '.hdg-doc .hdg-ky-luc{font-family:"Segoe UI",Arial,sans-serif;font-size:.74em;color:#1a6b3c;margin-top:2px}',
+    '.hdg-doc .hdg-ma{margin-top:18px;padding-top:6px;border-top:1px dashed #bbb;font-family:"Segoe UI",Arial,sans-serif;font-size:.72em;color:#666;text-align:center}',
+    '@media print{.hdg-doc .hdg-ky{page-break-inside:avoid;break-inside:avoid}.hdg-doc .hdg-dieu{page-break-after:avoid;break-after:avoid}.hdg-doc .hdg-ky-cho{display:none}}',
+    '.hdg-badge{flex:0 0 auto;font-size:.76em;font-weight:700;padding:5px 10px;border-radius:20px;white-space:nowrap;font-family:"Segoe UI",Arial,sans-serif}',
+    '.hdg-badge.cho{background:#fff6e6;color:#a15c00;border:1.5px solid #ffd28a}',
+    '.hdg-badge.ok{background:#e6f6ec;color:#0f7a3d;border:1.5px solid #b6e3c6}',
+    '.hdg-badge.an{background:#f1f3f5;color:#6b7280;border:1.5px solid #d1d5db}',
+    '.hdg-chk{display:flex!important;gap:9px;align-items:flex-start;font-size:.9em!important;line-height:1.45;margin:4px 0 10px!important;cursor:pointer;color:#1f2937!important}',
+    '.hdg-chk input{width:22px!important;height:22px;flex:0 0 auto;margin:0!important;padding:0!important}',
+    'canvas.hdg-pad{display:block;width:100%;height:180px;touch-action:none;background:#fff;cursor:crosshair}',
+    '#public-view .hdg-pub{padding:16px}',
+    '#public-view .hdg-pub-top,#modal-hd .hdg-the-top{display:flex;align-items:center;gap:10px}',
+    '#public-view .hdg-pub-ic,#modal-hd .hdg-the-ic{font-size:1.6em;line-height:1}',
+    '#public-view .hdg-pub-tt,#modal-hd .hdg-the-tt{flex:1;min-width:0}',
+    '#public-view .hdg-pub-t,#modal-hd .hdg-the-t{font-weight:800;color:#1a2e28;line-height:1.3}',
+    '#public-view .hdg-pub-s,#modal-hd .hdg-the-s{font-size:.8em;color:#6b7280;margin-top:2px}',
+    '#public-view .hdg-pub-hd{font-size:.86em;color:#41615a;margin-top:10px;line-height:1.5}',
+    '#public-view .hdg-pub-cu{font-size:.84em;color:#1d4ed8;background:#eef4ff;border:1px solid #c7d7fb;border-radius:8px;padding:8px 10px;margin-top:10px;line-height:1.45}',
+    '#public-view .hdg-pub-xem{width:100%;margin-top:12px;padding:10px;border:1.5px solid #cfd8e3;background:#f7f9fb;border-radius:10px;font-size:.9em;font-weight:700;color:#2b3a4a;cursor:pointer;font-family:inherit}',
+    '#public-view .hdg-pub-doc{margin-top:10px;border:1px solid #e3e8ee;border-radius:10px;background:#fff;padding:16px 14px}',
+    '#public-view .hdg-pub-doc[hidden]{display:none}',
+    '#public-view .hdg-pub-ky{margin-top:14px;border-top:1px dashed #d7e0db;padding-top:12px}',
+    '#public-view .hdg-pub-kyt{font-weight:800;margin-bottom:8px}',
+    '#public-view .hdg-pub-in{width:100%;margin-top:10px;padding:11px;border:1.5px solid #1a6b3c;background:#fff;color:#1a6b3c;border-radius:10px;font-size:.92em;font-weight:700;cursor:pointer;font-family:inherit}',
+    '#modal-hd .hdg-gioi{background:#f4faf6;border:1.5px solid #cfe7da;border-radius:12px;padding:14px;margin-bottom:12px}',
+    '#modal-hd .hdg-gioi-t{font-weight:800;color:#1a6b3c;margin-bottom:6px}',
+    '#modal-hd .hdg-gioi-s{font-size:.86em;color:#41615a;line-height:1.5}',
+    '#modal-hd .hdg-mau3{display:flex;flex-direction:column;gap:8px;margin-top:12px}',
+    '#modal-hd .hdg-mau{display:block;width:100%;text-align:left;border:1.5px solid #b9d8c7;background:#fff;border-radius:10px;padding:11px 12px;cursor:pointer;font-family:inherit;color:#1a2e28}',
+    '#modal-hd .hdg-mau b{display:block;font-size:.95em}',
+    '#modal-hd .hdg-mau span{display:block;font-size:.8em;color:#6b7280;margin-top:3px;line-height:1.4}',
+    '#modal-hd .hdg-mau.on{border-color:#1a6b3c;background:#e8f5ee}',
+    '#modal-hd .hdg-the{border:1.5px solid #dfe8e3;border-radius:12px;padding:12px;margin-bottom:12px;background:#fff}',
+    '#modal-hd .hdg-dong{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:6px 10px;padding:9px 0;border-top:1px solid #eef2ef;font-size:.88em}',
+    '#modal-hd .hdg-dong:first-of-type{margin-top:10px}',
+    '#modal-hd .hdg-dong>span:first-child{color:#41615a;font-weight:600;flex:0 1 auto;min-width:0}',
+    '#modal-hd .hdg-dong>span:last-child{flex:1 1 auto;min-width:0;text-align:right;overflow-wrap:anywhere}',
+    '#modal-hd .hdg-sw{border:1.5px solid #1a6b3c;background:#1a6b3c;color:#fff;border-radius:20px;padding:6px 12px;font-size:.9em;font-weight:700;cursor:pointer;font-family:inherit;white-space:normal;line-height:1.3}',
+    '#modal-hd .hdg-sw.off{background:#fff;color:#6b7280;border-color:#cfd5dc}',
+    '#modal-hd .hdg-bao{font-size:.84em;line-height:1.45;border-radius:9px;padding:9px 11px;margin:8px 0}',
+    '#modal-hd .hdg-bao.v{background:#fff8e6;border:1px solid #ffd58a;color:#7a4b00}',
+    '#modal-hd .hdg-bao.x{background:#eef4ff;border:1px solid #c7d7fb;color:#1d3f8f}',
+    '#modal-hd .hdg-bao.d{background:#fdecea;border:1px solid #f3c3bc;color:#a12a1c}',
+    '#modal-hd .hdg-bao.g{background:#e8f5ee;border:1px solid #b7dfc9;color:#14532d}',
+    '#modal-hd .hdg-nuts{display:flex;flex-wrap:wrap;gap:8px;margin:4px 0 12px}',
+    '#modal-hd .hdg-b{flex:1 1 46%;padding:11px 10px;border:1.5px solid #b9c6d2;background:#f4f7fa;color:#2b3a4a;border-radius:10px;font-size:.88em;font-weight:700;cursor:pointer;font-family:inherit}',
+    '#modal-hd .hdg-b.chinh{flex-basis:100%;background:#1a6b3c;border-color:#1a6b3c;color:#fff;font-size:.95em}',
+    '#modal-hd .hdg-b.do{background:#fdecea;border-color:#f1b0b7;color:#c0392b}',
+    '#modal-hd .hdg-b:disabled{opacity:.55;cursor:default}',
+    '#modal-hd .hdg-xem{border:1px solid #e3e8ee;border-radius:10px;padding:14px 12px;margin-bottom:12px;background:#fff;max-height:60vh;overflow:auto}',
+    '#modal-hd .hdg-xem[hidden]{display:none}',
+    '#modal-hd .hdg-kyb{display:inline-flex;align-items:center;gap:8px}',
+    '#modal-hd .hdg-kyb img{width:84px;height:38px;object-fit:contain;border:1px solid #e5e7eb;border-radius:6px;background:#fff}',
+    '#modal-hd .hdg-mini{border:1px solid #d1d5db;background:#fff;border-radius:8px;padding:5px 10px;font-size:.92em;font-weight:700;cursor:pointer;font-family:inherit;color:#1a6b3c}',
+    '#modal-hd .hdg-cu{margin-top:6px;border-top:1px dashed #d1d5db;padding-top:10px}',
+    '#modal-hd .hdg-cu-t{font-weight:800;font-size:.9em;margin-bottom:8px;color:#374151}',
+    '#modal-hd .hdg-cu-i{display:flex;justify-content:space-between;align-items:center;gap:8px;border:1px solid #eceff3;border-radius:10px;padding:9px 10px;margin-bottom:8px;font-size:.84em;background:#fafbfc}',
+    '#modal-hd .hdg-cu-i span{color:#6b7280;font-size:.92em}',
+    '#modal-hd .hdg-cu-i div:last-child{display:flex;gap:6px;flex:0 0 auto}',
+    '#modal-hd .hdg-nhom{border:1px solid #e5eaee;border-radius:12px;padding:10px 12px 12px;margin-bottom:10px;background:#fbfcfd}',
+    '#modal-hd .hdg-nhom-t{font-weight:800;font-size:.92em;color:#1a6b3c}',
+    '#modal-hd .hdg-nhom label{margin-top:9px}',
+    '#modal-hd .hdg-nhom textarea,#modal-hd #hdg-noidung{width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:.92em;font-family:inherit;line-height:1.45;resize:vertical;background:#fff}',
+    '#modal-hd #hdg-noidung{min-height:300px;font-size:.88em}',
+    '#modal-hd .hdg-goi{font-size:.78em;color:#6b7280;margin-top:4px;line-height:1.4}',
+    '#modal-hd .hdg-goi.chu{color:#1a6b3c;font-weight:600}',
+    '#modal-hd .hdg-mau-chon{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}',
+    '#modal-hd .hdg-mc{flex:1 1 30%;padding:9px 6px;border:1.5px solid #cfd8e3;background:#fff;border-radius:9px;font-size:.82em;font-weight:700;cursor:pointer;font-family:inherit;color:#374151}',
+    '#modal-hd .hdg-mc.on{border-color:#1a6b3c;background:#1a6b3c;color:#fff}',
+    '#modal-hd .hdg-tl{margin-top:8px;border:1px solid #cfd8e3;background:#fff;border-radius:8px;padding:7px 12px;font-size:.84em;font-weight:700;cursor:pointer;font-family:inherit;color:#374151}',
+    '#modal-hd .hdg-anhcu{display:block;max-width:100%;max-height:120px;margin:6px auto;border:1px solid #e5e7eb;border-radius:8px;background:#fff}'
+  ].join('\n');
+  document.head.appendChild(st);
+}
+
+/* ═════════ TRANG KHÁCH (?view=) — chỉ chạy khi doc link có hopDong (chủ shop đã bật hiện) ═════════ */
+var _hdgPubDang=false;
+function hdgPubInit(token,d,all){
+  try{
+    var wrap=hdg$('pub-hd-wrap'); if(!wrap) return;
+    var h=d&&d.hopDong;
+    if(!h||typeof h!=='object'||!h.id){ wrap.innerHTML=''; return; }
+    hdgCss();
+    hdgPubVe(token,d,hdgKyCua(h,all||[]));
+  }catch(e){ try{ console.warn('[hdg] trang khách',e); }catch(_){} }
+}
+function hdgPubVe(token,d,st){
+  var wrap=hdg$('pub-hd-wrap'); if(!wrap) return;
+  var h=d.hopDong,N=hdgNhan(h.mau),da=!!st.kyB;
+  wrap.innerHTML='<div class="pub-card hdg-pub" id="hdg-pub">'
+    +'<div class="hdg-pub-top"><div class="hdg-pub-ic">📝</div><div class="hdg-pub-tt"><div class="hdg-pub-t">'+hdgE(N.ngan)+'</div>'
+    +'<div class="hdg-pub-s">Số '+hdgE(h.id)+N.so+' · lập ngày '+hdgE(hdgNgayVN(h.ngay))+'</div></div>'
+    +'<span class="hdg-badge '+(da?'ok':'cho')+'">'+(da?'✅ Đã ký':'⏳ Chờ bạn ký')+'</span></div>'
+    +(da?'<div class="sign-ok" style="margin-top:12px">✅ Bạn đã ký '+hdgE(N.ten)+' này lúc '+hdgE(st.kyB.hienThi||'')+'. Cảm ơn bạn!</div>'
+        :'<div class="hdg-pub-hd">'+hdgE((h.benA&&h.benA.ten)||'Cửa hàng')+' gửi bạn '+hdgE(N.ten)+' dưới đây. Mời bạn <b>đọc kỹ toàn bộ nội dung</b>; đồng ý thì ký tên ở cuối.</div>')
+    +((!da&&st.kyBCu&&st.kyBCu.length)?'<div class="hdg-pub-cu">ℹ️ Nội dung đã được cửa hàng sửa lại sau lần bạn ký trước — mời bạn đọc lại và ký bản mới này.</div>':'')
+    +'<button type="button" class="hdg-pub-xem" data-hdgp="xem">'+(da?'📄 Xem lại toàn văn ▾':'📄 Thu gọn nội dung ▴')+'</button>'
+    +'<div class="hdg-pub-doc"'+(da?' hidden':'')+'><div class="hdg-doc">'+hdgDocHtml(h,{kyB:st.kyB,choKy:!da})+'</div></div>'
+    +(da?'':'<div class="hdg-pub-ky">'
+      +'<div class="hdg-pub-kyt">✍️ Ký '+hdgE(N.ten)+' (Bên B)</div>'
+      +'<input id="hdg-pub-ten" class="sign-input" maxlength="60" placeholder="Họ tên người ký" autocomplete="name" value="'+hdgE(hdgS(h.benB&&h.benB.ten).slice(0,60))+'">'
+      +'<label class="hdg-chk"><input type="checkbox" id="hdg-pub-dy"><span>Tôi đã đọc kỹ, hiểu rõ và <b>đồng ý toàn bộ nội dung</b> ở trên.</span></label>'
+      +'<div class="sign-pad-lab">Ký vào ô bên dưới 👇</div>'
+      +'<div class="sign-pad-box"><canvas id="hdg-pub-pad" class="hdg-pad"></canvas><button type="button" class="sign-clear" data-hdgp="xoa">Xoá</button></div>'
+      +'<button type="button" id="hdg-pub-ok" class="sign-save" data-hdgp="ky" style="margin-top:12px">✍️ Ký '+hdgE(N.ten)+'</button>'
+      +'<div id="hdg-pub-msg" class="sign-msg"></div></div>')
+    +'<button type="button" class="hdg-pub-in" data-hdgp="in">🖨️ In / Lưu PDF</button>'
+    +'</div>';
+  var the=hdg$('hdg-pub'),pad=null;
+  var cv=hdg$('hdg-pub-pad'); if(cv){ try{ pad=hdgPad(cv); }catch(e){ pad=null; } }
+  the.addEventListener('click',function(ev){
+    var b=ev.target&&ev.target.closest?ev.target.closest('[data-hdgp]'):null; if(!b) return;
+    var k=b.getAttribute('data-hdgp');
+    if(k==='xem'){ var dv=the.querySelector('.hdg-pub-doc'); if(!dv) return; var an=!dv.hidden; dv.hidden=an; b.textContent=an?'📄 Xem lại toàn văn ▾':'📄 Thu gọn nội dung ▴'; return; }
+    if(k==='xoa'){ if(pad) pad.xoa(); return; }
+    if(k==='in'){ hdgIn(h,st.kyB); return; }
+    if(k==='ky'){ hdgPubKy(token,d,pad); }
+  });
+}
+async function hdgPubKy(token,d,pad){
+  if(_hdgPubDang) return;
+  var h=d.hopDong,N=hdgNhan(h.mau),tenEl=hdg$('hdg-pub-ten'),dy=hdg$('hdg-pub-dy'),msg=hdg$('hdg-pub-msg'),btn=hdg$('hdg-pub-ok');
+  var bao=function(t){ if(msg){ msg.textContent=t; msg.style.color='#c0392b'; } };
+  var ten=hdgS(tenEl&&tenEl.value).replace(/\s+/g,' ').trim().slice(0,60);
+  if(!ten){ bao('⚠️ Vui lòng nhập họ tên người ký.'); if(tenEl) tenEl.focus(); return; }
+  if(!dy||!dy.checked){ bao('⚠️ Hãy đọc kỹ rồi tick vào ô "Tôi đã đọc kỹ, hiểu rõ và đồng ý…" trước khi ký.'); return; }
+  if(!pad||!pad.coMuc()){ bao('⚠️ Bạn chưa ký. Hãy ký vào ô phía trên.'); return; }
+  _hdgPubDang=true;
+  if(btn){ btn.disabled=true; btn.textContent='⏳ Đang lưu chữ ký...'; }
+  if(msg) msg.textContent='';
+  try{
+    var H=hdgHash(h),now=new Date();
+    var hienThi=now.getHours()+':'+String(now.getMinutes()).padStart(2,'0')+' ngày '+now.toLocaleDateString('vi-VN');
+    var pdb=await ensurePub();
+    var blob=await pad.blob(900,320);
+    if(!blob||blob.size>300*1024) throw new Error('Chữ ký quá lớn, hãy ký gọn lại');
+    var img=await pubPutSign(token,d.ownerUid||'',blob);
+    /* ĐÚNG 7 trường như chữ ký nợ — dấu hợp đồng nằm ở ĐẦU trường ua (giới hạn 300 ký tự như cũ) */
+    var rec={ten:ten,img:img,noTaiThoiDiemKy:d.debt||0,soGiaoDich:(d.transactions||[]).length,
+      ua:(hdgMkTao('B',h.id,H)+(navigator.userAgent||'')).slice(0,300),hienThi:hienThi,taoLuc:serverTimestamp()};
+    await addDoc(collection(pdb,'shares',token,'chuky'),rec);
+    hdgPubVe(token,d,{H:H,kyB:{ten:ten,img:img,hienThi:hienThi,h:H},kyBCu:[],kyTruoc:null});
+    try{ var t=hdg$('hdg-pub'); if(t&&t.scrollIntoView) t.scrollIntoView({behavior:'smooth',block:'start'}); }catch(_){}
+  }catch(e){
+    if(btn){ btn.disabled=false; btn.textContent='✍️ Ký '+N.ten; }
+    bao('⚠️ Lưu chữ ký chưa được: '+((e&&(e.code||e.message))||e));
+  }finally{ _hdgPubDang=false; }
+}
+/* Dòng giữa của 1 chữ ký trong bảng ✍️ Chữ ký của chủ shop */
+function hdgDongKy(s){
+  var m=hdgMk(s);
+  if(m) return '📝 Ký '+(m.ben==='A'?'(Bên A) ':'')+'hợp đồng số <b style="color:#1a6b3c">'+hdgE(m.id)+'</b>';
+  return 'Nợ đã xác nhận: <b style="color:#c0392b">'+fmt(s.noTaiThoiDiemKy||0)+'</b>';
+}
+
+/* ═════════ BẢNG 📝 HỢP ĐỒNG CỦA CHỦ SHOP (#modal-hd) ═════════ */
+let _hdg={cid:null,signs:[],ok:false,tai:false,loi:'',unsub:null,mode:'chinh',kieu:'moi',xem:false,pad:null,kyACu:null,dang:false};
+let _hdgNhap={};          /* bản nháp đang soạn — giữ theo từng khách tới khi Lưu / Hủy (lỡ chạm ra ngoài vẫn còn) */
+let _hdgObs=null;
+function hdgKhach(){ var id=_hdg.cid; return (customers||[]).find(function(x){ return x.id===id; })||null; }
+function hdgSuaDuoc(){ try{ return !document.body.classList.contains('sn-lockedit'); }catch(e){ return true; } }
+function hdgDaKyB(c){ var hd=c&&c.hopDong; return !!(hd&&hd.id&&hd.kyB&&hd.kyB.h===hdgHash(hd)); }
+function hdgNut(){
+  try{
+    var b=hdg$('hdg-nut'); if(!b) return;
+    var c=(customers||[]).find(function(x){ return x.id===currentCustomerId; }),hd=c&&c.hopDong;
+    b.textContent='📝 Hợp đồng'+((hd&&hd.id)?(hdgDaKyB(c)?' ✅':' ⏳'):'');
+  }catch(e){}
+}
+(function(){
+  try{
+    var goc=window.openDetail; if(typeof goc!=='function'||goc.__hdg) return;
+    var boc=function(){ var r=goc.apply(this,arguments); try{ hdgNut(); }catch(e){} return r; };
+    boc.__hdg=1; window.openDetail=boc;
+  }catch(e){}
+})();
+function hdgNgheTat(){ try{ if(_hdg.unsub) _hdg.unsub(); }catch(e){} _hdg.unsub=null; }
+function hdgNghe(c){
+  hdgNgheTat();
+  if(!c||!c.shareToken){ _hdg.signs=[]; _hdg.ok=true; _hdg.tai=false; return; }
+  var cid=c.id,tok=c.shareToken; _hdg.tai=true; _hdg.loi='';
+  try{
+    _hdg.unsub=onSnapshot(query(collection(db,'shares',tok,'chuky'),orderBy('taoLuc','desc')),function(qs){
+      var cc=hdgKhach(); if(!cc||cc.id!==cid||cc.shareToken!==tok) return;
+      var truoc=hdgDaKyB(cc);
+      _hdg.signs=qs.docs.map(function(x){ return x.data(); });
+      if(!(qs.metadata&&qs.metadata.fromCache)) _hdg.ok=true;
+      _hdg.tai=false;
+      hdgGhiKyB(cc);
+      if(!truoc&&hdgDaKyB(cc)&&_hdg.ok){ try{ toast('✅ '+(cc.name||'Khách')+' đã ký hợp đồng!'); }catch(e){} }
+      hdgNut(); hdgVeLai();
+    },function(e){
+      _hdg.unsub=null; _hdg.tai=false; _hdg.loi=String((e&&(e.code||e.message))||e);
+      hdgVeLai();
+    });
+  }catch(e){ _hdg.tai=false; _hdg.loi=String((e&&e.message)||e); }
+}
+/* Nhớ "khách đã ký" vào hồ sơ khách (để nút 📝 hiện ✅ và khoá sửa cả khi máy mất mạng) */
+function hdgGhiKyB(c){
+  try{
+    var hd=c&&c.hopDong; if(!hd||!hd.id) return;
+    var st=hdgKyCua(hd,_hdg.signs); if(!st.kyB) return;
+    if(hd.kyB&&hd.kyB.h===st.H) return;
+    var k={ten:st.kyB.ten.slice(0,80),img:hdgAnhB(st.kyB.img),hienThi:st.kyB.hienThi.slice(0,40),h:st.H,luc:st.kyB.luc||0};
+    hd.kyB=k;
+    updateDoc(doc(db,'users',UID,'customers',c.id),{'hopDong.kyB':k}).catch(function(){});
+  }catch(e){}
+}
+/* Mở bảng: link khách thiếu / lệch hợp đồng (vd máy khác còn bản cũ vừa đồng bộ đè) ⇒ đồng bộ lại */
+async function hdgTuLanh(c){
+  try{
+    if(!c||!c.shareToken||navigator.onLine===false) return;
+    var hd=c.hopDong,can=(hd&&hd.id&&hd.bat!==false)?hdgChoLink(hd):null;
+    var s=await getDoc(doc(db,'shares',c.shareToken));
+    if(!s.exists()){ if(can) syncShare(c.shareToken,c.id,c.name,c.phone,c.debt||0).catch(function(){}); return; }
+    var co=(s.data()||{}).hopDong||null;
+    var khop=(!can&&!co)||(can&&co&&hdgHash(co)===hdgHash(can)&&hdgS(co.kyA&&co.kyA.img)===hdgS(can.kyA&&can.kyA.img));
+    if(!khop) syncShare(c.shareToken,c.id,c.name,c.phone,c.debt||0).catch(function(){});
+  }catch(e){}
+}
+window.hdgMo=function(){
+  var c=(customers||[]).find(function(x){ return x.id===currentCustomerId; });
+  if(!c){ toast('Không tìm thấy khách hàng.'); return; }
+  hdgCss();
+  if(_hdg.cid!==c.id){ hdgNgheTat(); _hdg={cid:c.id,signs:[],ok:false,tai:false,loi:'',unsub:null,mode:'chinh',kieu:'moi',xem:false,pad:null,kyACu:null,dang:false}; }
+  _hdg.mode=_hdgNhap[c.id]?'soan':'chinh';
+  if(_hdgNhap[c.id]) _hdg.kieu=_hdgNhap[c.id].kieu||'moi';
+  var m=hdg$('modal-hd'); if(!m) return;
+  m.classList.add('active');
+  if(!_hdgObs&&window.MutationObserver){
+    try{ _hdgObs=new MutationObserver(function(){ if(!m.classList.contains('active')){ hdgNgheTat(); _hdg.pad=null; } }); _hdgObs.observe(m,{attributes:true,attributeFilter:['class']}); }catch(e){}
+  }
+  hdgVe();
+  hdgNghe(c);
+  hdgTuLanh(c);
+};
+window.hdgMoTuTroLy=function(){
+  try{
+    var md=hdg$('modal-detail');
+    if(md&&md.classList.contains('active')&&currentCustomerId){ window.hdgMo(); return; }
+    if(typeof window.SNAI_TOUR==='function'){ window.SNAI_TOUR('hop-dong'); return; }
+    alert('Mở sổ của khách (chạm vào tên khách) rồi bấm nút 📝 Hợp đồng.');
+  }catch(e){}
+};
+function hdgVeLai(){ var m=hdg$('modal-hd'); if(!m||!m.classList.contains('active')) return; if(_hdg.mode==='chinh') hdgVe(); else hdgBaoSoan(); }
+function hdgVe(){
+  var c=hdgKhach(),body=hdg$('hdg-body'),tt=hdg$('hdg-title'); if(!body) return;
+  if(!c){ body.innerHTML='<div class="empty">Không tìm thấy khách hàng.</div>'; return; }
+  if(tt) tt.textContent='📝 Hợp đồng — '+(c.name||'');
+  if(_hdg.mode==='soan') return hdgVeSoan(c);
+  if(_hdg.mode==='kya') return hdgVeKyA(c);
+  _hdg.pad=null;
+  var hd=c.hopDong,sua=hdgSuaDuoc(),cu=Array.isArray(c.hopDongCu)?c.hopDongCu:[],h='';
+  if(!hd||!hd.id){
+    body.setAttribute('data-st','chua');
+    h='<div class="hdg-gioi"><div class="hdg-gioi-t">Khách này chưa có hợp đồng.</div>'
+      +'<div class="hdg-gioi-s">Lập hợp đồng để gửi <b>kèm link công nợ</b>: khách mở link là thấy hợp đồng, đọc và <b>ký tên ngay trên điện thoại</b>. Chưa lập thì link của khách vẫn y như cũ.</div>'
+      +(sua?'<div class="hdg-mau3">'
+        +'<button type="button" class="hdg-mau" data-hdg="tao" data-mau="muaban"><b>🤝 Hợp đồng mua bán (mua chịu – trả chậm)</b><span>Khách hay lấy hàng ghi nợ: hạn mức nợ, hạn trả, lãi chậm trả.</span></button>'
+        +'<button type="button" class="hdg-mau" data-hdg="tao" data-mau="camket"><b>🧾 Giấy xác nhận nợ &amp; cam kết trả</b><span>Chốt số nợ hiện tại, khách cam kết trả trước ngày nào.</span></button>'
+        +'<button type="button" class="hdg-mau" data-hdg="tao" data-mau="tuy"><b>✍️ Tự soạn</b><span>Bạn tự viết nội dung thỏa thuận.</span></button></div>'
+       :'<div class="hdg-bao v">🔒 Sổ Nợ đang khóa sửa (hoặc máy này không được sửa công nợ) nên chưa lập được hợp đồng.</div>')
+      +'</div>';
+    body.innerHTML=h+hdgVeCu(c,cu);
+    return;
+  }
+  var N=hdgNhan(hd.mau),st=hdgKyCua(hd,_hdg.signs),daB=!!st.kyB||hdgDaKyB(c),hien=hd.bat!==false,coTok=!!c.shareToken;
+  var kyB=st.kyB||((hd.kyB&&hd.kyB.h===st.H)?hd.kyB:null);
+  body.setAttribute('data-st',daB?'daky':'choky');
+  h+='<div class="hdg-the"><div class="hdg-the-top"><div class="hdg-the-ic">📝</div><div class="hdg-the-tt"><div class="hdg-the-t">'+hdgE(N.ngan)+'</div>'
+    +'<div class="hdg-the-s">Số '+hdgE(hd.id)+N.so+' · lập ngày '+hdgE(hdgNgayVN(hd.ngay))+'</div></div>'
+    +'<span class="hdg-badge '+(daB?'ok':(hien?'cho':'an'))+'">'+(daB?'✅ Khách đã ký':(hien?'⏳ Chờ khách ký':'🙈 Đang ẩn'))+'</span></div>';
+  h+='<div class="hdg-dong"><span>👁 Trên link của khách</span><span><button type="button" class="hdg-sw'+(hien?'':' off')+'" data-hdg="bat"'+(sua?'':' disabled')+'>'+(hien?'Đang HIỆN — bấm để ẩn':'Đang ẨN — bấm để hiện')+'</button></span></div>';
+  h+='<div class="hdg-dong"><span>✍️ Bên A (bạn)</span><span>'
+    +(hd.kyA&&hdgAnhA(hd.kyA.img)?('<span class="hdg-kyb"><img src="'+hdgAnhA(hd.kyA.img)+'" alt="">✅ '+hdgE(hd.kyA.ten||'')+'</span>'+((!daB&&sua)?' <button type="button" class="hdg-mini" data-hdg="kya">Ký lại</button>':''))
+      :(sua?'<button type="button" class="hdg-mini" data-hdg="kya">✍️ Ký ngay</button>':'Chưa ký'))
+    +'</span></div>';
+  h+='<div class="hdg-dong"><span>✍️ Bên B (khách)</span><span>'
+    +(kyB?('<span class="hdg-kyb">'+(hdgAnhB(kyB.img)?'<img src="'+hdgE(hdgAnhB(kyB.img))+'" alt="">':'')+'✅ '+hdgE(kyB.ten)+'<br>'+hdgE(kyB.hienThi||'')+'</span>')
+      :(_hdg.tai?'⏳ Đang xem khách ký chưa…':(coTok?(hien?'⏳ Chưa ký':'Chưa ký (đang ẩn — khách chưa thấy)'):'Chưa gửi link cho khách')))
+    +'</span></div>';
+  if(hd.guiLuc) h+='<div class="hdg-dong"><span>📤 Gửi link</span><span>Lần đầu lúc '+hdgE(hdgLuc(hd.guiLuc))+'</span></div>';
+  h+='</div>';
+  if(_hdg.loi&&coTok) h+='<div class="hdg-bao v">⚠️ Chưa đọc được chữ ký của khách ('+hdgE(_hdg.loi)+'). Có mạng lại thì đóng bảng mở lại.</div>';
+  if(!daB&&st.kyTruoc) h+='<div class="hdg-bao d">⚠️ Khách đã ký <b>BẢN TRƯỚC</b> lúc '+hdgE(st.kyTruoc.hienThi)+' — ngay trước khi bạn sửa. Bản khách đã ký vẫn được giữ.'
+    +(sua?'<br><button type="button" class="hdg-mini" data-hdg="laytruoc" style="margin-top:6px">↩️ Lấy lại đúng bản khách đã ký</button>':'')+'</div>';
+  else if(!daB&&st.kyBCu.length) h+='<div class="hdg-bao x">ℹ️ Khách từng ký một bản cũ hơn của hợp đồng này (nội dung đã sửa sau đó) — bản hiện tại cần khách ký lại.</div>';
+  if(daB) h+='<div class="hdg-bao g">🔒 Khách đã ký nên hợp đồng <b>không sửa / không xoá được nữa</b> (để giữ đúng bằng chứng). Muốn đổi điều khoản thì bấm <b>🆕 Lập hợp đồng mới</b>.</div>';
+  else if(!hien) h+='<div class="hdg-bao v">🙈 Hợp đồng đang <b>ẨN</b> — khách mở link sẽ không thấy. Bấm <b>📤 Gửi link cho khách ký</b> là tự hiện lại.</div>';
+  else if(!coTok) h+='<div class="hdg-bao x">📤 Khách chưa có link. Bấm <b>📤 Gửi link cho khách ký</b> để gửi qua Zalo / tin nhắn.</div>';
+  else if(!hd.kyA) h+='<div class="hdg-bao x">💡 Nên để <b>Bên A (bạn) ký trước</b> rồi mới gửi cho khách — hợp đồng có đủ chữ ký 2 bên.</div>';
+  h+='<div class="hdg-nuts">'
+    +(daB?'':'<button type="button" class="hdg-b chinh" data-hdg="gui">📤 Gửi link cho khách ký</button>')
+    +'<button type="button" class="hdg-b" data-hdg="xem">'+(_hdg.xem?'📄 Thu gọn':'📄 Xem toàn văn')+'</button>'
+    +'<button type="button" class="hdg-b" data-hdg="in">🖨️ In / Lưu PDF</button>'
+    +((sua&&!daB)?'<button type="button" class="hdg-b" data-hdg="sua">✏️ Sửa hợp đồng</button>':'')
+    +(sua?'<button type="button" class="hdg-b" data-hdg="moi">🆕 Lập hợp đồng mới</button>':'')
+    +((sua&&daB)?'<button type="button" class="hdg-b" data-hdg="ket">📦 Kết thúc hợp đồng</button>':'')
+    +((sua&&!daB)?'<button type="button" class="hdg-b do" data-hdg="xoa">🗑 Xoá hợp đồng</button>':'')
+    +(daB?'<button type="button" class="hdg-b" data-hdg="gui">📤 Gửi lại link cho khách</button>':'')
+    +'</div>';
+  if(!sua) h+='<div class="hdg-bao v">🔒 Sổ Nợ đang khóa sửa (hoặc máy này không được sửa công nợ) — chỉ xem, in và gửi link được.</div>';
+  h+='<div class="hdg-xem"'+(_hdg.xem?'':' hidden')+'><div class="hdg-doc">'+hdgDocHtml(hd,{kyB:kyB,choKy:!kyB})+'</div></div>';
+  body.innerHTML=h+hdgVeCu(c,cu);
+}
+function hdgVeCu(c,cu){
+  if(!cu||!cu.length) return '';
+  var sua=hdgSuaDuoc();
+  return '<div class="hdg-cu"><div class="hdg-cu-t">📚 Hợp đồng cũ đã kết thúc ('+cu.length+')</div>'
+    +cu.map(function(e,i){
+      var N=hdgNhan(e.mau),k=e.kyB||hdgKyCua(e,_hdg.signs).kyB;
+      return '<div class="hdg-cu-i"><div><b>Số '+hdgE(e.id)+N.so+'</b> · '+hdgE(N.ngan)+'<br><span>Lập '+hdgE(hdgNgayVN(e.ngay))+(e.luuLuc?' · kết thúc '+hdgE(new Date(e.luuLuc).toLocaleDateString('vi-VN')):'')+' · '+(k?'✅ khách đã ký':'⚪ khách chưa ký')+'</span></div>'
+        +'<div><button type="button" class="hdg-mini" data-hdg="in-cu" data-i="'+i+'">🖨️ In</button>'+(sua?'<button type="button" class="hdg-mini" data-hdg="xoa-cu" data-i="'+i+'" style="color:#c0392b">🗑</button>':'')+'</div></div>';
+    }).join('')+'</div>';
+}
+/* ───── soạn hợp đồng ───── */
+function hdgMacDinhA(c){
+  var hd=c.hopDong;
+  if(hd&&hd.benA&&hd.benA.ten) return Object.assign({},hd.benA);
+  var best=null,t=0;
+  (customers||[]).forEach(function(x){
+    [x.hopDong].concat(Array.isArray(x.hopDongCu)?x.hopDongCu:[]).forEach(function(e){
+      if(e&&e.benA&&e.benA.ten){ var m=Number(e.suaLuc||e.luuLuc||e.taoLuc)||1; if(m>t){ t=m; best=e.benA; } }
+    });
+  });
+  if(best) return Object.assign({},best);
+  var ten=(typeof skShopName==='string'&&skShopName)||(typeof _snShopName==='string'&&_snShopName)||'';
+  return {ten:ten,daiDien:'',sdt:'',diaChi:'',mst:''};
+}
+let _hdgBank=null;
+async function hdgNapBank(){
+  if(_hdgBank) return _hdgBank;
+  try{ var ss=await getDoc(doc(db,'users',UID,'meta','shopSettings')); if(ss.exists()){ var x=ss.data()||{}; _hdgBank={account:hdgS(x.account),bankName:hdgS(x.bankName),accName:hdgS(x.accName),shopName:hdgS(x.shopName)}; } }catch(e){}
+  return _hdgBank||{};
+}
+/* Đọc xong cài đặt cửa hàng ⇒ điền chỗ Bên A còn trống (tên cửa hàng · chủ tài khoản = người đại diện) + soạn lại nội dung có số tài khoản */
+function hdgSauBank(cid){
+  try{
+    var f=_hdgNhap[cid]; if(!f||_hdg.mode!=='soan'||_hdg.cid!==cid) return;
+    hdgDocForm(f);
+    var bk=_hdgBank||{},A=f.benA;
+    if(f.kieu==='moi'){
+      if(!hdgS(A.ten).trim()&&hdgS(bk.shopName).trim()){ A.ten=hdgS(bk.shopName).trim().slice(0,120); var e1=hdg$('hdg-a-ten'); if(e1&&!e1.value.trim()) e1.value=A.ten; }
+      if(!hdgS(A.daiDien).trim()&&hdgS(bk.accName).trim()){ A.daiDien=hdgS(bk.accName).trim().slice(0,80); var e2=hdg$('hdg-a-dd'); if(e2&&!e2.value.trim()) e2.value=A.daiDien; }
+    }
+    if(f.mau!=='tuy'&&!f.tuSua){ var ta=hdg$('hdg-noidung'); if(ta){ f.noiDung=hdgSoanMau(f.mau,Object.assign({},f.tt,{nganHang:_hdgBank})).noiDung; ta.value=f.noiDung; } }
+  }catch(e){}
+}
+function hdgNhapMoi(c,mau,tu){
+  var g=tu||null,no=Math.round(Number(c.debt)||0);
+  var tt=(g&&g.tt)||{};
+  return {kieu:'moi',mau:mau||(g&&g.mau)||'muaban',tuSua:false,
+    ngay:hdgHomNay(),noiKy:hdgS(g&&g.noiKy),
+    benA:Object.assign({ten:'',daiDien:'',sdt:'',diaChi:'',mst:''},hdgMacDinhA(c)),
+    benB:{ten:hdgS(c.name),sdt:hdgS(c.phone),diaChi:hdgS(c.address),cccd:hdgS(g&&g.benB&&g.benB.cccd)},
+    tt:{hanMuc:hdgS(tt.hanMuc),noCu:no>0?String(no):'',hanTra:hdgS(tt.hanTra),thoiHan:hdgS(tt.thoiHan),soNo:no>0?String(no):'',tinhDen:hdgHomNay(),cachTra:'',lai:hdgS(tt.lai),them:hdgS(tt.them)},
+    tieuDe:(g&&g.mau==='tuy')?hdgS(g.tieuDe):'',noiDung:(g&&g.mau==='tuy')?hdgS(g.noiDung):'',kyA:null};
+}
+function hdgNhapSua(c){
+  var hd=c.hopDong,tt=hd.tt||{};
+  return {kieu:'sua',mau:hd.mau||'muaban',tuSua:hd.mau==='tuy'||!!hd.tuSua,daDoi:false,ngay:hdgS(hd.ngay)||hdgHomNay(),noiKy:hdgS(hd.noiKy),
+    benA:Object.assign({ten:'',daiDien:'',sdt:'',diaChi:'',mst:''},hd.benA||{}),benB:Object.assign({ten:'',sdt:'',diaChi:'',cccd:''},hd.benB||{}),
+    tt:{hanMuc:hdgS(tt.hanMuc),noCu:hdgS(tt.noCu),hanTra:hdgS(tt.hanTra),thoiHan:hdgS(tt.thoiHan),soNo:hdgS(tt.soNo),tinhDen:hdgS(tt.tinhDen)||hdgHomNay(),cachTra:hdgS(tt.cachTra),lai:hdgS(tt.lai),them:hdgS(tt.them)},
+    tieuDe:hdgS(hd.tieuDe),noiDung:hdgS(hd.noiDung)};
+}
+function hdgVao(id,nhan,v,o){
+  o=o||{};
+  return '<label for="'+id+'">'+nhan+'</label><input id="'+id+'"'+(o.kieu?' type="'+o.kieu+'"':'')+(o.im?' inputmode="'+o.im+'"':'')+(o.max?' maxlength="'+o.max+'"':'')+' value="'+hdgE(v)+'"'+(o.ph?' placeholder="'+hdgE(o.ph)+'"':'')+' autocomplete="off">'+(o.goi!=null?'<div class="hdg-goi'+(o.goiCls?' '+o.goiCls:'')+'" id="'+id+'-g">'+o.goi+'</div>':'');
+}
+function hdgChuTien(v){ var n=hdgSoTien(v); return n>0?('= '+hdgTien(n)+'đ · '+hdgDocSo(n)):''; }
+function hdgVeSoan(c){
+  var body=hdg$('hdg-body'),f=_hdgNhap[c.id]; if(!f){ f=_hdgNhap[c.id]=hdgNhapMoi(c,'muaban'); }
+  body.setAttribute('data-st','soan'); _hdg.pad=null;
+  var mau=f.mau,A=f.benA,B=f.benB,t=f.tt,h='';
+  h+='<div id="hdg-soan" data-mau="'+mau+'">';
+  h+='<div id="hdg-soan-bao"></div>';
+  h+=(f.kieu==='sua'?'<div class="hdg-bao x">✏️ Đang <b>sửa</b> hợp đồng số <b>'+hdgE(c.hopDong&&c.hopDong.id)+'</b>. Khách đã mở link mà chưa ký thì sẽ thấy bản mới ngay.</div>':'')
+    +(f.kieu==='moi'&&c.hopDong&&c.hopDong.id?'<div class="hdg-bao v">🆕 Lập hợp đồng <b>mới</b>: bấm Lưu thì hợp đồng số <b>'+hdgE(c.hopDong.id)+'</b> được cất vào mục <b>Hợp đồng cũ</b> (vẫn in lại được).</div>':'');
+  h+='<div class="hdg-mau-chon">'
+    +'<button type="button" class="hdg-mc'+(mau==='muaban'?' on':'')+'" data-hdg="mau" data-mau="muaban">🤝 Mua bán</button>'
+    +'<button type="button" class="hdg-mc'+(mau==='camket'?' on':'')+'" data-hdg="mau" data-mau="camket">🧾 Xác nhận nợ</button>'
+    +'<button type="button" class="hdg-mc'+(mau==='tuy'?' on':'')+'" data-hdg="mau" data-mau="tuy">✍️ Tự soạn</button></div>';
+  h+='<div class="hdg-nhom"><div class="hdg-nhom-t">📅 Ngày lập</div>'+hdgVao('hdg-ngay','Ngày lập hợp đồng',f.ngay,{kieu:'date'})+hdgVao('hdg-noiky','Nơi lập (không bắt buộc)',f.noiKy,{max:120,ph:'VD: Cửa hàng Minh Trí, xã …'})+'</div>';
+  h+='<div class="hdg-nhom"><div class="hdg-nhom-t">🏪 BÊN A — cửa hàng của bạn</div>'
+    +hdgVao('hdg-a-ten','Tên cửa hàng / người bán *',A.ten,{max:120,ph:'VD: Cửa hàng Minh Trí'})
+    +hdgVao('hdg-a-dd','Người đại diện',A.daiDien,{max:80,ph:'Họ tên chủ cửa hàng'})
+    +hdgVao('hdg-a-sdt','Số điện thoại',A.sdt,{kieu:'tel',max:30})
+    +hdgVao('hdg-a-dc','Địa chỉ',A.diaChi,{max:200})
+    +hdgVao('hdg-a-mst','Mã số thuế (nếu có)',A.mst,{max:30})+'</div>';
+  h+='<div class="hdg-nhom"><div class="hdg-nhom-t">👤 BÊN B — khách</div>'
+    +hdgVao('hdg-b-ten','Họ tên khách *',B.ten,{max:120})
+    +hdgVao('hdg-b-sdt','Số điện thoại',B.sdt,{kieu:'tel',max:30})
+    +hdgVao('hdg-b-dc','Địa chỉ',B.diaChi,{max:200})
+    +hdgVao('hdg-b-cccd','Số CCCD (nếu có)',B.cccd,{im:'numeric',max:20})+'</div>';
+  if(mau==='muaban'){
+    h+='<div class="hdg-nhom"><div class="hdg-nhom-t">📋 Điều khoản chính</div>'
+      +hdgVao('hdg-hanmuc','Hạn mức nợ tối đa (đồng) — để trống nếu không giới hạn',t.hanMuc,{im:'numeric',max:20,ph:'VD: 20000000',goi:hdgChuTien(t.hanMuc),goiCls:'chu'})
+      +hdgVao('hdg-nocu','Nợ cũ ghi vào hợp đồng (đồng) — để trống nếu không',t.noCu,{im:'numeric',max:20,goi:hdgChuTien(t.noCu),goiCls:'chu'})
+      +hdgVao('hdg-hantra','Thời hạn thanh toán',t.hanTra,{max:200,ph:'trong vòng 30 ngày kể từ ngày nhận hàng của từng lần mua'})
+      +hdgVao('hdg-lai','Lãi chậm trả (%/năm) — để trống = không tính lãi',t.lai,{im:'decimal',max:6,ph:'VD: 10',goi:'Tối đa 20%/năm (Bộ luật Dân sự 2015).'})
+      +hdgVao('hdg-thoihan','Hợp đồng có hiệu lực đến',t.thoiHan,{max:200,ph:'khi hai bên thanh toán xong mọi khoản nợ phát sinh từ hợp đồng này'})+'</div>';
+  }else if(mau==='camket'){
+    h+='<div class="hdg-nhom"><div class="hdg-nhom-t">📋 Số nợ &amp; cam kết</div>'
+      +hdgVao('hdg-sono','Số nợ khách xác nhận (đồng) *',t.soNo,{im:'numeric',max:20,goi:hdgChuTien(t.soNo)||'Gõ số tiền, VD 5000000',goiCls:'chu'})
+      +hdgVao('hdg-tinhden','Tính đến ngày',t.tinhDen,{kieu:'date'})
+      +hdgVao('hdg-cachtra','Khách cam kết trả thế nào *',t.cachTra,{max:300,ph:'VD: trả hết một lần trước ngày '+hdgSauNgay(30)})
+      +hdgVao('hdg-lai','Lãi chậm trả (%/năm) — để trống = không tính lãi',t.lai,{im:'decimal',max:6,ph:'VD: 10',goi:'Tối đa 20%/năm (Bộ luật Dân sự 2015).'})+'</div>';
+  }else{
+    h+='<div class="hdg-nhom"><div class="hdg-nhom-t">🏷️ Tiêu đề</div>'+hdgVao('hdg-tieude','Tên văn bản *',f.tieuDe||'HỢP ĐỒNG',{max:120})+'</div>';
+  }
+  if(mau!=='tuy') h+='<div class="hdg-nhom"><div class="hdg-nhom-t">➕ Thỏa thuận thêm (không bắt buộc)</div><textarea id="hdg-them" rows="3" maxlength="2000" placeholder="VD: Bên A giao hàng tận nơi trong bán kính 5km.">'+hdgE(t.them)+'</textarea></div>';
+  h+='<div class="hdg-nhom"><div class="hdg-nhom-t">📄 Nội dung '+(mau==='tuy'?'văn bản *':'hợp đồng')+'</div>'
+    +'<div class="hdg-goi" id="hdg-nd-g">'+(mau==='tuy'?'Viết thẳng nội dung vào đây. Mỗi dòng bắt đầu bằng "Điều 1.", "Điều 2."… sẽ in đậm.':(f.tuSua?'✏️ Bạn đã sửa tay nội dung — các ô ở trên KHÔNG tự cập nhật vào đây nữa. Bấm ↻ để soạn lại theo mẫu.':'App tự soạn theo các ô ở trên. Muốn sửa câu chữ thì sửa thẳng ở đây.'))+'</div>'
+    +'<textarea id="hdg-noidung" maxlength="20000">'+hdgE(mau==='tuy'?(f.noiDung||hdgKhungTuSoan()):hdgNoiDungSoan(f))+'</textarea>'
+    +(mau==='tuy'?'':'<button type="button" class="hdg-tl" data-hdg="taolai">↻ Soạn lại theo mẫu</button>')+'</div>';
+  h+='<div class="modal-btns"><button type="button" class="btn-cancel" data-hdg="huy">Hủy</button><button type="button" class="btn-save" id="hdg-luu" data-hdg="luu">💾 Lưu hợp đồng</button></div>';
+  h+='</div>';
+  body.innerHTML=h;
+  hdgBaoSoan();
+}
+function hdgNoiDungSoan(f){
+  if((f.tuSua||(f.kieu==='sua'&&!f.daDoi))&&f.noiDung) return f.noiDung;   /* sửa mà chưa đổi ô nào ⇒ giữ NGUYÊN chữ đã lưu */
+  var r=hdgSoanMau(f.mau,Object.assign({},f.tt,{nganHang:_hdgBank}));
+  f.noiDung=r.noiDung; return r.noiDung;
+}
+/* Đọc các ô của bảng soạn vào bản nháp */
+function hdgDocForm(f){
+  var v=function(id){ var e=hdg$(id); return e?hdgS(e.value):null; };
+  var dat=function(o,k,id){ var x=v(id); if(x!==null) o[k]=x; };
+  dat(f,'ngay','hdg-ngay'); dat(f,'noiKy','hdg-noiky');
+  dat(f.benA,'ten','hdg-a-ten'); dat(f.benA,'daiDien','hdg-a-dd'); dat(f.benA,'sdt','hdg-a-sdt'); dat(f.benA,'diaChi','hdg-a-dc'); dat(f.benA,'mst','hdg-a-mst');
+  dat(f.benB,'ten','hdg-b-ten'); dat(f.benB,'sdt','hdg-b-sdt'); dat(f.benB,'diaChi','hdg-b-dc'); dat(f.benB,'cccd','hdg-b-cccd');
+  dat(f.tt,'hanMuc','hdg-hanmuc'); dat(f.tt,'noCu','hdg-nocu'); dat(f.tt,'hanTra','hdg-hantra'); dat(f.tt,'thoiHan','hdg-thoihan');
+  dat(f.tt,'soNo','hdg-sono'); dat(f.tt,'tinhDen','hdg-tinhden'); dat(f.tt,'cachTra','hdg-cachtra'); dat(f.tt,'lai','hdg-lai'); dat(f.tt,'them','hdg-them');
+  dat(f,'tieuDe','hdg-tieude');
+  var nd=v('hdg-noidung'); if(nd!==null) f.noiDung=nd;
+  return f;
+}
+/* Ô điều khoản đổi ⇒ soạn lại nội dung (chỉ khi chủ shop CHƯA sửa tay nội dung) */
+function hdgOnNhap(ev){
+  var c=hdgKhach(),f=c&&_hdgNhap[c.id]; if(!f||_hdg.mode!=='soan') return;
+  var el=ev.target; if(!el||!el.id) return;
+  if(el.id==='hdg-noidung'){ if(f.mau!=='tuy'&&!f.tuSua){ f.tuSua=true; var g=hdg$('hdg-nd-g'); if(g) g.textContent='✏️ Bạn đã sửa tay nội dung — các ô ở trên KHÔNG tự cập nhật vào đây nữa. Bấm ↻ để soạn lại theo mẫu.'; } f.noiDung=el.value; return; }
+  hdgDocForm(f); f.daDoi=true;
+  if(/^hdg-(hanmuc|nocu|sono)$/.test(el.id)){ var gg=hdg$(el.id+'-g'); if(gg) gg.textContent=hdgChuTien(el.value)||(el.id==='hdg-sono'?'Gõ số tiền, VD 5000000':''); }
+  if(f.mau!=='tuy'&&!f.tuSua){ var ta=hdg$('hdg-noidung'); if(ta){ var r=hdgSoanMau(f.mau,Object.assign({},f.tt,{nganHang:_hdgBank})); f.noiDung=r.noiDung; ta.value=r.noiDung; } }
+}
+function hdgBaoSoan(){
+  var el=hdg$('hdg-soan-bao'); if(!el) return;
+  var c=hdgKhach(),f=c&&_hdgNhap[c.id];
+  if(f&&f.kieu==='sua'&&c.hopDong&&c.hopDong.id){
+    var st=hdgKyCua(c.hopDong,_hdg.signs);
+    if(st.kyB||hdgDaKyB(c)){ el.innerHTML='<div class="hdg-bao d">⚠️ <b>Khách vừa ký</b> hợp đồng này lúc '+hdgE((st.kyB&&st.kyB.hienThi)||(c.hopDong.kyB&&c.hopDong.kyB.hienThi)||'')+' — không sửa được nữa. Bấm <b>Hủy</b>, rồi dùng <b>🆕 Lập hợp đồng mới</b> nếu cần đổi điều khoản.</div>'; return; }
+  }
+  el.innerHTML='';
+}
+/* Kiểm tra MÁY CHỦ: khách đã ký hợp đồng hiện tại chưa (trước khi sửa / xoá) */
+async function hdgKiemMayChu(c){
+  var hd=c.hopDong; if(!hd||!hd.id) return {ok:true};
+  if(hdgDaKyB(c)) return {ok:false,ly:'daky'};
+  if(!c.shareToken) return {ok:true};
+  if(navigator.onLine===false) return {ok:false,ly:'mang'};
+  try{
+    var qs=await getDocs(query(collection(db,'shares',c.shareToken,'chuky'),orderBy('taoLuc','desc')));
+    if(qs.metadata&&qs.metadata.fromCache) return {ok:false,ly:'mang'};
+    if(_hdg.cid===c.id){ _hdg.signs=qs.docs.map(function(x){ return x.data(); }); _hdg.ok=true; }
+    var st=hdgKyCua(hd,qs.docs.map(function(x){ return x.data(); }));
+    if(st.kyB){ if(_hdg.cid===c.id) hdgGhiKyB(c); return {ok:false,ly:'daky'}; }
+    return {ok:true};
+  }catch(e){ return {ok:false,ly:'loi',e:String((e&&(e.code||e.message))||e)}; }
+}
+function hdgLyDo(k){
+  if(k.ly==='daky') return '🔒 Khách ĐÃ KÝ hợp đồng này — không sửa / không xoá được nữa (để giữ đúng bằng chứng). Muốn đổi điều khoản thì bấm 🆕 Lập hợp đồng mới.';
+  if(k.ly==='mang') return '📶 Cần có mạng để kiểm tra khách đã ký chưa (tránh sửa nhầm bản khách vừa ký). Bật Wi-Fi / 4G rồi bấm lại.';
+  return '⚠️ Chưa kiểm tra được chữ ký của khách: '+(k.e||'')+'\nThử lại sau ít giây.';
+}
+function hdgLoiTrong(f){
+  var A=f.benA,B=f.benB,t=f.tt;
+  if(!hdgS(A.ten).trim()) return ['hdg-a-ten','Gõ tên cửa hàng / người bán (Bên A).'];
+  if(!hdgS(B.ten).trim()) return ['hdg-b-ten','Gõ họ tên khách (Bên B).'];
+  if(f.ngay&&!hdgNgayOk(f.ngay)) return ['hdg-ngay','Ngày lập chưa đúng.'];
+  var lai=hdgS(t.lai).trim();
+  if(f.mau!=='tuy'&&lai){ var x=hdgPT(lai); if(!(x>0)) return ['hdg-lai','Lãi chậm trả chỉ gõ số, VD 10 (hoặc để trống = không tính lãi).']; if(x>20) return ['hdg-lai','Lãi chậm trả tối đa 20%/năm theo Bộ luật Dân sự 2015.']; }
+  if(f.mau==='camket'){
+    if(!(hdgSoTien(t.soNo)>0)) return ['hdg-sono','Gõ số nợ khách xác nhận (lớn hơn 0).'];
+    if(!hdgCau(t.cachTra)) return ['hdg-cachtra','Ghi khách cam kết trả thế nào, VD: trả hết trước ngày '+hdgSauNgay(30)+'.'];
+    if(t.tinhDen&&!hdgNgayOk(t.tinhDen)) return ['hdg-tinhden','Ngày "Tính đến ngày" chưa đúng.'];
+  }
+  if(f.mau==='tuy'){
+    if(!hdgS(f.tieuDe).trim()) return ['hdg-tieude','Gõ tên văn bản, VD: HỢP ĐỒNG.'];
+    if(/\(Ghi rõ /.test(f.noiDung)) return ['hdg-noidung','Nội dung còn dòng mẫu "(Ghi rõ …)" — sửa lại thành nội dung thật của bạn.'];
+  }
+  if(hdgS(f.noiDung).trim().length<20) return ['hdg-noidung','Nội dung hợp đồng còn trống / quá ngắn.'];
+  return null;
+}
+async function hdgLuu(){
+  var c=hdgKhach(); if(!c||_hdg.dang) return;
+  var f=_hdgNhap[c.id]; if(!f) return;
+  if(!hdgSuaDuoc()){ alert('🔒 Sổ Nợ đang khóa sửa — máy này không lập / sửa hợp đồng được.'); return; }
+  hdgDocForm(f);
+  if(f.mau!=='tuy'&&!f.tuSua&&(f.kieu!=='sua'||f.daDoi)){ f.noiDung=hdgSoanMau(f.mau,Object.assign({},f.tt,{nganHang:_hdgBank})).noiDung; }
+  var loi=hdgLoiTrong(f);
+  if(loi){ alert('⚠️ '+loi[1]); var el=hdg$(loi[0]); if(el){ try{ el.focus(); el.scrollIntoView({block:'center'}); }catch(e){} } return; }
+  var cu=(c.hopDong&&c.hopDong.id)?c.hopDong:null,laSua=(f.kieu==='sua'&&!!cu);
+  var btn=hdg$('hdg-luu');
+  _hdg.dang=true; if(btn){ btn.disabled=true; btn.textContent=laSua?'⏳ Đang kiểm tra khách đã ký chưa…':'⏳ Đang lưu…'; }
+  try{
+    if(laSua){ var k=await hdgKiemMayChu(c); if(!k.ok){ alert(hdgLyDo(k)); if(k.ly==='daky'){ hdgBaoSoan(); } return; } }
+    var A=f.benA,B=f.benB,cl=function(v,n){ return hdgS(v).replace(/\s+/g,' ').trim().slice(0,n); };
+    var nd={v:1,id:laSua?cu.id:hdgMaMoi(),mau:f.mau,
+      tieuDe:'',phuDe:'',ngay:hdgNgayOk(f.ngay)?f.ngay:hdgHomNay(),noiKy:cl(f.noiKy,120),
+      benA:{ten:cl(A.ten,120),daiDien:cl(A.daiDien,80),sdt:cl(A.sdt,30),diaChi:cl(A.diaChi,200),mst:cl(A.mst,30)},
+      benB:{ten:cl(B.ten,120),sdt:cl(B.sdt,30),diaChi:cl(B.diaChi,200),cccd:cl(B.cccd,20)},
+      noiDung:hdgS(f.noiDung).replace(/\r\n?/g,'\n').replace(/[ \t]+$/gm,'').replace(/\n{3,}/g,'\n\n').trim().slice(0,20000),
+      tt:{hanMuc:cl(f.tt.hanMuc,20),noCu:cl(f.tt.noCu,20),hanTra:cl(f.tt.hanTra,200),thoiHan:cl(f.tt.thoiHan,200),soNo:cl(f.tt.soNo,20),tinhDen:cl(f.tt.tinhDen,10),cachTra:cl(f.tt.cachTra,300),lai:cl(f.tt.lai,6),them:hdgS(f.tt.them).trim().slice(0,2000)},
+      bat:laSua?(cu.bat!==false):true,taoLuc:laSua?(Number(cu.taoLuc)||Date.now()):Date.now(),suaLuc:Date.now(),guiLuc:laSua?(Number(cu.guiLuc)||0):0,kyA:null,tuSua:!!f.tuSua};
+    if(f.mau==='tuy'){ nd.tieuDe=cl(f.tieuDe,120).toUpperCase(); nd.phuDe=''; }
+    else{ var r=hdgSoanMau(f.mau,Object.assign({},f.tt,{nganHang:_hdgBank})); nd.tieuDe=r.tieuDe; nd.phuDe=r.phuDe; }
+    if(laSua&&cu.kyA&&hdgAnhA(cu.kyA.img)) nd.kyA={ten:hdgS(cu.kyA.ten),img:cu.kyA.img,luc:Number(cu.kyA.luc)||0};
+    if(laSua){
+      if(hdgHash(cu)!==hdgHash(nd)){ if(c.shareToken){ var tr=hdgChoLink(cu); delete tr.kyA; tr.h=hdgHash(cu); tr.luu=Date.now(); nd.truoc=tr; } }
+      else if(cu.truoc) nd.truoc=cu.truoc;
+    }
+    var upd={hopDong:nd},daCat=null;
+    if(!laSua&&cu){ daCat=hdgCatCu(c,'moi'); upd.hopDongCu=daCat; }
+    if(JSON.stringify(upd).length>700000){ alert('⚠️ Hợp đồng quá dài — bớt nội dung rồi lưu lại.'); return; }
+    var cuHd=c.hopDong,cuCu=c.hopDongCu,cid=c.id;
+    c.hopDong=nd; if(daCat) c.hopDongCu=daCat;
+    updateDoc(doc(db,'users',UID,'customers',cid),upd).catch(function(err){
+      var cc=(customers||[]).find(function(x){ return x.id===cid; });
+      if(cc&&cc.hopDong===nd){ cc.hopDong=cuHd; cc.hopDongCu=cuCu; }
+      alert('⚠️ MÁY CHỦ TỪ CHỐI LƯU HỢP ĐỒNG — đã trả lại như cũ.\n\nMã lỗi: '+((err&&err.code)||'')+'\n'+((err&&err.message)||err));
+      if(_hdg.cid===cid&&_hdg.mode==='chinh') hdgVe(); hdgNut();
+    });
+    try{ markDirty(); }catch(e){}
+    if(c.shareToken) syncShare(c.shareToken,c.id,c.name,c.phone,c.debt||0).catch(function(){});
+    delete _hdgNhap[c.id]; _hdg.mode='chinh'; _hdg.xem=false;
+    hdgVe(); hdgNut();
+    toast(laSua?'✅ Đã lưu bản sửa hợp đồng'+(c.shareToken&&nd.bat?' — link của khách đã cập nhật':''):'✅ Đã lập hợp đồng số '+nd.id+(c.shareToken?' — đã hiện trên link của khách':' — bấm 📤 Gửi link cho khách ký'));
+  }finally{
+    _hdg.dang=false; var b2=hdg$('hdg-luu'); if(b2){ b2.disabled=false; b2.textContent='💾 Lưu hợp đồng'; }
+  }
+}
+function hdgMaMoi(){
+  var d=new Date(),p=function(n){ return String(n).padStart(2,'0'); },B='ABCDEFGHJKLMNPQRSTUVWXYZ23456789',r='';
+  try{ var a=new Uint8Array(4); (window.crypto||window.msCrypto).getRandomValues(a); for(var i=0;i<4;i++) r+=B.charAt(a[i]%32); }
+  catch(e){ r=''; for(var j=0;j<4;j++) r+=B.charAt(Math.floor(Math.random()*32)); }
+  return p(d.getDate())+p(d.getMonth()+1)+String(d.getFullYear()).slice(2)+'-'+r;
+}
+/* Cất hợp đồng hiện tại vào danh sách cũ (kèm chữ ký khách nếu có) — trả về mảng mới, tối đa 10 bản */
+function hdgCatCu(c,ly){
+  var hd=c.hopDong,st=hdgKyCua(hd,_hdg.signs),e=hdgChoLink(hd);
+  var k=st.kyB||((hd.kyB&&hd.kyB.h===st.H)?hd.kyB:null);
+  e.h=st.H; e.luuLuc=Date.now(); e.ly=ly||'ket'; e.taoLuc=Number(hd.taoLuc)||0;
+  if(k) e.kyB={ten:hdgS(k.ten).slice(0,80),img:hdgAnhB(k.img),hienThi:hdgS(k.hienThi).slice(0,40),h:st.H,luc:Number(k.luc)||0};
+  return [e].concat(Array.isArray(c.hopDongCu)?c.hopDongCu:[]).slice(0,10);
+}
+function hdgGhi(c,upd,baoOk){
+  var cid=c.id;
+  updateDoc(doc(db,'users',UID,'customers',cid),upd).catch(function(err){
+    alert('⚠️ MÁY CHỦ TỪ CHỐI LƯU — mở lại bảng để xem đúng dữ liệu.\n\nMã lỗi: '+((err&&err.code)||'')+'\n'+((err&&err.message)||err));
+  });
+  try{ markDirty(); }catch(e){}
+  if(c.shareToken) syncShare(c.shareToken,c.id,c.name,c.phone,c.debt||0).catch(function(){});
+  if(baoOk) toast(baoOk);
+  hdgVe(); hdgNut();
+}
+/* 📤 Gửi link cho khách ký — y như 📤 Chia sẻ nhưng lời nhắn mời ký; mở cửa sổ chia sẻ NGAY trong cú chạm (iPhone đòi vậy) */
+function hdgGui(){
+  var c=hdgKhach(); if(!c||!c.hopDong||!c.hopDong.id) return;
+  var hd=c.hopDong,N=hdgNhan(hd.mau),upd={},token=c.shareToken;
+  if(!token){ token=skRandTok(22); upd.shareToken=token; c.shareToken=token; }
+  if(hd.bat===false){ hd.bat=true; upd['hopDong.bat']=true; }
+  if(!hd.guiLuc){ hd.guiLuc=Date.now(); upd['hopDong.guiLuc']=hd.guiLuc; }
+  if(Object.keys(upd).length) updateDoc(doc(db,'users',UID,'customers',c.id),upd).catch(function(e){ toast('⚠️ CHƯA lưu được: '+((e&&(e.code||e.message))||e)); });
+  syncShare(token,c.id,c.name,c.phone,c.debt||0).catch(function(){});
+  if(!_hdg.unsub) hdgNghe(c);
+  var url=window.location.href.split('?')[0]+'?view='+token;
+  var text='Mời '+(c.name||'anh/chị')+' xem và ký '+N.ten+' số '+hd.id+N.so+(hdgS(hd.benA&&hd.benA.ten).trim()?(' với '+hdgS(hd.benA.ten).trim()):'')+'. Bấm vào link, đọc hết nội dung rồi ký tên ở cuối:\n'+url;
+  var chep=function(){
+    try{ navigator.clipboard.writeText(url).then(function(){ alert('📋 Máy này chưa mở được cửa sổ chia sẻ nên link đã được copy.\nDán vào Zalo / tin nhắn để gửi cho '+(c.name||'khách')+':\n\n'+url); },function(){ prompt('Copy link gửi cho '+(c.name||'khách')+':',url); }); }
+    catch(e){ prompt('Copy link gửi cho '+(c.name||'khách')+':',url); }
+  };
+  var p=null;
+  if(navigator.share){ try{ p=navigator.share({title:N.ngan+' – '+(c.name||''),text:text,url:url}); }catch(e){ p=null; } }   /* gọi NGAY trong cú chạm, trước khi vẽ lại bảng */
+  hdgVe(); hdgNut();
+  if(p&&typeof p.then==='function'){ p.then(function(){},function(err){ if(err&&err.name==='AbortError') return; chep(); }); return; }
+  chep();
+}
+function hdgVeKyA(c){
+  var body=hdg$('hdg-body'),hd=c.hopDong; if(!hd||!hd.id){ _hdg.mode='chinh'; return hdgVe(); }
+  body.setAttribute('data-st','kya');
+  var luu=null; try{ luu=JSON.parse(localStorage.getItem('hdg_kya_v1_'+UID)||'null'); }catch(e){ luu=null; }
+  if(luu&&!hdgAnhA(luu.img)) luu=null;
+  _hdg.kyACu=null;
+  body.innerHTML='<div class="hdg-nhom" id="hdg-kya"><div class="hdg-nhom-t">✍️ Bên A ký hợp đồng số '+hdgE(hd.id)+'</div>'
+    +hdgVao('hdg-kya-ten','Họ tên người ký (đại diện Bên A) *',hdgS((hd.kyA&&hd.kyA.ten)||(luu&&luu.ten)||(hd.benA&&(hd.benA.daiDien||hd.benA.ten))).slice(0,60),{max:60})
+    +(luu?'<button type="button" class="hdg-tl" data-hdg="kya-cu">↺ Dùng chữ ký đã lưu trên máy này</button><img id="hdg-kya-anh" class="hdg-anhcu" alt="" style="display:none">':'')
+    +'<div class="sign-pad-lab" style="margin-top:10px">Ký vào ô bên dưới 👇</div>'
+    +'<div class="sign-pad-box"><canvas id="hdg-kya-pad" class="hdg-pad"></canvas><button type="button" class="sign-clear" data-hdg="kya-xoa">Xoá</button></div>'
+    +'<label class="hdg-chk" style="margin-top:10px!important"><input type="checkbox" id="hdg-kya-nho" checked><span>Lưu chữ ký này trên máy để lần sau khỏi ký lại</span></label>'
+    +'<div class="modal-btns"><button type="button" class="btn-cancel" data-hdg="huy">Hủy</button><button type="button" class="btn-save" data-hdg="kya-luu">✅ Lưu chữ ký Bên A</button></div></div>';
+  var cv=hdg$('hdg-kya-pad'); try{ _hdg.pad=cv?hdgPad(cv):null; }catch(e){ _hdg.pad=null; }
+  _hdg.kyALuu=luu;
+}
+function hdgKyALuu(){
+  var c=hdgKhach(); if(!c||!c.hopDong||!c.hopDong.id) return;
+  if(!hdgSuaDuoc()){ alert('🔒 Sổ Nợ đang khóa sửa — máy này không ký được.'); return; }
+  var hd=c.hopDong;
+  if(hdgDaKyB(c)&&hd.kyA&&hdgAnhA(hd.kyA.img)){ alert('🔒 Khách đã ký — chữ ký Bên A giữ nguyên như lúc khách ký.'); _hdg.mode='chinh'; hdgVe(); return; }
+  var ten=hdgS(hdg$('hdg-kya-ten')&&hdg$('hdg-kya-ten').value).replace(/\s+/g,' ').trim().slice(0,60);
+  if(!ten){ alert('⚠️ Gõ họ tên người ký (đại diện Bên A).'); var t=hdg$('hdg-kya-ten'); if(t) t.focus(); return; }
+  var img='';
+  if(_hdg.pad&&_hdg.pad.coMuc()){
+    try{ img=_hdg.pad.url(420,150); if(img.length>120000) img=_hdg.pad.url(300,110); }catch(e){ img=''; }
+  }else if(_hdg.kyACu){ img=_hdg.kyACu; }
+  img=hdgAnhA(img);
+  if(!img){ alert('⚠️ Bạn chưa ký. Hãy ký vào ô (hoặc bấm "Dùng chữ ký đã lưu").'); return; }
+  try{ var nho=hdg$('hdg-kya-nho'); if(nho&&nho.checked) localStorage.setItem('hdg_kya_v1_'+UID,JSON.stringify({ten:ten,img:img})); }catch(e){}
+  var k={ten:ten,img:img,luc:Date.now()};
+  hd.kyA=k; _hdg.mode='chinh'; _hdg.pad=null;
+  hdgGhi(c,{'hopDong.kyA':k},'✅ Bên A đã ký'+(c.shareToken&&hd.bat!==false?' — link của khách đã cập nhật':''));
+}
+async function hdgXoa(){
+  var c=hdgKhach(); if(!c||!c.hopDong||!c.hopDong.id||_hdg.dang) return;
+  if(!hdgSuaDuoc()){ alert('🔒 Sổ Nợ đang khóa sửa.'); return; }
+  _hdg.dang=true;
+  try{
+    var k=await hdgKiemMayChu(c); if(!k.ok){ alert(hdgLyDo(k)); hdgVe(); return; }
+    if(!confirm('🗑 Xoá hợp đồng số '+c.hopDong.id+'?\n\nKhách CHƯA ký nên xoá được. Link của khách sẽ không còn phần hợp đồng.\nKhông hoàn tác được.')) return;
+    c.hopDong=null; _hdg.xem=false;
+    hdgGhi(c,{hopDong:null},'🗑 Đã xoá hợp đồng');
+  }finally{ _hdg.dang=false; }
+}
+function hdgKetThuc(){
+  var c=hdgKhach(); if(!c||!c.hopDong||!c.hopDong.id) return;
+  if(!hdgSuaDuoc()){ alert('🔒 Sổ Nợ đang khóa sửa.'); return; }
+  if(!confirm('📦 Kết thúc hợp đồng số '+c.hopDong.id+'?\n\n• Hợp đồng (kèm chữ ký) được cất vào mục "Hợp đồng cũ" — vẫn in lại được.\n• Link của khách sẽ không còn hiện hợp đồng này.')) return;
+  var cu=hdgCatCu(c,'ket'); c.hopDongCu=cu; c.hopDong=null; _hdg.xem=false;
+  hdgGhi(c,{hopDong:null,hopDongCu:cu},'📦 Đã kết thúc hợp đồng — xem lại ở mục Hợp đồng cũ');
+}
+function hdgLayTruoc(){
+  var c=hdgKhach(),hd=c&&c.hopDong; if(!hd||!hd.truoc) return;
+  if(!hdgSuaDuoc()){ alert('🔒 Sổ Nợ đang khóa sửa.'); return; }
+  var t=hd.truoc;
+  if(!confirm('↩️ Lấy lại đúng bản khách đã ký (bỏ phần bạn sửa sau đó)?')) return;
+  var nd=Object.assign({},hd,{mau:t.mau,tieuDe:t.tieuDe,phuDe:t.phuDe,ngay:t.ngay,noiKy:t.noiKy,benA:t.benA,benB:t.benB,noiDung:t.noiDung,suaLuc:Date.now()});
+  delete nd.truoc; delete nd.kyB;
+  if(hdgHash(nd)!==hdgS(t.h)){ alert('⚠️ Bản lưu không khớp mã kiểm tra — không lấy lại được.'); return; }
+  c.hopDong=nd;
+  try{ hdgGhiKyB(c); }catch(e){}   /* bản lấy lại khớp chữ ký khách ⇒ nhớ "đã ký" vào nd.kyB trước khi ghi */
+  hdgGhi(c,{hopDong:nd},'↩️ Đã lấy lại đúng bản khách đã ký');
+}
+function hdgXoaCu(i){
+  var c=hdgKhach(); if(!c) return;
+  var cu=Array.isArray(c.hopDongCu)?c.hopDongCu.slice():[],e=cu[i]; if(!e) return;
+  if(!confirm('🗑 Xoá hẳn hợp đồng cũ số '+e.id+' khỏi sổ?\n\nNên In / Lưu PDF trước nếu cần giữ làm bằng chứng. Không hoàn tác được.')) return;
+  cu.splice(i,1); c.hopDongCu=cu;
+  hdgGhi(c,{hopDongCu:cu},'🗑 Đã xoá hợp đồng cũ');
+}
+function hdgBam(ev){
+  var b=ev.target&&ev.target.closest?ev.target.closest('[data-hdg]'):null; if(!b||b.disabled) return;
+  var k=b.getAttribute('data-hdg'),c=hdgKhach(); if(!c) return;
+  if(k==='tao'){
+    if(!hdgSuaDuoc()){ alert('🔒 Sổ Nợ đang khóa sửa.'); return; }
+    _hdgNhap[c.id]=hdgNhapMoi(c,b.getAttribute('data-mau')||'muaban'); _hdg.mode='soan';
+    hdgNapBank().then(function(){ hdgSauBank(c.id); });
+    hdgVe(); try{ hdg$('hdg-body').scrollIntoView({block:'start'}); }catch(e){} return;
+  }
+  if(k==='mau'){
+    var f=_hdgNhap[c.id]; if(!f) return; hdgDocForm(f);
+    var mm=b.getAttribute('data-mau'); if(mm===f.mau) return;
+    if(f.tuSua&&f.mau!=='tuy'&&!confirm('Đổi mẫu sẽ soạn lại nội dung theo mẫu mới (mất phần bạn sửa tay). Đổi chứ?')) return;
+    if(f.mau==='tuy'&&mm!=='tuy'){ f.noiDungTuy=f.noiDung; }
+    f.mau=mm; f.tuSua=false; f.daDoi=true; if(mm==='tuy') f.noiDung=f.noiDungTuy||'';
+    hdgVe(); return;
+  }
+  if(k==='taolai'){
+    var f2=_hdgNhap[c.id]; if(!f2) return; hdgDocForm(f2);
+    if(f2.tuSua&&!confirm('Soạn lại nội dung theo các ô ở trên? Phần bạn sửa tay trong nội dung sẽ mất.')) return;
+    f2.tuSua=false; f2.daDoi=true; f2.noiDung=hdgSoanMau(f2.mau,Object.assign({},f2.tt,{nganHang:_hdgBank})).noiDung;
+    var ta=hdg$('hdg-noidung'); if(ta) ta.value=f2.noiDung;
+    var g=hdg$('hdg-nd-g'); if(g) g.textContent='App tự soạn theo các ô ở trên. Muốn sửa câu chữ thì sửa thẳng ở đây.';
+    return;
+  }
+  if(k==='luu'){ hdgLuu(); return; }
+  if(k==='huy'){
+    if(_hdg.mode==='soan'){ var f3=_hdgNhap[c.id]; if(f3&&!confirm('Bỏ phần đang soạn?')) return; delete _hdgNhap[c.id]; }
+    _hdg.mode='chinh'; _hdg.pad=null; hdgVe(); return;
+  }
+  if(k==='sua'){
+    if(!hdgSuaDuoc()){ alert('🔒 Sổ Nợ đang khóa sửa.'); return; }
+    if(hdgDaKyB(c)||hdgKyCua(c.hopDong,_hdg.signs).kyB){ alert(hdgLyDo({ly:'daky'})); hdgVe(); return; }
+    _hdgNhap[c.id]=hdgNhapSua(c); _hdg.mode='soan'; hdgNapBank(); hdgVe(); return;
+  }
+  if(k==='moi'){
+    if(!hdgSuaDuoc()){ alert('🔒 Sổ Nợ đang khóa sửa.'); return; }
+    var hd=c.hopDong;
+    _hdgNhap[c.id]=hdgNhapMoi(c,(hd&&hd.mau)||'muaban',hd&&hd.id?hd:null); _hdg.mode='soan';
+    hdgNapBank().then(function(){ hdgSauBank(c.id); });
+    hdgVe(); return;
+  }
+  if(k==='bat'){
+    if(!hdgSuaDuoc()){ alert('🔒 Sổ Nợ đang khóa sửa.'); return; }
+    var hd2=c.hopDong; if(!hd2) return; var on=hd2.bat===false;
+    hd2.bat=on;
+    hdgGhi(c,{'hopDong.bat':on},on?'👁 Hợp đồng đã HIỆN trên link của khách':'🙈 Đã ẩn hợp đồng khỏi link của khách');
+    return;
+  }
+  if(k==='gui'){ hdgGui(); return; }
+  if(k==='xem'){ _hdg.xem=!_hdg.xem; hdgVe(); return; }
+  if(k==='in'){ var hd3=c.hopDong; if(!hd3) return; var st=hdgKyCua(hd3,_hdg.signs); hdgIn(hd3,st.kyB||((hd3.kyB&&hd3.kyB.h===st.H)?hd3.kyB:null)); return; }
+  if(k==='in-cu'){ var e=(c.hopDongCu||[])[+b.getAttribute('data-i')]; if(e) hdgIn(e,e.kyB||hdgKyCua(e,_hdg.signs).kyB); return; }
+  if(k==='xoa-cu'){ hdgXoaCu(+b.getAttribute('data-i')); return; }
+  if(k==='xoa'){ hdgXoa(); return; }
+  if(k==='ket'){ hdgKetThuc(); return; }
+  if(k==='laytruoc'){ hdgLayTruoc(); return; }
+  if(k==='kya'){
+    if(!hdgSuaDuoc()){ alert('🔒 Sổ Nợ đang khóa sửa.'); return; }
+    if(hdgDaKyB(c)&&c.hopDong.kyA&&hdgAnhA(c.hopDong.kyA.img)){ alert('🔒 Khách đã ký — chữ ký Bên A giữ nguyên như lúc khách ký.'); return; }
+    _hdg.mode='kya'; hdgVe(); return;
+  }
+  if(k==='kya-xoa'){ if(_hdg.pad) _hdg.pad.xoa(); _hdg.kyACu=null; var im=hdg$('hdg-kya-anh'); if(im) im.style.display='none'; return; }
+  if(k==='kya-cu'){ var l=_hdg.kyALuu; if(l&&hdgAnhA(l.img)){ _hdg.kyACu=l.img; if(_hdg.pad) _hdg.pad.xoa(); var im2=hdg$('hdg-kya-anh'); if(im2){ im2.src=l.img; im2.style.display='block'; } var tn=hdg$('hdg-kya-ten'); if(tn&&!tn.value.trim()) tn.value=hdgS(l.ten); toast('Đã lấy chữ ký đã lưu — bấm ✅ Lưu chữ ký Bên A'); } return; }
+  if(k==='kya-luu'){ hdgKyALuu(); return; }
+}
+(function(){
+  try{
+    var m=hdg$('modal-hd'); if(!m||m.__hdg) return; m.__hdg=1;
+    m.addEventListener('click',hdgBam);
+    m.addEventListener('input',hdgOnNhap);
+  }catch(e){}
+})();
+/* ═══════════════ HẾT [SN25] 📝 HỢP ĐỒNG ═══════════════ */
 window.closeModal=id=>{if(id==='modal-tx'){_dropPendingUpload().catch(()=>{});}document.getElementById(id).classList.remove('active');};
 window.openTools=()=>document.getElementById('modal-tools').classList.add('active');
 document.querySelectorAll('.modal-overlay').forEach(el=>{
@@ -22190,6 +23264,159 @@ try{
     };
   }
 }catch(e){}
+/* ═════════════ 5n) [SN25] 📝 HỢP ĐỒNG KÈM LINK CÔNG NỢ — 2 bài mới + "Có gì mới" + mẹo trong 4 bài cũ + 👆 chỉ tận tay + 🆘 bảng 📝 + tìm đúng bài ═════════════
+   Chỉ BỔ SUNG lúc chạy (không sửa bài gốc): 2 bài đặt CUỐI KB · câu hỏi nói tới hợp đồng / giấy cam kết / bên A – bên B ⇒ bài hợp đồng đứng đầu
+   (có chữ lỗi ⇒ bài xử lý sự cố); câu KHÔNG nói tới ⇒ 2 bài mới không chen vào kết quả (giữ y như bản cũ). */
+try{
+  var e20={c:'sn',t:'📝 Làm hợp đồng cho khách ký ngay trên link công nợ',
+  k:'hop dong lam hop dong lap hop dong soan hop dong ky hop dong hop dong mua ban mua chiu tra cham giay xac nhan no giay xac nhan cong no cam ket tra no giay cam ket hop dong dien tu ben a ben b in hop dong luu pdf hop dong khach ky hop dong mau hop dong',
+  go:'hdgMoTuTroLy',
+  a:'<b class="snai-h">📝 Hợp đồng kèm link công nợ</b>'
+   +'<b>👉 Cái này để làm gì:</b> lập một <b>hợp đồng</b> (hoặc <b>giấy xác nhận nợ</b>) cho từng khách. Khách mở <b>link công nợ</b> là thấy luôn hợp đồng, đọc kỹ rồi <b>ký tên bằng ngón tay</b> ngay trên điện thoại của họ. Không lập thì link của khách <b>vẫn y như cũ</b> — giống <b>👁 Ảnh bằng chứng</b>: bạn chọn thì mới hiện.'
+   +'<b>📋 Có 3 mẫu:</b><ul>'
+   +'<li><b>🤝 Hợp đồng mua bán (mua chịu – trả chậm)</b> — khách hay lấy hàng ghi nợ: hạn mức nợ tối đa, hạn trả (VD 30 ngày), lãi chậm trả (có hoặc không), nợ cũ đang có.</li>'
+   +'<li><b>🧾 Giấy xác nhận nợ &amp; cam kết trả</b> — chốt số nợ hiện tại (app điền sẵn), khách cam kết trả trước ngày nào / trả mỗi tháng bao nhiêu.</li>'
+   +'<li><b>✍️ Tự soạn</b> — bạn tự viết nội dung thỏa thuận.</li></ul>'
+   +'<b>🪜 Làm từng bước:</b><ol>'
+   +'<li>Ở màn <span class="snai-path">📒 SỔ NỢ</span>, chạm vào <b>tên khách</b> để mở sổ của khách.</li>'
+   +'<li>Bấm nút <b>📝 Hợp đồng</b> (ngay cạnh nút ✍️ Chữ ký).</li>'
+   +'<li>Chọn 1 mẫu. App <b>điền sẵn</b> tên, số điện thoại, địa chỉ của khách và số nợ hiện tại. Lần đầu gõ <b>thông tin cửa hàng (Bên A)</b> — lần sau app tự nhớ.</li>'
+   +'<li>Điền các ô điều khoản (hạn mức, hạn trả, lãi…). Ô <b>Nội dung hợp đồng</b> ở dưới app <b>tự soạn</b> theo các ô đó — đọc lại, muốn sửa câu chữ thì sửa thẳng trong ô.</li>'
+   +'<li>Bấm <b>💾 Lưu hợp đồng</b>.</li>'
+   +'<li>Ở dòng <b>✍️ Bên A (bạn)</b> bấm <b>✍️ Ký ngay</b> → ký vào ô trắng → <b>✅ Lưu chữ ký Bên A</b>. Để tick <i>"Lưu chữ ký này trên máy"</i> thì lần sau chỉ cần bấm <b>↺ Dùng chữ ký đã lưu</b>.</li>'
+   +'<li>Bấm <b>📤 Gửi link cho khách ký</b> → chọn <b>Zalo</b> (hoặc tin nhắn) → chọn tên khách → gửi.</li></ol>'
+   +'<b>👀 Phía khách:</b> mở link → thấy thẻ <b>📝 Hợp đồng</b> (dưới số nợ và mã QR, ngay trên <b>📋 Lịch sử giao dịch</b>) → đọc toàn văn → gõ họ tên → tick ô <b>"Tôi đã đọc kỹ, hiểu rõ và đồng ý…"</b> → ký bằng ngón tay → bấm nút <b>✍️ Ký</b>. Khách <b>không cần cài app, không cần đăng nhập</b>.'
+   +'<div class="snai-ok">✅ <b>Biết khách đã ký khi:</b> nút đổi thành <b>📝 Hợp đồng ✅</b>; trong bảng, dòng <b>Bên B (khách)</b> hiện chữ ký + giờ ký. Đang mở bảng mà khách ký thì app báo ngay <i>"✅ … đã ký hợp đồng!"</i>. Còn ⏳ là khách chưa ký.</div>'
+   +'<b>📖 Vài điều cần biết:</b><ul>'
+   +'<li><b>👁 Hiện / 🙈 Ẩn:</b> nút ở dòng <b>Trên link của khách</b>. Ẩn thì khách mở link không thấy hợp đồng (số nợ, giao dịch vẫn thấy bình thường).</li>'
+   +'<li><b>Khách chưa ký thì sửa được</b> (✏️ Sửa hợp đồng) — khách đang mở link sẽ thấy bản mới. <b>Khách ký rồi thì KHÓA</b>: không sửa, không xoá được (để giữ đúng bằng chứng). Muốn đổi điều khoản: bấm <b>🆕 Lập hợp đồng mới</b> — bản cũ được cất vào mục <b>📚 Hợp đồng cũ</b>, vẫn in lại được.</li>'
+   +'<li><b>📦 Kết thúc hợp đồng</b> (VD khách đã trả xong nợ): hợp đồng được cất vào <b>📚 Hợp đồng cũ</b>, link của khách thôi hiện hợp đồng.</li>'
+   +'<li><b>🖨️ In / Lưu PDF:</b> in khổ A4, có đủ chữ ký 2 bên. Hộp in hiện ra thì chọn <b>"Lưu thành PDF"</b> để cất trong máy. Khách cũng có nút in / lưu PDF ngay trên link.</li>'
+   +'<li>Chữ ký của khách gắn với <b>mã kiểm tra nội dung</b> in ở cuối hợp đồng — nội dung đổi một chữ là mã đổi, nên không ai sửa lén được sau khi khách ký.</li>'
+   +'<li>Bảng <b>✍️ Chữ ký</b> cũng hiện chữ ký hợp đồng, ghi rõ <i>"📝 Ký hợp đồng số …"</i> (khác với chữ ký xác nhận nợ).</li></ul>'
+   +'<div class="snai-warn">⚠️ Ký trên màn hình là <b>chữ ký điện tử</b>: có giá trị làm <b>bằng chứng</b> (Luật Giao dịch điện tử 2023: không bị phủ nhận chỉ vì ở dạng điện tử) nhưng <b>chưa bằng chữ ký số</b>. Số tiền lớn thì nên in ra để hai bên <b>ký tay thêm</b> trên giấy.</div>'
+   +'<div class="snai-tip">💾 File <b>💾 Sao lưu (.json)</b> chưa gồm nội dung hợp đồng — hợp đồng đã ký quan trọng thì bấm <b>🖨️ In / Lưu PDF</b> cất riêng một bản.</div>'};
+  var e21={c:'loi',t:'📝 Hợp đồng: khách không thấy, không ký được, không sửa được — xử lý sao',
+  k:'hop dong khong thay hop dong khach khong thay hop dong khong hien hop dong khong ky duoc hop dong khong sua duoc hop dong bi khoa can co mang ky ban truoc hop dong in thieu chu ky lai cham tra toi da 20',
+  go:'hdgMoTuTroLy',
+  a:'<b class="snai-h">📝 Hợp đồng — các trường hợp hay gặp</b><ul>'
+   +'<li><b>Khách nói không thấy hợp đồng trên link</b> — mở sổ khách → <b>📝 Hợp đồng</b> → xem dòng <b>Trên link của khách</b>: đang <b>ẨN</b> thì bấm để <b>HIỆN</b> (hoặc bấm <b>📤 Gửi link cho khách ký</b> là tự hiện). Khách mở link từ trước thì bảo khách <b>tải lại trang</b>. Máy nhân viên còn bản app cũ vừa ghi nợ cho khách đó cũng có thể làm link tạm mất hợp đồng — mở bảng 📝 Hợp đồng trên máy này (có mạng) là app tự gắn lại.</li>'
+   +'<li><b>Khách bấm ký mà báo ⚠️</b> — <i>"Vui lòng nhập họ tên"</i> · <i>"Hãy đọc kỹ rồi tick vào ô…"</i> · <i>"Bạn chưa ký"</i> ⇒ làm đúng chỗ còn thiếu. <i>"Lưu chữ ký chưa được…"</i> ⇒ máy khách mất mạng: bật Wi-Fi / 4G rồi bấm ký lại. Mở trong Zalo bị lỗi ⇒ bấm giữ vào link → <b>Mở bằng trình duyệt / Chrome</b>.</li>'
+   +'<li><b>Bấm ✏️ Sửa mà app báo 🔒 Khách ĐÃ KÝ</b> — đúng vậy: ký rồi là khóa để giữ bằng chứng. Đổi điều khoản ⇒ <b>🆕 Lập hợp đồng mới</b> (bản cũ vào 📚 Hợp đồng cũ).</li>'
+   +'<li><b>App báo 📶 Cần có mạng để kiểm tra khách đã ký chưa</b> — khách đã có link nên trước khi <b>sửa / xoá</b>, app phải hỏi máy chủ cho chắc khách chưa ký (tránh sửa nhầm bản khách vừa ký). Bật mạng rồi bấm lại.</li>'
+   +'<li><b>Bảng ghi ⚠️ Khách đã ký BẢN TRƯỚC</b> — khách ký đúng lúc bạn đang sửa. Bấm <b>↩️ Lấy lại đúng bản khách đã ký</b> để giữ đúng bằng chứng.</li>'
+   +'<li><b>Khách thấy dòng "Nội dung đã được cửa hàng sửa lại sau lần bạn ký trước"</b> — bạn đã sửa sau khi khách ký bản cũ ⇒ khách đọc lại và ký bản mới.</li>'
+   +'<li><b>Nút 📝 Hợp đồng chưa có ✅ dù khách đã ký</b> — mở bảng 📝 Hợp đồng một lần lúc có mạng là app cập nhật.</li>'
+   +'<li><b>Không thấy nút Lập / Sửa / Ký</b> — Sổ Nợ đang <b>KHÓA</b> 🔒 (hoặc máy nhân viên không được sửa công nợ): chỉ xem, in và gửi link được. Mở khóa: ⚙️ Cài đặt → 🔒 Khóa / mở khóa Sổ Nợ.</li>'
+   +'<li><b>In ra thiếu chữ ký khách</b> — mạng chậm nên ảnh chữ ký chưa tải xong: chờ ảnh hiện trong bảng rồi bấm 🖨️ lại.</li>'
+   +'<li><b>Ô lãi chậm trả báo "tối đa 20%/năm"</b> — Bộ luật Dân sự 2015 không cho thỏa thuận cao hơn. Để trống = không tính lãi.</li>'
+   +'<li><b>Lỡ chạm ra ngoài khi đang soạn</b> — phần đang soạn vẫn được giữ: bấm lại <b>📝 Hợp đồng</b> là thấy lại.</li></ul>'
+   +'<div class="snai-tip">🆘 Đang ở bảng 📝 Hợp đồng mà không biết bấm gì: bấm <b>🆘 Kẹt? Chỉ tôi</b> — trợ lý khoanh đúng nút.</div>'};
+  [e20,e21].forEach(function(e){ KB.push(e); e.id=KB.length-1; e._t=nrm(e.t); e._k=nrm(e.t+' '+e.k+' '+(CAT[e.c]?CAT[e.c].n:'')); e._a=nrm(strip(e.a)); });
+  /* chỉ thêm chữ HIỂN THỊ vào bài cũ — KHÔNG đổi chỉ mục tìm kiếm (x._a) của bài cũ ⇒ câu hỏi không nói tới hợp đồng tìm ra y hệt bản cũ */
+  var hdSua=function(t,f){ var x=byTitle(t); if(!x) return; var a=f(x.a); if(a&&a!==x.a) x.a=a; };
+  var hdNut='<button type="button" class="snai-sg" data-snaiq="'+e20.t+'">📝 Hợp đồng kèm link công nợ</button>';
+  hdSua('Có gì mới trong app? (tính năng vừa thêm)',function(a){
+    a=a.replace('<ul>\n<li>','<ul>\n<li><b>📝 Hợp đồng kèm link công nợ</b> — lập <b>hợp đồng mua bán (mua chịu – trả chậm)</b>, <b>giấy xác nhận nợ &amp; cam kết trả</b> hoặc tự soạn cho từng khách. Khách mở link công nợ là thấy hợp đồng, đọc rồi <b>ký tên ngay trên điện thoại</b>; ký rồi là khóa, in / lưu PDF có đủ chữ ký 2 bên. Không lập thì link vẫn như cũ.</li>\n<li>');
+    var i=a.indexOf('<button type="button" class="snai-sg"');
+    if(i>0) a=a.slice(0,i)+hdNut+'\n'+a.slice(i);
+    return a;
+  });
+  hdSua('Chia sẻ link công nợ cho khách xem',function(a){ return a+'<div class="snai-tip">📝 <b>Mới — kèm hợp đồng:</b> muốn khách ký <b>hợp đồng mua chịu</b> hoặc <b>giấy cam kết trả nợ</b> ngay trên link này thì mở sổ khách → bấm <b>📝 Hợp đồng</b>. Không lập thì link vẫn y như cũ.</div>'+hdNut; });
+  hdSua('Xin chữ ký xác nhận của khách',function(a){ return a+'<div class="snai-tip">📝 Cần chặt chẽ hơn chữ ký xác nhận nợ? Lập <b>hợp đồng</b> (nút <b>📝 Hợp đồng</b> trong sổ khách) — khách đọc toàn văn, tick đồng ý rồi ký; chữ ký gắn với đúng nội dung khách đã ký.</div>'+hdNut; });
+  hdSua('Khách bấm vào link nợ thì thấy những gì?',function(a){ return a+'<div class="snai-tip">📝 Bạn có lập <b>hợp đồng</b> và để <b>Hiện trên link</b> thì khách thấy thêm thẻ <b>📝 Hợp đồng</b> (dưới số nợ và mã QR, ngay trên 📋 Lịch sử giao dịch) để đọc và ký tên. Không lập / để ẩn thì không có thẻ này.</div>'; });
+  hdSua('Ảnh bằng chứng trên link nợ — nút 👁 Cho khách xem',function(a){ return a+'<div class="snai-tip">📝 Giống ảnh bằng chứng, <b>hợp đồng</b> cũng chỉ hiện trên link khi bạn lập và để <b>Hiện</b>: mở sổ khách → <b>📝 Hợp đồng</b>.</div>'+hdNut; });
+}catch(e){}
+try{
+  /* 👆 Chỉ tận tay: Làm hợp đồng cho khách ký */
+  if(typeof e20==='object'&&e20){
+    TOURS['hop-dong']={n:'Làm hợp đồng cho khách ký',e:e20.t,g:'sono',st:[S_SONO,S_CARD,
+      {s:'#modal-detail #hdg-nut',t:'Bấm nút <b>📝 Hợp đồng</b> ở hàng nút phía trên.',skip:function(){ return openM('#modal-hd.active'); },
+       miss:'Không thấy nút? Có thể máy chưa lên bản mới của app — tắt hẳn app rồi mở lại khi có mạng.'},
+      {s:'#modal-hd [data-hdg="tao"]',w:'see',opt:1,t:'Chọn 1 mẫu: <b>🤝 Hợp đồng mua bán</b> (mua chịu – trả chậm), <b>🧾 Giấy xác nhận nợ</b> hoặc <b>✍️ Tự soạn</b>.',
+       sm:'Khách đã có hợp đồng thì bảng hiện tình trạng ký — bấm <b>📤 Gửi link cho khách ký</b>.'}],
+      done:'Điền / kiểm lại thông tin 2 bên → bấm <b>💾 Lưu hợp đồng</b> → <b>✍️ Ký ngay</b> (Bên A) → <b>📤 Gửi link cho khách ký</b>. Kẹt chỗ nào bấm <b>🆘 Kẹt? Chỉ tôi</b>.'};
+    if(!TOURBY[e20.t]) TOURBY[e20.t]='hop-dong';
+    if(CTX&&CTX.sono){ if(CTX.sono.tr.indexOf('hop-dong')<0) CTX.sono.tr.push('hop-dong'); CTX.sono.q.push(e20.t); }
+  }
+}catch(e){}
+try{
+  /* 🆘 Kẹt? Chỉ tôi — sổ của khách: thêm lựa chọn 📝 (ngay sau "📤 Gửi link công nợ") */
+  var _hdKD=KTG['sn:modal-detail'];
+  if(_hdKD&&typeof _hdKD.st==='function'){
+    var _hdKDst=_hdKD.st;
+    _hdKD.st=function(L){
+      var s=_hdKDst.apply(this,arguments);
+      try{
+        if(s&&s.ch&&s.ch.length){
+          var c=ktCh('📝 Làm hợp đồng cho khách ký trên link',ktv('#hdg-nut',L.el),'Bấm <b>📝 Hợp đồng</b>.');
+          if(c){ var k=-1; for(var i=0;i<s.ch.length;i++){ if(/Gửi link công nợ/.test(s.ch[i].t)) k=i; } s.ch.splice(k>=0?k+1:s.ch.length,0,c); }
+        }
+      }catch(e){}
+      return s;
+    };
+  }
+  /* bảng 📝 Hợp đồng (#modal-hd): chỉ từng bước theo đúng trạng thái đang hiện */
+  KTG['sn:modal-hd']={n:'Bảng 📝 Hợp đồng',kb:'📝 Làm hợp đồng cho khách ký ngay trên link công nợ',st:function(L){
+    var r=L.el,b=ktq('#hdg-body',r),s=b?(b.getAttribute('data-st')||''):'';
+    if(s==='chua'){
+      var m=ktv('[data-hdg="tao"]',r);
+      if(m) return KS(m,'Chọn 1 mẫu để lập hợp đồng: '+ktB('🤝 Mua bán')+' · '+ktB('🧾 Xác nhận nợ')+' · '+ktB('✍️ Tự soạn')+'.','Không chắc thì chọn <b>🤝 Hợp đồng mua bán</b> (khách hay lấy hàng ghi nợ) hoặc <b>🧾 Giấy xác nhận nợ</b> (chốt số nợ, hẹn ngày trả).','click');
+      return KS(ktCancel(r),'Sổ Nợ đang khóa sửa nên chưa lập được hợp đồng.','Mở khóa: ⚙️ Cài đặt → 🔒 Khóa / mở khóa Sổ Nợ. Xem xong bấm <b>Đóng</b>.','info');
+    }
+    if(s==='soan'){
+      var fs=[['#hdg-a-ten','tên cửa hàng (Bên A)'],['#hdg-b-ten','họ tên khách (Bên B)'],['#hdg-sono','số nợ khách xác nhận'],['#hdg-cachtra','khách cam kết trả thế nào'],['#hdg-tieude','tên văn bản']];
+      for(var i=0;i<fs.length;i++){ var x=ktv(fs[i][0],r); if(x&&ktEmpty(x)) return KS(x,'Gõ '+ktB(fs[i][1])+' vào ô này.','Ô có dấu * là bắt buộc. Các ô khác không bắt buộc.','type'); }
+      if(!ktAck(L,'xem')) return KS(ktv('#hdg-noidung',r),'Đọc lại '+ktB('nội dung hợp đồng')+' app đã soạn sẵn theo các ô ở trên.','Muốn sửa câu chữ thì sửa thẳng trong ô. Đọc xong bấm <b>Xong, tiếp ▶</b>.','see',{ack:'xem'});
+      return KS(ktv('#hdg-luu',r),'Bấm '+ktB('💾 Lưu hợp đồng')+'.','Lưu xong thì ký Bên A rồi gửi link cho khách ký.','click');
+    }
+    if(s==='kya'){
+      var t=ktv('#hdg-kya-ten',r); if(t&&ktEmpty(t)) return KS(t,'Gõ '+ktB('họ tên người ký')+' (đại diện Bên A).','','type');
+      if(!ktAck(L,'ky')) return KS(ktv('#hdg-kya-pad',r),'Dùng ngón tay '+ktB('ký vào ô trắng')+' này.','Ký xấu thì bấm <b>Xoá</b> ký lại. Có chữ ký đã lưu thì bấm <b>↺ Dùng chữ ký đã lưu</b>. Xong bấm <b>Xong, tiếp ▶</b>.','see',{ack:'ky'});
+      return KS(ktv('[data-hdg="kya-luu"]',r),'Bấm '+ktB('✅ Lưu chữ ký Bên A')+'.','','click');
+    }
+    if(s==='choky'){
+      var gui=ktv('[data-hdg="gui"]',r),kya=ktv('[data-hdg="kya"]',r);
+      if(kya&&/Ký ngay/.test(kttx(kya))&&!ktAck(L,'kya')) return KS(kya,'Nên để '+ktB('Bên A (bạn) ký trước')+' — bấm ✍️ Ký ngay.','Không cần thì bấm <b>Bỏ qua ▶</b>.','click',{ack:'kya',ackT:'Bỏ qua ▶'});
+      if(gui) return KS(gui,'Bấm '+ktB('📤 Gửi link cho khách ký')+' → chọn Zalo (hoặc tin nhắn) → chọn tên khách → gửi.','Khách mở link là thấy hợp đồng, đọc rồi ký tên ngay trên điện thoại. Khách ký xong, bảng này tự hiện ✅.','click');
+    }
+    if(s==='daky') return KS(ktv('[data-hdg="in"]',r),'Khách đã ký ✅. Muốn giữ bản giấy / PDF thì bấm '+ktB('🖨️ In / Lưu PDF')+'.','Hợp đồng đã khóa, không sửa được. Đổi điều khoản thì bấm <b>🆕 Lập hợp đồng mới</b>.','click');
+    return KS(ktCancel(r),'Bảng 📝 Hợp đồng đang mở.','Xem xong bấm <b>Đóng</b>.','click');
+  }};
+}catch(e){}
+try{
+  /* tìm kiếm: câu nói tới hợp đồng / giấy cam kết / bên A – bên B ⇒ bài hợp đồng đứng đầu (có chữ lỗi ⇒ bài xử lý sự cố).
+     Câu KHÔNG nói tới ⇒ 2 bài mới không chen vào kết quả (giữ y như bản cũ) */
+  if(typeof e20==='object'&&e20&&e21){
+    var HD_CUM=/(^| )(hop dong|giay xac nhan no|giay xac nhan cong no|cam ket tra no|giay cam ket|ban cam ket|giao keo|khe uoc|ben a|ben b)( |$)/;
+    var HD_LOI=/(^| )(khong thay|khong hien|chua hien|khong ky duoc|ky khong duoc|khong luu duoc|loi|bao loi|bi khoa|khong sua duoc|sua khong duoc|khong xoa duoc|xoa khong duoc|can co mang|ban truoc|khong in duoc|in khong duoc|thieu chu ky|mat hop dong|bien mat|toi da|xu ly sao)( |$)/;
+    var hdLa=function(e){ return e===e20||e===e21; };
+    var hdCo=function(q){ return typeof window.hdgMo==='function'&&HD_CUM.test(nrm(String(q==null?'':q))); };
+    var hdVang=function(f){
+      var o=[]; [e20,e21].forEach(function(e){ var i=KB.indexOf(e); if(i>=0) o.push(i); });
+      if(!o.length) return f();
+      o.sort(function(a,b){ return b-a; }); var luu=o.map(function(i){ return [i,KB.splice(i,1)[0]]; });
+      try{ return f(); }finally{ luu.reverse().forEach(function(x){ KB.splice(x[0],0,x[1]); }); }
+    };
+    if(typeof _algSearch==='function'){ var _hdGoc=_algSearch; _algSearch=function(q){ return hdCo(q)?_hdGoc(q):hdVang(function(){ return _hdGoc(q); }); }; }
+    var _hdSearch=search;
+    search=function(q){
+      var r=_hdSearch(q);
+      try{
+        var s=String(q==null?'':q),nq=nrm(s);
+        if(!nq||byTitle(s.trim())) return r;
+        if(!hdCo(s)) return r?r.filter(function(x){ return !hdLa(x.e); }):r;
+        var e=HD_LOI.test(nq)?e21:e20,chon=null,i;
+        r=r||[];
+        for(i=0;i<r.length;i++){ if(r[i].e===e){ chon=r[i]; break; } }
+        if(!chon) chon={e:e,s:(r[0]?r[0].s:10)+1,h:1};
+        var out=[chon];
+        for(i=0;i<r.length;i++){ if(r[i]!==chon) out.push(r[i]); }
+        return out.slice(0,6);
+      }catch(x){ return r; }
+    };
+  }
+}catch(e){}
 /* ═════════════ 6) KHỞI ĐỘNG ═════════════ */
 function boot(){ try{ build(); }catch(e){} }
 if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',boot);
@@ -24309,7 +25536,7 @@ if (window.__RMT_READY__) return; window.__RMT_READY__ = true;
 try{
 
 /* ĐỔI CHUỖI NÀY CHO TRÙNG APP_BUILD MỖI LẦN DEPLOY (chỉ để hiện ở bảng quản trị) */
-var BUILD = '2026-11-05-SN24';
+var BUILD = '2026-11-06-SN25';
 var NHIP   = 6*3600*1000;          /* báo về tối đa 6 giờ 1 lần — khỏi tốn lượt ghi */
 var KEY_HB = 'rmt_hb_v2';          /* [QT7] nhịp báo về tính RIÊNG từng tài khoản (bản v1 tính chung cả máy) */
 var KEY_XEM= 'rmt_xem_v1';
