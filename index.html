@@ -755,7 +755,7 @@ import { getFirestore, initializeFirestore, persistentLocalCache, persistentMult
 import { getStorage, ref as _sref, uploadBytes, getDownloadURL, deleteObject, listAll }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
 
-const APP_BUILD = "2026-11-06-SN25"; // ⬆️ ĐỔI MỖI LẦN DEPLOY (đặt TRÙNG tên cache trong sw.js) — hiện ở ⚙️ Cài đặt để biết máy đã chạy bản mới chưa
+const APP_BUILD = "2026-11-06-SN26"; // ⬆️ ĐỔI MỖI LẦN DEPLOY (đặt TRÙNG tên cache trong sw.js) — hiện ở ⚙️ Cài đặt để biết máy đã chạy bản mới chưa
 const firebaseConfig = {
   apiKey: "AIzaSyA_kjQ-CdASRkf50Glz3kQajlkD5qGWC4k",
   authDomain: "so-no-cc57a.firebaseapp.com",
@@ -13014,6 +13014,15 @@ body.la-nv #pos-screen [data-act="ca-cancel"]{display:none!important}
   //    Dò bản mới bằng ETag/Last-Modified của ./index.html (đổi 1 byte cũng biết) + service worker "waiting".
   //    Phát hiện -> chỉ tự tải lại khi app RẢNH: không giỏ/đơn giữ/phiếu nhập/modal, không thao tác 10s,
   //    không ô nhập nào đang có chữ. Nếu đang bận -> hiện thanh "Cập nhật ngay" để chủ shop tự quyết.
+  /* [SN26 2026-11-06] SỬA LỖI "ĐÃ CẬP NHẬT RỒI MÀ THANH 'ĐÃ CÓ BẢN MỚI' CỨ HIỆN HOÀI":
+     • ETag đổi mà NỘI DUNG không đổi (đưa file bất kỳ lên GitHub; 2 máy chủ đệm trả 2 ETag khác nhau; lúc có W/ lúc không)
+       ⇒ bản cũ tưởng có bản mới ⇒ báo + tải lại vòng vòng (mỗi lần tải lại trọn trang ~1 MB).
+       Nay ETag khác chỉ là "nghi": app đọc SỐ PHIÊN BẢN (APP_BUILD) của trang trên máy chủ, KHÁC bản đang chạy mới báo.
+     • Bấm ✕ thì thanh ẩn thật (trước đây 3 giây sau hiện lại). App vẫn tự cập nhật khi rảnh như cũ.
+     • Bấm "Cập nhật ngay" luôn tải lại (trước đây có lúc nút đứng "Đang cập nhật…" mà không tải).
+     • Lần đầu cài service worker (máy mới / vừa xoá dữ liệu) không còn báo nhầm "có bản mới".
+     • Đã tự tải lại 2 lần (30 phút) mà vẫn chưa lên bản mới ⇒ thôi tự tải, chỉ hiện thanh.
+     • Máy chủ đệm còn bản CŨ hơn bản đang chạy (vd SN25 < SN26, lúc vừa đưa bản mới lên) ⇒ không lùi bản. */
   var swReg=null, pendingUpdate=false, refreshing=false, applying=false, baseTag=null;
   var lastActivity=Date.now();
   ['pointerdown','keydown','touchstart','mousedown','click','input','wheel','scroll'].forEach(function(ev){
@@ -13041,7 +13050,39 @@ body.la-nv #pos-screen [data-act="ca-cancel"]{display:none!important}
     try { if (typeof window.__skBusy==='function' && window.__skBusy()) return true; } catch(e){}
     return false;
   }
+  /* [SN26] SỐ PHIÊN BẢN ĐANG CHẠY = chuỗi APP_BUILD ghi trong chính trang này (đọc chữ của thẻ script,
+     không phải chờ script đó chạy). Không tìm thấy ⇒ null ⇒ chạy y như bản cũ (chỉ so ETag). */
+  var BUILD_RE=/\bAPP_BUILD\s*=\s*["'`]([^"'`\r\n]{1,80})["'`]/;
+  var MY_BUILD=(function(){
+    try {
+      var ss=document.getElementsByTagName('script');
+      for (var i=0;i<ss.length;i++){ var m=BUILD_RE.exec(ss[i].textContent||''); if (m) return m[1]; }
+    } catch(e){}
+    return null;
+  })();
+  var TAGS_KEY='sono_upd_tags_v1:'+(function(){ try{ return location.pathname; }catch(e){ return ''; } })();
+  function loadKnown(){ try { var o=JSON.parse(localStorage.getItem(TAGS_KEY)||'null'); if (o && o.b===MY_BUILD && Array.isArray(o.t)) return o.t.filter(function(x){ return typeof x==='string' && x.length<200; }).slice(-8); } catch(e){} return []; }
+  function saveKnown(){ try { if (MY_BUILD) localStorage.setItem(TAGS_KEY, JSON.stringify({ b:MY_BUILD, t:knownTags.slice(-8) })); } catch(e){} }
+  var knownTags=(MY_BUILD ? loadKnown() : []), tagB={}, nTagB=0, serverBuild=null, barDismissed=false, verifying=0;   /* ETag đã xác minh = đúng bản đang chạy (nhớ qua các lần mở app) */
+  var hadCtl=false; try { hadCtl=!!(navigator.serviceWorker && navigator.serviceWorker.controller); } catch(e){}
+  var UPD_KEY='sono_upd_try_v1';
+  function normTag(t){ return t ? (String(t).replace(/^\s*W\//i,'').trim() || null) : null; }
+  function isKnown(t){ return knownTags.indexOf(t)>=0; }
+  function addKnown(t){ if (t && knownTags.indexOf(t)<0){ knownTags.push(t); if (knownTags.length>8) knownTags.shift(); saveKnown(); } }
+  function hasTagB(t){ return !!t && Object.prototype.hasOwnProperty.call(tagB, t); }
+  function setTagB(t,b){ if (t && b && !hasTagB(t)){ if (++nTagB>16){ tagB={}; nTagB=1; } tagB[t]=b; } }   /* ETag đã biết chắc là bản mới nào */
+  function buildOfHtml(t){                      /* APP_BUILD đầu tiên nằm TRONG thẻ script — đúng cách đọc bản đang chạy */
+    var re=new RegExp(BUILD_RE.source,'g'), m;
+    while ((m=re.exec(t))){ if (t.lastIndexOf('<script', m.index) > t.lastIndexOf('</script', m.index)) return m[1]; }
+    return '';
+  }
+  function soBan(b){ var m=/([A-Za-z]+)(\d+)\s*$/.exec(String(b||'')); return m ? { p:m[1].toUpperCase(), n:Number(m[2]) } : null; }
+  function cuHon(a,b){ var x=soBan(a), y=soBan(b); return !!(x && y && x.p===y.p && x.n<y.n); }   /* a CŨ hơn b (vd …-SN25 < …-SN26) */
+  function readTry(){ try { var o=JSON.parse(sessionStorage.getItem(UPD_KEY)||'null'); return (o && typeof o==='object') ? o : null; } catch(e){ return null; } }
+  function writeTry(o){ try { if (o) sessionStorage.setItem(UPD_KEY, JSON.stringify(o)); else sessionStorage.removeItem(UPD_KEY); } catch(e){} }
+  (function(){ var tr=readTry(); if (tr && (tr.f!==MY_BUILD || !(Math.abs(Date.now()-(Number(tr.t)||0))<1800000))) writeTry(null); })();   /* đã lên bản khác / quá 30 phút ⇒ xoá đếm */
   function showUpdateBar(){
+    if (barDismissed) return;                    /* [SN26] đã bấm ✕ ⇒ không hiện lại lần báo này */
     if (document.getElementById('pwaUpdateBar')) return;
     var bar=document.createElement('div');
     bar.id='pwaUpdateBar'; bar.setAttribute('role','status');
@@ -13058,7 +13099,7 @@ body.la-nv #pos-screen [data-act="ca-cancel"]{display:none!important}
     };
     var x=document.createElement('button'); x.textContent="\u2715"; x.setAttribute('aria-label','\u0110\u1ec3 sau');
     x.style.cssText="background:transparent;color:#fff;border:none;font-size:16px;line-height:1;cursor:pointer;padding:4px 2px;";
-    x.onclick=function(){ bar.remove(); };
+    x.onclick=function(){ barDismissed=true; bar.remove(); };   /* [SN26] ✕ = để sau: ẩn thật, app vẫn tự cập nhật khi rảnh */
     bar.appendChild(t); bar.appendChild(b); bar.appendChild(x);
     document.body.appendChild(bar);
   }
@@ -13070,9 +13111,14 @@ body.la-nv #pos-screen [data-act="ca-cancel"]{display:none!important}
   }
   function applyUpdate(force){
     if (applying) return;
-    try { if (baseTag && sessionStorage.getItem('sono_applied_tag')===baseTag && !(swReg&&swReg.waiting)){ pendingUpdate=false; return; } } catch(e){}
+    /* [SN26] BỎ khoá cũ 'sono_applied_tag' (khoá theo ETag lúc mở app): chỉ cần 1 lần tải lại mà ETag không đổi
+       (vd lần đầu cài service worker) là khoá chặn LUÔN mọi lần cập nhật sau trong phiên, kể cả bấm "Cập nhật ngay".
+       Nay: đã TỰ tải lại 2 lần trong 30 phút mà máy vẫn chạy đúng bản cũ ⇒ thôi tự tải, chỉ hiện thanh.
+       Bấm "Cập nhật ngay" (force) thì luôn tải lại. */
+    var waiting=!!(swReg && swReg.waiting), tr=readTry();
+    if (!force && !waiting && tr && tr.f===MY_BUILD && tr.n>=2 && Math.abs(Date.now()-tr.t)<1800000){ showUpdateBar(); return; }
     applying=true; flashApplying();
-    try { if (baseTag) sessionStorage.setItem('sono_applied_tag', baseTag); } catch(e){}
+    writeTry({ f:MY_BUILD, n:((tr && tr.f===MY_BUILD) ? (Number(tr.n)||0) : 0)+1, t:Date.now() });
     var did=false;
     if (swReg && swReg.waiting){ try { swReg.waiting.postMessage('SKIP_WAITING'); did=true; } catch(e){} }
     setTimeout(function(){ if(!refreshing){ refreshing=true; window.location.reload(); } }, did?1200:250);
@@ -13092,6 +13138,48 @@ body.la-nv #pos-screen [data-act="ca-cancel"]{display:none!important}
       .then(function(r){ return (r && r.ok) ? readTag(r) : null; })
       .catch(function(){ return null; });
   }
+  /* [SN26] ETag KHÁC chỉ là "nghi có bản mới" ⇒ tải trang trên máy chủ về (đi qua sw.js: mạng trước + no-cache ⇒
+     file không đổi thì máy chủ trả 304, gần như 0 byte; có đổi thì tải 1 lần, lát tải lại trang dùng luôn bản này)
+     rồi đọc APP_BUILD:
+       • KHÁC bản đang chạy ⇒ có bản mới THẬT ⇒ báo / tự cập nhật như cũ.
+       • TRÙNG ⇒ không có gì mới ⇒ nhớ ETag đó (nhớ cả qua lần mở app sau), không báo. Chỉ nhớ ETag vừa dò khi nó TRÙNG
+         ETag của trang vừa tải (mạng chập chờn mà sw.js trả bản lưu sẵn trong máy thì không tính).
+       • Tải hỏng ⇒ lượt sau dò lại. */
+  function verifyTag(tag){
+    if (verifying && Math.abs(Date.now()-verifying)<90000) return;
+    if (!MY_BUILD){ pendingUpdate=true; maybeApply(); return; }           /* không đọc được bản đang chạy ⇒ như bản cũ */
+    verifying=Date.now();
+    fetch(SELF_URL, {cache:'no-cache', credentials:'same-origin'})
+      .then(function(r){
+        if (!r || !r.ok) return null;
+        var gt=normTag(readTag(r));
+        return r.text().then(function(t){ return { b:buildOfHtml(t||''), gt:gt }; });
+      })
+      .catch(function(){ return null; })
+      .then(function(v){
+        verifying=0;
+        if (!v){ _chkLuc=0; return; }
+        if (v.b && v.b!==MY_BUILD){                                      /* CÓ BẢN MỚI THẬT */
+          setTagB(v.gt, v.b);
+          if (cuHon(v.b, MY_BUILD)) return;                              /* máy chủ đệm còn bản CŨ hơn (vừa đưa bản mới lên) ⇒ bỏ qua, không lùi bản */
+          serverBuild=v.b; pendingUpdate=true; maybeApply(); return;
+        }
+        if (v.b===MY_BUILD){                                             /* không có gì mới */
+          if (v.gt) addKnown(v.gt);
+          if (v.gt===tag) addKnown(tag);
+          return;
+        }
+        if (v.gt===tag){ pendingUpdate=true; maybeApply(); }             /* trang không còn APP_BUILD (bản sau đổi cách ghi) ⇒ tin ETag như cũ */
+      });
+  }
+  function seeTag(tag){                          /* [SN26] xét 1 ETag vừa dò được (lượt dò định kỳ + lượt dò lúc mở app) */
+    if (!tag) return;
+    if (baseTag===null) baseTag=tag;
+    if (!MY_BUILD){ if (tag!==baseTag){ pendingUpdate=true; } return; }   /* không đọc được số phiên bản ⇒ y như bản cũ (so ETag) */
+    if (isKnown(tag)) return;                      /* ETag lạ — kể cả ETag lúc mở app (có thể của máy chủ đệm khác bản vừa tải) ⇒ xác minh */
+    if (hasTagB(tag)){ if (!cuHon(tagB[tag], MY_BUILD)){ serverBuild=tagB[tag]; pendingUpdate=true; } return; }   /* đã xác minh rồi ⇒ khỏi tải lại; bản cũ hơn ⇒ bỏ qua */
+    verifyTag(tag);                                /* ETag lạ ⇒ đọc số phiên bản trên máy chủ rồi mới báo */
+  }
   /* [QM1 2026-10-02] GIÃN NHỊP DÒ BẢN MỚI. Trước đây mỗi máy đang mở cứ 60 giây (và mỗi lần chạm lại app)
      là hỏi máy chủ web 2 lượt. Đông khách thì riêng việc "hỏi" đã ngốn hết hạn mức của nơi đặt web.
      Nay hỏi thật tối đa 10 phút 1 lần cho mỗi máy; trong khoảng đó chỉ xét bản mới đã nằm chờ sẵn trong máy.
@@ -13108,16 +13196,16 @@ body.la-nv #pos-screen [data-act="ca-cancel"]{display:none!important}
     if (swReg && swReg.update){ try { var _up=swReg.update(); if (_up && _up.catch) _up.catch(function(){}); } catch(e){} }
     fetchTag().then(function(tag){
       if (!tag) _chkLuc=0;          /* [QM1] dò hỏng ⇒ lượt sau dò lại ngay */
-      if (tag){
-        if (baseTag===null) baseTag=tag;
-        else if (tag!==baseTag) pendingUpdate=true;
-      }
+      seeTag(normTag(tag));         /* [SN26] W/"…" và "…" là một; ETag lạ ⇒ xác minh số phiên bản rồi mới báo */
       if (swReg && swReg.waiting) pendingUpdate=true;
       maybeApply();
     });
   }
   if ('serviceWorker' in navigator){
     navigator.serviceWorker.addEventListener('controllerchange', function(){
+      /* [SN26] Trang mở lúc CHƯA có service worker (máy mới, vừa xoá dữ liệu) ⇒ đây chỉ là lần cài đầu:
+         trang đang chạy đã là bản mới nhất ⇒ không báo, không tải lại. */
+      if (!hadCtl && !applying){ hadCtl=true; return; }
       pendingUpdate=true;
       if (appBusy()){ showUpdateBar(); return; }
       if (!refreshing){ refreshing=true; window.location.reload(); }
@@ -13137,8 +13225,8 @@ body.la-nv #pos-screen [data-act="ca-cancel"]{display:none!important}
   }
   window.addEventListener('load', function(){
     fetchTag().then(function(tag){
-      if (tag) baseTag=tag;
-      try { var ap=sessionStorage.getItem('sono_applied_tag'); if (ap && baseTag && ap!==baseTag) sessionStorage.removeItem('sono_applied_tag'); } catch(e){}
+      seeTag(normTag(tag));         /* [SN26] ETag lúc mở app cũng phải xác minh (1 lần cho mỗi bản; thường 304 ≈ 0 byte) */
+      try { sessionStorage.removeItem('sono_applied_tag'); } catch(e){}   /* [SN26] khoá cũ của bản ≤ SN25 — không dùng nữa */
     });
   });
   setInterval(checkForUpdate, 60000);
@@ -25536,7 +25624,7 @@ if (window.__RMT_READY__) return; window.__RMT_READY__ = true;
 try{
 
 /* ĐỔI CHUỖI NÀY CHO TRÙNG APP_BUILD MỖI LẦN DEPLOY (chỉ để hiện ở bảng quản trị) */
-var BUILD = '2026-11-06-SN25';
+var BUILD = '2026-11-06-SN26';
 var NHIP   = 6*3600*1000;          /* báo về tối đa 6 giờ 1 lần — khỏi tốn lượt ghi */
 var KEY_HB = 'rmt_hb_v2';          /* [QT7] nhịp báo về tính RIÊNG từng tài khoản (bản v1 tính chung cả máy) */
 var KEY_XEM= 'rmt_xem_v1';
