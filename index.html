@@ -755,7 +755,7 @@ import { getFirestore, initializeFirestore, persistentLocalCache, persistentMult
 import { getStorage, ref as _sref, uploadBytes, getDownloadURL, deleteObject, listAll }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
 
-const APP_BUILD = "2026-11-06-SN27"; // ⬆️ ĐỔI MỖI LẦN DEPLOY (đặt TRÙNG tên cache trong sw.js) — hiện ở ⚙️ Cài đặt để biết máy đã chạy bản mới chưa
+const APP_BUILD = "2026-11-06-SN29"; // ⬆️ ĐỔI MỖI LẦN DEPLOY (đặt TRÙNG tên cache trong sw.js) — hiện ở ⚙️ Cài đặt để biết máy đã chạy bản mới chưa
 const firebaseConfig = {
   apiKey: "AIzaSyA_kjQ-CdASRkf50Glz3kQajlkD5qGWC4k",
   authDomain: "so-no-cc57a.firebaseapp.com",
@@ -13959,6 +13959,84 @@ if (!window.__ERR_LOG__) {
   } catch (_) {}
   const seen = new Set(); let sent = 0; const MAX = 25;
   const cut = (s, n) => String(s == null ? "" : s).slice(0, n);
+  /* [SN28] HỘP ĐEN — mỗi lần lỗi gửi kèm: SỐ BẢN app (APP_BUILD), 12 thao tác gần nhất trên màn hình, màn đang mở, có mạng
+     không, mở app được bao lâu… để app Quản trị (tab 🩺 Sức khoẻ) chỉ ĐÚNG chỗ hỏng, đúng bản. Máy chủ (Rules) mà chối dạng
+     mới ⇒ tự ghi lại ĐÚNG dạng cũ như bản SN27 ⇒ không bao giờ mất log. Chỉ ĐỌC màn hình: không ghi chữ khách gõ (ô nhập chỉ
+     ghi loại ô), không đụng dữ liệu, không đổi thao tác nào của app. Hỏng gì trong hộp đen thì log vẫn gửi y như cũ. */
+  window.__ERR_HOPDEN__ = 1;
+  window.__ERR_HOPDEN_LAY__ = function(){ try{ return { build: hdBan(), bc: HD_BC.slice(-12), ctx: hdCtx() }; }catch(e){ return null; } };   /* [SN29] hộp thư hỗ trợ lấy kèm hộp đen */
+  const HD_T0 = Date.now(), HD_BC = [];
+  let _hdBan = null, _hdChoi = false;
+  const hd2 = n => (n < 10 ? "0" : "") + n;
+  function hdBan() {
+    if (_hdBan !== null) return _hdBan;
+    _hdBan = "";
+    try { const re = /\bAPP_BUILD\s*=\s*["'`]([^"'`\r\n]{1,80})["'`]/, ss = document.getElementsByTagName("script");
+      for (let i = 0; i < ss.length; i++) { const m = re.exec(ss[i].textContent || ""); if (m) { _hdBan = m[1]; break; } } } catch (_) {}
+    return _hdBan;
+  }
+  function hdThem(s) {
+    try { const d = new Date(); HD_BC.push(hd2(d.getHours()) + ":" + hd2(d.getMinutes()) + ":" + hd2(d.getSeconds()) + " " + String(s).slice(0, 100));
+      if (HD_BC.length > 12) HD_BC.shift(); } catch (_) {}
+  }
+  function hdTa(t) {
+    if (!t || !t.closest) return "";
+    const b = t.closest('button,a,[onclick],[data-act],[role="button"],select,input,textarea,label,summary,.tab-btn');
+    if (!b) return "";
+    const tag = b.tagName.toLowerCase(); let s = tag;
+    if (b.id) s += "#" + String(b.id).slice(0, 40);
+    const oc = b.getAttribute("onclick");
+    if (oc) { const m = /^\s*(?:return\s+)?([\w$.]+)\s*\(/.exec(oc); s += " [" + (m ? m[1] : oc.replace(/\s+/g, " ").slice(0, 30)) + "]"; }
+    const da = b.getAttribute("data-act"); if (da) s += " {" + String(da).slice(0, 30) + "}";
+    if (tag === "input" || tag === "select" || tag === "textarea") s += " (" + (b.type || tag) + (b.name ? " " + String(b.name).slice(0, 20) : "") + ")";
+    else if (tag === "button" || tag === "a" || tag === "summary" || b.classList.contains("tab-btn")) {
+      const x = String(b.textContent || "").replace(/\s+/g, " ").trim(); if (x) s += " “" + x.slice(0, 28) + (x.length > 28 ? "…" : "") + "”"; }
+    return s;
+  }
+  try {
+    addEventListener("click", function (e) { try { const s = hdTa(e.target); if (s) hdThem("bấm " + s); } catch (_) {} }, { capture: true, passive: true });
+    addEventListener("change", function (e) { try { const t = e.target; if (t && (t.tagName === "SELECT" || (t.type === "checkbox" || t.type === "radio"))) hdThem("đổi " + hdTa(t)); } catch (_) {} }, { capture: true, passive: true });
+    addEventListener("online", function () { hdThem("có mạng lại"); });
+    addEventListener("offline", function () { hdThem("MẤT MẠNG"); });
+    addEventListener("popstate", function () { hdThem("nút Trở về"); });
+    document.addEventListener("visibilitychange", function () { hdThem(document.visibilityState === "hidden" ? "ẩn app" : "mở lại app"); });
+  } catch (_) {}
+  function hdCtx() {
+    const c = { up: Math.round((Date.now() - HD_T0) / 1000) };
+    try { c.on = navigator.onLine !== false; } catch (_) {}
+    try { c.an = document.visibilityState === "hidden"; } catch (_) {}
+    try { c.cai = !!((window.matchMedia && matchMedia("(display-mode: standalone)").matches) || navigator.standalone === true); } catch (_) {}
+    try { c.w = innerWidth | 0; c.h = innerHeight | 0; } catch (_) {}
+    try { if (navigator.deviceMemory) c.mem = Number(navigator.deviceMemory) || 0; } catch (_) {}
+    try { c.nv = !!(document.body && document.body.classList.contains("la-nv")); } catch (_) {}
+    try { const m = [];
+      const lv = document.getElementById("locked-view"); if (lv && lv.style.display && lv.style.display !== "none") m.push("locked-view");
+      document.querySelectorAll("#pos-screen.on,.modal-overlay.active,.sk-modal.on").forEach(function (x) { if (x.id && m.length < 6) m.push(x.id); });
+      c.man = (m.join(",") || "màn chính").slice(0, 120); } catch (_) {}
+    return c;
+  }
+  function hdExt(d, rec) {
+    const x = { build: hdBan().slice(0, 60), bc: HD_BC.slice(-12), ctx: hdCtx() };
+    if (d && d.k) x.k = String(d.k).slice(0, 20);
+    /* mã shop (app này chưa từng gán __ERR_UID ⇒ log cũ không biết khách nào) — chỉ đi kèm phần mới; bị chối thì dạng cũ y SN27 */
+    if (rec && !rec.uid) { try { const u = window.SKMOD && window.SKMOD.core && window.SKMOD.core.uid(); if (u) x.uid = String(u).slice(0, 80); } catch (_) {} }
+    return x;
+  }
+  function hdGhi(rec, ext) {
+    const col = collection(db, "error_logs");
+    if (ext && !_hdChoi) {
+      let p = null;
+      try { p = addDoc(col, Object.assign({}, rec, ext)); } catch (_) { p = null; }   /* thư viện chối ngay ⇒ ghi dạng cũ ở dưới */
+      if (p) {
+        p.catch(function (e) {
+          if (!e || String(e.code || "").indexOf("permission-denied") < 0) return;
+          addDoc(col, rec).then(function () { _hdChoi = true; }).catch(function () {});   /* máy chủ chỉ nhận dạng cũ ⇒ cả phiên ghi dạng cũ */
+        });
+        return;
+      }
+    }
+    addDoc(col, rec).catch(() => {});
+  }
   function send(type, d) {
     try {
       if (!db || sent >= MAX) return;
@@ -13972,7 +14050,8 @@ if (!window.__ERR_LOG__) {
       if (d.line != null && isFinite(d.line)) rec.line = d.line | 0;
       if (d.col  != null && isFinite(d.col))  rec.col  = d.col | 0;
       if (window.__ERR_UID) rec.uid = cut(window.__ERR_UID, 80);
-      addDoc(collection(db, "error_logs"), rec).catch(() => {});
+      let ext = null; try { ext = hdExt(d, rec); } catch (_) { ext = null; }   /* [SN28] hộp đen */
+      hdGhi(rec, ext);
     } catch (_) {}
   }
   /* ===== LỌC NHIỄU NGOÀI (nâng cấp) — mã do trình duyệt-trong-app (Zalo/FB/TikTok/
@@ -14000,6 +14079,39 @@ if (!window.__ERR_LOG__) {
     send("promise", { message: (r && r.message) || String(r), stack: r && r.stack });
   });
   window.baoLoi = (err, ghiChu) => send("manual", { message: (ghiChu ? ghiChu + ": " : "") + ((err && err.message) || String(err)), stack: err && err.stack });
+  /* [SN28] LỖI BỊ NUỐT — app tự bắt lỗi rồi console.error (khách không thấy báo gì) ⇒ cũng gửi về, tối đa 8 lần mỗi phiên.
+     Chỉ khi có ĐỐI TƯỢNG LỖI thật (có stack); chữ suông thì bỏ. Nhật ký riêng của thư viện Firebase thì bỏ, trừ
+     "Uncaught Error in snapshot listener" (nghe dữ liệu mà không có hàm bắt lỗi ⇒ màn có thể đứng hình). */
+  let _hdCeN = 0, _hdCeTrong = false;
+  function hdConsole(a) {
+    let err = null; const chu = [];
+    for (let i = 0; i < a.length; i++) { const x = a[i];
+      if (x && typeof x === "object" && typeof x.message === "string" && typeof x.stack === "string") { if (!err) err = x; }
+      else if (typeof x === "string") chu.push(x);
+      else if (x != null && typeof x !== "object" && typeof x !== "function") chu.push(String(x)); }
+    if (!err) return;
+    const dau = chu.join(" ").replace(/^\s*\[\d{4}-\d\d-\d\dT[^\]]{0,30}\]\s*/, "").replace(/\s+/g, " ").trim().slice(0, 140);   /* chỉ bỏ DẤU GIỜ đầu dòng của thư viện; giữ tên khối như [asp] */
+    const msg = (dau ? dau + (/[:：]$/.test(dau) ? " " : ": ") : "") + (err.message || String(err));
+    const s = msg + " " + (err.stack || "");
+    if (/@firebase\//i.test(s) && !/Uncaught Error in snapshot listener/i.test(s)) return;
+    if (_nhieuNgoai(msg, err.stack)) return;
+    _hdCeN++;
+    send("manual", { message: msg, stack: err.stack, k: "console" });
+  }
+  try {
+    const _ce = console.error;
+    if (typeof _ce === "function" && !_ce.__hd) {
+      const boc = function () {
+        try { _ce.apply(console, arguments); } catch (_) {}
+        if (_hdCeTrong || _hdCeN >= 8) return;
+        _hdCeTrong = true;
+        try { hdConsole(arguments); } catch (_) {}
+        _hdCeTrong = false;
+      };
+      boc.__hd = 1;
+      console.error = boc;
+    }
+  } catch (_) {}
 }
 </script>
 <!-- ===== TÍNH NĂNG ĐỔI MẬT KHẨU (drop-in, không đụng code cũ) — namespace dmk- ===== -->
@@ -23985,6 +24097,98 @@ try{
     };
   }
 }catch(e){}
+/* ═════════════ 5p) [SN29] 💬 HỎI · BÁO LỖI CHO NHÀ CUNG CẤP + 🛠 TÍNH NĂNG ĐANG BẢO TRÌ / CẦN CẬP NHẬT — 2 bài mới + "Có gì mới" + 🆘 bảng hộp thư + tìm đúng bài ═════════════
+   Chỉ BỔ SUNG lúc chạy (không sửa bài gốc): 2 bài đặt CUỐI KB · câu hỏi nói tới nhắn / hỏi / báo lỗi cho chủ phần mềm (chủ phần mềm, bên bán app),
+   hộp thư hỗ trợ ⇒ bài hộp thư đứng đầu · câu nói tới "bảo trì", "cần cập nhật bản mới", "dùng tạm" ⇒ bài bảo trì đứng đầu ·
+   câu KHÔNG nói tới ⇒ tìm trong KB tạm vắng 2 bài mới (kết quả + ngưỡng điểm y hệt bản cũ). */
+try{
+  var e23={c:'bd',t:'💬 Hỏi · báo lỗi cho chủ phần mềm — nhắn ngay trong app',
+  k:'hoi chu phan mem nhan chu phan mem nhan tin chu phan mem lien he chu phan mem bao loi cho chu phan mem gui cau hoi cho chu phan mem tra loi cua chu phan mem hop thu ho tro nhan tin ho tro hoi bao loi',
+  go:'qtxHoTro',
+  a:'<b class="snai-h">💬 Hỏi · báo lỗi cho chủ phần mềm</b>'
+   +'<b>👉 Dùng khi nào:</b> app báo lỗi, làm mãi không được, cần hỏi cách dùng, hoặc <b>đã chuyển khoản gia hạn mà app chưa mở</b> — nhắn thẳng cho chủ phần mềm ngay trong app, khỏi phải tìm số điện thoại.'
+   +'<b>🪜 Cách nhắn:</b><ol>'
+   +'<li>Bấm <b>☰</b> (góc trên) → <b>💬 Hỏi · báo lỗi cho chủ phần mềm</b>. Đang ở màn tài khoản hết hạn / bị khoá thì bấm dòng <b>💬 Nhắn chủ phần mềm</b> ngay dưới các nút.</li>'
+   +'<li>Bấm <b>＋ Gửi câu hỏi mới</b>.</li>'
+   +'<li>Viết rõ <b>đang làm gì thì gặp chuyện gì</b> — ví dụ: <i>"bấm Thanh toán thì báo lỗi, không lưu được đơn"</i>.</li>'
+   +'<li>Để nguyên dấu tick <b>Gửi kèm thông tin máy</b> (giúp tìm lỗi nhanh hơn) → bấm <b>📨 Gửi cho chủ phần mềm</b>.</li></ol>'
+   +'<b>📬 Khi chủ phần mềm trả lời:</b><ul>'
+   +'<li>Dưới đáy màn hình hiện thanh xanh <b>"💬 Chủ phần mềm đã trả lời câu hỏi của bạn"</b> → bấm <b>Xem</b>.</li>'
+   +'<li>Hoặc mở lại <b>☰ → 💬 Hỏi · báo lỗi</b>: câu nào có trả lời sẽ ghi <b>💬 Có trả lời</b>. Bấm vào để đọc và nhắn tiếp ngay trong đó.</li>'
+   +'<li><b>⏳ Chờ trả lời</b> = chủ phần mềm chưa đọc · <b>✅ Đã xong</b> = đã giải quyết (còn vướng thì cứ nhắn tiếp).</li></ul>'
+   +'<div class="snai-ok">🔒 <b>Gửi kèm thông tin máy</b> chỉ gồm: số bản app, loại máy, màn đang mở, vài nút vừa bấm và lỗi vừa gặp. <b>Không</b> gửi danh sách khách, số nợ hay số tiền.</div>'
+   +'<div class="snai-tip">📱 Máy nhân viên cũng nhắn được — chủ shop thấy được mọi câu hỏi của shop mình. Gấp quá thì gọi <b>0977823979</b> (cũng là Zalo).</div>'};
+  var e24={c:'loi',t:'🛠 App báo "đang bảo trì" hoặc hiện màn "Cần cập nhật bản mới"',
+  k:'dang bao tri tinh nang dang bao tri bao tri app bao tri tam tat tinh nang tam thoi khong dung duoc can cap nhat ban moi man can cap nhat bat cap nhat dung tam 30 phut thu lai khong tai duoc ban moi may chua tai duoc ban moi',
+  a:'<b class="snai-h">🛠 "Đang bảo trì" · "Cần cập nhật bản mới"</b>'
+   +'<b>👉 1. Bấm vào một tính năng mà hiện hộp "🛠 … đang bảo trì":</b><ul>'
+   +'<li>Chủ phần mềm đang <b>tạm tắt đúng tính năng đó</b> để sửa cho tốt hơn (ví dụ in hoá đơn, AI làm giúp, camera…). Các phần khác của app <b>vẫn dùng bình thường</b>, dữ liệu vẫn còn nguyên.</li>'
+   +'<li>Không cần làm gì — sửa xong chủ phần mềm mở lại là dùng được ngay, <b>không cần tải lại app</b>.</li>'
+   +'<li>Camera thông minh đang bảo trì thì màn Bán hàng tự dùng <b>máy quét cũ</b> — vẫn quét mã được.</li>'
+   +'<li>Cần gấp: bấm <b>💬 Nhắn chủ phần mềm</b> ngay trong hộp đó.</li></ul>'
+   +'<b>👉 2. Hiện màn "⬆️ Cần cập nhật bản mới":</b><ol>'
+   +'<li>Bản app trên máy đã cũ và có lỗi — bấm <b>⬆️ Cập nhật ngay</b>, chờ vài giây là xong. Dữ liệu vẫn còn nguyên.</li>'
+   +'<li>Màn này <b>chỉ hiện lúc máy rảnh</b> (không có giỏ hàng, đơn giữ, phiếu nhập hay ô đang gõ dở) — không bao giờ cắt ngang lúc đang bán.</li>'
+   +'<li>Bấm rồi mà vẫn hiện <b>"Máy này chưa tải được bản mới"</b>: kiểm tra mạng (Wi-Fi / 4G) rồi bấm <b>🔄 Thử lại</b>. Vẫn không được thì <b>vuốt tắt hẳn app</b> rồi mở lại.</li>'
+   +'<li>Đang cần bán gấp: bấm <b>Dùng tạm 30 phút</b> — 30 phút sau app nhắc lại.</li></ol>'
+   +'<div class="snai-tip">📴 Mất mạng thì app <b>không</b> hiện màn cập nhật — cứ bán bình thường, có mạng lại mới cập nhật.</div>'};
+  [e23,e24].forEach(function(e){ KB.push(e); e.id=KB.length-1; e._t=nrm(e.t); e._k=nrm(e.t+' '+e.k+' '+(CAT[e.c]?CAT[e.c].n:'')); e._a=nrm(strip(e.a)); });
+  /* chỉ thêm chữ HIỂN THỊ vào "Có gì mới" — KHÔNG đổi chỉ mục tìm kiếm (x._a) của bài cũ */
+  var htSua=function(t,f){ var x=byTitle(t); if(!x) return; var a=f(x.a); if(a&&a!==x.a) x.a=a; };
+  var htNut='<button type="button" class="snai-sg" data-snaiq="'+e23.t+'">💬 Hỏi · báo lỗi cho chủ phần mềm</button>';
+  htSua('App tự báo lỗi về cho chủ phần mềm',function(a){ return a+'<div class="snai-tip">💬 <b>Mới:</b> muốn nhắn thêm cho chủ phần mềm (lỗi gì, đang làm gì) thì bấm <b>☰ → 💬 Hỏi · báo lỗi cho chủ phần mềm</b> — trả lời hiện ngay trong app.</div>'; });
+  htSua('Có gì mới trong app? (tính năng vừa thêm)',function(a){
+    a=a.replace('<ul>\n<li>','<ul>\n<li><b>💬 Hỏi · báo lỗi cho chủ phần mềm</b> — bấm <b>☰ → 💬 Hỏi · báo lỗi</b> để nhắn thẳng cho chủ phần mềm ngay trong app (kể cả lúc tài khoản hết hạn, đã chuyển khoản mà chưa mở). App tự gửi kèm thông tin máy để tìm lỗi nhanh; có trả lời là hiện thanh <b>💬</b> dưới đáy màn hình. Tính năng nào đang sửa thì app báo <b>🛠 đang bảo trì</b> thay vì báo lỗi.</li>\n<li>');
+    var i=a.indexOf('<button type="button" class="snai-sg"');
+    if(i>0) a=a.slice(0,i)+htNut+'\n'+a.slice(i);
+    return a;
+  });
+}catch(e){}
+try{
+  /* 🆘 Kẹt? Chỉ tôi — bảng 💬 Hỏi · báo lỗi (#qtx-ht): danh sách · soạn câu mới · trong cuộc trò chuyện */
+  if(typeof e23==='object'&&e23){
+    KTG['sn:qtx-ht']={n:'Bảng 💬 Hỏi · báo lỗi cho chủ phần mềm',kb:e23.t,st:function(L){
+      var r=L.el, ta=ktv('#qtx-noi',r), gui=ktv('[data-q="gui"]',r), moi=ktv('[data-q="moi"]',r);
+      if(ta&&ktEmpty(ta)) return KS(ta,'Gõ '+ktB('điều bạn cần hỏi / lỗi bạn gặp')+' vào ô này.','Viết rõ đang làm gì thì gặp chuyện gì — ví dụ: <i>"bấm Thanh toán thì báo lỗi"</i>.','type');
+      if(ta&&gui) return KS(gui,'Bấm '+ktB(gui.textContent||'📨 Gửi')+'.','Chủ phần mềm trả lời ngay trong bảng này; app báo bằng thanh 💬 dưới đáy màn hình.','click');
+      if(moi) return KS(moi,'Bấm '+ktB('＋ Gửi câu hỏi mới')+' để nhắn cho chủ phần mềm.','Câu đã gửi nằm trong danh sách — bấm vào để đọc trả lời.','click');
+      return KS(ktv('[data-q="dong"]',r),'Bảng hỏi chủ phần mềm đang mở.','Xem xong bấm <b>Đóng</b>.','click');
+    }};
+  }
+}catch(e){}
+try{
+  /* tìm kiếm: câu nói tới hỏi / nhắn / báo lỗi cho chủ phần mềm ⇒ bài hộp thư đầu · nói tới bảo trì / cần cập nhật bản mới ⇒ bài bảo trì đầu.
+     Câu KHÔNG nói tới ⇒ tìm trong KB tạm vắng 2 bài mới (y như bản cũ) */
+  if(typeof e23==='object'&&e23&&typeof e24==='object'&&e24){
+    var HT_CUM=/(^| )(hoi chu phan mem|nhan chu phan mem|nhan tin chu phan mem|nhan tin cho chu phan mem|lien he chu phan mem|bao loi cho chu phan mem|gui loi cho chu phan mem|chat voi chu phan mem|hoi bao loi|hop thu ho tro|nhan tin ho tro)( |$)/;
+    var BT_CUM=/(^| )(bao tri|dang bao tri|man can cap nhat|chua tai duoc ban moi|dung tam 30 phut)( |$)/;
+    var htCo=function(q){ var n=nrm(String(q==null?'':q)); return typeof window.qtxHoTro==='function'&&(HT_CUM.test(n)||BT_CUM.test(n)); };
+    var htVang=function(f){
+      var o=[]; [e23,e24].forEach(function(e){ var i=KB.indexOf(e); if(i>=0) o.push(i); });
+      if(!o.length) return f();
+      o.sort(function(a,b){ return b-a; }); var luu=o.map(function(i){ return [i,KB.splice(i,1)[0]]; });
+      try{ return f(); }finally{ luu.reverse().forEach(function(x){ KB.splice(x[0],0,x[1]); }); }
+    };
+    if(typeof _algSearch==='function'){ var _htGoc=_algSearch; _algSearch=function(q){ return htCo(q)?_htGoc(q):htVang(function(){ return _htGoc(q); }); }; }
+    var _htSearch=search;
+    search=function(q){
+      var s=String(q==null?'':q);
+      if(!htCo(s)) return htVang(function(){ return _htSearch(q); });
+      var r=_htSearch(q);
+      try{
+        var nq=nrm(s);
+        if(!nq||byTitle(s.trim())) return r;
+        var e=BT_CUM.test(nq)&&!HT_CUM.test(nq)?e24:e23, chon=null, i;
+        r=r||[];
+        for(i=0;i<r.length;i++){ if(r[i].e===e){ chon=r[i]; break; } }
+        if(!chon) chon={e:e,s:(r[0]?r[0].s:10)+1,h:1};
+        var out=[chon];
+        for(i=0;i<r.length;i++){ if(r[i]!==chon) out.push(r[i]); }
+        return out.slice(0,6);
+      }catch(x){ return r; }
+    };
+  }
+}catch(e){}
 /* ═════════════ 6) KHỞI ĐỘNG ═════════════ */
 function boot(){ try{ build(); }catch(e){} }
 if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',boot);
@@ -26104,7 +26308,7 @@ if (window.__RMT_READY__) return; window.__RMT_READY__ = true;
 try{
 
 /* ĐỔI CHUỖI NÀY CHO TRÙNG APP_BUILD MỖI LẦN DEPLOY (chỉ để hiện ở bảng quản trị) */
-var BUILD = '2026-11-06-SN27';
+var BUILD = '2026-11-06-SN29';
 var NHIP   = 6*3600*1000;          /* báo về tối đa 6 giờ 1 lần — khỏi tốn lượt ghi */
 var KEY_HB = 'rmt_hb_v2';          /* [QT7] nhịp báo về tính RIÊNG từng tài khoản (bản v1 tính chung cả máy) */
 var KEY_XEM= 'rmt_xem_v1';
@@ -26292,6 +26496,570 @@ setTimeout(chay, 1500);
 })();
 </script>
 <!-- ═══════════ HẾT: NHẬN LỆNH TỪ BẢNG QUẢN TRỊ ═══════════ -->
+<!-- ═══════════════ [SN29] 📡 ĐIỀU KHIỂN TỪ XA 2 — công tắc khẩn cấp · buộc cập nhật · đo tính năng · hộp thư hỗ trợ (drop-in · namespace qtx-) ═══════════════
+     Ghép đôi với tab 🩺 Sức khoẻ → 🧰 Vận hành của app Quản Trị 5.1.
+     • CÔNG TẮC KHẨN CẤP: chủ phần mềm tạm tắt 1 tính năng đang lỗi (cả hệ: billing/config.tat · riêng 1 khách:
+       accounts/{uid}.remote.tat) ⇒ bấm vào tính năng đó chỉ hiện "🛠 đang bảo trì". KHÔNG có công tắc nào ⇒ không bọc hàm nào,
+       không chặn gì — app chạy y như cũ. Camera thông minh tắt ⇒ màn Bán hàng tự dùng máy quét cũ (cờ SNCAM.tat có sẵn).
+     • BUỘC CẬP NHẬT: bản đang chạy CŨ HƠN bản tối thiểu (billing/config.banToiThieu · remote.banToiThieu) ⇒ chờ lúc app RẢNH
+       (không giỏ hàng / đơn giữ / phiếu nhập, không ô nhập đang có chữ, 15 giây không chạm) mới hiện màn "Cần cập nhật".
+       Tải lại 2 lần trong 30 phút vẫn cũ ⇒ cho "Dùng tạm 30 phút". Mất mạng ⇒ không chặn. Số bản không đọc được ⇒ không chặn.
+     • ĐO TÍNH NĂNG: đếm số lần bấm vào từng tính năng trên máy này (chỉ con số — không ghi nội dung, tên khách, số tiền);
+       tối đa 3 giờ ghi 1 lần (ẩn app thì 30 phút) vào users/{shop}/sono_dung/{mã máy}, giữ 30 ngày.
+     • HỘP THƯ HỖ TRỢ: ☰ menu / màn khoá / Trợ lý → "💬 Hỏi · báo lỗi" — khách nhắn thẳng cho chủ phần mềm, tự kèm hộp đen
+       (số bản, 12 thao tác vừa bấm, lỗi vừa gặp, máy gì). Chủ phần mềm trả lời ⇒ thanh "💬 Có trả lời" (đi qua kênh remote
+       có sẵn — không tốn thêm lượt đọc). Kho hotro/{mã} + hotro/{mã}/tin (Firestore Rules Z8).
+     • Dùng lại đúng Firebase của app qua window.SKMOD.fb; Auth thì import() đúng bản 10.12.0 app đã nạp (không tải thêm).
+     • Bọc try/catch toàn bộ: hỏng gì cũng không ảnh hưởng app.
+     ═══════════════════════════════════════════════════════════════════════════ -->
+<script>
+(function(){
+try{ if (new URLSearchParams(location.search).get('view')) return; }catch(e){}   /* trang khách xem nợ / hoá đơn: không chạy */
+if (window.__QTX_READY__) return; window.__QTX_READY__ = true;
+try{
+
+var KEY_XEM = 'qtx_xem_v1';        /* đã xem: trả lời hộp thư (id·n) */
+var KEY_DEM = 'qtx_dem_v1';        /* số đếm tính năng theo tài khoản: { uid: { d:{ngày:{khoá:n}}, v, g, gui } } */
+var KEY_CN  = 'qtx_capnhat_v1';    /* lượt tải lại để lên bản tối thiểu: { min, n, t, tam } */
+var NHIP_GHI = 3*3600e3, NHIP_AN = 30*60e3, GIU_NGAY = 30;
+var AUTH_URL = 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+var HOTLINE = '0977823979';
+
+function SK(){ return window.SKMOD||null; }
+function FB(){ var s=SK(); return (s&&s.fb)||null; }
+function uid(){ try{ var s=SK(); return s?s.core.uid():null; }catch(e){ return null; } }
+function laNV(){ try{ return !!(document.body && document.body.classList.contains('la-nv')); }catch(e){ return false; } }
+function LS(k){ try{ var o=JSON.parse(localStorage.getItem(k)||'{}'); return (o&&typeof o==='object')?o:{}; }catch(e){ return {}; } }
+function LSet(k,v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+function hai(n){ return (n<10?'0':'')+n; }
+function ngayCua(d){ d=d||new Date(); return d.getFullYear()+'-'+hai(d.getMonth()+1)+'-'+hai(d.getDate()); }
+function gioCua(ms){ try{ var d=new Date(ms); return hai(d.getHours())+':'+hai(d.getMinutes())+' '+hai(d.getDate())+'/'+hai(d.getMonth()+1); }catch(e){ return ''; } }
+function msOf(v){ try{ if(!v) return 0; if(typeof v.toMillis==='function') return v.toMillis(); if(typeof v.seconds==='number') return v.seconds*1000; var n=Number(v); return isFinite(n)?n:0; }catch(e){ return 0; } }
+
+/* Số bản đang chạy = APP_BUILD ghi trong chính trang này (y cách khối tự cập nhật SN26) */
+var BUILD_RE=/\bAPP_BUILD\s*=\s*["'`]([^"'`\r\n]{1,80})["'`]/;
+var BAN=(function(){ try{ var ss=document.getElementsByTagName('script'); for(var i=0;i<ss.length;i++){ var m=BUILD_RE.exec(ss[i].textContent||''); if(m) return m[1]; } }catch(e){} return ''; })();
+function soBan(b){ var m=/^(\d{4})-(\d\d)-(\d\d)-[A-Za-z]*(\d+)/.exec(String(b||'').trim()); return m?[Number(m[1]+m[2]+m[3]), Number(m[4])]:null; }
+function banCuHon(a, b){ var x=soBan(a), y=soBan(b); if(!x||!y) return false; return x[0]<y[0] || (x[0]===y[0] && x[1]<y[1]); }   /* không hiểu số bản ⇒ KHÔNG ép */
+
+/* ───────── DANH MỤC TÍNH NĂNG ─────────
+   chon: chỗ bấm bị chặn khi tính năng tắt · dem: chỗ bấm được đếm là 1 lần dùng (mặc định = chon)
+   ham / api: hàm gọi từ chỗ khác (trợ lý, AI…) — CHỈ bọc khi tính năng đang tắt, bọc rồi thì trong suốt khi bật lại. */
+var TN = {
+  ai:    { ten:'🤖 AI làm giúp', chon:'#alg-bar,#alg-bar-pos,#alg-bar-aib', ham:['ALG_MO'], api:[['ALG','mo'],['ALG','lam'],['ALG','noi']] },
+  aib:   { ten:'🧠 Cố vấn kinh doanh', chon:'#pos-screen .sk-tab[data-v="aib"]' },
+  cam:   { ten:'📷 Camera thông minh', chon:'[data-sncb],.snc-searchcam', cam:true },
+  in:    { ten:'🖨️ In hoá đơn · bảng kê', chon:'[onclick*="snOpenPrint("],[onclick*="snDoPrint("],[onclick*="skPrintInvoiceA4("],[onclick*="snPrintStatementBT("],[onclick*="snBtConnectUI("]',
+           ham:['snOpenPrint','snDoPrint','skPrintInvoiceA4','snPrintStatementBT','snPrintDoc','snBtConnectUI'] },
+  hd:    { ten:'📝 Hợp đồng', chon:'#hdg-nut', ham:['hdgMo','hdgMoTuTroLy','hdinMoTuTroLy'] },
+  link:  { ten:'🔗 Link công nợ · nhắc nợ · chữ ký', chon:'[onclick*="generateShareLink("],[onclick*="remindCustomer("],[onclick*="openSignatures("]', ham:['generateShareLink','remindCustomer','openSignatures'] },
+  pos:   { ten:'🛒 Bán hàng', chon:'[onclick*="openPOS("]', ham:['openPOS'] },
+  online:{ ten:'🛍️ Nhắn tin khách · bán online', chon:'#tnk-fab,#tnk-sec,#lcd-sec', dem:'#tnk-fab' },
+  tb:    { ten:'🔔 Thông báo đẩy', chon:'#sntb-thu,#sntb-moi' },
+  sl:    { ten:'💾 Sao lưu qua email', chon:'#slm-btn' },
+  file:  { ten:'📊 Xuất Excel · sao lưu / nhập file', chon:'[onclick*="exportExcel("],[onclick*="backupJSON("],[onclick*="backupFullJSON("],[onclick*="runImport("],[onclick*="runFullRestore("],[onclick*="runDailyBackup("]',
+           ham:['exportExcel','backupJSON','backupFullJSON','runImport','runFullRestore','runDailyBackup'] },
+  gt:    { ten:'🎁 Giới thiệu bạn bè', chon:'[data-snbh="invite"],[data-gt="1"]', ham:['moGioiThieu'] },
+  xtk:   { ten:'🗑️ Xoá tài khoản', chon:'[data-snbh="xoatk"],[data-xtk]', ham:['xtkMo'] },
+  troly: { ten:'💡 Trợ lý hướng dẫn', chon:'#snai-fab', ham:['moTroLy'] },
+  hotro: { ten:'💬 Hỏi · báo lỗi cho chủ phần mềm', chon:'[data-qtx="hotro"]', ham:['qtxHoTro'] }
+};
+/* chỉ ĐẾM (không bao giờ chặn) — việc thường ngày */
+var DEM = {
+  ghi_gd:'[onclick*="saveTx("]', mo_gd:'[onclick*="openTx("]', khach_moi:'[onclick*="saveNewCustomer("]', sua_khach:'[onclick*="saveEditCust("]',
+  xem_khach:'[onclick*="openDetail("]', cai_dat:'[onclick*="openSettings("]', cong_cu:'[onclick*="openTools("]',
+  ban_tm:'[data-act="pay-cash"]', ban_no:'[data-act="pay-debt"]', ban_qr:'[data-act="pay-qr"]', nhap_hang:'[data-act="np-save"]',
+  tra_hang:'[data-act="ret-do"]', don_giu:'[data-act="held-list"]', quet_ma:'[data-act="scan-sell"],[data-act="prod-scan"],[data-act="np-scan"]'
+};
+window.QTX_TN = TN;
+
+/* ───────── CSS ───────── */
+var CSS=''
++'#qtx-mask,#qtx-cn{position:fixed;inset:0;z-index:2147483420;background:rgba(10,20,18,.62);display:flex;align-items:center;justify-content:center;'
++'padding:18px;font-family:system-ui,-apple-system,Roboto,sans-serif;box-sizing:border-box}'
++'#qtx-cn{z-index:2147483430;background:rgba(6,30,24,.94)}'
++'#qtx-mask .c,#qtx-cn .c{background:#fff;border-radius:16px;max-width:420px;width:100%;padding:18px;box-shadow:0 20px 60px rgba(0,0,0,.4);box-sizing:border-box}'
++'#qtx-mask h4,#qtx-cn h4{margin:0 0 8px;font-size:17px;font-weight:800;color:#b8560f}'
++'#qtx-cn h4{color:#0a5f4a}'
++'#qtx-mask p,#qtx-cn p{margin:0 0 12px;font-size:14.5px;line-height:1.6;color:#243b53;white-space:pre-wrap;word-break:break-word}'
++'#qtx-mask .ly{background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:8px 10px;font-size:13.5px;color:#7c2d12;margin:0 0 12px}'
++'.qtx-b{display:block;width:100%;border:none;border-radius:11px;padding:13px;font:800 14.5px system-ui,-apple-system,Roboto,sans-serif;cursor:pointer;'
++'background:#0d7a5f;color:#fff;margin-top:8px;box-sizing:border-box;text-align:center}'
++'.qtx-b.phu{background:#eef4f1;color:#0a5f4a}.qtx-b.nhat{background:transparent;color:#5b6b78;font-weight:700;padding:9px}'
++'.qtx-b[disabled]{opacity:.55;cursor:default}'
++'#qtx-tin{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(14px + env(safe-area-inset-bottom,0px));z-index:2147483390;'
++'display:flex;align-items:center;gap:8px;max-width:calc(100vw - 24px);width:400px;background:#1d4ed8;color:#fff;border-radius:14px;'
++'padding:10px 10px 10px 14px;font:700 13.5px/1.4 system-ui,-apple-system,Roboto,sans-serif;box-shadow:0 10px 30px rgba(0,0,0,.35);box-sizing:border-box}'
++'#qtx-tin .t{flex:1;min-width:0}#qtx-tin button{flex:none;border:none;border-radius:9px;padding:8px 11px;font:800 13px system-ui;cursor:pointer;background:#fff;color:#1d4ed8}'
++'#qtx-tin .x{background:transparent;color:#fff;font-size:16px;padding:4px 6px}'
++'#qtx-ht{position:fixed;inset:0;z-index:2147483410;background:rgba(10,20,18,.55);display:flex;align-items:flex-end;justify-content:center;'
++'font-family:system-ui,-apple-system,Roboto,sans-serif}'
++'#qtx-ht .p{background:#f6faf8;width:100%;max-width:560px;height:min(92vh,760px);border-radius:18px 18px 0 0;display:flex;flex-direction:column;'
++'box-shadow:0 -10px 40px rgba(0,0,0,.3);overflow:hidden}'
++'@media (min-width:700px){#qtx-ht{align-items:center}#qtx-ht .p{border-radius:18px}}'
++'#qtx-ht .hd{display:flex;align-items:center;gap:8px;padding:14px 14px 10px;background:#0d7a5f;color:#fff}'
++'#qtx-ht .hd b{flex:1;font-size:16px;font-weight:800}#qtx-ht .hd button{border:none;background:rgba(255,255,255,.18);color:#fff;border-radius:9px;'
++'padding:7px 10px;font:800 13px system-ui;cursor:pointer}'
++'#qtx-ht .bd{flex:1;overflow:auto;padding:12px 12px 4px;-webkit-overflow-scrolling:touch}'
++'#qtx-ht .ft{padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px));background:#fff;border-top:1px solid #e2e9e5}'
++'#qtx-ht textarea{width:100%;min-height:74px;max-height:180px;box-sizing:border-box;border:1.5px solid #cfe0d8;border-radius:12px;padding:10px;'
++'font:15px/1.5 system-ui,-apple-system,Roboto,sans-serif;resize:vertical}'
++'#qtx-ht .ve{background:#fff;border:1px solid #e2e9e5;border-radius:12px;padding:11px 12px;margin:0 0 8px;cursor:pointer}'
++'#qtx-ht .ve b{display:block;font-size:14.5px;color:#14322a}#qtx-ht .ve small{display:block;color:#5b6b78;font-size:12.5px;margin-top:3px}'
++'#qtx-ht .ve.moi{border-color:#1d4ed8;box-shadow:0 0 0 2px rgba(29,78,216,.15)}'
++'#qtx-ht .tg{display:inline-block;font-size:11.5px;font-weight:800;border-radius:20px;padding:2px 8px;margin-left:6px;vertical-align:1px}'
++'#qtx-ht .tg.cho{background:#fff7ed;color:#b45309}#qtx-ht .tg.tl{background:#dbeafe;color:#1d4ed8}#qtx-ht .tg.xong{background:#dcfce7;color:#166534}'
++'#qtx-ht .bb{max-width:86%;margin:0 0 8px;padding:9px 11px;border-radius:14px;font-size:14.5px;line-height:1.55;white-space:pre-wrap;word-break:break-word}'
++'#qtx-ht .bb.k{margin-left:auto;background:#0d7a5f;color:#fff;border-bottom-right-radius:4px}'
++'#qtx-ht .bb.q{background:#fff;color:#14322a;border:1px solid #e2e9e5;border-bottom-left-radius:4px}'
++'#qtx-ht .bb small{display:block;font-size:11px;opacity:.75;margin-top:3px}'
++'#qtx-ht .goi{font-size:12.5px;color:#5b6b78;margin:6px 2px 0;line-height:1.5}#qtx-ht .goi a{color:#0a5f4a;font-weight:800}'
++'#qtx-ht label.ck{display:flex;gap:8px;align-items:flex-start;font-size:13px;color:#425466;margin:8px 0 0;line-height:1.45}'
++'#qtx-ht .bao{font-size:13.5px;border-radius:10px;padding:9px 11px;margin:0 0 10px}#qtx-ht .bao.x{background:#fef2f2;color:#991b1b}'
++'#qtx-ht .bao.t{background:#ecfdf5;color:#065f46}#qtx-ht .trong{text-align:center;color:#5b6b78;font-size:14px;padding:26px 10px}';
+function css(){
+  if (document.getElementById('qtx-css')) return;
+  var s=document.createElement('style'); s.id='qtx-css'; s.textContent=CSS; (document.head||document.documentElement).appendChild(s);
+}
+
+/* ───────── TRẠNG THÁI CÔNG TẮC (đọc từ máy chủ) ───────── */
+var TAT_CHUNG={}, TAT_RIENG={}, MIN_CHUNG='', MIN_RIENG='', HT_REMOTE=null;
+function layTat(x){
+  var o={}; if(!x || typeof x!=='object') return o;
+  for (var k in x){ if (!Object.prototype.hasOwnProperty.call(x,k) || !TN[k]) continue;
+    var v=x[k]; if (v===true) o[k]={}; else if (v && typeof v==='object' && v.tat!==false) o[k]=v; }
+  return o;
+}
+function layBan(v){ return (typeof v==='string' && v.length<=80) ? v.trim() : ''; }
+function tatCua(k){ return TAT_RIENG[k] || TAT_CHUNG[k] || null; }
+function dangTat(k){ return !!tatCua(k); }
+
+/* ───────── HỘP BÁO "ĐANG BẢO TRÌ" ───────── */
+var _hopLuc=0;
+function dongHop(){ var e=document.getElementById('qtx-mask'); if(e) e.remove(); }
+function hopBaoTri(k){
+  if (Date.now()-_hopLuc < 1200) return; _hopLuc=Date.now();
+  dem('bao_tri');
+  try{
+    css(); dongHop();
+    var t=TN[k]||{ten:'Tính năng này'}, a=tatCua(k)||{}, ly=(typeof a.ly==='string')?a.ly.slice(0,300):'';
+    var d=document.createElement('div'); d.id='qtx-mask'; d.className='modal-overlay active';   /* nút Trở về của điện thoại tự nhận & bấm "Đã hiểu" */
+    d.innerHTML='<div class="c" role="alertdialog" aria-modal="true"><h4>🛠 '+esc(t.ten)+' đang bảo trì</h4>'
+      +'<p>Chủ phần mềm đang tạm tắt tính năng này để sửa cho tốt hơn. Bạn dùng lại sau ít phút nhé — các phần khác của app vẫn dùng bình thường, dữ liệu vẫn còn nguyên.</p>'
+      +(ly?'<div class="ly">'+esc(ly)+'</div>':'')
+      +'<button type="button" class="qtx-b" data-q="ok">Đã hiểu</button>'
+      +(k!=='hotro'&&!dangTat('hotro')?'<button type="button" class="qtx-b nhat" data-q="ht">💬 Nhắn chủ phần mềm</button>':'')+'</div>';
+    (document.body||document.documentElement).appendChild(d);
+    d.addEventListener('click', function(e){
+      var b=(e.target&&e.target.closest)?e.target.closest('[data-q]'):null;
+      if (!b){ if (e.target===d) dongHop(); return; }
+      dongHop(); if (b.getAttribute('data-q')==='ht') moHoTro();
+    }, false);
+  }catch(e){}
+}
+
+/* ───────── CHẶN + ĐẾM khi bấm (pha bắt sớm: chạy TRƯỚC mọi nút của app) ───────── */
+function khopTN(t){
+  for (var k in TN){ var c=TN[k].chon; if(!c) continue; var el=null; try{ el=t.closest(c); }catch(e){ el=null; } if (el) return k; }
+  return '';
+}
+window.addEventListener('click', function(e){
+  try{
+    var t=e.target; if(!t || !t.closest) return;
+    if (t.closest('#qtx-mask,#qtx-cn,#qtx-ht,#qtx-tin')) return;
+    var k=khopTN(t);
+    if (k){
+      if (dangTat(k)){ e.preventDefault(); e.stopImmediatePropagation(); e.stopPropagation(); hopBaoTri(k); return; }
+      var dc=TN[k].dem; var dm=true; if (dc){ try{ dm=!!t.closest(dc); }catch(_){ dm=false; } }
+      if (dm) demNhip(k);
+    }
+    for (var d in DEM){ var x=null; try{ x=t.closest(DEM[d]); }catch(_){ x=null; } if (x){ demNhip(d); break; } }
+  }catch(_){}
+}, true);
+
+/* bọc hàm — CHỈ khi tính năng đang tắt; bọc rồi thì trong suốt (tính năng bật lại là chạy như thường) */
+function bocHam(ten, k){
+  try{
+    var f=window[ten]; if (typeof f!=='function' || f.__qtx) return;
+    var bd=false; try{ bd=(f.constructor && f.constructor.name==='AsyncFunction'); }catch(_){}
+    var g=function(){ if (dangTat(k)){ hopBaoTri(k); return bd?Promise.resolve():undefined; } return f.apply(this, arguments); };
+    g.__qtx=1; g.__goc=f; window[ten]=g;
+  }catch(e){}
+}
+function bocApi(ten, m, k){
+  try{
+    var o=window[ten]; if (!o || typeof o!=='object' || typeof o[m]!=='function' || o[m].__qtx) return;
+    var f=o[m];
+    var g=function(){ if (dangTat(k)){ hopBaoTri(k); return undefined; } return f.apply(this, arguments); };
+    g.__qtx=1; g.__goc=f; o[m]=g;
+  }catch(e){}
+}
+var _camDoi=false;
+function apCam(){
+  try{
+    var C=window.SNCAM; if (!C || typeof C!=='object') return;
+    if (dangTat('cam')){ if (C.tat!==true){ C.tat=true; _camDoi=true; } }
+    else if (_camDoi){ C.tat=false; _camDoi=false; }
+  }catch(e){}
+}
+function apDung(){
+  try{
+    for (var k in TN){ if (!dangTat(k)) continue;
+      (TN[k].ham||[]).forEach(function(h){ bocHam(h, k); });
+      (TN[k].api||[]).forEach(function(a){ bocApi(a[0], a[1], k); }); }
+    apCam();
+    xetCapNhat();
+    xetTraLoi();
+  }catch(e){}
+}
+setInterval(function(){ var co=false; for (var k in TN) if (dangTat(k)){ co=true; break; } if (co) apDung(); }, 4000);   /* hàm nạp muộn (module) */
+
+/* ───────── ĐO TÍNH NĂNG ───────── */
+var _demLuc={};
+function demNhip(k){ var n=Date.now(); if (_demLuc[k] && n-_demLuc[k]<1500) return; _demLuc[k]=n; dem(k); }   /* bấm dồn trong 1,5 giây = 1 lần */
+function dem(k){
+  try{
+    var u=uid(); if(!u) return;
+    var all=LS(KEY_DEM), o=all[u]; if(!o || typeof o!=='object') o={};
+    var d=(o.d && typeof o.d==='object')?o.d:{}, n=ngayCua();
+    var h=(d[n] && typeof d[n]==='object')?d[n]:{};
+    h[k]=Math.min(999999, (Number(h[k])||0)+1); d[n]=h; o.d=d; o.v=(Number(o.v)||0)+1;
+    all[u]=o;
+    var ks=Object.keys(all); if (ks.length>6){ ks.slice(0, ks.length-6).forEach(function(x){ if(x!==u) delete all[x]; }); }
+    LSet(KEY_DEM, all);
+  }catch(e){}
+}
+function catNgay(d){
+  var o={}, ks=Object.keys(d||{}).filter(function(x){ return /^\d{4}-\d\d-\d\d$/.test(x); }).sort().slice(-GIU_NGAY);
+  ks.forEach(function(x){ var h=d[x], c={}; if (!h || typeof h!=='object') return;
+    Object.keys(h).slice(0, 60).forEach(function(k){ if (/^[a-z_]{2,20}$/.test(k)) c[k]=Math.max(0, Math.min(999999, Math.floor(Number(h[k])||0))); });
+    o[x]=c; });
+  return o;
+}
+function maMay(){
+  try{
+    var o=LS('rmt_dev_v1');
+    if (typeof o.id!=='string' || !/^[a-z0-9]{8,40}$/.test(o.id)){
+      o.id=(Date.now().toString(36)+Math.random().toString(36).slice(2,12)).replace(/[^a-z0-9]/g,'').slice(0,40);
+      if (!Array.isArray(o.uids)) o.uids=[];
+      LSet('rmt_dev_v1', o);
+    }
+    return o.id;
+  }catch(e){ return ''; }
+}
+var _dangGhi=false;
+function ghiDem(lyDo){
+  try{
+    if (_dangGhi || navigator.onLine===false) return;
+    var f=FB(), u=uid(); if (!f || !u) return;
+    var all=LS(KEY_DEM), o=all[u]; if (!o || !o.d) return;
+    var v=Number(o.v)||0; if (v<=(Number(o.g)||0)) return;               /* không có số mới */
+    var cach=Date.now()-(Number(o.gui)||0);
+    if (cach < (lyDo==='an' ? NHIP_AN : NHIP_GHI)) return;
+    var dev=maMay(); if (!dev) return;
+    _dangGhi=true;
+    var data={ v:1, la: laNV()?'nv':'chu', b: String(BAN||'').slice(0,60), dev: dev, at: f.serverTimestamp(), atMs: Date.now(), d: catNgay(o.d) };
+    f.setDoc(f.doc(f.db,'users',u,'sono_dung',dev), data).then(function(){
+      var a=LS(KEY_DEM); if (a[u]){ a[u].g=v; a[u].gui=Date.now(); a[u].d=catNgay(a[u].d); LSet(KEY_DEM,a); }
+    }).catch(function(){
+      var a=LS(KEY_DEM); if (a[u]){ a[u].gui=Date.now(); LSet(KEY_DEM,a); }   /* bị chối (hết hạn…) ⇒ 3 giờ sau thử lại, không làm phiền khách */
+    }).then(function(){ _dangGhi=false; }, function(){ _dangGhi=false; });
+  }catch(e){ _dangGhi=false; }
+}
+document.addEventListener('visibilitychange', function(){ if (document.visibilityState==='hidden') ghiDem('an'); });
+setInterval(function(){ ghiDem('nhip'); }, 10*60e3);
+
+/* lỗi vừa gặp (gửi kèm hộp thư) */
+var LOI_GAN=[];
+function nhoLoi(m){ try{ var s=String(m||'').replace(/\s+/g,' ').slice(0,200); if(!s) return; LOI_GAN.push(gioCua(Date.now()).slice(0,5)+' '+s); if (LOI_GAN.length>5) LOI_GAN.shift(); dem('loi'); }catch(e){} }
+window.addEventListener('error', function(e){ try{ if (e && e.message) nhoLoi(e.message+(e.lineno?' (dòng '+e.lineno+')':'')); }catch(_){} }, true);
+window.addEventListener('unhandledrejection', function(e){ try{ var r=e&&e.reason; nhoLoi((r&&r.message)||String(r)); }catch(_){} });
+
+/* ───────── BUỘC CẬP NHẬT ───────── */
+var _cham=Date.now();
+['pointerdown','keydown','touchstart','wheel','input'].forEach(function(ev){ window.addEventListener(ev, function(){ _cham=Date.now(); }, { passive:true, capture:true }); });
+function oNhapCoChu(){
+  try{ var ns=document.querySelectorAll('input,textarea');
+    for (var i=0;i<ns.length;i++){ var el=ns[i]; if (el.offsetParent===null) continue; var t=(el.type||'').toLowerCase();
+      if (t==='hidden'||t==='checkbox'||t==='radio'||t==='button'||t==='submit'||t==='range'||t==='file') continue;
+      if (el.closest && el.closest('#qtx-ht,#snai-panel,#snai-mask')) continue;
+      if (el.value && String(el.value).trim()!=='') return true; } }catch(e){}
+  return false;
+}
+function appBan(){
+  if (Date.now()-_cham < 15000) return true;
+  if (oNhapCoChu()) return true;
+  try{ if (typeof window.__skBusy==='function' && window.__skBusy()) return true; }catch(e){}
+  return false;
+}
+function banMin(){ var a=MIN_CHUNG, b=MIN_RIENG; if (!a) return b; if (!b) return a; return banCuHon(a,b)?b:a; }
+function canCapNhat(){ var m=banMin(); return !!(m && BAN && banCuHon(BAN, m)); }
+var _cnHen=null;
+function xetCapNhat(){
+  try{
+    if (!canCapNhat()){ var e=document.getElementById('qtx-cn'); if(e) e.remove(); return; }
+    if (document.getElementById('qtx-cn') || _cnHen) return;
+    var o=LS(KEY_CN); if (o.tam && Date.now()<Number(o.tam)) return;   /* đang "dùng tạm" */
+    if (navigator.onLine===false) return;
+    if (appBan()){ _cnHen=setTimeout(function(){ _cnHen=null; xetCapNhat(); }, 5000); return; }
+    hienCapNhat();
+  }catch(e){}
+}
+setInterval(xetCapNhat, 20000);
+function hienCapNhat(){
+  css();
+  var m=banMin(), o=LS(KEY_CN); if (o.min!==m){ o={ min:m, n:0, t:0 }; LSet(KEY_CN,o); }
+  var het=(Number(o.n)||0)>=2 && Date.now()-(Number(o.t)||0)<30*60e3;
+  var d=document.createElement('div'); d.id='qtx-cn';
+  d.innerHTML='<div class="c" role="alertdialog" aria-modal="true"><h4>⬆️ Cần cập nhật bản mới</h4>'
+    +'<p>'+(het
+      ? 'Máy này chưa tải được bản mới (đang chạy '+esc(BAN)+'). Bạn kiểm tra mạng rồi bấm Thử lại. Cần bán gấp thì bấm "Dùng tạm 30 phút".'
+      : 'Bản app trên máy này ('+esc(BAN)+') đã cũ — chủ phần mềm cần bạn cập nhật để tránh lỗi. Chỉ mất vài giây, dữ liệu vẫn còn nguyên.')+'</p>'
+    +'<button type="button" class="qtx-b" data-q="cn">'+(het?'🔄 Thử lại':'⬆️ Cập nhật ngay')+'</button>'
+    +(het?'<button type="button" class="qtx-b phu" data-q="tam">Dùng tạm 30 phút</button>':'')+'</div>';
+  (document.body||document.documentElement).appendChild(d);
+  d.addEventListener('click', function(e){
+    var b=(e.target&&e.target.closest)?e.target.closest('[data-q]'):null; if(!b) return;
+    if (b.getAttribute('data-q')==='tam'){ var x=LS(KEY_CN); x.tam=Date.now()+30*60e3; LSet(KEY_CN,x); d.remove(); return; }
+    b.disabled=true; b.textContent='Đang tải bản mới…';
+    var y=LS(KEY_CN); if (Date.now()-(Number(y.t)||0)>30*60e3) y.n=0; y.n=(Number(y.n)||0)+1; y.t=Date.now(); y.min=m; LSet(KEY_CN,y);
+    taiLai();
+  }, false);
+}
+function taiLai(){
+  var xong=false; function di(){ if(xong) return; xong=true; try{ location.reload(); }catch(e){} }
+  try{ if (navigator.serviceWorker && navigator.serviceWorker.getRegistration) navigator.serviceWorker.getRegistration().then(function(r){ try{ if(r) r.update(); }catch(e){} }).catch(function(){}); }catch(e){}
+  try{ fetch(location.href.split('#')[0], { cache:'reload', credentials:'same-origin' }).then(di, di); }catch(e){ di(); }
+  setTimeout(di, 4000);
+}
+
+/* ───────── HỘP THƯ HỖ TRỢ ───────── */
+var HT={ mo:false, tid:'', huy:null, ds:[], tin:[], au:null, dang:false, loi:'', bao:'' };
+function auth(){
+  if (HT.au) return Promise.resolve(HT.au);
+  return import(AUTH_URL).then(function(m){ var a=m.getAuth(); HT.au=a; return a; });
+}
+function nguoiDung(){ return auth().then(function(a){ var c=a.currentUser; if (!c) throw new Error('chua-dang-nhap'); return c; }); }
+function hopDen(){
+  var o={ b: BAN, nv: laNV(), on: navigator.onLine!==false, url: String(location.pathname||'').slice(0,60) };
+  try{ if (typeof window.__ERR_HOPDEN_LAY__==='function'){ var h=window.__ERR_HOPDEN_LAY__(); if (h){ o.bc=h.bc; o.ctx=h.ctx; } } }catch(e){}
+  try{ o.ua=String(navigator.userAgent||'').slice(0,160); }catch(e){}
+  if (LOI_GAN.length) o.loi=LOI_GAN.slice();
+  var s=''; try{ s=JSON.stringify(o); }catch(e){ s='{}'; }
+  if (s.length>4000){ try{ delete o.bc; s=JSON.stringify(o); }catch(e){} }
+  return s.slice(0,4000);
+}
+function dongHT(){
+  HT.mo=false; try{ if (HT.huy) HT.huy(); }catch(e){} HT.huy=null; HT.tid='';
+  var e=document.getElementById('qtx-ht'); if (e) e.remove();
+}
+function moHoTro(tid){
+  try{
+    css(); var u=uid();
+    if (document.getElementById('qtx-ht')) dongHT();
+    HT.mo=true; HT.tid=tid||''; HT.bao=''; HT.loi='';
+    var d=document.createElement('div'); d.id='qtx-ht'; d.className='modal-overlay active';   /* nút Trở về của điện thoại tự nhận & bấm "Đóng" */
+    d.innerHTML='<div class="p" role="dialog" aria-modal="true"><div class="hd"><b>💬 Hỏi · báo lỗi cho chủ phần mềm</b>'
+      +'<button type="button" data-q="ve" hidden>‹ Danh sách</button><button type="button" data-q="dong">Đóng</button></div>'
+      +'<div class="bd"></div><div class="ft"></div></div>';
+    (document.body||document.documentElement).appendChild(d);
+    d.addEventListener('click', function(e){
+      if (e.target===d){ dongHT(); return; }
+      var b=(e.target&&e.target.closest)?e.target.closest('[data-q]'):null; if(!b) return;
+      var q=b.getAttribute('data-q');
+      if (q==='dong') dongHT();
+      else if (q==='ve'){ boNghe(); HT.tid=''; veDs(); taiDs(); }
+      else if (q==='moi'){ boNghe(); HT.tid='+'; veMoi(); }
+      else if (q==='mo'){ var id=b.getAttribute('data-id'); if (id) moCuoc(id); }
+      else if (q==='gui') guiTin(b);
+    }, false);
+    if (!u){ veTrong('Bạn cần đăng nhập để nhắn chủ phần mềm. Gấp thì gọi <a href="tel:'+HOTLINE+'">'+HOTLINE+'</a>.'); return; }
+    if (HT.tid && HT.tid!=='+') moCuoc(HT.tid); else { veDs(); taiDs(); }
+  }catch(e){}
+}
+window.qtxHoTro=function(tid){ moHoTro(typeof tid==='string'?tid:''); };
+function boNghe(){ try{ if (HT.huy) HT.huy(); }catch(e){} HT.huy=null; }
+function el(s){ var d=document.getElementById('qtx-ht'); return d?d.querySelector(s):null; }
+function veTrong(html){ var b=el('.bd'), f=el('.ft'); if (b) b.innerHTML='<div class="trong">'+html+'</div>'; if (f) f.innerHTML=''; }
+function goiDien(){ return '<div class="goi">Gấp quá thì gọi <a href="tel:'+HOTLINE+'">'+HOTLINE+'</a> (cũng là Zalo).</div>'; }
+function veDs(){
+  var b=el('.bd'), f=el('.ft'), v=el('[data-q="ve"]'); if (!b) return; if (v) v.hidden=true;
+  var ds=HT.ds.slice().sort(function(x,y){ return msOf(y.cap)-msOf(x.cap); });
+  var h=(HT.bao?'<div class="bao t">'+esc(HT.bao)+'</div>':'')+(HT.loi?'<div class="bao x">'+esc(HT.loi)+'</div>':'');
+  if (HT.dang && !ds.length) h+='<div class="trong">Đang tải…</div>';
+  else if (!ds.length) h+='<div class="trong">Chưa có câu hỏi nào.<br>Gặp lỗi hay chưa biết làm gì, bấm <b>＋ Gửi câu hỏi mới</b> — chủ phần mềm sẽ trả lời ngay trong app này.</div>';
+  else h+=ds.map(function(t){
+    var tg=t.tt==='xong'?'<span class="tg xong">✅ Đã xong</span>':(t.moiQT?'<span class="tg tl">💬 Có trả lời</span>':'<span class="tg cho">⏳ Chờ trả lời</span>');
+    return '<div class="ve'+(t.moiQT?' moi':'')+'" data-q="mo" data-id="'+esc(t.id)+'"><b>'+esc(t.tieuDe||'(không tiêu đề)')+tg+'</b><small>'+esc(gioCua(msOf(t.cap)))+' · '+(Number(t.n)||1)+' tin</small></div>';
+  }).join('');
+  b.innerHTML=h;
+  if (f) f.innerHTML='<button type="button" class="qtx-b" data-q="moi">＋ Gửi câu hỏi mới</button>'+goiDien();
+}
+function taiDs(){
+  var f=FB(), u=uid(); if (!f||!u) return;
+  HT.dang=true; HT.loi='';
+  nguoiDung().then(function(c){
+    var q=laNV() ? f.query(f.collection(f.db,'hotro'), f.where('tu','==',c.uid), f.limit(30))
+                 : f.query(f.collection(f.db,'hotro'), f.where('uid','==',u), f.limit(30));
+    return f.getDocs(q);
+  }).then(function(s){
+    HT.ds=[]; s.forEach(function(x){ var o=x.data()||{}; o.id=x.id; HT.ds.push(o); });
+  }).catch(function(e){
+    HT.loi=moTaLoi(e);
+  }).then(function(){ HT.dang=false; if (HT.mo && !HT.tid) veDs(); });
+}
+function moTaLoi(e){
+  var c=String((e&&e.code)||''), m=String((e&&e.message)||e||'');
+  if (/chua-dang-nhap/.test(m)) return 'Bạn chưa đăng nhập.';
+  if (/permission-denied/.test(c)) return 'Hộp thư chưa mở trên máy chủ (chủ phần mềm chưa cập nhật). Gấp thì gọi '+HOTLINE+'.';
+  if (/unavailable|network|offline/i.test(c+m) || navigator.onLine===false) return 'Máy đang mất mạng — có mạng lại rồi thử lại nhé.';
+  return 'Chưa gửi / tải được ('+(c||m).slice(0,60)+'). Thử lại sau ít phút, gấp thì gọi '+HOTLINE+'.';
+}
+function veMoi(){
+  var b=el('.bd'), f=el('.ft'), v=el('[data-q="ve"]'); if (!b||!f) return; if (v) v.hidden=false;
+  b.innerHTML=(HT.loi?'<div class="bao x">'+esc(HT.loi)+'</div>':'')
+    +'<div class="trong" style="text-align:left;padding:4px 2px 10px">Viết rõ bạn đang làm gì thì gặp chuyện gì (vd: <i>"bấm Thanh toán thì báo lỗi, không lưu được đơn"</i>). '
+    +'App tự gửi kèm thông tin máy để chủ phần mềm tìm lỗi nhanh — <b>không gửi</b> danh sách khách hay số tiền.</div>';
+  f.innerHTML='<textarea id="qtx-noi" maxlength="1500" placeholder="Bạn cần hỏi gì? Gặp lỗi gì?"></textarea>'
+    +'<label class="ck"><input type="checkbox" id="qtx-kem" checked> Gửi kèm thông tin máy (số bản app, vài thao tác vừa bấm, lỗi vừa gặp) — giúp sửa lỗi nhanh hơn</label>'
+    +'<button type="button" class="qtx-b" data-q="gui">📨 Gửi cho chủ phần mềm</button>'+goiDien();
+  setTimeout(function(){ var t=document.getElementById('qtx-noi'); if (t) try{ t.focus(); }catch(e){} }, 60);
+}
+function moCuoc(tid){
+  boNghe(); HT.tid=tid; HT.tin=[]; HT.loi='';
+  var b=el('.bd'), f=el('.ft'), v=el('[data-q="ve"]'); if (!b||!f) return; if (v) v.hidden=false;
+  b.innerHTML='<div class="trong">Đang tải…</div>';
+  f.innerHTML='<textarea id="qtx-noi" maxlength="1500" placeholder="Nhắn thêm cho chủ phần mềm…"></textarea>'
+    +'<button type="button" class="qtx-b" data-q="gui">📨 Gửi</button>'+goiDien();
+  var F=FB(); if (!F) return;
+  nguoiDung().then(function(){
+    var q=F.query(F.collection(F.db,'hotro',tid,'tin'), F.orderBy('at','asc'), F.limit(200));
+    HT.huy=F.onSnapshot(q, function(s){
+      HT.tin=[]; s.forEach(function(x){ var o=x.data()||{}; o.id=x.id; HT.tin.push(o); });
+      if (HT.mo && HT.tid===tid) veCuoc();
+    }, function(e){ HT.loi=moTaLoi(e); if (HT.mo && HT.tid===tid) veCuoc(); });
+    /* đã đọc trả lời ⇒ bỏ dấu "có trả lời" */
+    var t=HT.ds.filter(function(x){ return x.id===tid; })[0];
+    if (t && t.moiQT) F.updateDoc(F.doc(F.db,'hotro',tid), { moiQT:false }).then(function(){ t.moiQT=false; }).catch(function(){});
+    daXemTraLoi();
+  }).catch(function(e){ HT.loi=moTaLoi(e); veCuoc(); });
+}
+function veCuoc(){
+  var b=el('.bd'); if (!b) return;
+  var t=HT.ds.filter(function(x){ return x.id===HT.tid; })[0];
+  var h=(HT.loi?'<div class="bao x">'+esc(HT.loi)+'</div>':'')+(HT.bao?'<div class="bao t">'+esc(HT.bao)+'</div>':'');
+  if (t && t.tt==='xong') h+='<div class="bao t">✅ Chủ phần mềm đã đánh dấu xong. Còn vướng thì nhắn thêm bên dưới.</div>';
+  h+=HT.tin.map(function(m){
+    var k=m.tu==='qt';
+    return '<div class="bb '+(k?'q':'k')+'">'+(k?'<b>🧑‍💼 Chủ phần mềm</b>\n':'')+esc(m.noi||'')+'<small>'+esc(gioCua(msOf(m.at)||Date.now()))+'</small></div>';
+  }).join('') || '<div class="trong">Chưa có tin nhắn.</div>';
+  b.innerHTML=h; b.scrollTop=b.scrollHeight;
+}
+function guiTin(btn){
+  if (HT.dang) return;
+  var ta=document.getElementById('qtx-noi'), noi=ta?String(ta.value||'').trim():'';
+  if (!noi){ if (ta) try{ ta.focus(); }catch(e){} return; }
+  if (noi.length>1500) noi=noi.slice(0,1500);
+  var F=FB(), u=uid(); if (!F||!u) return;
+  var kem=true; var ck=document.getElementById('qtx-kem'); if (ck) kem=!!ck.checked;
+  HT.dang=true; HT.loi=''; HT.bao=''; if (btn){ btn.disabled=true; btn.textContent='Đang gửi…'; }
+  var tid=HT.tid;
+  nguoiDung().then(function(c){
+    var bt=F.writeBatch(F.db), tin={ tu:'k', noi:noi, at:F.serverTimestamp(), nguoi:c.uid, build:String(BAN||'').slice(0,60) };
+    if (kem || tid==='+' || !tid) tin.hd=hopDen();
+    if (!tid || tid==='+'){
+      var tRef=F.doc(F.collection(F.db,'hotro'));
+      bt.set(tRef, { uid:u, tu:c.uid, email:String(c.email||'').slice(0,120), ten:String(c.email||'').split('@')[0].slice(0,80),
+        tieuDe:noi.replace(/\s+/g,' ').slice(0,120), tt:'mo', moiKhach:true, moiQT:false, cap:F.serverTimestamp(), tao:F.serverTimestamp(), n:1, build:String(BAN||'').slice(0,60) });
+      bt.set(F.doc(F.collection(F.db,'hotro',tRef.id,'tin')), tin);
+      return bt.commit().then(function(){ return tRef.id; });
+    }
+    bt.set(F.doc(F.collection(F.db,'hotro',tid,'tin')), tin);
+    bt.update(F.doc(F.db,'hotro',tid), { moiKhach:true, moiQT:false, tt:'mo', cap:F.serverTimestamp(), n:F.increment(1) });
+    return bt.commit().then(function(){ return tid; });
+  }).then(function(id){
+    dem('hotro_gui');
+    HT.dang=false;
+    if (ta) ta.value='';
+    if (!tid || tid==='+'){
+      HT.ds.unshift({ id:id, tieuDe:noi.slice(0,120), tt:'mo', moiQT:false, cap:{ seconds:Math.floor(Date.now()/1000) }, n:1 });
+      HT.bao='✅ Đã gửi — chủ phần mềm trả lời ở ngay đây, app sẽ báo khi có trả lời.';
+      moCuoc(id);
+    }else{ var t=HT.ds.filter(function(x){ return x.id===tid; })[0]; if (t){ t.tt='mo'; t.moiQT=false; } if (btn){ btn.disabled=false; btn.textContent='📨 Gửi'; } }
+  }).catch(function(e){
+    HT.dang=false; HT.loi=moTaLoi(e);
+    if (btn){ btn.disabled=false; btn.textContent=(!tid||tid==='+')?'📨 Gửi cho chủ phần mềm':'📨 Gửi'; }
+    if (!tid || tid==='+') veMoiGiu(noi); else veCuoc();
+  });
+}
+function veMoiGiu(noi){ veMoi(); var t=document.getElementById('qtx-noi'); if (t) t.value=noi; }
+
+/* trả lời mới (qua accounts/{uid}.remote.hotro) ⇒ thanh dưới đáy */
+function daXemTraLoi(){ try{ var r=HT_REMOTE; if (!r || !r.id) return; var x=LS(KEY_XEM); x.ht=String(r.id)+'#'+(Number(r.n)||0); LSet(KEY_XEM,x); var b=document.getElementById('qtx-tin'); if (b) b.remove(); }catch(e){} }
+function xetTraLoi(){
+  try{
+    var r=HT_REMOTE; if (!r || !r.id) return;
+    var key=String(r.id)+'#'+(Number(r.n)||0), x=LS(KEY_XEM); if (x.ht===key) return;
+    if (HT.mo && HT.tid===r.id){ daXemTraLoi(); return; }
+    if (document.getElementById('qtx-tin')) return;
+    css();
+    var d=document.createElement('div'); d.id='qtx-tin';
+    d.innerHTML='<div class="t">💬 Chủ phần mềm đã trả lời câu hỏi của bạn</div><button type="button" data-q="xem">Xem</button><button type="button" class="x" data-q="x" aria-label="Đóng">✕</button>';
+    (document.body||document.documentElement).appendChild(d);
+    d.addEventListener('click', function(e){ var b=(e.target&&e.target.closest)?e.target.closest('[data-q]'):null; if(!b) return;
+      var id=String(r.id); daXemTraLoi(); if (b.getAttribute('data-q')==='xem') moHoTro(id); }, false);
+  }catch(e){}
+}
+
+/* lối vào: ☰ menu (trên Xóa tài khoản / Đăng xuất) · màn khoá · khung Trợ lý */
+function ganLoiVao(){
+  try{
+    var m=document.querySelector('#snbh-topbar .snbh-menu');
+    if (m && !m.querySelector('[data-qtx="hotro"]')){
+      var it=document.createElement('div'); it.className='snbh-mi'; it.setAttribute('data-qtx','hotro');
+      it.innerHTML='<span class="snbh-mic">💬</span><label>Hỏi · báo lỗi cho chủ phần mềm</label>';
+      it.addEventListener('click', function(ev){ try{ ev.stopPropagation(); }catch(e){} try{ m.classList.remove('on'); }catch(e){} moHoTro(); });
+      var ref=m.querySelector('[data-snbh="xoatk"]')||m.querySelector('[data-snbh="logout"]');
+      if (ref) m.insertBefore(it, ref); else m.appendChild(it);
+    }
+    var a=document.getElementById('locked-actions');
+    if (a && !a.querySelector('[data-qtx="hotro"]')){
+      var b=document.createElement('button'); b.type='button'; b.className='xtk-lk'; b.setAttribute('data-qtx','hotro');
+      b.textContent='💬 Nhắn chủ phần mềm (đã chuyển khoản / cần hỗ trợ)';
+      b.style.cssText='background:transparent;border:none;color:#0a5f4a;font-weight:800;font-size:14px;padding:8px;cursor:pointer';
+      b.addEventListener('click', function(){ moHoTro(); });
+      a.appendChild(b);
+    }
+  }catch(e){}
+}
+
+/* ───────── NGHE MÁY CHỦ ───────── */
+var _nghe=false;
+function nghe(){
+  if (_nghe) return true;
+  var f=FB(), u=uid(); if (!f || !u) return false;
+  _nghe=true;
+  dem('mo_app');
+  try{ f.onSnapshot(f.doc(f.db,'billing','config'), function(s){
+    var x=(s&&s.exists&&s.exists())?(s.data()||{}):{}; TAT_CHUNG=layTat(x.tat); MIN_CHUNG=layBan(x.banToiThieu); apDung();
+  }, function(){ /* chưa được đọc (máy nhân viên / mất quyền): im lặng */ }); }catch(e){}
+  try{ f.onSnapshot(f.doc(f.db,'accounts',u), function(s){
+    var x=(s&&s.exists&&s.exists())?(s.data()||{}):{}, r=(x.remote&&typeof x.remote==='object')?x.remote:{};
+    TAT_RIENG=layTat(r.tat); MIN_RIENG=layBan(r.banToiThieu);
+    HT_REMOTE=(r.hotro&&typeof r.hotro==='object'&&typeof r.hotro.id==='string')?r.hotro:null;
+    apDung();
+  }, function(){}); }catch(e){}
+  setTimeout(function(){ ghiDem('dau'); }, 20000);
+  return true;
+}
+setInterval(function(){ ganLoiVao(); nghe(); }, 1500);   /* menu được vẽ lại thì gắn lại (như khối Xóa tài khoản) */
+setTimeout(function(){ ganLoiVao(); nghe(); }, 1200);
+
+}catch(e){ try{ console.warn('[qtx] khối điều khiển từ xa 2 lỗi khởi động — app vẫn chạy bình thường', e); }catch(_){} }
+})();
+</script>
+<!-- ═══════════ HẾT: ĐIỀU KHIỂN TỪ XA 2 ═══════════ -->
 <!-- ═══════════════ DÙNG THỬ GÓI CHI NHÁNH 14 NGÀY (drop-in · namespace thu-) ═══════════════
      App vốn cho dùng thử Sổ Nợ / Bán hàng / 4 gói ngành, RIÊNG gói "Chi nhánh thêm" thì không.
      Khối này vá nốt: khách chạm trần chi nhánh (màn #cn-upsell hiện lên) mà CHƯA từng có giấy phép
