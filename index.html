@@ -755,7 +755,7 @@ import { getFirestore, initializeFirestore, persistentLocalCache, persistentMult
 import { getStorage, ref as _sref, uploadBytes, getDownloadURL, deleteObject, listAll }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
 
-const APP_BUILD = "2026-11-06-SN26"; // ⬆️ ĐỔI MỖI LẦN DEPLOY (đặt TRÙNG tên cache trong sw.js) — hiện ở ⚙️ Cài đặt để biết máy đã chạy bản mới chưa
+const APP_BUILD = "2026-11-06-SN27"; // ⬆️ ĐỔI MỖI LẦN DEPLOY (đặt TRÙNG tên cache trong sw.js) — hiện ở ⚙️ Cài đặt để biết máy đã chạy bản mới chưa
 const firebaseConfig = {
   apiKey: "AIzaSyA_kjQ-CdASRkf50Glz3kQajlkD5qGWC4k",
   authDomain: "so-no-cc57a.firebaseapp.com",
@@ -5030,8 +5030,8 @@ function hdgBam(ev){
   }
   if(k==='gui'){ hdgGui(); return; }
   if(k==='xem'){ _hdg.xem=!_hdg.xem; hdgVe(); return; }
-  if(k==='in'){ var hd3=c.hopDong; if(!hd3) return; var st=hdgKyCua(hd3,_hdg.signs); hdgIn(hd3,st.kyB||((hd3.kyB&&hd3.kyB.h===st.H)?hd3.kyB:null)); return; }
-  if(k==='in-cu'){ var e=(c.hopDongCu||[])[+b.getAttribute('data-i')]; if(e) hdgIn(e,e.kyB||hdgKyCua(e,_hdg.signs).kyB); return; }
+  if(k==='in'){ var hd3=c.hopDong; if(!hd3) return; var st=hdgKyCua(hd3,_hdg.signs); hdinMo(hd3,st.kyB||((hd3.kyB&&hd3.kyB.h===st.H)?hd3.kyB:null),-1); return; }   /* [SN27] bảng 🖨️ In hợp đồng (giống In bảng kê) */
+  if(k==='in-cu'){ var e=(c.hopDongCu||[])[+b.getAttribute('data-i')]; if(e) hdinMo(e,e.kyB||hdgKyCua(e,_hdg.signs).kyB,+b.getAttribute('data-i')); return; }   /* [SN27] */
   if(k==='xoa-cu'){ hdgXoaCu(+b.getAttribute('data-i')); return; }
   if(k==='xoa'){ hdgXoa(); return; }
   if(k==='ket'){ hdgKetThuc(); return; }
@@ -5053,6 +5053,365 @@ function hdgBam(ev){
   }catch(e){}
 })();
 /* ═══════════════ HẾT [SN25] 📝 HỢP ĐỒNG ═══════════════ */
+/* ═══════════════ [SN27] 🖨️ IN HỢP ĐỒNG — bảng in GIỐNG bảng 🖨️ In bảng kê (namespace hdin) ═══════════════
+   Bấm 🖨️ In / Lưu PDF (bảng 📝 Hợp đồng) hoặc 🖨️ In (📚 Hợp đồng cũ) ⇒ mở bảng in y kiểu bảng In bảng kê:
+     • Khổ giấy A4 / A5 + xem trước ⇒ 🖨 In máy tính (A4/A5) — dùng chung bộ in window.snPrintDoc (chọn được "Lưu thành PDF")
+     • 📶 Máy in nhiệt cầm tay Bluetooth 58 / 80mm — dùng chung kết nối + lệnh in của bảng kê / hóa đơn POS
+       (_skBT · skBtConnect · skRasterCmd · skBtWrite) và chung khổ nhiệt (localStorage sk_paper)
+   CHỈ THÊM: không đổi dữ liệu, không đổi Rules. Trang khách (?view=) giữ nút 🖨️ In / Lưu PDF như cũ (hdgIn).
+   Bảng là .modal-overlay (#modal-hdin, z-index 600 như bảng In bảng kê) ⇒ nút Trở về của điện thoại, khoá máy, trợ lý 🆘
+   tự nhận như mọi bảng Sổ Nợ. Lỗi bất ngờ lúc mở bảng ⇒ in thẳng như bản cũ (hdgIn). */
+var _hdin={h:null,kyB:null,cu:-1,cid:null,id:'',H:'',th:'58',thLoi:false,dang:false,dangIn:false};
+var _hdinKho='A4';     /* khổ A4 / A5 — nhớ trong lúc mở app (như bảng In bảng kê) */
+function hdinCss(){
+  if(hdg$('hdin-css')) return;
+  var st=document.createElement('style'); st.id='hdin-css';
+  st.textContent=[
+    '#modal-hdin{background:rgba(0,0,0,.5);align-items:flex-start;justify-content:center;z-index:600;padding:16px;overflow:auto}',
+    '#modal-hdin .sn-box{background:#fff;border-radius:14px;width:100%;max-width:840px;box-shadow:0 12px 40px rgba(0,0,0,.3);padding:18px 18px 16px;margin:auto}',
+    '#modal-hdin h3{font-size:1.1em;color:#1a6b3c;margin-bottom:10px}',
+    '#modal-hdin .sn-opts{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px}',
+    '#modal-hdin .sn-sizebtn{padding:9px 16px;border:1.6px solid #b9c6d2;background:#f4f7fa;color:#2b3a4a;border-radius:9px;font-size:.95em;font-weight:700;cursor:pointer;font-family:inherit}',
+    '#modal-hdin .sn-sizebtn.on{background:#1a6b3c;color:#fff;border-color:#1a6b3c}',
+    '#modal-hdin .sn-hint{font-size:.8em;color:#6b7280;flex:1;min-width:180px}',
+    '#modal-hdin #hdin-preview{background:#e9edf1;border:1px solid #d1d5db;border-radius:10px;padding:14px;max-height:56vh;overflow:auto}',
+    '#modal-hdin #hdin-preview .sn-doc{background:#fff;margin:0 auto;box-shadow:0 1px 6px rgba(0,0,0,.12);padding:16px 18px;max-width:190mm}',
+    '#modal-hdin .sn-acts{display:flex;gap:10px;margin-top:14px}',
+    '#modal-hdin .sn-acts .sn-cancel{flex:1;padding:12px;background:#f1f3f5;border:1.5px solid #d1d5db;border-radius:9px;font-size:.95em;font-weight:600;cursor:pointer;font-family:inherit;color:#374151}',
+    '#modal-hdin .sn-acts .sn-go{flex:2;padding:12px;background:#1a6b3c;color:#fff;border:none;border-radius:9px;font-size:1em;font-weight:800;cursor:pointer;font-family:inherit}',
+    '#modal-hdin button:disabled{opacity:.6;cursor:default}'
+  ].join('\n');
+  document.head.appendChild(st);
+}
+function hdinBang(){
+  var m=hdg$('modal-hdin'); if(m) return m;
+  hdinCss();
+  m=document.createElement('div');
+  m.className='modal-overlay'; m.id='modal-hdin';
+  m.setAttribute('role','dialog'); m.setAttribute('aria-modal','true'); m.setAttribute('aria-label','In hợp đồng');
+  m.innerHTML='<div class="sn-box">'
+    +'<h3 id="hdin-title">🖨️ In hợp đồng (máy tính)</h3>'
+    +'<div class="sn-opts">'
+      +'<span style="font-weight:600;font-size:.9em">Khổ giấy:</span>'
+      +'<button type="button" class="sn-sizebtn on" data-hdin="kho" data-sz="A4">A4</button>'
+      +'<button type="button" class="sn-sizebtn" data-hdin="kho" data-sz="A5">A5</button>'
+      +'<span class="sn-hint">Xem trước bên dưới rồi bấm “In”. Trong hộp thoại in của máy tính, chọn đúng khổ (A4/A5) — có thể chọn “Lưu thành PDF”.</span>'
+    +'</div>'
+    +'<div id="hdin-preview"><div class="sn-doc hdg-doc"><div class="sn-empty">Đang tạo bản in…</div></div></div>'
+    +'<div class="sn-acts">'
+      +'<button type="button" class="sn-cancel" onclick="closeModal(\'modal-hdin\')">Đóng</button>'
+      +'<button type="button" class="sn-go" data-hdin="in">🖨 In máy tính (A4/A5)</button>'
+    +'</div>'
+    +'<div id="hdin-bt-wrap" style="border-top:1px dashed #d1d5db;margin-top:14px;padding-top:12px">'
+      +'<div style="font-weight:700;font-size:.92em;margin-bottom:8px">📶 Hoặc in bằng máy in nhiệt cầm tay (Bluetooth)</div>'
+      +'<div class="sn-opts">'
+        +'<span style="font-size:.85em;color:#374151">Khổ nhiệt:</span>'
+        +'<button type="button" class="sn-sizebtn" data-hdin="nhiet" data-th="58">58mm</button>'
+        +'<button type="button" class="sn-sizebtn" data-hdin="nhiet" data-th="80">80mm</button>'
+        +'<button type="button" data-hdin="ketnoi" style="padding:9px 14px;border:1.6px solid #3a49b8;background:#eef2ff;color:#26308a;border-radius:9px;font-size:.9em;font-weight:700;cursor:pointer;font-family:inherit">🔗 Kết nối máy in</button>'
+      +'</div>'
+      +'<button type="button" id="hdin-bt" data-hdin="bt" style="width:100%;margin-top:6px;padding:12px;background:#26308a;color:#fff;border:none;border-radius:9px;font-size:1em;font-weight:800;cursor:pointer;font-family:inherit">📶 In Bluetooth (nhiệt)</button>'
+      +'<div id="hdin-bt-status" style="font-size:.8em;color:#6b7280;margin-top:6px"></div>'
+    +'</div>'
+  +'</div>';
+  m.addEventListener('click',hdinBam);
+  document.body.appendChild(m);
+  return m;
+}
+function hdinDong(){
+  try{ if(typeof window.closeModal==='function'){ window.closeModal('modal-hdin'); return; } }catch(e){}
+  var m=hdg$('modal-hdin'); if(m) m.classList.remove('active');
+}
+function hdinBam(ev){
+  var m=hdg$('modal-hdin'); if(!m) return;
+  if(ev.target===m){ hdinDong(); return; }   /* chạm ra ngoài bảng ⇒ đóng (như bảng In bảng kê) */
+  var b=ev.target&&ev.target.closest?ev.target.closest('[data-hdin]'):null; if(!b||!m.contains(b)||b.disabled) return;
+  var k=b.getAttribute('data-hdin');
+  if(k==='kho'){ _hdinKho=(b.getAttribute('data-sz')==='A5')?'A5':'A4'; hdinVe(); return; }
+  if(k==='nhiet'){ hdinNhiet(b.getAttribute('data-th')); return; }
+  if(k==='in'){ hdinIn(); return; }
+  if(k==='ketnoi'){ hdinKetNoi(); return; }
+  if(k==='bt'){ hdinInBT(); }
+}
+function hdinHtml(h,kyB){ return '<div class="sn-doc hdg-doc">'+hdgDocHtml(h,{kyB:kyB||null})+'</div>'; }   /* y như bản in cũ (hdgIn) */
+/* Lấy hợp đồng MỚI NHẤT đúng bản đang mở (khách vừa ký lúc bảng in đang mở ⇒ bản in có luôn chữ ký).
+   Chỉ nhận khi CÙNG số hợp đồng + CÙNG mã kiểm tra nội dung — nội dung bị sửa ở máy khác thì giữ đúng bản đang xem trước. */
+function hdinLay(){
+  var h=_hdin.h,kyB=_hdin.kyB;
+  try{
+    var c=hdgKhach();
+    if(c&&c.id===_hdin.cid){
+      if(_hdin.cu<0){
+        var hd=c.hopDong;
+        if(hd&&hdgS(hd.id)===_hdin.id&&hdgHash(hd)===_hdin.H){
+          var st=hdgKyCua(hd,_hdg.signs);
+          h=hd; kyB=st.kyB||((hd.kyB&&hd.kyB.h===st.H)?hd.kyB:null)||kyB;
+        }
+      }else{
+        var cu=Array.isArray(c.hopDongCu)?c.hopDongCu:[];
+        for(var i=0;i<cu.length;i++){
+          var e=cu[i];
+          if(e&&hdgS(e.id)===_hdin.id&&hdgHash(e)===_hdin.H){ h=e; kyB=e.kyB||hdgKyCua(e,_hdg.signs).kyB||kyB; break; }
+        }
+      }
+    }
+  }catch(e){}
+  _hdin.h=h; _hdin.kyB=kyB;
+  return {h:h,kyB:kyB};
+}
+function hdinTh(){ if(_hdin.thLoi) return _hdin.th; try{ return localStorage.getItem('sk_paper')==='80'?'80':'58'; }catch(e){ return _hdin.th; } }
+function hdinNhiet(v){
+  v=(v==='80')?'80':'58'; _hdin.th=v; _hdin.thLoi=false;
+  try{ localStorage.setItem('sk_paper',v); if(localStorage.getItem('sk_paper')!==v) _hdin.thLoi=true; }catch(e){ _hdin.thLoi=true; }
+  hdinVe();
+}
+function hdinBtTT(){
+  var el=hdg$('hdin-bt-status'); if(!el) return;
+  if(!skBtSupported()){ el.innerHTML='⚠️ Thiết bị này không hỗ trợ in Bluetooth (chỉ Android + Chrome). Trên iPhone/máy tính hãy dùng A4/A5 ở trên.'; el.style.color='#b45309'; return; }
+  el.style.color='#6b7280';
+  el.textContent=_hdin.dang?(_skBT.char?'⏳ Đang gửi bản in tới máy in…':'⏳ Đang kết nối máy in…'):(_skBT.char?('✓ Đã kết nối: '+(_skBT.name||'máy in')):'Chưa kết nối máy in. Bấm “Kết nối máy in”.');
+}
+function hdinNutBT(dang,chu){
+  var b=hdg$('hdin-bt'); if(!b) return;
+  b.disabled=!!dang; b.textContent=dang?(chu||'⏳ Đang in… chờ máy in chạy xong'):'📶 In Bluetooth (nhiệt)';
+}
+function hdinVe(){
+  var m=hdg$('modal-hdin'); if(!m) return;
+  var x=hdinLay(),N=hdgNhan(x.h&&x.h.mau);
+  var tt=hdg$('hdin-title'); if(tt) tt.textContent='🖨️ In '+N.ten+' (máy tính)';
+  var pv=hdg$('hdin-preview');
+  if(pv){ var html=hdinHtml(x.h,x.kyB); if(pv.__hdin!==html){ pv.innerHTML=html; pv.__hdin=html; } }
+  var th=hdinTh();
+  m.querySelectorAll('.sn-sizebtn[data-sz]').forEach(function(b){ b.classList.toggle('on',b.getAttribute('data-sz')===_hdinKho); });
+  m.querySelectorAll('.sn-sizebtn[data-th]').forEach(function(b){ b.classList.toggle('on',b.getAttribute('data-th')===th); });
+  hdinNutBT(_hdin.dang);
+  hdinBtTT();
+}
+/* Mở bảng in — h: hợp đồng · kyB: chữ ký khách (nếu có) · cu: số thứ tự trong 📚 Hợp đồng cũ (-1 = hợp đồng hiện tại) */
+function hdinMo(h,kyB,cu){
+  try{
+    if(!h||typeof h!=='object'||!h.id){ toast('Chưa có hợp đồng để in.'); return; }
+    hdgCss();
+    _hdin.h=h; _hdin.kyB=kyB||null; _hdin.cu=(typeof cu==='number'&&cu>=0)?cu:-1; _hdin.cid=_hdg.cid; _hdin.id=hdgS(h.id); _hdin.H=hdgHash(h);
+    var m=hdinBang(),pv=hdg$('hdin-preview'); if(pv) pv.__hdin=null;
+    hdinVe();
+    m.classList.add('active');
+    try{ m.scrollTop=0; if(pv) pv.scrollTop=0; }catch(_){}
+  }catch(e){
+    try{ console.warn('[hdin] mở bảng in',e); }catch(_){}
+    try{ var mm=hdg$('modal-hdin'); if(mm) mm.classList.remove('active'); }catch(_){}
+    hdgIn(h,kyB);
+  }
+}
+/* 🖨 In máy tính (A4/A5) — chờ ảnh chữ ký tải xong (tối đa 3 giây) như hdgIn, rồi in bằng bộ in chung của bảng kê */
+function hdinGuiIn(html,kho,sau){
+  var urls=[],mm,re=/<img[^>]+src="([^"]+)"/g;
+  while((mm=re.exec(html))) if(!/^data:/.test(mm[1])) urls.push(mm[1].replace(/&amp;/g,'&'));
+  var xong=false,con=urls.length;
+  var chay=function(){
+    if(xong) return; xong=true;
+    try{ if(typeof window.snPrintDoc==='function') window.snPrintDoc(html,kho==='A5'?'A5':'A4'); else alert('Máy này chưa in được — thử lại sau khi tải lại trang.'); }
+    finally{ if(sau) sau(); }
+  };
+  if(!con){ chay(); return; }
+  urls.forEach(function(u){
+    var im=new Image(),da=false;
+    var mot=function(){ if(da) return; da=true; if(--con<=0) chay(); };
+    im.onload=im.onerror=mot; im.src=u;
+    if(im.complete&&im.naturalWidth) setTimeout(mot,0);
+  });
+  setTimeout(chay,3000);
+}
+function hdinIn(){
+  if(_hdin.dangIn) return;                           /* bấm In 2 lần liền ⇒ chỉ 1 hộp in */
+  _hdin.dangIn=true;
+  var mo=function(){ setTimeout(function(){ _hdin.dangIn=false; },1500); };
+  try{
+    var x=hdinLay(); if(!x.h){ _hdin.dangIn=false; toast('Chưa có hợp đồng để in.'); return; }
+    var html=hdinHtml(x.h,x.kyB),pv=hdg$('hdin-preview');
+    if(pv&&pv.__hdin!==html){ pv.innerHTML=html; pv.__hdin=html; }
+    hdinGuiIn(html,_hdinKho,mo);
+  }catch(e){ _hdin.dangIn=false; alert('⚠️ In chưa được: '+((e&&e.message)||e)); }
+}
+async function hdinKetNoi(){
+  if(!skBtSupported()){ hdinBtTT(); toast('Máy này không hỗ trợ in Bluetooth (chỉ Android + Chrome).'); return; }
+  if(_hdin.dang){ toast('⏳ Đang in — chờ in xong rồi hãy kết nối lại.'); return; }   /* đổi máy in giữa lúc đang gửi ⇒ bản in đứt đoạn */
+  await skBtConnect(); hdinBtTT();
+}
+/* Tải ảnh để vẽ lên giấy nhiệt. Ảnh chữ ký khách nằm trên kho ảnh Firebase: phải tải kiểu CORS mới đọc được điểm ảnh —
+   kho chưa mở CORS thì không tải được ⇒ trả null, bản in nhiệt ghi dòng "Đã ký điện tử" thay cho hình. */
+function hdinAnh(src,cors){
+  return new Promise(function(res){
+    var xong=false,im=new Image(),t=0;
+    var ket=function(v){ if(xong) return; xong=true; clearTimeout(t); res(v); };
+    t=setTimeout(function(){ ket(null); },3500);
+    im.onload=function(){ ket((im.naturalWidth&&im.naturalHeight)?im:null); };
+    im.onerror=function(){ ket(null); };
+    try{ if(cors) im.crossOrigin='anonymous'; im.src=src; }catch(e){ ket(null); }
+  });
+}
+async function hdinAnhB(u){
+  if(!u) return null;
+  if(/^data:/.test(u)) return hdinAnh(u,false);
+  var im=await hdinAnh(u,true); if(im) return im;
+  return hdinAnh(u+(u.indexOf('?')>=0?'&':'?')+'hdin='+Date.now().toString(36),true);   /* lần 2: tránh bản đệm tải không kèm CORS */
+}
+/* Vẽ hợp đồng ra ảnh đen / trắng cho máy in nhiệt (W = 384 điểm khổ 58mm · 576 điểm khổ 80mm) — cùng kiểu với bảng kê / hóa đơn.
+   Tự xuống dòng theo bề ngang giấy; chữ ký 2 bên xếp dọc cho dễ đọc trên giấy hẹp. Vẽ từng dải ≤ 2048 điểm (hợp đồng dài
+   không vượt giới hạn khung vẽ của máy). Trả {mono,width,height} để đưa thẳng vào skRasterCmd. */
+function hdinNhietVe(h,kyB,W,anhA,anhB){
+  h=h||{}; W=(W===576)?576:384;
+  var A=h.benA||{},B=h.benB||{},N=hdgNhan(h.mau),HH=hdgHash(h);
+  var k=(W===576)?1.25:1,pad=10,CW=W-pad*2,FONT='Roboto, "Segoe UI", Arial, sans-serif';
+  var cv=document.createElement('canvas'),ctx=cv.getContext('2d');
+  var rows=[],y=pad;
+  var px=function(n){ return Math.round(n*k); };
+  var fnt=function(sz,b,it){ return (it?'italic ':'')+(b?'bold ':'')+sz+'px '+FONT; };
+  var chuan=function(s){ s=hdgS(s).replace(/\t/g,'    ').replace(/[\u0000-\u0008\u000b-\u001f\u007f]/g,''); try{ s=s.normalize('NFC'); }catch(e){} return s; };
+  var chia=function(s,maxW){
+    if(ctx.measureText(s).width<=maxW) return [s];
+    var out=[],lead=(/^ +/.exec(s)||[''])[0],ws=s.slice(lead.length).split(/ +/),cur=lead;
+    for(var i=0;i<ws.length;i++){
+      var w=ws[i]; if(!w) continue;
+      var thu=cur.trim()?(cur+' '+w):(cur+w);
+      if(ctx.measureText(thu).width<=maxW){ cur=thu; continue; }
+      if(cur.trim()) out.push(cur);
+      cur='';
+      if(ctx.measureText(w).width<=maxW){ cur=w; continue; }
+      var cs=Array.from(w),p='';
+      for(var j=0;j<cs.length;j++){ var t2=p+cs[j]; if(p&&ctx.measureText(t2).width>maxW){ out.push(p); p=cs[j]; } else p=t2; }
+      cur=p;
+    }
+    if(cur.trim()) out.push(cur);
+    return out.length?out:[s];
+  };
+  var T=function(s,o){
+    o=o||{}; s=chuan(s); if(!s.trim()) return;
+    var sz=px(o.sz||20),b=!!o.b,it=!!o.it,ind=px(o.ind||0),maxW=CW-ind;
+    if(o.al==='c') s=s.trim();
+    ctx.font=fnt(sz,b,it);
+    if(o.fit){ var sz0=sz,mn=px(o.min||14); while(sz>mn&&ctx.measureText(s).width>maxW){ sz--; ctx.font=fnt(sz,b,it); } if(o.vua&&ctx.measureText(s).width>maxW){ sz=sz0; ctx.font=fnt(sz,b,it); } }   /* vua: thu nhỏ vẫn không vừa 1 dòng ⇒ giữ cỡ gốc, xuống dòng */
+    var f=fnt(sz,b,it),lh=sz+px(o.lh!=null?o.lh:7),ls=chia(s,maxW);
+    for(var i=0;i<ls.length;i++){ rows.push({k:'t',y:y,h:lh,s:ls[i],f:f,al:o.al||'l',x:pad+ind}); y+=lh; }
+  };
+  var G=function(n){ y+=px(n); };
+  var HR=function(){ rows.push({k:'hr',y:y,h:px(12)}); y+=px(12); };
+  var GACH=function(w){ rows.push({k:'g',y:y,h:px(10),w:px(w)}); y+=px(10); };
+  var IMG=function(im,mw,mh){
+    var w=(im&&(im.naturalWidth||im.width))||0,hh=(im&&(im.naturalHeight||im.height))||0; if(!w||!hh) return false;
+    var s=Math.min(mw/w,mh/hh,2),dw=Math.max(1,Math.round(w*s)),dh=Math.max(1,Math.round(hh*s));
+    rows.push({k:'i',y:y,h:dh,im:im,x:Math.round((W-dw)/2),w:dw,hh:dh}); y+=dh; return true;
+  };
+  /* 1) Quốc hiệu · tên văn bản · số · hai bên */
+  T('CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM',{sz:19,b:1,al:'c',fit:1,min:13});
+  T('Độc lập – Tự do – Hạnh phúc',{sz:19,b:1,al:'c',fit:1,min:13});
+  GACH(150); G(6);
+  T(hdgS(h.tieuDe||'HỢP ĐỒNG').toUpperCase(),{sz:25,b:1,al:'c',lh:6,fit:1,min:20,vua:1});
+  if(hdgS(h.phuDe).trim()) T(h.phuDe,{sz:19,it:1,al:'c'});
+  T('Số: '+hdgS(h.id)+N.so,{sz:19,al:'c'});
+  G(8);
+  T('Hôm nay, '+(hdgNgayChu(h.ngay)||'ngày …')+(hdgS(h.noiKy).trim()?(', tại '+hdgS(h.noiKy).trim()):'')+', chúng tôi gồm:',{sz:20});
+  G(6);
+  var dong=function(t,v){ v=hdgS(v).trim(); if(v) T(t+': '+v,{sz:19,ind:12}); };
+  T(N.a+': '+(hdgS(A.ten).trim()||'…'),{sz:20,b:1});
+  dong('Người đại diện',A.daiDien); dong('Điện thoại',A.sdt); dong('Địa chỉ',A.diaChi); dong('Mã số thuế',A.mst);
+  G(6);
+  T(N.b+': '+(hdgS(B.ten).trim()||'…'),{sz:20,b:1});
+  dong('Điện thoại',B.sdt); dong('Số CCCD',B.cccd); dong('Địa chỉ',B.diaChi);
+  G(8);
+  /* 2) Nội dung — cùng cách tách dòng với bản xem (hdgThan): Điều … in đậm · Căn cứ … in nghiêng · dòng trống = cách đoạn */
+  var trong=0,co=0;
+  hdgS(h.noiDung).replace(/\r\n?/g,'\n').split('\n').forEach(function(l){
+    var s=l.replace(/\s+$/,'');
+    if(!s.trim()){ if(co&&!trong){ G(8); trong=1; } return; }
+    trong=0; co=1;
+    if(/^\s*(Điều|ĐIỀU)\s+\d+/.test(s)){ G(4); T(s.trim(),{sz:20,b:1}); }
+    else if(/^\s*(Căn cứ|CĂN CỨ)(\s|$)/.test(s)) T(s.trim(),{sz:19,it:1});
+    else T(s,{sz:20});
+  });
+  /* 3) Chữ ký 2 bên (xếp dọc) */
+  G(10); HR(); G(6);
+  var ka=h.kyA&&hdgAnhA(h.kyA.img),kb=kyB||null;
+  var tenA=hdgS((h.kyA&&h.kyA.ten)||A.daiDien||A.ten).trim(),tenB=hdgS((kb&&kb.ten)||B.ten).trim();
+  var oKy=function(vai,anh,daKy,ten,luc){
+    T(vai,{sz:20,b:1,al:'c'});
+    T('(Ký, ghi rõ họ tên)',{sz:16,it:1,al:'c'});
+    G(4);
+    if(!(anh&&IMG(anh,Math.min(CW,px(300)),px(100)))){
+      if(daKy){ G(10); T('[ Đã ký điện tử ]',{sz:19,b:1,al:'c'}); G(10); }
+      else G(90);                                   /* chưa ký ⇒ chừa chỗ ký tay trên giấy */
+    }
+    G(4);
+    if(ten) T(ten,{sz:20,b:1,al:'c'});
+    if(luc) T('Đã ký điện tử lúc '+luc,{sz:16,al:'c'});
+  };
+  oKy('ĐẠI DIỆN BÊN A',ka?anhA:null,!!ka,tenA,(ka&&h.kyA.luc)?hdgLuc(h.kyA.luc):'');
+  G(14);
+  oKy('ĐẠI DIỆN BÊN B',kb?anhB:null,!!kb,tenB,(kb&&kb.hienThi)?hdgS(kb.hienThi):'');
+  /* 4) Mã kiểm tra nội dung */
+  G(12); HR(); G(4);
+  T(N.ten.charAt(0).toUpperCase()+N.ten.slice(1)+' điện tử · Mã kiểm tra nội dung: '+HH.replace(/(.{4})(?=.)/g,'$1 '),{sz:15,al:'c'});
+  y+=pad;
+  var H=Math.max(1,Math.ceil(y)),mono=new Uint8Array(W*H),BAND=2048;
+  for(var y0=0;y0<H;y0+=BAND){
+    var bh=Math.min(BAND,H-y0);
+    cv.width=W; cv.height=bh;
+    var c=cv.getContext('2d');
+    c.fillStyle='#fff'; c.fillRect(0,0,W,bh);
+    c.fillStyle='#000'; c.strokeStyle='#000'; c.textBaseline='top';
+    for(var i=0;i<rows.length;i++){
+      var r=rows[i]; if(r.y+r.h+12<=y0||r.y-12>=y0+bh) continue;   /* dòng nằm sát mép dải: vẽ ở cả 2 dải (dấu tiếng Việt không bị cắt) */
+      var ry=r.y-y0;
+      if(r.k==='t'){ c.font=r.f; if(r.al==='c'){ c.textAlign='center'; c.fillText(r.s,W/2,ry); } else { c.textAlign='left'; c.fillText(r.s,r.x,ry); } }
+      else if(r.k==='hr'){ c.save(); c.lineWidth=2; c.setLineDash([5,4]); c.beginPath(); c.moveTo(pad,ry+r.h/2); c.lineTo(W-pad,ry+r.h/2); c.stroke(); c.restore(); }
+      else if(r.k==='g'){ c.save(); c.lineWidth=2; c.beginPath(); c.moveTo((W-r.w)/2,ry+3); c.lineTo((W+r.w)/2,ry+3); c.stroke(); c.restore(); }
+      else if(r.k==='i'){ c.drawImage(r.im,r.x,ry,r.w,r.hh); }
+    }
+    var d=c.getImageData(0,0,W,bh).data,o=y0*W;
+    for(var q=0,n=W*bh;q<n;q++){ var lum=0.299*d[q*4]+0.587*d[q*4+1]+0.114*d[q*4+2]; mono[o+q]=lum<135?1:0; }
+  }
+  return {mono:mono,width:W,height:H};
+}
+async function hdinInBT(){
+  if(_hdin.dang) return;
+  if(!skBtSupported()){ hdinBtTT(); toast('Máy này không hỗ trợ in Bluetooth (chỉ Android + Chrome).'); return; }
+  var x=hdinLay(); if(!x.h){ toast('Chưa có hợp đồng để in.'); return; }
+  _hdin.dang=true;                                   /* khoá NGAY (trước lúc chờ chọn máy in) ⇒ bấm 2 lần không ra 2 lệnh in chồng nhau */
+  try{
+    if(!_skBT.char){ hdinNutBT(true,'⏳ Đang kết nối máy in…'); hdinBtTT(); var ok=await skBtConnect(); if(!ok) return; }
+    hdinNutBT(true); hdinBtTT();
+    var W=(hdinTh()==='80')?576:384,r=null,cmd=null,coAnhB=false;
+    try{
+      var ka=x.h.kyA&&hdgAnhA(x.h.kyA.img),kb=x.kyB?hdgAnhB(x.kyB.img):'';
+      var anhA=ka?await hdinAnh(ka,false):null,anhB=kb?await hdinAnhB(kb):null;
+      try{ r=hdinNhietVe(x.h,x.kyB,W,anhA,anhB); coAnhB=!!anhB; }
+      catch(e1){ if(!anhB) throw e1; r=hdinNhietVe(x.h,x.kyB,W,anhA,null); }   /* không đọc được điểm ảnh chữ ký khách ⇒ in dòng chữ thay hình */
+      cmd=skRasterCmd(r.mono,r.width,r.height);
+    }catch(e){ toast('⚠️ Chưa dựng được bản in nhiệt: '+((e&&e.message)||e)); return; }
+    var cm=Math.round(r.height/80),giay=Math.max(5,Math.round(cmd.length/128*0.03));
+    var lau=giay>=90?('khoảng '+Math.round(giay/60)+' phút'):('khoảng '+giay+' giây');
+    if(cm>150&&!confirm('Hợp đồng này in ra máy in nhiệt dài khoảng '+cm+' cm giấy, in mất '+lau+'.\nIn khổ A4 / Lưu PDF sẽ gọn hơn.\n\nVẫn in bằng máy in nhiệt?')) return;
+    toast('Đang in hợp đồng… ('+lau+')');
+    try{ await skBtWrite(cmd); }
+    catch(e){ toast('In lỗi — thử kết nối lại máy in.'); _skBT.server=null; _skBT.char=null; return; }
+    toast('Đã gửi lệnh in ✓'+((x.kyB&&!coAnhB)?' — hình chữ ký khách có ở bản in A4 / PDF':''));
+  }finally{ _hdin.dang=false; hdinNutBT(false); hdinBtTT(); }
+}
+/* Trợ lý: nút "▶ Mở ngay" của bài 🖨️ In hợp đồng */
+window.hdinMoTuTroLy=function(){
+  try{
+    var mh=hdg$('modal-hd'),c=hdgKhach();
+    if(mh&&mh.classList.contains('active')&&c&&c.hopDong&&c.hopDong.id){
+      var hd=c.hopDong,st=hdgKyCua(hd,_hdg.signs);
+      hdinMo(hd,st.kyB||((hd.kyB&&hd.kyB.h===st.H)?hd.kyB:null),-1); return;
+    }
+    var md=hdg$('modal-detail');
+    if(md&&md.classList.contains('active')&&currentCustomerId&&typeof window.hdgMo==='function'){ window.hdgMo(); return; }
+    if(typeof window.SNAI_TOUR==='function'){ window.SNAI_TOUR('in-hop-dong'); return; }
+    alert('Mở sổ của khách (chạm vào tên khách) → bấm 📝 Hợp đồng → bấm 🖨️ In / Lưu PDF.');
+  }catch(e){}
+};
+/* ═══════════════ HẾT [SN27] 🖨️ IN HỢP ĐỒNG ═══════════════ */
 window.closeModal=id=>{if(id==='modal-tx'){_dropPendingUpload().catch(()=>{});}document.getElementById(id).classList.remove('active');};
 window.openTools=()=>document.getElementById('modal-tools').classList.add('active');
 document.querySelectorAll('.modal-overlay').forEach(el=>{
@@ -23505,6 +23864,127 @@ try{
     };
   }
 }catch(e){}
+/* ═════════════ 5o) [SN27] 🖨️ IN HỢP ĐỒNG — 1 bài mới + "Có gì mới" + câu chữ phần in trong 2 bài hợp đồng + 👆 chỉ tận tay + 🆘 bảng in + tìm đúng bài ═════════════
+   Chỉ BỔ SUNG lúc chạy (không sửa bài gốc): bài mới đặt CUỐI KB · câu hỏi nói tới hợp đồng + in / PDF / A4 / A5 / Bluetooth / máy in
+   ⇒ bài in đứng đầu · câu KHÔNG nói tới hợp đồng ⇒ tìm trong KB tạm vắng bài mới (kết quả + ngưỡng điểm y hệt bản cũ).
+   Chữ thêm vào bài cũ chỉ để HIỂN THỊ — không đổi chỉ mục tìm kiếm của bài cũ. */
+try{
+  if(typeof e20==='object'&&e20&&typeof e21==='object'&&e21){
+  var e22={c:'sn',t:'🖨️ In hợp đồng: khổ A4 / A5, Lưu PDF, máy in nhiệt Bluetooth',
+  k:'in hop dong in giay xac nhan no in giay cam ket in lai hop dong in hop dong cu ban in hop dong xem truoc ban in kho giay a4 a5 luu pdf hop dong luu thanh pdf may in nhiet in nhiet bluetooth 58mm 80mm ket noi may in in bluetooth',
+  go:'hdinMoTuTroLy',
+  a:'<b class="snai-h">🖨️ In hợp đồng</b>'
+   +'<b>👉 In giống hệt bảng 🖨️ In bảng kê:</b> bấm in là hiện bảng <b>xem trước</b> — chọn khổ giấy <b>A4 / A5</b> để in bằng máy tính hoặc <b>Lưu thành PDF</b>, hoặc in thẳng ra <b>máy in nhiệt cầm tay (Bluetooth)</b> loại in bill.'
+   +'<b>🪜 Mở bảng in:</b><ol>'
+   +'<li>Ở màn <span class="snai-path">📒 SỔ NỢ</span>, chạm vào <b>tên khách</b> để mở sổ của khách.</li>'
+   +'<li>Bấm nút <b>📝 Hợp đồng</b>.</li>'
+   +'<li>Bấm <b>🖨️ In / Lưu PDF</b>. Hợp đồng đã kết thúc thì bấm <b>🖨️ In</b> ở mục <b>📚 Hợp đồng cũ</b> phía dưới.</li>'
+   +'<li>Bảng <b>🖨️ In hợp đồng</b> hiện ra. Khung xám ở giữa là <b>bản xem trước</b> — in ra y như vậy (có chữ ký 2 bên nếu đã ký).</li></ol>'
+   +'<b>🅰️ In bằng máy tính / máy in văn phòng — hoặc Lưu PDF:</b><ol>'
+   +'<li>Ở dòng <b>Khổ giấy</b> chọn <b>A4</b> (tờ giấy thường, hợp đồng nên in khổ này) hoặc <b>A5</b> (nhỏ bằng nửa tờ A4).</li>'
+   +'<li>Bấm nút xanh <b>🖨 In máy tính (A4/A5)</b>.</li>'
+   +'<li>Hộp in của máy hiện ra → chọn máy in, chọn <b>đúng khổ giấy</b> → bấm <b>In</b>.</li>'
+   +'<li>Muốn cất trong máy hoặc gửi Zalo: ở chỗ chọn máy in chọn <b>"Lưu thành PDF"</b> (Save as PDF) → <b>Lưu</b>.</li></ol>'
+   +'<b>🅱️ In máy in nhiệt cầm tay (Bluetooth) — loại in bill:</b><ol>'
+   +'<li>Bật máy in nhiệt và bật <b>Bluetooth</b> của điện thoại.</li>'
+   +'<li>Ở phần <b>📶 Hoặc in bằng máy in nhiệt cầm tay</b> (cuối bảng), chọn khổ <b>58mm</b> hoặc <b>80mm</b> cho đúng cỡ cuộn giấy.</li>'
+   +'<li>Lần đầu: bấm <b>🔗 Kết nối máy in</b> → chọn tên máy in → <b>Ghép nối</b>. Dòng dưới hiện <i>"✓ Đã kết nối: …"</i> là được.</li>'
+   +'<li>Bấm <b>📶 In Bluetooth (nhiệt)</b>. Hợp đồng dài hơn bill nên máy in chạy lâu hơn — chờ tới khi nút trở lại như cũ.</li></ol>'
+   +'<div class="snai-warn">⚠️ In Bluetooth <b>chỉ chạy trên điện thoại Android + Chrome</b>. iPhone / máy tính thì dùng cách 🅰️ (A4 / A5 hoặc Lưu PDF).</div>'
+   +'<b>📖 Vài điều cần biết:</b><ul>'
+   +'<li><b>Chữ ký:</b> bản in A4 / A5 / PDF có đủ <b>hình chữ ký 2 bên</b>. Bản in nhiệt có hình chữ ký Bên A (bạn); chữ ký của khách có thể chỉ in dòng <i>"[ Đã ký điện tử ]"</i> kèm tên và giờ ký — cần hình chữ ký khách thì in A4 hoặc Lưu PDF.</li>'
+   +'<li><b>Khách chưa ký:</b> chỗ ký của khách để trống — in ra giấy rồi cho khách ký tay cũng được.</li>'
+   +'<li><b>Mã kiểm tra nội dung</b> in ở cuối tờ — nội dung đổi một chữ là mã đổi.</li>'
+   +'<li>Khổ nhiệt <b>58 / 80mm</b> dùng chung với in bảng kê và in hóa đơn bán hàng — đổi ở chỗ này thì chỗ kia cũng theo.</li>'
+   +'<li>Hợp đồng rất dài mà in máy in nhiệt thì app báo trước số cm giấy để bạn chọn in A4 cho gọn.</li>'
+   +'<li>Khách cũng có nút <b>🖨️ In / Lưu PDF</b> ngay trên link công nợ để tự in / lưu bản của họ.</li></ul>'
+   +'<b>🔧 Không in được?</b><ul>'
+   +'<li><b>Bấm In mà không thấy hộp in</b> (hay gặp khi mở app trong Zalo): bấm <b>⋮ → Mở bằng trình duyệt / Chrome</b> rồi in lại.</li>'
+   +'<li><b>Bản in thiếu hình chữ ký khách</b> — mạng chậm nên ảnh chưa tải xong: chờ hình chữ ký hiện trong khung xem trước rồi bấm In lại.</li>'
+   +'<li><b>Báo "Máy này không hỗ trợ in Bluetooth"</b> — iPhone / máy tính / trình duyệt không phải Chrome: dùng cách 🅰️.</li>'
+   +'<li><b>Báo "In lỗi — thử kết nối lại máy in"</b> — máy in tắt, hết pin hoặc để xa: bật lại máy in, bấm <b>🔗 Kết nối máy in</b> rồi in lại.</li>'
+   +'<li><b>Máy in ra giấy trắng / ra chữ lộn xộn</b> — chọn sai khổ: máy 58mm thì chọn 58mm, máy 80mm thì chọn 80mm.</li></ul>'
+   +'<div class="snai-tip">🆘 Đang ở bảng 🖨️ In hợp đồng mà không biết bấm gì: bấm <b>🆘 Kẹt? Chỉ tôi</b> — trợ lý khoanh đúng nút.</div>'};
+  KB.push(e22); e22.id=KB.length-1; e22._t=nrm(e22.t); e22._k=nrm(e22.t+' '+e22.k+' '+(CAT[e22.c]?CAT[e22.c].n:'')); e22._a=nrm(strip(e22.a));
+  /* chỉ thêm / đổi chữ HIỂN THỊ trong bài cũ — KHÔNG đổi chỉ mục tìm kiếm (x._a) ⇒ câu hỏi tìm ra y hệt bản cũ */
+  var inSua=function(t,f){ var x=byTitle(t); if(!x) return; var a=f(x.a); if(a&&a!==x.a) x.a=a; };
+  var inNut='<button type="button" class="snai-sg" data-snaiq="'+e22.t+'">🖨️ In hợp đồng</button>';
+  inSua('Có gì mới trong app? (tính năng vừa thêm)',function(a){
+    a=a.replace('<ul>\n<li>','<ul>\n<li><b>🖨️ In hợp đồng giống In bảng kê</b> — bấm <b>🖨️ In / Lưu PDF</b> trong bảng 📝 Hợp đồng là hiện bảng in: <b>xem trước</b>, chọn khổ <b>A4 / A5</b> để in máy tính hoặc <b>Lưu thành PDF</b>, hoặc in thẳng ra <b>máy in nhiệt Bluetooth 58 / 80mm</b>.</li>\n<li>');
+    var i=a.indexOf('<button type="button" class="snai-sg"');
+    if(i>0) a=a.slice(0,i)+inNut+'\n'+a.slice(i);
+    return a;
+  });
+  inSua(e20.t,function(a){
+    var cu='<li><b>🖨️ In / Lưu PDF:</b> in khổ A4, có đủ chữ ký 2 bên. Hộp in hiện ra thì chọn <b>"Lưu thành PDF"</b> để cất trong máy. Khách cũng có nút in / lưu PDF ngay trên link.</li>';
+    if(a.indexOf(cu)<0) return a;
+    return a.replace(cu,'<li><b>🖨️ In / Lưu PDF:</b> mở bảng <b>🖨️ In hợp đồng</b> giống bảng In bảng kê — có <b>xem trước</b>, chọn khổ <b>A4 / A5</b> để in máy tính hoặc <b>"Lưu thành PDF"</b>, hoặc in thẳng ra <b>máy in nhiệt Bluetooth 58 / 80mm</b>. Bản A4 / PDF có đủ chữ ký 2 bên. Khách cũng có nút in / lưu PDF ngay trên link.</li>')+inNut;
+  });
+  inSua(e21.t,function(a){
+    var cu='<li><b>In ra thiếu chữ ký khách</b> — mạng chậm nên ảnh chữ ký chưa tải xong: chờ ảnh hiện trong bảng rồi bấm 🖨️ lại.</li>';
+    if(a.indexOf(cu)<0) return a;
+    return a.replace(cu,'<li><b>In ra thiếu chữ ký khách</b> — mạng chậm nên ảnh chữ ký chưa tải xong: chờ hình chữ ký hiện trong khung <b>xem trước</b> của bảng 🖨️ In hợp đồng rồi bấm In lại. In bằng <b>máy in nhiệt</b> thì chữ ký khách có thể chỉ in dòng chữ <i>"[ Đã ký điện tử ]"</i> — cần hình chữ ký thì in <b>A4 / Lưu PDF</b>.</li>')+inNut;
+  });
+  }
+}catch(e){}
+try{
+  /* 👆 Chỉ tận tay: In hợp đồng */
+  if(typeof e22==='object'&&e22){
+    TOURS['in-hop-dong']={n:'In hợp đồng (A4 / A5 · Lưu PDF · máy in nhiệt)',e:e22.t,g:'sono',st:[S_SONO,S_CARD,
+      {s:'#modal-detail #hdg-nut',t:'Bấm nút <b>📝 Hợp đồng</b> ở hàng nút phía trên.',skip:function(){ return openM('#modal-hd.active')||openM('#modal-hdin.active'); },
+       miss:'Không thấy nút? Có thể máy chưa lên bản mới của app — tắt hẳn app rồi mở lại khi có mạng.'},
+      {s:'#modal-hd [data-hdg="in"]',t:'Bấm <b>🖨️ In / Lưu PDF</b>.',skip:function(){ return openM('#modal-hdin.active'); },
+       miss:'Khách này chưa có hợp đồng — lập hợp đồng trước (chọn "👆 Làm hợp đồng cho khách ký"). Hợp đồng đã kết thúc thì bấm <b>🖨️ In</b> ở mục 📚 Hợp đồng cũ.'},
+      {s:'#modal-hdin .sn-go',w:'see',t:'Chọn khổ <b>A4</b> hoặc <b>A5</b> ở trên, xem lại bản in, rồi bấm <b>🖨 In máy tính (A4/A5)</b>.',
+       sm:'Có máy in nhiệt cầm tay thì dùng phần <b>📶 In Bluetooth</b> ở cuối bảng.'}],
+      done:'Hộp in hiện ra → chọn máy in, đúng khổ giấy → <b>In</b> (hoặc chọn <b>"Lưu thành PDF"</b>). Máy in nhiệt: chọn 58 / 80mm → <b>🔗 Kết nối máy in</b> (lần đầu) → <b>📶 In Bluetooth</b>.'};
+    if(!TOURBY[e22.t]) TOURBY[e22.t]='in-hop-dong';
+  }
+}catch(e){}
+try{
+  /* 🆘 Kẹt? Chỉ tôi — bảng 🖨️ In hợp đồng (#modal-hdin): chọn cách in như bảng In bảng kê */
+  if(typeof e22==='object'&&e22){
+    KTG['sn:modal-hdin']={n:'Bảng 🖨️ In hợp đồng',kb:e22.t,st:function(L){
+      var r=L.el,ch=[];
+      ktPush(ch,ktCh('🖨 In bằng máy tính (khổ A4 / A5, lưu PDF)',ktv('.sn-go',r),'Chọn khổ <b>A4</b> hoặc <b>A5</b> ở trên rồi bấm <b>🖨 In máy tính</b>. Hộp in hiện ra → chọn đúng khổ giấy → In (hoặc "Lưu thành PDF").'));
+      ktPush(ch,ktCh('📶 In máy in nhiệt Bluetooth (58 / 80mm)',ktv('[data-hdin="bt"]',r),'Chọn khổ <b>58mm</b> / <b>80mm</b>, bấm <b>🔗 Kết nối máy in</b> trước (lần đầu), rồi bấm <b>📶 In Bluetooth</b>. Chỉ chạy trên Android + Chrome.'));
+      ktPush(ch,ktCh('↩ Đóng, không in',ktv('.sn-cancel',r),'','','Đã đóng bảng in.'));
+      return KS(null,'Bạn muốn in hợp đồng thế nào?','Khung xám ở giữa là bản xem trước — in ra y như vậy.','pick',{ch:ch});
+    }};
+  }
+}catch(e){}
+try{
+  /* tìm kiếm: câu nói tới hợp đồng + in / PDF / A4 / A5 / Bluetooth / máy in ⇒ bài in đứng đầu.
+     Câu KHÔNG nói tới hợp đồng ⇒ tìm trong KB tạm vắng bài mới (y như bản cũ) */
+  if(typeof e22==='object'&&e22){
+    var IN_HD=/(^| )(hop dong|giay xac nhan no|giay xac nhan cong no|cam ket tra no|giay cam ket|ban cam ket|giao keo|khe uoc|ben a|ben b)( |$)/;
+    var IN_IN=/(^| )(in|in ra|in lai|ban in|may in|in nhiet|in bluetooth|bluetooth|pdf|a4|a5|kho giay|giay in|58mm|80mm|xem truoc)( |$)/;
+    var inCo=function(q){ return typeof window.hdinMoTuTroLy==='function'&&IN_HD.test(nrm(String(q==null?'':q))); };
+    var inVang=function(f){
+      var i=KB.indexOf(e22); if(i<0) return f();
+      KB.splice(i,1);
+      try{ return f(); }finally{ KB.splice(i,0,e22); }
+    };
+    if(typeof _algSearch==='function'){ var _inGoc=_algSearch; _algSearch=function(q){ return inCo(q)?_inGoc(q):inVang(function(){ return _inGoc(q); }); }; }
+    var _inSearch=search;
+    search=function(q){
+      var s=String(q==null?'':q);
+      if(!inCo(s)) return inVang(function(){ return _inSearch(q); });
+      var r=_inSearch(q);
+      try{
+        var nq=nrm(s);
+        if(!nq||byTitle(s.trim())||!IN_IN.test(nq)) return r;
+        var chon=null,i;
+        r=r||[];
+        for(i=0;i<r.length;i++){ if(r[i].e===e22){ chon=r[i]; break; } }
+        if(!chon) chon={e:e22,s:(r[0]?r[0].s:10)+1,h:1};
+        var out=[chon];
+        for(i=0;i<r.length;i++){ if(r[i]!==chon) out.push(r[i]); }
+        return out.slice(0,6);
+      }catch(x){ return r; }
+    };
+  }
+}catch(e){}
 /* ═════════════ 6) KHỞI ĐỘNG ═════════════ */
 function boot(){ try{ build(); }catch(e){} }
 if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',boot);
@@ -25624,7 +26104,7 @@ if (window.__RMT_READY__) return; window.__RMT_READY__ = true;
 try{
 
 /* ĐỔI CHUỖI NÀY CHO TRÙNG APP_BUILD MỖI LẦN DEPLOY (chỉ để hiện ở bảng quản trị) */
-var BUILD = '2026-11-06-SN26';
+var BUILD = '2026-11-06-SN27';
 var NHIP   = 6*3600*1000;          /* báo về tối đa 6 giờ 1 lần — khỏi tốn lượt ghi */
 var KEY_HB = 'rmt_hb_v2';          /* [QT7] nhịp báo về tính RIÊNG từng tài khoản (bản v1 tính chung cả máy) */
 var KEY_XEM= 'rmt_xem_v1';
