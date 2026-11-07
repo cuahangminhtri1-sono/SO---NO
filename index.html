@@ -755,7 +755,7 @@ import { getFirestore, initializeFirestore, persistentLocalCache, persistentMult
 import { getStorage, ref as _sref, uploadBytes, getDownloadURL, deleteObject, listAll }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
 
-const APP_BUILD = "2026-11-06-SN29"; // ⬆️ ĐỔI MỖI LẦN DEPLOY (đặt TRÙNG tên cache trong sw.js) — hiện ở ⚙️ Cài đặt để biết máy đã chạy bản mới chưa
+const APP_BUILD = "2026-11-07-SN30"; // ⬆️ ĐỔI MỖI LẦN DEPLOY (đặt TRÙNG tên cache trong sw.js) — hiện ở ⚙️ Cài đặt để biết máy đã chạy bản mới chưa
 const firebaseConfig = {
   apiKey: "AIzaSyA_kjQ-CdASRkf50Glz3kQajlkD5qGWC4k",
   authDomain: "so-no-cc57a.firebaseapp.com",
@@ -24189,6 +24189,112 @@ try{
     };
   }
 }catch(e){}
+/* ═════════════ 5q) [SN30] 💸 CHUYỂN KHOẢN GIA HẠN XONG — APP TỰ MỞ + ⏰ APP NHẮC GIA HẠN — 2 bài mới + chữ mới trong 4 bài cũ + "Có gì mới" + tìm đúng bài ═════════════
+   Đi kèm gói máy chủ quản trị (sono-quantri): tiền về qua SePay ⇒ máy chủ tự mở hạn + gửi tin "✅ Đã nhận …"; 8:05 sáng tự gửi tin nhắc gia hạn.
+   Chỉ BỔ SUNG lúc chạy (không sửa bài gốc): 2 bài đặt CUỐI KB · câu hỏi nói tới chuyển khoản gia hạn xong / bao lâu thì mở / tự mở hạn ⇒ bài 💸 đứng đầu ·
+   nói tới nhắc gia hạn ⇒ bài ⏰ đứng đầu, bên dưới GIỮ NGUYÊN kết quả cũ · câu KHÔNG nói tới ⇒ tìm trong KB tạm vắng 2 bài mới (kết quả + ngưỡng điểm y hệt bản cũ).
+   Bài cũ chỉ đổi chữ HIỂN THỊ (x.a) — KHÔNG đổi chỉ mục tìm kiếm (x._a). Câu nói về khách / đơn / ca / nợ / hàng hết hạn (HSD) không bao giờ bị kéo sang bài mới. */
+try{
+  var e25={c:'bd',t:'💸 Chuyển khoản gia hạn xong — bao lâu thì app mở?',
+  k:'chuyen khoan gia han xong bao lau thi mo da chuyen khoan ma chua mo chuyen tien roi van khoa tu mo han tu duyet tien tu dong kich hoat da nhan tien cam on ban cho mo han lau qua',
+  go:'openRenew',
+  a:'<b class="snai-h">💸 Chuyển khoản gia hạn xong — bao lâu thì app mở?</b>'
+   +'<b>👉 Thường chỉ vài phút:</b> tiền về tới tài khoản của chủ phần mềm là gói được mở. Chủ phần mềm đã bật <b>tự duyệt tiền</b> thì máy chủ <b>tự mở hạn</b>, không phải chờ ai bấm. Chưa bật thì chủ phần mềm kiểm tra rồi <b>mở bằng tay</b> — có thể lâu hơn một chút.'
+   +'<br><b>✅ Mở xong bạn sẽ thấy:</b><ul>'
+   +'<li>Đang ở <b>màn đỏ "Cần kích hoạt"</b>: app <b>tự vào lại</b> bên trong, không cần làm gì.</li>'
+   +'<li>Đang dùng app (gia hạn trước khi hết hạn): dải vàng nhắc hạn ở đầu màn hình <b>tự tắt</b>.</li>'
+   +'<li>Máy chủ tự mở thì thường kèm thanh <b>📢 ✅ Đã nhận … — … mở tới … Cảm ơn bạn!</b></li>'
+   +'<li>Gói <b>🛒 Bán hàng (POS)</b> hoặc gói ngành: bấm mở lại màn đó là dùng được.</li></ul>'
+   +'<b>⚡ Để được mở nhanh nhất:</b><ol>'
+   +'<li>Vào <b>💳 Gia hạn</b> trong app, chọn gói + số tháng rồi <b>quét đúng mã QR trên màn đó</b> — nội dung chuyển khoản là email của bạn, app đã điền sẵn.</li>'
+   +'<li>Chuyển <b>đúng số tiền</b> hiện trên màn. Mỗi gói một lần chuyển — đừng gộp 2 gói chung một lần.</li>'
+   +'<li>Chuyển xong bấm nút xanh <b>✅ Tôi đã chuyển khoản</b> ngay dưới mã QR.</li></ol>'
+   +'<div class="snai-warn">⚠️ Gõ tay số tài khoản mà <b>quên ghi email</b>, sửa nội dung, hoặc chuyển sai số tiền ⇒ máy chủ <b>không tự mở được</b>, chủ phần mềm phải dò tay — lâu hơn.</div>'
+   +'<b>⏳ Quá 15 phút vẫn chưa mở:</b><ol>'
+   +'<li>Nhắn chủ phần mềm ngay trong app: ở màn đỏ bấm dòng <b>💬 Nhắn chủ phần mềm</b>; đang trong app thì <b>☰ → 💬 Hỏi · báo lỗi cho chủ phần mềm</b>. Ghi <b>giờ chuyển</b>, <b>số tiền</b>, <b>ngân hàng</b>.</li>'
+   +'<li>Gấp thì gọi / Zalo <b>0977823979</b>, gửi kèm ảnh chụp biên lai.</li></ol>'
+   +'<div class="snai-ok">✅ Trong lúc chờ, dữ liệu vẫn nguyên vẹn. Gia hạn sớm cũng không mất ngày nào — hạn mới được <b>cộng nối tiếp</b> hạn cũ.</div>'
+   +'<div class="snai-tip">💡 Đừng chuyển thêm lần nữa vì tưởng lần trước bị mất — chờ chủ phần mềm kiểm tra, tránh trả 2 lần.</div>'};
+  var e26={c:'bd',t:'⏰ App nhắc gia hạn — dải vàng, hộp nhắc, tin nhắc của chủ phần mềm',
+  k:'nhac gia han tin nhac gia han thong bao gia han tat nhac gia han app cu nhac gia han hop nhac gia han dai vang tai khoan con ngay tin nhac het han tai khoan',
+  go:'openRenew',
+  a:'<b class="snai-h">⏰ App nhắc gia hạn</b>'
+   +'<b>👉 Có 2 kiểu nhắc:</b><ol>'
+   +'<li><b>App tự nhắc</b> khi tài khoản còn <b>7 ngày trở xuống</b>: dải vàng <b>"⏳ Tài khoản còn … ngày"</b> ở đầu màn hình + hộp nhắc hiện <b>1 lần mỗi ngày</b>.</li>'
+   +'<li><b>Tin nhắc của chủ phần mềm</b> (hiện như thông báo 📢): gửi ở vài mốc trước và sau ngày hết hạn, mỗi mốc 1 lần — ví dụ <i>"📅 Sổ Nợ của bạn hết hạn ngày … (còn 3 ngày)…"</i>. Dùng thử sắp hết cũng có tin nhắc.</li></ol>'
+   +'<b>🪜 Thấy nhắc thì:</b><ol>'
+   +'<li>Muốn dùng tiếp: bấm <b>▶ Mở ngay chức năng này</b> ở dưới (hoặc <span class="snai-path">🧰 Công cụ &amp; Sao lưu</span> → <b>💳 Gia hạn tài khoản</b>) → chọn gói, số tháng → quét mã QR chuyển khoản → bấm <b>✅ Tôi đã chuyển khoản</b>.</li>'
+   +'<li>Đã gia hạn rồi: <b>đóng tin</b> là xong — hạn mới vào máy là app thôi nhắc.</li></ol>'
+   +'<div class="snai-ok">✅ Nhắc chỉ để báo, <b>không khoá app</b>, không đụng dữ liệu. Không cần tắt — gia hạn xong là hết nhắc.</div>'
+   +'<div class="snai-tip">💡 Gia hạn sớm không mất ngày nào — hạn mới được <b>cộng nối tiếp</b> hạn cũ.</div>'};
+  [e25,e26].forEach(function(e){ KB.push(e); e.id=KB.length-1; e._t=nrm(e.t); e._k=nrm(e.t+' '+e.k+' '+(CAT[e.c]?CAT[e.c].n:'')); e._a=nrm(strip(e.a)); });
+  /* nút sang bài hộp thư (SN29) — gắn SAU khi dựng chỉ mục ⇒ chữ trên nút không vào chỉ mục tìm của bài 💸 */
+  if(typeof htNut==='string'&&htNut) e25.a+=htNut;
+  /* chỉ thêm / thay chữ HIỂN THỊ — KHÔNG đổi chỉ mục tìm kiếm (x._a) của bài cũ. Không thấy đúng chỗ ⇒ để nguyên bài cũ */
+  var ckSua=function(t,f){ var x=byTitle(t); if(!x) return; var a=f(x.a); if(a&&a!==x.a) x.a=a; };
+  var ckNut='<button type="button" class="snai-sg" data-snaiq="'+e25.t+'">💸 Chuyển khoản gia hạn xong — bao lâu thì app mở?</button>';
+  var nhNut='<button type="button" class="snai-sg" data-snaiq="'+e26.t+'">⏰ App nhắc gia hạn</button>';
+  ckSua('App báo hết hạn dù vừa mới chuyển tiền',function(a){
+    var cu='việc mở hạn <b>do chủ phần mềm bấm duyệt bằng tay</b> sau khi thấy tiền về, <b>không tự động tức thì</b>. Chờ một chút là được.';
+    if(a.split(cu).length!==2) return a;
+    return a.split(cu).join('gói được mở <b>sau khi tiền về tới tài khoản của chủ phần mềm</b> — thường chỉ <b>vài phút</b> nếu chủ phần mềm đã bật <b>tự duyệt tiền</b>; chưa bật thì chủ phần mềm <b>bấm duyệt bằng tay</b>, có thể lâu hơn. Chờ một chút là được.')
+      +'<div class="snai-tip">💸 <b>Mới:</b> xem cách để được mở nhanh nhất và nhắn chủ phần mềm ngay trong app khi chờ lâu:</div>'+ckNut;
+  });
+  ckSua('Gia hạn tài khoản — giá bao nhiêu?',function(a){
+    return a+'<div class="snai-tip">⚡ <b>Mới:</b> quét đúng mã QR, chuyển đúng số tiền thì thường chỉ <b>vài phút</b> sau app tự mở (khi chủ phần mềm đã bật tự duyệt tiền) và hiện thanh <b>📢 ✅ Đã nhận …</b>.</div>'+ckNut;
+  });
+  ckSua('Thông báo từ chủ phần mềm · thanh báo có bản mới',function(a){
+    return a+'<div class="snai-tip">⏰ <b>Mới:</b> gần ngày hết hạn có thể có <b>tin nhắc gia hạn</b> (📅 … hết hạn ngày …); chuyển khoản gia hạn xong có thể có tin <b>✅ Đã nhận … Cảm ơn bạn!</b> — đều là tin của chủ phần mềm, đọc xong bấm đóng.</div>'+nhNut;
+  });
+  ckSua('Có gì mới trong app? (tính năng vừa thêm)',function(a){
+    a=a.replace('<ul>\n<li>','<ul>\n<li><b>💸 Chuyển khoản gia hạn xong là app tự mở</b> — chủ phần mềm bật tự duyệt tiền thì tiền về là gói được mở trong vài phút (đang ở màn khoá thì app tự vào lại) và hiện tin <b>✅ Đã nhận … Cảm ơn bạn!</b> Gần ngày hết hạn có thêm <b>⏰ tin nhắc gia hạn</b> của chủ phần mềm.</li>\n<li>');
+    var i=a.indexOf('<button type="button" class="snai-sg"');
+    if(i>0) a=a.slice(0,i)+ckNut+'\n'+nhNut+'\n'+a.slice(i);
+    return a;
+  });
+}catch(e){}
+try{
+  /* tìm kiếm: luôn tìm trong KB tạm vắng 2 bài mới (y như bản cũ) · câu nói tới chuyển khoản gia hạn xong / bao lâu thì mở / tự mở hạn ⇒ đặt bài 💸
+     lên đầu · nói tới nhắc gia hạn ⇒ đặt bài ⏰ lên đầu · bên dưới là đúng kết quả cũ */
+  if(typeof e25==='object'&&e25&&typeof e26==='object'&&e26){
+    var CK_LOAI=/(^| )(khach|khach hang|nha cung cap|ncc|link|nhan hang|giao hang|don hang|don online|dat hang|mat hang|san pham|hang hoa|hang het han|han su dung|hsd|tra no|cong no|ghi no|gia han no|han tra|mo ca|chot ca|giao ca|dong ca|trong ca|vao ca|ca lam|ma pin|pin|mat khau|khoa so|ket|ngan keo|may in|hoa don)( |$)/;
+    var CK_MANH=/(^| )(tu mo han|tu dong mo han|mo han tu dong|tu duyet tien|tu dong duyet tien|tu duyet|duyet tu dong|tu dong duyet|tu kich hoat|tu dong kich hoat|kich hoat tu dong|tu dong gia han|gia han tu dong)( |$)/;
+    var CK_XONG=/(^| )((chuyen khoan|chuyen tien|ck|tra tien|thanh toan) (xong|roi)|(da|vua|vua moi|moi|sau khi) (chuyen khoan|chuyen tien|ck|tra tien|thanh toan))( |$)/;
+    var CK_TRA=/(^| )(chuyen khoan|chuyen tien|ck|tra tien|thanh toan)( |$)/;
+    var CK_GH=/(^| )(gia han|mo han|het han|kich hoat|mo khoa|bi khoa|tai khoan|mua goi|goi so no|goi ban hang|goi pos|goi nganh|man do|man hinh do)( |$)/;
+    var CK_CHO=/(^| )(bao lau|chua mo|chua duoc mo|chua thay mo|chua vao duoc|chua vao|khong vao duoc|khong mo duoc|chua kich hoat|chua duoc kich hoat|van khoa|van bi khoa|van con khoa|con khoa|van bao het han|van het han|khi nao mo|khi nao duoc mo|bao gio mo|bao gio duoc mo|chua mo khoa|lau qua|cho lau)( |$)/;
+    var CK_CHO2=/(^| )(chua mo|chua duoc mo|chua thay mo|chua vao duoc|khong vao duoc|chua kich hoat|chua duoc kich hoat|van khoa|van bi khoa|van con khoa|con khoa|van bao het han|van het han|bao lau thi mo|bao lau thi duoc mo|bao lau duoc mo|bao lau mo|bao lau moi mo|bao lau thi app mo|bao lau app mo|bao lau moi duoc mo|bao lau thi kich hoat|bao lau kich hoat|bao lau duoc kich hoat|bao lau thi duoc kich hoat|bao lau moi kich hoat|bao lau moi duoc kich hoat|khi nao mo|khi nao duoc mo|bao gio mo|bao gio duoc mo|chua mo khoa)( |$)/;
+    var CK_GHX=/(^| )(da gia han|gia han xong|gia han roi|vua gia han|da mua goi|mua goi xong|mua goi roi)( |$)/;
+    var NH_CUM=/(^| )(nhac gia han|nhac nho gia han|tin nhac gia han|thong bao gia han|tin gia han|tu nhac gia han|hop nhac gia han|tat nhac gia han|nhac het han tai khoan|nhac tai khoan het han|nhac tai khoan sap het han)( |$)/;
+    var NH_LOAI=/(^| )(gia han no|gia han tra no|gia han cho khach|nhac no|cong no|tra no|ghi no|khach no|hen tra|han tra|khach)( |$)/;
+    var ckCo=function(n){ if(!n||CK_LOAI.test(n)) return false;
+      return CK_MANH.test(n)||(CK_XONG.test(n)&&(CK_GH.test(n)||CK_CHO.test(n)))||(CK_TRA.test(n)&&(CK_CHO2.test(n)||CK_GHX.test(n)))||(CK_GHX.test(n)&&CK_CHO.test(n)); };
+    var nhCo=function(n){ return !!n&&NH_CUM.test(n)&&!NH_LOAI.test(n); };
+    var ckVang=function(ds,f){
+      var o=[]; ds.forEach(function(e){ var i=KB.indexOf(e); if(i>=0) o.push(i); });
+      if(!o.length) return f();
+      o.sort(function(a,b){ return b-a; }); var luu=o.map(function(i){ return [i,KB.splice(i,1)[0]]; });
+      try{ return f(); }finally{ luu.reverse().forEach(function(x){ KB.splice(x[0],0,x[1]); }); }
+    };
+    /* bên trong luôn tìm trong KB vắng 2 bài mới ⇒ kết quả cũ y hệt bản trước; câu nói tới chủ đề mới chỉ được ĐẶT THÊM bài mới lên đầu */
+    if(typeof _algSearch==='function'){ var _ckGoc=_algSearch; _algSearch=function(q){ return ckVang([e25,e26],function(){ return _ckGoc(q); }); }; }
+    var _ckSearch=search;
+    search=function(q){
+      var r0=ckVang([e25,e26],function(){ return _ckSearch(q); });
+      try{
+        var s=String(q==null?'':q), x=byTitle(s.trim());
+        if(x&&x!==e25&&x!==e26) return r0;                                   /* bấm đúng tên một bài cũ ⇒ y như bản cũ */
+        var n=nrm(s), ds=[];
+        if(x===e25||(!x&&ckCo(n))) ds.push(e25);
+        if(x===e26||(!x&&nhCo(n))) ds.push(e26);
+        if(!ds.length) return r0;
+        r0=r0||[];
+        var top=r0[0]?r0[0].s:10, out=ds.map(function(e,i){ return {e:e,s:top+ds.length-i,h:1}; });
+        return out.concat(r0).slice(0,6);
+      }catch(_){ return r0; }
+    };
+  }
+}catch(e){}
 /* ═════════════ 6) KHỞI ĐỘNG ═════════════ */
 function boot(){ try{ build(); }catch(e){} }
 if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',boot);
@@ -26308,7 +26414,7 @@ if (window.__RMT_READY__) return; window.__RMT_READY__ = true;
 try{
 
 /* ĐỔI CHUỖI NÀY CHO TRÙNG APP_BUILD MỖI LẦN DEPLOY (chỉ để hiện ở bảng quản trị) */
-var BUILD = '2026-11-06-SN29';
+var BUILD = '2026-11-07-SN30';
 var NHIP   = 6*3600*1000;          /* báo về tối đa 6 giờ 1 lần — khỏi tốn lượt ghi */
 var KEY_HB = 'rmt_hb_v2';          /* [QT7] nhịp báo về tính RIÊNG từng tài khoản (bản v1 tính chung cả máy) */
 var KEY_XEM= 'rmt_xem_v1';
