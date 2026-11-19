@@ -758,7 +758,7 @@ import { getFirestore, initializeFirestore, persistentLocalCache, persistentMult
 import { getStorage, ref as _sref, uploadBytes, getDownloadURL, deleteObject, listAll }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
 
-const APP_BUILD = "2026-11-19-SN32"; // ⬆️ ĐỔI MỖI LẦN DEPLOY (đặt TRÙNG tên cache trong sw.js) — hiện ở ⚙️ Cài đặt để biết máy đã chạy bản mới chưa
+const APP_BUILD = "2026-11-20-SN33"; // ⬆️ ĐỔI MỖI LẦN DEPLOY (đặt TRÙNG tên cache trong sw.js) — hiện ở ⚙️ Cài đặt để biết máy đã chạy bản mới chưa
 const firebaseConfig = {
   apiKey: "AIzaSyA_kjQ-CdASRkf50Glz3kQajlkD5qGWC4k",
   authDomain: "so-no-cc57a.firebaseapp.com",
@@ -26465,7 +26465,7 @@ if (window.__RMT_READY__) return; window.__RMT_READY__ = true;
 try{
 
 /* ĐỔI CHUỖI NÀY CHO TRÙNG APP_BUILD MỖI LẦN DEPLOY (chỉ để hiện ở bảng quản trị) */
-var BUILD = '2026-11-19-SN32';
+var BUILD = '2026-11-20-SN33';
 var NHIP   = 6*3600*1000;          /* báo về tối đa 6 giờ 1 lần — khỏi tốn lượt ghi */
 var KEY_HB = 'rmt_hb_v2';          /* [QT7] nhịp báo về tính RIÊNG từng tài khoản (bản v1 tính chung cả máy) */
 var KEY_XEM= 'rmt_xem_v1';
@@ -33477,6 +33477,54 @@ window.snThongBao = function(title, opt){
   });
 };
 
+/* ───────── [SN33] CHỌN BẢN FIREBASE THEO KHO MÃ NHẬN THÔNG BÁO ─────────
+   IndexedDB "firebase-messaging-database" là CHUNG cả tên miền cuahangminhtri1-sono.github.io (Sổ Nợ, Gà Nòi, Quản Trị bản cũ…).
+   Firebase 12.x nâng kho lên ĐỜI 2; Firebase 10.12.0 của Sổ Nợ chỉ mở được đời 1 ⇒ máy từng mở Quản Trị 5.2–5.4.0 (máy chủ phần
+   mềm) vấp "The requested version (1) is less than the existing version (2)" ⇒ không đăng ký được (mất chuông đơn khi tắt app).
+   Y cách Gà Nòi NL2: kho đời ≥ 2 ⇒ lấy mã bằng 12.17.1 (app Firebase riêng tên "sntb", CÙNG cấu hình app chính);
+   chưa có kho / đời 1 ⇒ 10.12.0 + app chính Y NHƯ TRƯỚC (máy khách không đổi gì, không tự nâng kho);
+   không đọc được đời kho / 10.12.0 vấp VersionError ⇒ tự chuyển 12.17.1 thử lại 1 lần.
+   Đổi bản Firebase của BẤT KỲ app nào cùng tên miền ⇒ soát đời kho của bản mới (lên đời 3 thì đổi FB_MOI ở đây + ở Gà Nòi). */
+var FB_MOI  = 'https://www.gstatic.com/firebasejs/12.17.1/';
+var KHO_FCM = 'firebase-messaging-database';
+function banKho(){   /* 0 = chưa có kho · -1 = không đọc được · n = đời kho (chỉ ĐỌC danh sách, KHÔNG mở kho) */
+  try{
+    if(!window.indexedDB || typeof window.indexedDB.databases !== 'function') return Promise.resolve(-1);
+    var hen = new Promise(function(ok){ setTimeout(function(){ ok(-1); }, 3000); });
+    var doc = Promise.resolve(window.indexedDB.databases()).then(function(ds){
+      for(var i = 0; ds && i < ds.length; i++) if(ds[i] && ds[i].name === KHO_FCM) return parseInt(ds[i].version, 10) || 0;
+      return 0;
+    }, function(){ return -1; });
+    return Promise.race([doc, hen]);
+  }catch(e){ return Promise.resolve(-1); }
+}
+function loiBanKho(e){ return !!e && (e.name === 'VersionError' || /requested version .* less than the existing version/i.test(String(e.message || e))); }
+var _fb12 = null;
+function nap12(){
+  if(!_fb12) _fb12 = Promise.all([import(FB_MOI + 'firebase-app.js'), import(FB_MOI + 'firebase-messaging.js')])['catch'](function(e){ _fb12 = null; throw e; });
+  return _fb12;
+}
+/* false = trình duyệt không hỗ trợ đẩy · chuỗi = mã nhận thông báo */
+async function xinMa(moi, app, reg){
+  var M, a = app;
+  if(moi){
+    var m = await nap12(), A = m[0], ds = [];
+    M = m[1]; a = null;
+    try{ ds = A.getApps() || []; }catch(e){ ds = []; }
+    for(var i = 0; i < ds.length; i++) if(ds[i] && ds[i].name === 'sntb') a = ds[i];
+    if(!a) a = A.initializeApp(app.options, 'sntb');
+  } else M = await import(FB + 'firebase-messaging.js');
+  var duoc = false; try{ duoc = await M.isSupported(); }catch(e){ duoc = false; }
+  if(!duoc) return false;
+  return M.getToken(M.getMessaging(a), { serviceWorkerRegistration: reg });
+}
+async function layMa(app, reg){
+  var ban = await banKho();
+  if(ban >= 2) return xinMa(true, app, reg);
+  try{ return await xinMa(false, app, reg); }
+  catch(e){ if(loiBanKho(e)) return xinMa(true, app, reg); throw e; }
+}
+
 /* ───────── ĐĂNG KÝ MÁY VỚI MÁY CHỦ ───────── */
 var _dangP = null, _xong = '', _henLai = 0, _loi = 0;
 var _tt = '', _ttLoi = '';            /* [SN11] trạng thái đăng ký: '' · 'dang' · 'ok' · 'loi' · 'khong' (trình duyệt không hỗ trợ) */
@@ -33487,6 +33535,7 @@ function moTaLoi(e){
   else if(c === 'functions/not-found') g = 'máy chủ chưa cài phần thông báo';
   else if(c === 'functions/unavailable' || c === 'functions/deadline-exceeded') g = 'mạng yếu hoặc máy chủ chưa trả lời';
   else if(c.indexOf('messaging/') === 0 || c.indexOf('installations/') === 0) g = 'Google chưa cấp mã nhận thông báo cho máy này';
+  else if(loiBanKho(e)) g = 'máy đang có bộ nhận thông báo đời mới hơn app (do app khác cùng tên miền) — báo chủ phần mềm cập nhật app';   /* [SN33] */
   var goc = (c && m && m !== c && m.indexOf(c) < 0) ? (c + ' — ' + m) : (m || c || 'không rõ');
   return (g ? g + ' (' + goc + ')' : goc).slice(0, 240);
 }
@@ -33504,10 +33553,8 @@ function dangKy(){
     try{
       var reg = await layReg();
       if(!reg || !reg.active) throw new Error('Chưa tải được sono-push-sw.js (đã đưa file lên GitHub chưa?)');
-      var M = await import(FB + 'firebase-messaging.js');
-      var duoc = false; try{ duoc = await M.isSupported(); }catch(e){ duoc = false; }
-      if(!duoc){ _xong = k; _tt = 'khong'; return false; }   /* trình duyệt không hỗ trợ đẩy ⇒ thôi, không hỏi lại */
-      var token = await M.getToken(M.getMessaging(app), { serviceWorkerRegistration: reg });
+      var token = await layMa(app, reg);   /* [SN33] chọn bản Firebase theo đời kho chung (khối [SN33] ở trên) */
+      if(token === false){ _xong = k; _tt = 'khong'; return false; }   /* trình duyệt không hỗ trợ đẩy ⇒ thôi, không hỏi lại */
       if(!token) throw new Error('Google không trả mã máy');
       if(uidShop() !== u || !nguoiDung() || nguoiDung().uid !== nd.uid){ _tt = ''; return false; }   /* vừa đổi tài khoản giữa chừng */
       var luu = docLS(KEY);
