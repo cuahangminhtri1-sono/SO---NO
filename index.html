@@ -755,7 +755,7 @@ import { getFirestore, initializeFirestore, persistentLocalCache, persistentMult
 import { getStorage, ref as _sref, uploadBytes, getDownloadURL, deleteObject, listAll }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
 
-const APP_BUILD = "2026-11-07-SN30"; // ⬆️ ĐỔI MỖI LẦN DEPLOY (đặt TRÙNG tên cache trong sw.js) — hiện ở ⚙️ Cài đặt để biết máy đã chạy bản mới chưa
+const APP_BUILD = "2026-11-19-SN31"; // ⬆️ ĐỔI MỖI LẦN DEPLOY (đặt TRÙNG tên cache trong sw.js) — hiện ở ⚙️ Cài đặt để biết máy đã chạy bản mới chưa
 const firebaseConfig = {
   apiKey: "AIzaSyA_kjQ-CdASRkf50Glz3kQajlkD5qGWC4k",
   authDomain: "so-no-cc57a.firebaseapp.com",
@@ -24295,6 +24295,33 @@ try{
     };
   }
 }catch(e){}
+/* ═════════════ 5r) [SN31] 📇 DANH BẠ: CHỌN XONG MÀ APP KHÔNG ĐIỀN ⇒ LẤY BẰNG SAO CHÉP — chữ mới trong bài "danh bạ" + "Có gì mới" ═════════════
+   Đi kèm khối [SN31] cuối trang (nút 📋 + khung "Lấy tên, số bằng cách sao chép" trong bảng ➕ Thêm khách hàng).
+   Chỉ đổi chữ HIỂN THỊ (x.a) của 2 bài cũ — KHÔNG đổi chỉ mục tìm kiếm (x._a), không thêm bài mới ⇒ kết quả tìm kiếm y hệt SN30.
+   Không thấy đúng chỗ ⇒ để nguyên bài cũ. */
+try{
+  var dbSua=function(t,f){ var x=byTitle(t); if(!x) return; var a=f(x.a); if(a&&a!==x.a) x.a=a; };
+  var dbTen='Lấy tên và số điện thoại khách từ danh bạ máy (📇 Chọn nhanh từ danh bạ)';
+  var dbNut='<button type="button" class="snai-sg" data-snaiq="'+dbTen+'">📇 Danh bạ: chọn xong mà app không điền tên, số</button>';
+  dbSua(dbTen,function(a){
+    var cu='Khi đó app báo <i>"📇 Thiết bị/trình duyệt này chưa hỗ trợ chọn từ danh bạ"</i> → bấm OK rồi <b>gõ tay</b> tên và số vào các ô bên dưới — vẫn lưu đầy đủ như thường.';
+    if(a.split(cu).length===2) a=a.split(cu).join('Khi đó app báo <i>"📇 Thiết bị/trình duyệt này chưa hỗ trợ chọn từ danh bạ"</i> và mở khung <b>📋 Lấy tên, số bằng cách sao chép</b> (cách làm ở dưới) — hoặc <b>gõ tay</b> tên và số vào các ô bên dưới, vẫn lưu đầy đủ như thường.');
+    var moi='<div class="snai-warn">⚠️ <b>Chọn người trong danh bạ xong mà app không điền gì?</b> Đó là lỗi của <b>Chrome bản mới trên điện thoại đời mới</b>: Chrome mở app Danh bạ của máy đè lên rồi tự huỷ, không gửi người bạn chọn về app. Trang web nào cũng bị, app không sửa được — phải chờ Google sửa Chrome. App <b>tự nhận ra</b> lỗi này và mở khung <b>📋 Lấy tên, số bằng cách sao chép</b> ngay trong bảng thêm khách (lần sau bấm 📇 là vào thẳng khung này):'
+      +'<ol><li>Mở app <b>Danh bạ</b> của máy → chạm vào người cần lấy.</li>'
+      +'<li>Lấy <b>cả tên + số</b>: bấm <b>Chia sẻ</b> → <b>Văn bản</b> → <b>Sao chép</b>. Chỉ lấy <b>số</b>: <b>chạm giữ vào số điện thoại</b> → <b>Sao chép</b>.</li>'
+      +'<li>Quay lại app: ô <b>Tên khách hàng</b> và <b>Số điện thoại</b> <b>tự điền</b>, sáng viền xanh. Lần đầu máy hỏi cho xem nội dung đã sao chép → bấm <b>Cho phép</b>. Không tự điền thì chạm vào ô trong khung → <b>Dán</b>: dán xong là điền luôn.</li></ol>'
+      +'Đã sao chép sẵn rồi thì bấm nút <b>📋 Dán tên, số đã sao chép từ danh bạ</b> ngay dưới nút 📇. Nội dung sao chép chỉ có số thì gõ tên vào ô Tên. Chrome lên bản mới thì app tự thử lại danh bạ 1 lần; muốn thử ngay thì bấm <b>📇 Thử lại danh bạ của Chrome</b> trong khung.</div>';
+    var tip='<div class="snai-tip">💡 Báo <i>"Danh bạ này không có tên/số"</i>';
+    if(a.split(tip).length===2) return a.split(tip).join(moi+tip);
+    return a+moi;
+  });
+  dbSua('Có gì mới trong app? (tính năng vừa thêm)',function(a){
+    a=a.replace('<ul>\n<li>','<ul>\n<li><b>📇 Danh bạ: chọn người xong mà app không điền?</b> — do lỗi của Chrome bản mới trên điện thoại đời mới. App tự nhận ra và chuyển sang cách <b>sao chép</b>: trong app Danh bạ bấm <b>Chia sẻ → Văn bản → Sao chép</b> (hoặc chạm giữ số → Sao chép), quay lại là app <b>tự điền</b> tên, số. Có thêm nút <b>📋 Dán tên, số đã sao chép từ danh bạ</b> trong bảng thêm khách.</li>\n<li>');
+    var i=a.indexOf('<button type="button" class="snai-sg"');
+    if(i>0) a=a.slice(0,i)+dbNut+'\n'+a.slice(i);
+    return a;
+  });
+}catch(e){}
 /* ═════════════ 6) KHỞI ĐỘNG ═════════════ */
 function boot(){ try{ build(); }catch(e){} }
 if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',boot);
@@ -26414,7 +26441,7 @@ if (window.__RMT_READY__) return; window.__RMT_READY__ = true;
 try{
 
 /* ĐỔI CHUỖI NÀY CHO TRÙNG APP_BUILD MỖI LẦN DEPLOY (chỉ để hiện ở bảng quản trị) */
-var BUILD = '2026-11-07-SN30';
+var BUILD = '2026-11-19-SN31';
 var NHIP   = 6*3600*1000;          /* báo về tối đa 6 giờ 1 lần — khỏi tốn lượt ghi */
 var KEY_HB = 'rmt_hb_v2';          /* [QT7] nhịp báo về tính RIÊNG từng tài khoản (bản v1 tính chung cả máy) */
 var KEY_XEM= 'rmt_xem_v1';
@@ -42885,5 +42912,233 @@ setInterval(function(){ if(!OV || !OV.classList.contains('on')) demViec(); }, 60
 })();
 </script>
 <!-- ═══════════════ HẾT: AI LÀM GIÚP ═══════════════ -->
+<!-- ═══════════════ BẮT ĐẦU: [SN31] 📇 DANH BẠ — CHROME KHÔNG GỬI NGƯỜI ĐÃ CHỌN VỀ APP ⇒ LẤY BẰNG SAO CHÉP, APP TỰ ĐIỀN ═══════════════
+     KHỐI TỰ CHỨA · CHỈ THÊM · KHÔNG SỬA DÒNG NÀO CỦA CODE CŨ. Gỡ ra: xoá đúng khối này (BẮT ĐẦU → HẾT) — nút 📇 trở lại y như SN30.
+     • LỖI CỦA CHROME (không phải của app): Chrome bản mới trên điện thoại đời mới mở app Danh bạ của máy đè lên Chrome để chọn người; trang bị che nên
+       Chrome tự huỷ phiên chọn và trả về "chưa chọn ai" ngay (Chromium "[Contacts] Dismiss picker when spawning tab is hidden" + bộ chọn danh bạ hệ thống
+       của Android 17). Bản cũ gặp kết quả rỗng thì im lặng (coi như bấm Huỷ) ⇒ khách thấy "chọn rồi mà không điền gì". Trang web không sửa được lỗi này.
+     • Khối này thay hàm pickFromContacts (nút 📇 "Chọn nhanh từ danh bạ máy") bằng bản biết nhận ra lỗi đó: trang bị che lúc đang chọn, hoặc trả rỗng ngay
+       dưới 1,5 giây ⇒ mở khung "📋 Lấy tên, số bằng cách sao chép" ngay trong bảng ➕ Thêm khách hàng; nhớ theo đúng bản Chrome (khoá mt_ct_loi_v1, dùng
+       chung với Cân Gà Pro) ⇒ lần sau bấm 📇 là vào thẳng khung này; Chrome lên bản mới thì thử lại danh bạ 1 lần. Chọn được người ⇒ điền y như bản cũ.
+     • Khung sao chép: sang app Danh bạ "Chia sẻ → Văn bản → Sao chép" (cả tên + số) hoặc chạm giữ số → Sao chép; quay lại app mà bộ nhớ sao chép vừa đổi
+       ⇒ tự điền ô Tên khách hàng + Số điện thoại; dán tay vào ô ⇒ điền luôn. Không bao giờ tự điền nội dung CŨ có sẵn trong bộ nhớ sao chép.
+     • Nút 📋 "Dán tên, số đã sao chép từ danh bạ" gắn lúc chạy ngay dưới nút 📇 (không sửa HTML cũ). Hàm cũ vẫn giữ ở window.__SN31_PICK_GOC.
+     ═══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════ -->
+<style>
+#modal-add-cust .sn31-dan{background:#fff;border-style:dashed}
+.sn31-k{border:1.5px solid #f0b429;background:#fffbea;border-radius:12px;padding:10px 12px;margin:2px 0 8px;font-size:.9em;line-height:1.45;color:var(--text,#1a1a2e)}
+.sn31-k[hidden]{display:none!important}
+.sn31-hd{display:flex;align-items:center;gap:8px;margin-bottom:4px}
+.sn31-hd b{flex:1}
+.sn31-x{border:0;background:#eee;color:#333;border-radius:8px;width:32px;height:32px;font-size:15px;cursor:pointer;flex:none}
+.sn31-w{background:#fdecea;border:1px solid #f5b7b1;border-radius:8px;padding:7px 9px;margin:4px 0 6px}
+.sn31-ol{margin:4px 0 6px;padding-left:20px}
+.sn31-ol li{margin:2px 0}
+#modal-add-cust .sn31-k textarea{display:block;width:100%;min-height:56px;padding:9px 11px;border:1.5px solid var(--border,#d1d5db);border-radius:8px;font:inherit;font-size:16px;background:#fff;color:#1a1a2e;resize:vertical;box-sizing:border-box;margin-top:4px}
+.sn31-m{margin:6px 0 2px;font-weight:600}
+.sn31-m[hidden]{display:none!important}
+.sn31-m.ok{color:#1a6b3c}
+.sn31-m.x{color:#b45f06}
+.sn31-r{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+.sn31-r button{flex:1;min-width:120px;border:1.5px solid var(--primary,#1a6b3c);background:#fff;color:var(--primary,#1a6b3c);border-radius:10px;padding:10px 12px;font-weight:700;font-size:.92em;cursor:pointer}
+.sn31-r button.sn31-p{background:var(--primary,#1a6b3c);color:#fff}
+.sn31-d{margin-top:6px;font-size:.78em;color:var(--muted,#6b7280);word-break:break-word}
+#modal-add-cust input.sn31-sang{box-shadow:0 0 0 3px #22c55e;border-color:#22c55e}
+</style>
+<script>
+(function(){
+if(window.__SN31_CT__)return;window.__SN31_CT__=true;
+try{
+var KEY='mt_ct_loi_v1',MEM=null,PV='';
+function $(id){return document.getElementById(id)}
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
+/* lỗi danh bạ của Chrome đã gặp trên máy này (chung khoá với Cân Gà Pro): {v: bản Chrome, pv: bản Android, n: số lần, at, why} — chỉ tính khi đúng bản Chrome đang dùng */
+function cv(){var m=/Chrome\/(\d+)/.exec(navigator.userAgent||'');return m?+m[1]:0}
+function loi(){var o=MEM;try{var r=localStorage.getItem(KEY);if(r)o=JSON.parse(r)}catch(e){}return o&&typeof o==='object'&&o.v===cv()?o:null}
+function loiGhi(why){var o=loi();o={v:cv(),pv:PV,n:((o&&o.n)||0)+1,at:Date.now(),why:why};MEM=o;try{localStorage.setItem(KEY,JSON.stringify(o))}catch(e){}}
+function loiXoa(){MEM=null;try{localStorage.removeItem(KEY)}catch(e){}}
+try{var ud=navigator.userAgentData;if(ud&&ud.getHighEntropyValues)ud.getHighEntropyValues(['platformVersion']).then(function(v){PV=String((v&&v.platformVersion)||'')},function(){})}catch(e){}
+function an(){try{return !!(document.hidden||document.visibilityState==='hidden')}catch(e){return false}}
+var S={hid:false,ms:0,got:'',mode:'',base:undefined,left:false,tk:0,busy:false,lai:0,ten:'',so:[]};
+document.addEventListener('visibilitychange',function(){if(an())S.hid=true});
+/* y hệt cleanTel của Sổ Nợ: +84 / 0084 / 84… ⇒ 0… */
+function telSN(t){t=(t||'').replace(/[\s\-().]/g,'');if(t.indexOf('+84')===0)t='0'+t.slice(3);else if(t.indexOf('0084')===0)t='0'+t.slice(4);else if(t.indexOf('84')===0&&t.length>=11&&t.length<=12)t='0'+t.slice(2);return t}
+
+/* ── tách tên + số từ nội dung sao chép: chỉ có số, "tên + số" (Danh bạ → Chia sẻ → Văn bản), hoặc thẻ liên hệ vCard (.vcf) — cùng bộ tách với Cân Gà Pro ── */
+var LB='Điện thoại di động|Số điện thoại|Điện thoại|Di động|Nhà riêng|Cơ quan|Công ty|Mobile|Phone|Tel|Cell|Home|Work|Other|Main|Fax|SĐT|SDT|ĐT|Zalo|Liên hệ|LH';
+function reE(s){return s.replace(/[.*+?^${}()|[\]\\\/-]/g,'\\$&')}
+function qp(s){try{return decodeURIComponent(s.replace(/=([0-9A-Fa-f]{2})/g,'%$1'))}catch(e){return s}}
+function tach(txt){
+  var s=String(txt==null?'':txt),name='',tels=[],hit=[],m,rest;
+  try{s=s.normalize('NFC')}catch(e){}
+  s=s.replace(/[​-‏‪-‮⁦-⁩﻿]/g,'').replace(/\r\n?/g,'\n').trim();
+  function add(t){t=telSN(t);if(!/^(0\d{8,10}|\+\d{8,14})$/.test(t))return false;if(tels.indexOf(t)<0)tels.push(t);return true}
+  function tidy(x){x=x.replace(/\s+/g,' ').replace(/^[\s,;:|·\-–—()\[\]"'“”]+|[\s,;:|·\-–—()\[\]"'“”]+$/g,'').replace(/^(?:Họ và tên|Họ tên|Tên|Full name|Name)\s*[:：]\s*/i,'').trim();return new RegExp('^(?:'+LB+'|Mobile|Home|Work|Cell|Main)$','i').test(x)?'':x}
+  if(!s)return{name:'',tels:[]};
+  if(/BEGIN:VCARD/i.test(s)){
+    var phys=s.split('\n'),raw=[],fn='',nn='',i,j,l,v,k;
+    for(i=0;i<phys.length;i++){l=phys[i];
+      if(/QUOTED-PRINTABLE/i.test(l))while(/=\s*$/.test(l)&&i+1<phys.length)l=l.replace(/=\s*$/,'')+phys[++i];
+      while(i+1<phys.length&&/^[ \t]/.test(phys[i+1]))l+=phys[++i].slice(1);
+      raw.push(l)}
+    for(j=0;j<raw.length;j++){l=raw[j];
+      m=/^(?:[\w\-]+\.)?(FN|N|TEL)((?:;[^:]*)?):(.*)$/i.exec(l.trim());if(!m)continue;
+      v=m[3].trim();if(/QUOTED-PRINTABLE/i.test(m[2]))v=qp(v);k=m[1].toUpperCase();
+      if(k==='TEL')add(v.replace(/^tel:/i,''));
+      else if(k==='FN'){if(!fn)fn=v}
+      else if(!nn)nn=v.split(';').map(function(x){return x.trim()}).filter(Boolean).join(' ')}
+    name=tidy((fn||nn).replace(/\\([,;])/g,'$1').replace(/\\n/gi,' '));
+  }else{
+    var re=/\+?\d[\d \t .\-()]{6,}\d/g;
+    while((m=re.exec(s))){
+      if(add(m[0]))hit.push(m[0]);
+      else m[0].split(/[ \t ]+/).forEach(function(w){if(add(w))hit.push(w)})}
+    rest=s;
+    hit.forEach(function(h){rest=rest.replace(new RegExp('(?:(?:^|[\\s,;:|(\\[])(?:'+LB+')(?=[\\s:.\\-–])\\s*[:.\\-–]?\\s*)?'+reE(h),'i'),'\n')});
+    name=rest.split('\n').map(tidy).filter(Boolean)[0]||'';
+  }
+  if(name.length>50||!/[A-Za-zÀ-ỹ]/.test(name))name='';
+  return{name:name,tels:tels.slice(0,8)};
+}
+
+/* ── giao diện: nút 📋 + khung sao chép ngay dưới nút 📇 trong bảng ➕ Thêm khách hàng ── */
+function noi(m){try{window.SKMOD.core.toast(m);return}catch(e){}try{if(typeof window.toast==='function')window.toast(m)}catch(e){}}
+function sang(ids){setTimeout(function(){ids.forEach(function(id){var el=$(id);if(!el)return;el.classList.add('sn31-sang');setTimeout(function(){el.classList.remove('sn31-sang')},1800)})},30)}
+function khung(){return $('sn31-k')}
+function dangMo(){var k=khung(),m=$('modal-add-cust');return !!(k&&!k.hidden&&m&&m.classList.contains('active'))}
+function gan(){
+  var m=$('modal-add-cust');if(!m||m.querySelector('[data-sn31="dan"]'))return;
+  var b=m.querySelector('.btn-contact');if(!b||!b.parentNode)return;
+  var nut=document.createElement('button');nut.type='button';nut.className='btn-contact sn31-dan';nut.setAttribute('data-sn31','dan');nut.textContent='📋 Dán tên, số đã sao chép từ danh bạ';
+  var k=document.createElement('div');k.className='sn31-k';k.id='sn31-k';k.hidden=true;
+  b.parentNode.insertBefore(nut,b.nextSibling);nut.parentNode.insertBefore(k,nut.nextSibling);
+  nut.addEventListener('click',function(){moKhung('dan')});
+  k.addEventListener('click',bam);k.addEventListener('paste',dan,true);k.addEventListener('input',go,true);
+  /* mở lại bảng Thêm khách ⇒ khung sao chép đóng lại (bảng cũ xoá trắng các ô khi mở) */
+  try{var mo=m.classList.contains('active');new MutationObserver(function(){var a=m.classList.contains('active');if(a&&!mo)dong();mo=a}).observe(m,{attributes:true,attributeFilter:['class']})}catch(e){}
+}
+function dong(){var k=khung();S.tk++;if(!k)return;k.hidden=true;k.innerHTML=''}
+function bao(t,ok){var x=$('sn31-m');if(!x)return;x.innerHTML=t||'';x.className='sn31-m'+(t?(ok?' ok':' x'):'');x.hidden=!t}
+function xem(){var ta=$('sn31-t');if(!ta)return;if(!ta.value.trim()){bao('');return}var r=tach(ta.value);
+  if(r.tels.length)bao('Tìm thấy: '+esc([r.name,r.tels.join(' / ')].filter(Boolean).join(' · '))+(r.tels.length>1?' (nhiều số — bấm Lấy rồi chọn số)':' — bấm Lấy để điền'),true);
+  else if(r.name)bao('Không thấy số điện thoại. Bấm Lấy sẽ chỉ điền tên: '+esc(r.name));
+  else bao('Không thấy tên hay số điện thoại trong nội dung này.')}
+function diag(){var l=loi(),u=navigator.userAgent||'',m=/Chrome\/(\d+)/.exec(u);
+  return 'Máy: '+(/Android/i.test(u)?'Android':(/iP(hone|ad|od)/.test(u)?'iPhone':'máy tính'))+(PV?' '+PV:'')+' · Chrome: '+(m?m[1]:'không')+(S.got?' · Kết quả: '+S.got+(S.ms?' sau '+S.ms+' ms':'')+' · Trang bị che lúc chọn: '+(S.hid?'có':'không'):'')+' · Lỗi danh bạ của Chrome: '+(l?'đã gặp '+l.n+' lần':'chưa gặp')}
+/* mode: 'dan' bấm 📋 (đọc bộ nhớ ngay, hiện "Tìm thấy…", bấm Lấy) · 'loi' Chrome lỗi danh bạ · 'huy' danh bạ đóng mà chưa chọn ai · 'none' trình duyệt không có danh bạ · 'err' lỗi
+   Mọi kiểu trừ 'dan': ghi MỐC bộ nhớ sao chép lúc mở (không điền) — sang Danh bạ sao chép rồi quay lại ⇒ bộ nhớ đổi ⇒ tự điền */
+function moKhung(mode,err){
+  gan();var k=khung();if(!k)return;
+  S.mode=mode;S.base=undefined;S.left=false;S.busy=false;S.lai=0;var tk=++S.tk,dau='';
+  if(mode==='loi')dau='<div class="sn31-w">⚠️ Chrome trên điện thoại này đang lỗi: mở danh bạ, chọn người xong nhưng Chrome <b>không gửi tên, số về app</b>. Lỗi nằm ở Chrome bản mới (máy đời mới), trang web nào cũng bị, app không sửa được — phải chờ Google sửa. Trong lúc chờ: lấy bằng cách <b>sao chép</b>, app tự điền.</div>';
+  else if(mode==='huy')dau='<div class="sn31-w">Danh bạ đã đóng mà app chưa nhận được ai. Chạm vào <b>tên người</b> rồi bấm <b>Xong</b> (đừng bấm quay lại) — hoặc lấy bằng cách sao chép:</div>';
+  else if(mode==='none')dau='<div class="sn31-w">📇 Thiết bị/trình duyệt này chưa hỗ trợ chọn từ danh bạ (chỉ chạy trên điện thoại Android, mở app bằng Chrome). Lấy bằng cách sao chép bên dưới, hoặc gõ tay vào các ô bên dưới.</div>';
+  else if(mode==='err')dau='<div class="sn31-w">Không lấy được danh bạ'+(err&&err.message?' ('+esc(String(err.message).slice(0,140))+')':'')+'. Lấy bằng cách sao chép bên dưới, hoặc gõ tay.</div>';
+  k.innerHTML='<div class="sn31-hd"><b>📋 Lấy tên, số bằng cách sao chép</b><button type="button" class="sn31-x" data-sn31="dong" aria-label="Đóng">✕</button></div>'+dau+
+    '<ol class="sn31-ol"><li>Mở app <b>Danh bạ</b> của máy → chạm vào người cần lấy.</li><li>Lấy <b>cả tên + số</b>: bấm <b>Chia sẻ</b> → chọn <b>Văn bản</b> → bấm <b>Sao chép</b>.<br>Chỉ lấy <b>số</b>: <b>chạm giữ vào số điện thoại</b> → <b>Sao chép</b>.</li><li>Quay lại đây: app <b>tự điền</b> ô Tên khách hàng và Số điện thoại. Lần đầu máy hỏi cho xem nội dung đã sao chép → bấm <b>Cho phép</b>.</li></ol>'+
+    '<textarea id="sn31-t" rows="2" placeholder="App không tự điền thì chạm vào đây → Dán (dán xong là điền luôn)"></textarea>'+
+    '<div class="sn31-m" id="sn31-m" hidden></div>'+
+    '<div class="sn31-r"><button type="button" data-sn31="doc">📋 Dán từ bộ nhớ máy</button><button type="button" class="sn31-p" data-sn31="lay">Lấy</button></div>'+
+    (mode==='loi'||mode==='huy'?'<div class="sn31-r"><button type="button" data-sn31="lai">📇 '+(mode==='loi'?'Thử lại danh bạ của Chrome':'Mở lại danh bạ')+'</button></div>':'')+
+    (mode==='loi'?'<div class="sn31-d">Thông tin máy: '+esc(diag())+'</div>':'');
+  k.hidden=false;
+  try{k.scrollIntoView({block:'nearest'})}catch(e){}
+  if(mode==='dan')doc(tk,'mo');else if(an())S.left=true;else doc(tk,'goc');
+}
+function docBN(){
+  return new Promise(function(res,rej){
+    var c=null;try{c=navigator.clipboard}catch(e){}
+    if(!c||typeof c.readText!=='function'){rej({name:'NOAPI'});return}
+    var p;try{p=c.readText()}catch(e){p=Promise.reject(e)}
+    Promise.resolve(p).then(function(t){res(String(t==null?'':t))},function(e){rej(e||{name:'NOREAD'})});
+  });
+}
+/* why: 'mo' bấm 📋 · 'goc' ghi mốc (không điền) · 'tay' bấm "Dán từ bộ nhớ máy" · 've' vừa quay lại app */
+function doc(tk,why){
+  if(why==='ve'&&S.busy)return;S.busy=true;
+  docBN().then(function(t){S.busy=false;if(tk===S.tk&&$('sn31-t'))co(t,why)},function(e){
+    S.busy=false;if(tk!==S.tk||!$('sn31-t'))return;var noapi=e&&e.name==='NOAPI';
+    if(why==='ve'&&!noapi&&S.lai<2){S.lai++;setTimeout(function(){if(tk===S.tk&&!an())doc(tk,'ve')},700);return}
+    if(S.base===undefined)S.base=null;if(why==='goc')return;
+    bao((noapi?'Trình duyệt này không cho app đọc bộ nhớ sao chép':'Máy chưa cho app đọc bộ nhớ sao chép')+' — chạm vào ô trên → <b>Dán</b> (dán xong là điền luôn).');
+  });
+}
+function co(t,why){
+  var ta=$('sn31-t');
+  if(why==='goc'||(why==='ve'&&S.base===undefined)){S.base=t;if(why==='ve')bao('Sang app Danh bạ sao chép tên, số rồi quay lại đây — app tự điền.',true);return}
+  if(why==='ve'&&typeof S.base==='string'&&t===S.base){bao('Chưa thấy tên, số mới được sao chép. Sang app Danh bạ → Sao chép rồi quay lại đây.');return}
+  var moi=why==='ve'&&typeof S.base==='string';S.base=t;   /* bộ nhớ vừa đổi so với mốc đã biết ⇒ đúng cái người dùng vừa sao chép */
+  if(!t.trim()){bao(why==='mo'?'Bộ nhớ máy đang trống — sang app Danh bạ sao chép tên, số rồi quay lại đây (app tự điền).':'Bộ nhớ sao chép đang trống.');return}
+  ta.value=t;xem();var r=tach(t);if((moi||why==='tay')&&r.tels.length)dung(r);
+}
+function dung(r){if(r.tels.length>1){chonSo(r.name,r.tels);return}dien(r.name,r.tels[0]||'')}
+function dien(name,tel){var n=$('new-name'),p=$('new-phone');if(name&&n)n.value=name;if(tel&&p)p.value=tel;dong();
+  sang(['new-name','new-phone']);
+  var thieuTen=!!(tel&&!name&&n&&!n.value.trim());
+  noi('Đã lấy: '+[name,tel].filter(Boolean).join(' · ')+(thieuTen?' — gõ tên khách vào ô Tên':''));
+  try{if(thieuTen)n.focus()}catch(e){}
+}
+function chonSo(name,tels){var k=khung();if(!k)return;S.tk++;S.ten=name;S.so=tels;
+  k.innerHTML='<div class="sn31-hd"><b>'+esc(name||'Người này')+' có '+tels.length+' số — chọn số ghi vào sổ</b><button type="button" class="sn31-x" data-sn31="dong" aria-label="Đóng">✕</button></div><div class="sn31-r">'+tels.map(function(t,i){return'<button type="button" data-sn31="so" data-i="'+i+'">'+esc(t)+'</button>'}).join('')+'</div>';
+  k.hidden=false}
+function lay(){var ta=$('sn31-t');if(!ta)return;var r=tach(ta.value);
+  if(!r.name&&!r.tels.length){bao(ta.value.trim()?'Không thấy tên hay số điện thoại trong nội dung này.':'Ô đang trống — bấm 📋 Dán từ bộ nhớ máy, hoặc chạm vào ô → Dán.');return}
+  dung(r)}
+function bam(e){var b=e.target&&e.target.closest?e.target.closest('[data-sn31]'):null;if(!b)return;var a=b.getAttribute('data-sn31');
+  if(a==='dong')dong();
+  else if(a==='doc')doc(S.tk,'tay');
+  else if(a==='lay')lay();
+  else if(a==='lai'){dong();chon(true)}
+  else if(a==='so'){var t=S.so[+b.getAttribute('data-i')];if(t)dien(S.ten,t)}}
+/* dán vào ô: thay hẳn nội dung ô bằng chữ vừa dán rồi điền luôn · gợi ý bộ nhớ của bàn phím dán cả số một lần cũng điền luôn */
+function dan(e){var t=e.target;if(!t||t.id!=='sn31-t')return;var s='';try{s=(e.clipboardData||window.clipboardData).getData('text')}catch(x){s=''}
+  if(s){e.preventDefault();t.value=s}
+  setTimeout(function(){var ta=$('sn31-t');if(!ta)return;xem();var r=tach(ta.value);if(r.tels.length)dung(r)},0)}
+function go(e){var t=e.target;if(!t||t.id!=='sn31-t')return;var it=e.inputType||'',d=typeof e.data==='string'?e.data:'';
+  if(it==='insertFromPaste'||it==='insertFromDrop'||d.replace(/\D/g,'').length>=8)setTimeout(function(){var ta=$('sn31-t');if(!ta)return;var r=tach(ta.value);if(r.tels.length)dung(r)},0);
+  else xem()}
+/* trang vừa hiện lại: khung sao chép đang mở mà người dùng đã rời app (sang Danh bạ) ⇒ đọc bộ nhớ sao chép */
+function ve(){if(!dangMo()||!$('sn31-t'))return;if(an()){S.left=true;S.lai=0;return}if(!S.left)return;S.left=false;var tk=S.tk;setTimeout(function(){if(tk===S.tk&&!an())doc(tk,'ve')},250)}
+document.addEventListener('visibilitychange',ve);window.addEventListener('focus',ve);window.addEventListener('pageshow',ve);
+
+/* ── nút 📇: chọn từ danh bạ của Chrome; nhận ra lỗi của Chrome ⇒ khung sao chép. force: bấm "Thử lại danh bạ" / "Mở lại danh bạ" ── */
+function chon(force){
+  var ok=false;try{ok=('contacts' in navigator)&&('ContactsManager' in window)&&!!navigator.contacts&&typeof navigator.contacts.select==='function'}catch(e){ok=false}
+  if(!ok){moKhung('none');return}
+  if(!force&&loi()){moKhung('loi');return}   /* máy này đã gặp lỗi danh bạ của Chrome (đúng bản Chrome đang dùng): vào thẳng cách sao chép */
+  var t0=Date.now();S.hid=an();S.got='';S.ms=0;
+  /* rỗng / bị huỷ: trang bị che lúc đang chọn, hoặc trả rỗng ngay (dưới 1,5 giây) = Chrome tự huỷ ⇒ ghi nhận lỗi. Đợi 350 ms cho tin "trang bị che" kịp tới */
+  function rong(why,nhanh){S.ms=Date.now()-t0;S.got=why;
+    setTimeout(function(){var hid=S.hid||an();
+      if(hid||(nhanh&&S.ms<1500)){loiGhi(hid?'che':'nhanh');moKhung('loi')}
+      else moKhung('huy')},350)}
+  var p;try{p=navigator.contacts.select(['name','tel'],{multiple:false})}catch(e){p=Promise.reject(e)}
+  Promise.resolve(p).then(function(sel){
+    if(!sel||!sel.length){rong('rỗng (chưa chọn ai)',true);return}
+    S.ms=Date.now()-t0;S.got='có người được chọn';loiXoa();   /* danh bạ của Chrome chạy được ⇒ bỏ ghi nhận lỗi */
+    var c=sel[0]||{},name=(c.name&&c.name.length)?String(c.name[0]).trim():'',tel=(c.tel&&c.tel.length)?telSN(c.tel[0]):'';
+    var n=$('new-name'),q=$('new-phone');
+    if(name&&n)n.value=name;
+    if(tel&&q)q.value=tel;
+    if(!name&&!tel){alert('Danh bạ này không có tên/số. Bạn nhập tay giúp nhé.');return}
+    dong();sang(['new-name','new-phone']);
+  },function(err){
+    if(err&&err.name==='AbortError'){rong('huỷ (AbortError)',false);return}
+    S.ms=Date.now()-t0;S.got='lỗi';moKhung('err',err);
+  });
+}
+/* thay hàm cũ: nút 📇 gọi pickFromContacts() ⇒ luôn ra bản này, dù khối chính (module, chạy sau) có gán lại window.pickFromContacts */
+var goc=window.pickFromContacts;
+try{Object.defineProperty(window,'pickFromContacts',{configurable:true,enumerable:true,get:function(){return chon},set:function(v){goc=v;window.__SN31_PICK_GOC=v}})}catch(e){try{window.pickFromContacts=chon}catch(x){}}
+if(typeof goc==='function')window.__SN31_PICK_GOC=goc;
+window.SN31_DANHBA={ver:'SN31',tach:tach,loi:loi,moKhung:moKhung};
+gan();
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',gan);
+setTimeout(gan,800);setTimeout(gan,2500);
+
+}catch(e){ try{ console.warn('[SN31] khối danh bạ lỗi — nút 📇 vẫn chạy như cũ', e); }catch(_){} }
+})();
+</script>
+<!-- ═══════════════ HẾT: [SN31] 📇 DANH BẠ ═══════════════ -->
 </body>
 </html>
