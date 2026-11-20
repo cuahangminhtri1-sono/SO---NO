@@ -527,7 +527,7 @@
       <button class="rn-tab on" id="rn-tab-sono" onclick="setRenewKind('sono')">📒 Sổ Nợ</button>
       <button class="rn-tab" id="rn-tab-pos" onclick="setRenewKind('pos')">🛒 Bán hàng (POS)</button>
     </div>
-    <div class="settings-note" id="rn-topnote">Chọn số tháng rồi quét QR để chuyển khoản. <b>Nội dung chuyển khoản chính là email của bạn</b> nên chủ phần mềm sẽ biết và kích hoạt đúng tài khoản.</div>
+    <div class="settings-note" id="rn-topnote">Chọn số tháng rồi quét QR để chuyển khoản. <b>Nội dung chuyển khoản chính là SEVQR + email của bạn</b> nên chủ phần mềm sẽ biết và kích hoạt đúng tài khoản.</div>
     <div id="rn-exp" class="rn-exp-box"></div>
     <div class="rn-months">
       <button class="rn-m on" data-m="1" onclick="setRenewMonths(1)">1 tháng</button>
@@ -758,7 +758,7 @@ import { getFirestore, initializeFirestore, persistentLocalCache, persistentMult
 import { getStorage, ref as _sref, uploadBytes, getDownloadURL, deleteObject, listAll }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
 
-const APP_BUILD = "2026-11-20-SN33"; // ⬆️ ĐỔI MỖI LẦN DEPLOY (đặt TRÙNG tên cache trong sw.js) — hiện ở ⚙️ Cài đặt để biết máy đã chạy bản mới chưa
+const APP_BUILD = "2026-11-20-SN34"; // ⬆️ ĐỔI MỖI LẦN DEPLOY (đặt TRÙNG tên cache trong sw.js) — hiện ở ⚙️ Cài đặt để biết máy đã chạy bản mới chưa
 const firebaseConfig = {
   apiKey: "AIzaSyA_kjQ-CdASRkf50Glz3kQajlkD5qGWC4k",
   authDomain: "so-no-cc57a.firebaseapp.com",
@@ -2491,8 +2491,8 @@ function buildRenew(){
    if(_rb)_rb.textContent = thangTang(12)>0 ? ('🎁 TẶNG '+thangTang(12)+' THÁNG') : '📅 GÓI NĂM';}
   const note=document.getElementById('rn-topnote');
   if(note)note.innerHTML=isPos
-    ?'Gia hạn <b>gói Bán hàng (POS)</b>: chọn số tháng rồi quét QR. <b>Nội dung CK đã điền sẵn email của bạn kèm chữ POS</b> để chủ phần mềm mở đúng gói.'
-    :'Gia hạn <b>Sổ Nợ</b>: chọn số tháng rồi quét QR. <b>Nội dung chuyển khoản chính là email của bạn</b> nên chủ phần mềm sẽ biết và kích hoạt đúng tài khoản.';
+    ?'Gia hạn <b>gói Bán hàng (POS)</b>: chọn số tháng rồi quét QR. <b>Nội dung CK đã điền sẵn SEVQR + email của bạn kèm chữ POS</b> để chủ phần mềm mở đúng gói.'
+    :'Gia hạn <b>Sổ Nợ</b>: chọn số tháng rồi quét QR. <b>Nội dung chuyển khoản chính là SEVQR + email của bạn</b> nên chủ phần mềm sẽ biết và kích hoạt đúng tài khoản.';
   if(LA_NV){
     /* [VÁ QT4] Trước đây máy nhân viên mở màn này là ghi đơn dưới UID NHÂN VIÊN và mã QR mang email nhân viên:
        khách chuyển tiền xong, chủ phần mềm duyệt nhầm vào tài khoản nhân viên, cửa hàng vẫn bị khoá. */
@@ -2507,7 +2507,7 @@ function buildRenew(){
     box.innerHTML='<div style="background:#fff3cd;border:1px solid #ffe08a;border-radius:10px;padding:14px;color:#8a6d00;font-size:.9em;line-height:1.5">Chủ phần mềm chưa cấu hình tài khoản nhận tiền gia hạn.<br>Vui lòng liên hệ trực tiếp để gia hạn. (Nếu bạn là chủ phần mềm: cấu hình trong app Quản trị.)</div>';
     if(isPos)logPosRequest(renewMonths,total); else logRenewRequest(renewMonths,total); return;
   }
-  const info=isPos?(email+' POS'):email;
+  const info='SEVQR '+(isPos?(email+' POS'):email);   /* [SN34] VietinBank chỉ báo cho SePay khi nội dung CK bắt đầu bằng SEVQR (đơn vẫn lưu noiDung cũ) */
   const accent=isPos?'#0a5f4a':'#c0392b';
   const qrUrl='https://img.vietqr.io/image/'+bank.bin+'-'+bank.account+'-compact2.png?amount='+total+'&addInfo='+encodeURIComponent(info)+'&accountName='+encodeURIComponent(bank.accName||'');
   box.innerHTML=
@@ -2586,7 +2586,7 @@ window.snMuaGoi=function(o){
     }catch(e){ console.warn('snMuaGoi',e&&e.code); if(daCK||baoRieng)toast('❌ Chưa gửi được — kiểm tra mạng rồi bấm lại'); }
   }
   function ve(){
-    var unit=gia(), total=giaGiaHan(unit,thang), bank=renewBank(), mail=(auth.currentUser&&auth.currentUser.email)||'', noi=mail+' '+app, body='';
+    var unit=gia(), total=giaGiaHan(unit,thang), bank=renewBank(), mail=(auth.currentUser&&auth.currentUser.email)||'', noi='SEVQR '+mail+' '+app, body='';
     var hop='border-radius:10px;padding:12px;font-size:.9em;line-height:1.55;margin-bottom:8px;';
     if(LA_NV) body='<div style="'+hop+'background:#eef6ff;border:1px solid #bcd7f5;color:#1d4e89">📱 Đây là <b>máy nhân viên</b>. Gói phải mua trên máy của <b>chủ shop</b> để tiền và hạn ghi đúng cửa hàng.</div>';
     else if(!(unit>0)) body='<div style="'+hop+'background:#fff3cd;border:1px solid #ffe08a;color:#8a6d00">Chủ phần mềm chưa đặt giá gói này. Gọi <b>'+snHotTxt()+'</b> để được mở gói.</div>';
@@ -7449,7 +7449,7 @@ function skCnRenderUpsell(fromSwitch){
   }else{
     var qrBlock='';
     if(bank){
-      var info=email+' '+(CN_NOIDUNG[skCnMa]||'CN')+_cnWantQty;
+      var info='SEVQR '+email+' '+(CN_NOIDUNG[skCnMa]||'CN')+_cnWantQty;
       var qrUrl='https://img.vietqr.io/image/'+bank.bin+'-'+bank.account+'-compact2.png?amount='+total+'&addInfo='+encodeURIComponent(info)+'&accountName='+encodeURIComponent(bank.accName||'');
       qrBlock='<div class="cn-qrbox"><img class="cn-qr-img" src="'+qrUrl+'" alt="QR mua chi nhánh"><div class="cn-qrlab">Quét bằng app ngân hàng — số tiền &amp; nội dung điền sẵn</div></div>'
         +'<div class="cn-info">'
@@ -8124,7 +8124,7 @@ async function skDiag(){
     var bankHtml=bank?('<div style="background:#f0f7f4;border:1px solid #d6e9e1;border-radius:10px;padding:11px 13px;font-size:13.5px;line-height:1.7;margin:10px 0">'
         +'<div style="font-weight:700;color:#0a5f4a;margin-bottom:4px">Chuyển khoản nâng cấp</div>'
         +'Ngân hàng: <b>'+escHtml(bank.bankName||'')+'</b><br>Số TK: <b>'+escHtml(bank.account)+'</b><br>Chủ TK: <b>'+escHtml(bank.accName||'')+'</b><br>'
-        +'<span style="color:#6b7872">Ghi <b>email của bạn + chữ POS</b> trong nội dung CK để chủ phần mềm duyệt đúng gói (hoặc bấm nút quét QR bên dưới để điền sẵn).</span></div>')
+        +'<span style="color:#6b7872">Ghi <b>SEVQR + email của bạn + chữ POS</b> trong nội dung CK để chủ phần mềm duyệt đúng gói (hoặc bấm nút quét QR bên dưới để điền sẵn).</span></div>')
       :'<div style="font-size:13px;color:#6b7872;margin:8px 0">Vui lòng liên hệ chủ phần mềm để nâng cấp gói Bán hàng.</div>';
     el.style.cssText='position:fixed;inset:0;z-index:4000;background:rgba(8,18,15,.55);display:flex;align-items:center;justify-content:center;padding:18px;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif';
     el.innerHTML='<div style="background:#fff;border-radius:18px;max-width:380px;width:100%;padding:22px 20px;box-shadow:0 20px 60px rgba(0,0,0,.3)">'
@@ -15349,8 +15349,8 @@ Cần dùng cả hai thì mua cả hai gói.</li>
 <li>Chuyển xong, quay lại app, <b>kéo xuống ngay dưới mã QR</b> và bấm nút xanh <b>✅ Tôi đã chuyển khoản</b>. App báo ngay cho chủ phần mềm biết để mở hạn nhanh hơn. Sau đó chờ được kích hoạt.</li>
 </ol>
 <div class="snai-ok">🎁 <b>Mua gói năm là lợi nhất</b> — được tặng thêm tháng (số tháng tặng hiện ngay trong màn Gia hạn).</div>
-<div class="snai-tip">💡 <b>Nội dung chuyển khoản chính là email của bạn</b> — app đã điền sẵn vào trong mã QR rồi, cứ quét là đúng, <b>không cần gõ thêm gì</b>. Chủ phần mềm nhìn email là biết kích hoạt đúng tài khoản nào.</div>
-<div class="snai-warn">⚠️ Nếu bạn tự gõ tay số tài khoản thay vì quét QR thì <b>nhớ ghi email của bạn vào phần nội dung</b>, nếu không sẽ không biết tiền đó của ai.</div>`},
+<div class="snai-tip">💡 <b>Nội dung chuyển khoản chính là SEVQR + email của bạn</b> — app đã điền sẵn vào trong mã QR rồi, cứ quét là đúng, <b>không cần gõ thêm gì</b>. Chủ phần mềm nhìn email là biết kích hoạt đúng tài khoản nào.</div>
+<div class="snai-warn">⚠️ Nếu bạn tự gõ tay số tài khoản thay vì quét QR thì <b>nhớ ghi SEVQR + email của bạn vào phần nội dung</b>, nếu không sẽ không biết tiền đó của ai.</div>`},
 
 {c:'bd',t:'Tài khoản hết hạn / bị khóa',k:'het han khoa tai khoan khong vao duoc can kich hoat man hinh do',
 a:`<b class="snai-h">🔒 Tài khoản chưa kích hoạt / hết hạn</b>
@@ -24209,10 +24209,10 @@ try{
    +'<li>Máy chủ tự mở thì thường kèm thanh <b>📢 ✅ Đã nhận … — … mở tới … Cảm ơn bạn!</b></li>'
    +'<li>Gói <b>🛒 Bán hàng (POS)</b> hoặc gói ngành: bấm mở lại màn đó là dùng được.</li></ul>'
    +'<b>⚡ Để được mở nhanh nhất:</b><ol>'
-   +'<li>Vào <b>💳 Gia hạn</b> trong app, chọn gói + số tháng rồi <b>quét đúng mã QR trên màn đó</b> — nội dung chuyển khoản là email của bạn, app đã điền sẵn.</li>'
+   +'<li>Vào <b>💳 Gia hạn</b> trong app, chọn gói + số tháng rồi <b>quét đúng mã QR trên màn đó</b> — nội dung chuyển khoản là SEVQR + email của bạn, app đã điền sẵn.</li>'
    +'<li>Chuyển <b>đúng số tiền</b> hiện trên màn. Mỗi gói một lần chuyển — đừng gộp 2 gói chung một lần.</li>'
    +'<li>Chuyển xong bấm nút xanh <b>✅ Tôi đã chuyển khoản</b> ngay dưới mã QR.</li></ol>'
-   +'<div class="snai-warn">⚠️ Gõ tay số tài khoản mà <b>quên ghi email</b>, sửa nội dung, hoặc chuyển sai số tiền ⇒ máy chủ <b>không tự mở được</b>, chủ phần mềm phải dò tay — lâu hơn.</div>'
+   +'<div class="snai-warn">⚠️ Gõ tay số tài khoản mà <b>quên ghi SEVQR + email</b>, sửa nội dung, hoặc chuyển sai số tiền ⇒ máy chủ <b>không tự mở được</b>, chủ phần mềm phải dò tay — lâu hơn.</div>'
    +'<b>⏳ Quá 15 phút vẫn chưa mở:</b><ol>'
    +'<li>Nhắn chủ phần mềm ngay trong app: ở màn đỏ bấm dòng <b>💬 Nhắn chủ phần mềm</b>; đang trong app thì <b>☰ → 💬 Hỏi · báo lỗi cho chủ phần mềm</b>. Ghi <b>giờ chuyển</b>, <b>số tiền</b>, <b>ngân hàng</b>.</li>'
    +'<li>Gấp thì gọi / Zalo <b>0977823979</b>, gửi kèm ảnh chụp biên lai.</li></ol>'
@@ -26200,7 +26200,7 @@ window.AIB={ hoi:function(t){ try{ M.go('aib'); }catch(e){} setTimeout(function(
     }else{
       var qr='';
       if(BANK){
-        var noi=(email?email+' ':'')+m.lic;
+        var noi='SEVQR '+(email?email+' ':'')+m.lic;
         var url='https://img.vietqr.io/image/'+BANK.bin+'-'+BANK.account+'-compact2.png?amount='+total+'&addInfo='+encodeURIComponent(noi)+'&accountName='+encodeURIComponent(BANK.accName||'');
         qr='<div class="m-qr"><img src="'+url+'" alt="QR mua gói ngành"><div class="m-qrlab">Quét bằng app ngân hàng — số tiền &amp; nội dung điền sẵn</div></div>'
           +'<div class="m-info">'
@@ -26465,7 +26465,7 @@ if (window.__RMT_READY__) return; window.__RMT_READY__ = true;
 try{
 
 /* ĐỔI CHUỖI NÀY CHO TRÙNG APP_BUILD MỖI LẦN DEPLOY (chỉ để hiện ở bảng quản trị) */
-var BUILD = '2026-11-20-SN33';
+var BUILD = '2026-11-20-SN34';
 var NHIP   = 6*3600*1000;          /* báo về tối đa 6 giờ 1 lần — khỏi tốn lượt ghi */
 var KEY_HB = 'rmt_hb_v2';          /* [QT7] nhịp báo về tính RIÊNG từng tài khoản (bản v1 tính chung cả máy) */
 var KEY_XEM= 'rmt_xem_v1';
